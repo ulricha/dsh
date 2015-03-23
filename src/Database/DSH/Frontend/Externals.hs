@@ -20,6 +20,7 @@ import           Data.String
 import           Data.Text                        (Text)
 import qualified Data.Text                        as T
 import           Data.Time.Calendar               (Day)
+import           Data.List.NonEmpty               (NonEmpty)
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Frontend.Builtins
@@ -313,8 +314,8 @@ instance IsString (Q Text) where
 
 -- * Referring to persistent tables
 
-defaultHints :: TableHints
-defaultHints = TableHints [] PossiblyEmpty
+defaultHints :: NonEmpty Key -> TableHints
+defaultHints keys = TableHints keys PossiblyEmpty
 
 table :: (QA a, TA a) => String -> [ColName] -> TableHints -> Q [a]
 table name schema hints = Q (TableE (TableDB name schema hints))

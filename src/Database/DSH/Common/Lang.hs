@@ -76,7 +76,7 @@ $(deriveJSON defaultOptions ''Emptiness)
 
 -- | Catalog information hints that users may give to DSH
 data TableHints = TableHints
-    { keysHint     :: [Key]
+    { keysHint     :: (N.NonEmpty Key)
     , nonEmptyHint :: Emptiness
     } deriving (Eq, Ord, Show)
 

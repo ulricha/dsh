@@ -13,6 +13,7 @@ import           Data.Text                        (Text)
 import           Data.Time.Calendar               (Day)
 import           Text.PrettyPrint.ANSI.Leijen
 import           Data.Decimal
+import           Data.List.NonEmpty               (NonEmpty)
 
 import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.TupleTypes
@@ -118,7 +119,7 @@ type ColName = String
 
 -- | Catalog information hints that users may give to DSH
 data TableHints = TableHints
-    { keysHint     :: [Key]
+    { keysHint     :: NonEmpty Key
     , nonEmptyHint :: Emptiness
     } deriving (Eq, Ord, Show)
 

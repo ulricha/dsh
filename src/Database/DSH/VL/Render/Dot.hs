@@ -65,13 +65,6 @@ renderData xs = (flip (<>) semi . sep . punctuate semi . map renderRow) xs
 renderRow :: [ScalarVal] -> Doc
 renderRow = hcat . punctuate comma . map pretty
 
-escape :: String -> String
-escape (x@'\\':xs) = '\\':'\\':'\\':x:escape xs
-escape (x@'\'':xs) = '\\':x:escape xs
-escape (x@'"':xs) = '\\':'\\':x:escape xs
-escape (x:xs) = x:escape xs
-escape [] = []
-
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
 
@@ -88,14 +81,11 @@ renderEmptiness :: Emptiness -> Doc
 renderEmptiness NonEmpty      = text " NONEMPTY"
 renderEmptiness PossiblyEmpty = empty
 
-renderTableKeys :: [Key] -> Doc
-renderTableKeys [x]    = renderTableKey x
-renderTableKeys (x:xs) = renderTableKey x <$> renderTableKeys xs
-renderTableKeys []     = empty
-
+renderTableKeys :: N.NonEmpty Key -> Doc
+renderTableKeys = list . map renderTableKey . N.toList
 
 renderTableKey :: Key -> Doc
-renderTableKey (Key ks) = hsep $ punctuate comma $ map renderColName ks
+renderTableKey (Key ks) = list $ map renderColName ks
 
 renderProj :: Doc -> Expr -> Doc
 renderProj d e = d <> colon <> renderExpr e

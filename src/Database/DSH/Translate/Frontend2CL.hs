@@ -9,20 +9,20 @@ module Database.DSH.Translate.Frontend2CL
     ( toComprehensions
     ) where
 
-import           Database.DSH.Common.Impossible
+import           Control.Applicative
+import           Control.Monad.State
+import           Data.Text                       (unpack)
+import qualified Data.List.NonEmpty              as N
 
+import           Database.DSH.Common.Impossible
 import qualified Database.DSH.CL.Lang            as CL
 import qualified Database.DSH.CL.Primitives      as CP
 import qualified Database.DSH.Common.Lang        as L
 import qualified Database.DSH.Common.Type        as T
-
-import           Data.Text                       (unpack)
 import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.TupleTypes
 import           Database.DSH.Frontend.Internals
 
-import           Control.Applicative
-import           Control.Monad.State
 
 -- In the state, we store a counter for fresh variable names.
 type CompileState = Integer
@@ -97,8 +97,8 @@ compileHints hints = L.TableHints { L.keysHint = keys $ keysHint hints
                                   , L.nonEmptyHint = ne $ nonEmptyHint hints
                                   }
   where
-    keys :: [Key] -> [L.Key]
-    keys ks = [ L.Key [ L.ColName c | c <- k ] | Key k <- ks ]
+    keys :: N.NonEmpty Key -> N.NonEmpty L.Key
+    keys = fmap (\(Key k) -> L.Key $ map L.ColName k)
 
     ne :: Emptiness -> L.Emptiness
     ne NonEmpty      = L.NonEmpty
