@@ -28,51 +28,51 @@ import           Database.DSH.VL.VectorAlgebra
 
 -- | A layer on top of the DAG builder monad that caches the
 -- translation result of VL nodes.
-type VecBuild a v = StateT (M.Map AlgNode (Res v)) (B.Build a)
+type VecBuild a d p r = StateT (M.Map AlgNode (Res d p r)) (B.Build a)
 
 runVecBuild :: VectorAlgebra a
-            => VecBuild a (DVec a) r
+            => VecBuild a (DVec a) (PVec a) (RVec a) r
             -> (D.AlgebraDag a, r, NodeMap [Tag])
 runVecBuild c = B.runBuild $ fst <$> runStateT c M.empty
 
-data Res v = Prop    AlgNode
-           | Rename  AlgNode
-           | RDVec   v
-           | RLPair   (Res v) (Res v)
-           | RTriple (Res v) (Res v) (Res v)
+data Res d p r = RPVec p
+               | RRVec r
+               | RDVec d
+               | RLPair (Res d p r) (Res d p r)
+               | RTriple (Res d p r) (Res d p r) (Res d p r)
          deriving Show
 
-fromDict :: VectorAlgebra a => AlgNode -> VecBuild a v (Maybe (Res v))
+fromDict :: VectorAlgebra a => AlgNode -> VecBuild a d p r (Maybe (Res d p r))
 fromDict n = do
     dict <- get
     return $ M.lookup n dict
 
-insertTranslation :: VectorAlgebra a => AlgNode -> Res v -> VecBuild a v ()
+insertTranslation :: VectorAlgebra a => AlgNode -> Res d p r -> VecBuild a d p r ()
 insertTranslation n res = modify (M.insert n res)
 
-fromPVec :: PVec -> Res v
-fromPVec (PVec p) = Prop p
+fromPVec :: p -> Res d p r
+fromPVec p = RPVec p
 
-toPVec :: Res v -> PVec
-toPVec (Prop p) = PVec p
-toPVec _       = error "toPVec: Not a prop vector"
+toPVec :: Res d p r -> p
+toPVec (RPVec p) = p
+toPVec _         = error "toPVec: Not a prop vector"
 
-fromRVec :: RVec -> Res v
-fromRVec (RVec r) = Rename r
+fromRVec :: r -> Res d p r
+fromRVec r = RRVec r
 
-toRVec :: Res v -> RVec
-toRVec (Rename r) = RVec r
-toRVec _          = error "toRVec: Not a rename vector"
+toRVec :: Res d p r -> r
+toRVec (RRVec r) = r
+toRVec _         = error "toRVec: Not a rename vector"
 
-fromDVec :: v -> Res v
+fromDVec :: d -> Res d p r
 fromDVec v = RDVec v
 
-toDVec :: Res v -> v
+toDVec :: Res d p r -> d
 toDVec (RDVec v) = v
 toDVec _         = error "toDVec: Not a NDVec"
 
 -- | Refresh vectors in a shape from the cache.
-refreshShape :: VectorAlgebra a => Shape VLDVec -> VecBuild a v (Shape v)
+refreshShape :: VectorAlgebra a => Shape VLDVec -> VecBuild a d p r (Shape d)
 refreshShape shape = T.mapM refreshVec shape
   where
     refreshVec (VLDVec n) = do
@@ -84,7 +84,7 @@ refreshShape shape = T.mapM refreshVec shape
 translate :: VectorAlgebra a
           => NodeMap V.VL
           -> AlgNode
-          -> VecBuild a (DVec a) (Res (DVec a))
+          -> VecBuild a (DVec a) (PVec a) (RVec a) (Res (DVec a) (PVec a) (RVec a))
 translate vlNodes n = do
     r <- fromDict n
 
@@ -124,7 +124,7 @@ pp m = intercalate ",\n" $ map show $ IM.toList m
 vl2Algebra :: VectorAlgebra a
            => NodeMap V.VL
            -> Shape VLDVec
-           -> VecBuild a (DVec a) (Shape (DVec a))
+           -> VecBuild a (DVec a) (PVec a) (RVec a) (Shape (DVec a))
 vl2Algebra vlNodes plan = do
     mapM_ (translate vlNodes) roots
 
@@ -135,10 +135,10 @@ vl2Algebra vlNodes plan = do
 
 translateTerOp :: VectorAlgebra a
                => V.TerOp
-               -> Res (DVec a)
-               -> Res (DVec a)
-               -> Res (DVec a)
-               -> B.Build a (Res (DVec a))
+               -> Res (DVec a) (PVec a) (RVec a)
+               -> Res (DVec a) (PVec a) (RVec a)
+               -> Res (DVec a) (PVec a) (RVec a)
+               -> B.Build a (Res (DVec a) (PVec a) (RVec a))
 translateTerOp t c1 c2 c3 =
     case t of
         V.Combine -> do
@@ -147,9 +147,9 @@ translateTerOp t c1 c2 c3 =
 
 translateBinOp :: VectorAlgebra a
                => V.BinOp
-               -> Res (DVec a)
-               -> Res (DVec a)
-               -> B.Build a (Res (DVec a))
+               -> Res (DVec a) (PVec a) (RVec a)
+               -> Res (DVec a) (PVec a) (RVec a)
+               -> B.Build a (Res (DVec a) (PVec a) (RVec a))
 translateBinOp b c1 c2 = case b of
     V.DistLift -> do
         (v, p) <- vecDistLift (toDVec c1) (toDVec c2)
@@ -253,8 +253,8 @@ translateBinOp b c1 c2 = case b of
 
 translateUnOp :: VectorAlgebra a
               => V.UnOp
-              -> Res (DVec a)
-              -> B.Build a (Res (DVec a))
+              -> Res (DVec a) (PVec a) (RVec a)
+              -> B.Build a (Res (DVec a) (PVec a) (RVec a))
 translateUnOp unop c = case unop of
     V.AggrNonEmptyS a  -> fromDVec <$> vecAggrNonEmptyS a (toDVec c)
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
@@ -319,7 +319,7 @@ translateUnOp unop c = case unop of
 
 translateNullary :: VectorAlgebra a
                  => V.NullOp
-                 -> B.Build a (Res (DVec a))
+                 -> B.Build a (Res (DVec a) (PVec a) (RVec a))
 translateNullary V.SingletonDescr          = fromDVec <$> singletonDescr
 translateNullary (V.Lit (_, tys, vals))    = fromDVec <$> vecLit tys vals
 translateNullary (V.TableRef (n, schema))  = fromDVec <$> vecTableRef n schema

@@ -785,7 +785,7 @@ unwrapShape (SShape q lyt) = (SShape, q, lyt)
 -- | chainRenameFilter renames and filters a vector according to a rename vector
 -- and propagates these changes to all inner vectors. No reordering is applied,
 -- that is the propagation vector must not change the order of tuples.
-chainRenameFilter :: RVec -> Layout VLDVec -> Build VL (Layout VLDVec)
+chainRenameFilter :: NRVec -> Layout VLDVec -> Build VL (Layout VLDVec)
 chainRenameFilter _ LCol          = return LCol
 chainRenameFilter r (LNest q lyt) = do
     (q', r') <- vlPropFilter r q
@@ -797,7 +797,7 @@ chainRenameFilter r (LTuple lyts) =
 -- | chainReorder renames and filters a vector according to a propagation vector
 -- and propagates these changes to all inner vectors. The propagation vector
 -- may change the order of tuples.
-chainReorder :: PVec -> Layout VLDVec -> Build VL (Layout VLDVec)
+chainReorder :: NPVec -> Layout VLDVec -> Build VL (Layout VLDVec)
 chainReorder _ LCol          = return LCol
 chainReorder p (LNest q lyt) = do
     (q', p') <- vlPropReorder p q
@@ -808,11 +808,11 @@ chainReorder p (LTuple lyts) =
 
 -- | renameOuter renames and filters a vector according to a rename
 -- vector. Changes are not propagated to inner vectors.
-renameOuter :: RVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+renameOuter :: NRVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 renameOuter p (VShape q lyt) = flip VShape lyt <$> vlPropRename p q
 renameOuter _ _ = error "renameOuter: Not possible"
 
-renameOuterLyt :: RVec -> Layout VLDVec -> Build VL (Layout VLDVec)
+renameOuterLyt :: NRVec -> Layout VLDVec -> Build VL (Layout VLDVec)
 renameOuterLyt _ LCol          = return LCol
 renameOuterLyt r (LNest q lyt) = flip LNest lyt <$> vlPropRename r q
 renameOuterLyt r (LTuple lyts) = LTuple <$> mapM (renameOuterLyt r) lyts

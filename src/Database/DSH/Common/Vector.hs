@@ -12,6 +12,8 @@ module Database.DSH.Common.Vector
     , ADVec(..)
     , VLDVec(..)
     , NDVec
+    , NPVec(..)
+    , NRVec(..)
     ) where
 
 import           Data.Aeson.TH
@@ -56,6 +58,15 @@ instance DagVector VLDVec where
         | q == n1   = VLDVec n2
         | otherwise = VLDVec q
 
+-- | Propagation vectors. A @PVec@ simply references a node in an
+-- algebra Dag.
+data NPVec = NPVec AlgNode
+
+-- | Rename vectors. A @RVec@ simply references a node in an algebra
+-- Dag.
+data NRVec = NRVec AlgNode
 
 $(deriveJSON defaultOptions ''ADVec)
+$(deriveJSON defaultOptions ''NPVec)
+$(deriveJSON defaultOptions ''NRVec)
 $(deriveJSON defaultOptions ''VLDVec)
