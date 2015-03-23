@@ -11,17 +11,17 @@ module Database.DSH.Translate.Frontend2CL
 
 import           Control.Applicative
 import           Control.Monad.State
-import           Data.Text                       (unpack)
-import qualified Data.List.NonEmpty              as N
+import qualified Data.List.NonEmpty               as N
+import           Data.Text                        (unpack)
 
+import qualified Database.DSH.CL.Lang             as CL
+import qualified Database.DSH.CL.Primitives       as CP
 import           Database.DSH.Common.Impossible
-import qualified Database.DSH.CL.Lang            as CL
-import qualified Database.DSH.CL.Primitives      as CP
-import qualified Database.DSH.Common.Lang        as L
-import qualified Database.DSH.Common.Type        as T
+import qualified Database.DSH.Common.Lang         as L
+import qualified Database.DSH.Common.Type         as T
 import           Database.DSH.Frontend.Builtins
-import           Database.DSH.Frontend.TupleTypes
 import           Database.DSH.Frontend.Internals
+import           Database.DSH.Frontend.TupleTypes
 
 
 -- In the state, we store a counter for fresh variable names.

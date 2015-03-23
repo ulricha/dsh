@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PatternSynonyms       #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TemplateHaskell       #-}
-{-# LANGUAGE PatternSynonyms       #-}
 
 module Database.DSH.CL.Lang
     ( module Database.DSH.Common.Type
@@ -15,20 +15,20 @@ module Database.DSH.CL.Lang
     , Prim2(..)
     ) where
 
-import           Control.Applicative          hiding (empty)
+import           Control.Applicative            hiding (empty)
 
-import qualified Data.Foldable                as F
-import qualified Data.Traversable             as T
-import           Data.List.NonEmpty           (NonEmpty((:|)))
+import qualified Data.Foldable                  as F
+import           Data.List.NonEmpty             (NonEmpty ((:|)))
+import qualified Data.Traversable               as T
 
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import           Text.PrettyPrint.ANSI.Leijen   hiding ((<$>))
 import           Text.Printf
 
-import           Database.DSH.Common.Nat
-import qualified Database.DSH.Common.Lang     as L
-import           Database.DSH.Common.Type
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Impossible
+import qualified Database.DSH.Common.Lang       as L
+import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.Type
 
 --------------------------------------------------------------------------------
 -- A simple type of nonempty lists, used for comprehension

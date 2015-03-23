@@ -16,11 +16,11 @@ import           Prelude                          (Bool (..), Char, Double,
 import qualified Prelude                          as P
 
 import           Data.Decimal
+import           Data.List.NonEmpty               (NonEmpty)
 import           Data.String
 import           Data.Text                        (Text)
 import qualified Data.Text                        as T
 import           Data.Time.Calendar               (Day)
-import           Data.List.NonEmpty               (NonEmpty)
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Frontend.Builtins

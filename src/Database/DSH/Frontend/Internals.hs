@@ -1,23 +1,23 @@
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
-{-# LANGUAGE FlexibleInstances     #-}
 
 module Database.DSH.Frontend.Internals where
 
+import           Data.Decimal
+import           Data.List.NonEmpty               (NonEmpty)
 import           Data.Text                        (Text)
 import           Data.Time.Calendar               (Day)
 import           Text.PrettyPrint.ANSI.Leijen
-import           Data.Decimal
-import           Data.List.NonEmpty               (NonEmpty)
 
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.TupleTypes
-import           Database.DSH.Common.Impossible
 
 --------------------------------------------------------------------------------
 -- Typed frontend ASTs
