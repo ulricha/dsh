@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 module Database.DSH.Frontend.Externals where
 
@@ -716,6 +717,10 @@ toGregorian :: Q Day -> Q (Integer, Integer, Integer)
 toGregorian (Q d) = Q $ tripleE (AppE DayYear d)
                                 (AppE DayMonth d)
                                 (AppE DayDay d)
+
+dateYear :: Q Day -> Q Integer
+dateYear d = let (view -> (year, _, _)) = toGregorian d
+             in year
 
 -- * Rebind Monadic Combinators
 
