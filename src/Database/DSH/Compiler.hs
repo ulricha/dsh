@@ -19,6 +19,7 @@ import           Database.DSH.Backend
 import qualified Database.DSH.CL.Lang               as CL
 import           Database.DSH.CL.Opt
 import           Database.DSH.Common.QueryPlan
+import           Database.DSH.Common.Vector
 import           Database.DSH.Execute
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.NKL.Rewrite
@@ -27,7 +28,6 @@ import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 import qualified Database.DSH.VL.Lang               as VL
 import           Database.DSH.VL.Opt.OptimizeVL
-import           Database.DSH.Common.Vector
 
 --------------------------------------------------------------------------------
 
@@ -40,7 +40,9 @@ compileQ = optimizeComprehensions >>>
            specializeVectorOps
 
 -- | Compile a query and execute it on a given backend connection.
-runQ :: forall a c. (Backend c, QA a) => c -> Q a -> IO a
+runQ :: forall a c.
+        (Backend c,QA a)
+     => c -> Q a -> IO a
 runQ c (Q q) = do
     let ty = reify (undefined :: Rep a)
     let cl = toComprehensions q
