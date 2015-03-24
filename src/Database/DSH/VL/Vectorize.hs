@@ -615,8 +615,10 @@ singletonL _ = $impossible
 dbTable ::  String -> L.BaseTableSchema -> Build VL (Shape VLDVec)
 dbTable n schema = do
     tab <- vlTableRef n schema
-    let tupLyt = LTuple $ map (const LCol) $ N.toList $ L.tableCols schema
-    return $ VShape tab tupLyt
+    let lyt = case L.tableCols schema of
+                  c N.:| [] -> LCol
+                  cs        -> LTuple $ map (const LCol) $ N.toList cs
+    return $ VShape tab lyt
 
 -- | Create a VL representation of a literal value.
 mkLiteral ::  Type -> L.Val -> Build VL (Shape VLDVec)
