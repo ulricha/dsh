@@ -1,22 +1,23 @@
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
-{-# LANGUAGE FlexibleInstances     #-}
 
 module Database.DSH.Frontend.Internals where
 
+import           Data.Decimal
+import           Data.List.NonEmpty               (NonEmpty)
 import           Data.Text                        (Text)
 import           Data.Time.Calendar               (Day)
 import           Text.PrettyPrint.ANSI.Leijen
-import           Data.Decimal
 
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.TupleTypes
-import           Database.DSH.Common.Impossible
 
 --------------------------------------------------------------------------------
 -- Typed frontend ASTs
@@ -107,7 +108,7 @@ tripleE a b c = TupleConstE (Tuple3E a b c)
 -- Definition of database-resident tables
 
 -- | A combination of column names that form a candidate key
-newtype Key = Key [String] deriving (Eq, Ord, Show)
+newtype Key = Key (NonEmpty String) deriving (Eq, Ord, Show)
 
 -- | Is the table guaranteed to be not empty?
 data Emptiness = NonEmpty
@@ -118,11 +119,11 @@ type ColName = String
 
 -- | Catalog information hints that users may give to DSH
 data TableHints = TableHints
-    { keysHint     :: [Key]
+    { keysHint     :: NonEmpty Key
     , nonEmptyHint :: Emptiness
     } deriving (Eq, Ord, Show)
 
-data Table = TableDB String [ColName] TableHints
+data Table = TableDB String (NonEmpty ColName) TableHints
 
 -- Reify instances
 

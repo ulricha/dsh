@@ -268,9 +268,15 @@ translateUnOp unop c = case unop of
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
         return $ RLPair (fromDVec d) (fromRVec r)
+    V.Sort es         -> do
+        (d, p) <- vecSort es (toDVec c)
+        return $ RLPair (fromDVec d) (fromPVec p)
     V.SortS es         -> do
         (d, p) <- vecSortS es (toDVec c)
         return $ RLPair (fromDVec d) (fromPVec p)
+    V.Group es -> do
+        (qo, qi, p) <- vecGroup es (toDVec c)
+        return $ RTriple (fromDVec qo) (fromDVec qi) (fromPVec p)
     V.GroupS es -> do
         (qo, qi, p) <- vecGroupS es (toDVec c)
         return $ RTriple (fromDVec qo) (fromDVec qi) (fromPVec p)
@@ -315,4 +321,4 @@ translateNullary :: VectorAlgebra a
                  -> B.Build a (Res (DVec a))
 translateNullary V.SingletonDescr          = fromDVec <$> singletonDescr
 translateNullary (V.Lit (_, tys, vals))    = fromDVec <$> vecLit tys vals
-translateNullary (V.TableRef (n, tys, hs)) = fromDVec <$> vecTableRef n tys hs
+translateNullary (V.TableRef (n, schema))  = fromDVec <$> vecTableRef n schema

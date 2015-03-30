@@ -145,8 +145,14 @@ vlNumber (VLDVec c) = vec (UnOp Number c) dvec
 vlNumberS :: VLDVec -> Build VL VLDVec
 vlNumberS (VLDVec c) = vec (UnOp NumberS c) dvec
 
+vlGroup :: [Expr] -> VLDVec -> Build VL (VLDVec, VLDVec, PVec)
+vlGroup groupExprs (VLDVec c) = tripleVec (UnOp (Group groupExprs) c) dvec dvec pvec
+
 vlGroupS :: [Expr] -> VLDVec -> Build VL (VLDVec, VLDVec, PVec)
 vlGroupS groupExprs (VLDVec c) = tripleVec (UnOp (GroupS groupExprs) c) dvec dvec pvec
+
+vlSort :: [Expr] -> VLDVec -> Build VL (VLDVec, PVec)
+vlSort sortExprs (VLDVec c1) = pairVec (UnOp (Sort sortExprs) c1) dvec pvec
 
 vlSortS :: [Expr] -> VLDVec -> Build VL (VLDVec, PVec)
 vlSortS sortExprs (VLDVec c1) = pairVec (UnOp (SortS sortExprs) c1) dvec pvec
@@ -203,8 +209,8 @@ vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) =
 vlLit :: L.Emptiness -> [Ty.Type] -> [[L.ScalarVal]] -> Build VL VLDVec
 vlLit em tys vals = vec (NullaryOp $ Lit (em, map typeToScalarType tys, vals)) dvec
 
-vlTableRef :: String -> [(L.ColName, Ty.ScalarType)] -> L.TableHints -> Build VL VLDVec
-vlTableRef n tys hs = vec (NullaryOp $ TableRef (n, tys, hs)) dvec
+vlTableRef :: String -> L.BaseTableSchema -> Build VL VLDVec
+vlTableRef n schema = vec (NullaryOp $ TableRef (n, schema)) dvec
 
 vlUnExpr :: L.ScalarUnOp -> VLDVec -> Build VL VLDVec
 vlUnExpr o (VLDVec c) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec

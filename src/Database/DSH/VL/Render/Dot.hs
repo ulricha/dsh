@@ -66,37 +66,14 @@ renderData xs = (flip (<>) semi . sep . punctuate semi . map renderRow) xs
 renderRow :: [ScalarVal] -> Doc
 renderRow = hcat . punctuate comma . map pretty
 
-escape :: String -> String
-escape (x@'\\':xs) = '\\':'\\':'\\':x:escape xs
-escape (x@'\'':xs) = '\\':x:escape xs
-escape (x@'"':xs) = '\\':'\\':x:escape xs
-escape (x:xs) = x:escape xs
-escape [] = []
-
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
 
 renderColName :: ColName -> Doc
 renderColName (ColName c) = text c
 
-renderTableType :: (ColName, ScalarType) -> Doc
-renderTableType (c, t) = renderColName c <> text "::" <> renderColumnType t
-
-renderTableHints :: TableHints -> Doc
-renderTableHints hs = renderTableKeys (keysHint hs) <> renderEmptiness (nonEmptyHint hs)
-
-renderEmptiness :: Emptiness -> Doc
-renderEmptiness NonEmpty      = text " NONEMPTY"
-renderEmptiness PossiblyEmpty = empty
-
-renderTableKeys :: [Key] -> Doc
-renderTableKeys [x]    = renderTableKey x
-renderTableKeys (x:xs) = renderTableKey x <$> renderTableKeys xs
-renderTableKeys []     = empty
-
-
-renderTableKey :: Key -> Doc
-renderTableKey (Key ks) = hsep $ punctuate comma $ map renderColName ks
+renderCol :: (ColName, ScalarType) -> Doc
+renderCol (c, t) = renderColName c <> text "::" <> renderColumnType t
 
 renderProj :: Doc -> Expr -> Doc
 renderProj d e = d <> colon <> renderExpr e
@@ -136,12 +113,15 @@ opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "WinAggr"
     (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
     (lookupTags i tm)
 opDotLabel tm i (NullaryOp (SingletonDescr)) = labelToDoc i "SingletonDescr" empty (lookupTags i tm)
-opDotLabel tm i (NullaryOp (Lit (em, tys, vals))) = labelToDoc i "LIT"
-        (renderEmptiness em <+> bracketList renderColumnType tys <> comma
+opDotLabel tm i (NullaryOp (Lit (_, tys, vals))) = labelToDoc i "LIT"
+        (bracketList renderColumnType tys <> comma
         <$> renderData vals) (lookupTags i tm)
-opDotLabel tm i (NullaryOp (TableRef (n, tys, hs))) = labelToDoc i "TableRef"
-        (squotes (text n) <> comma <+> bracketList (\t -> renderTableType t <> text "\n") tys <> comma <$> renderTableHints hs)
-        (lookupTags i tm)
+opDotLabel tm i (NullaryOp (TableRef (n, schema))) =
+    labelToDoc i "TableScan"
+                 (text n <> text "\n"
+                  <> align (bracketList (\c -> renderCol c <> text "\n")
+                                        (N.toList $ tableCols schema)))
+                 (lookupTags i tm)
 opDotLabel tm i (UnOp UniqueS _) = labelToDoc i "UniqueS" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Number _) = labelToDoc i "Number" empty (lookupTags i tm)
 opDotLabel tm i (UnOp NumberS _) = labelToDoc i "NumberS" empty (lookupTags i tm)
@@ -168,7 +148,9 @@ opDotLabel tm i (UnOp (Reshape n) _) =
 opDotLabel tm i (BinOp (AggrS a) _ _) = labelToDoc i "AggrS" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (AggrNonEmpty as) _) = labelToDoc i "AggrNonEmpty" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (UnOp (AggrNonEmptyS as) _) = labelToDoc i "AggrNonEmptyS" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
-opDotLabel tm i (UnOp (SortS cols) _) = labelToDoc i "Sort" (bracketList renderExpr cols) (lookupTags i tm)
+opDotLabel tm i (UnOp (Sort cols) _) = labelToDoc i "Sort" (bracketList renderExpr cols) (lookupTags i tm)
+opDotLabel tm i (UnOp (SortS cols) _) = labelToDoc i "SortS" (bracketList renderExpr cols) (lookupTags i tm)
+opDotLabel tm i (UnOp (Group cols) _) = labelToDoc i "Group" (bracketList renderExpr cols) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupS cols) _) = labelToDoc i "GroupS" (bracketList renderExpr cols) (lookupTags i tm)
 opDotLabel tm i (BinOp NestProduct _ _) = labelToDoc i "NestProduct" empty (lookupTags i tm)
 opDotLabel tm i (BinOp DistLift _ _) = labelToDoc i "DistLift" empty (lookupTags i tm)
@@ -226,7 +208,9 @@ opDotColor (BinOp (AntiJoin _) _ _)      = DCGreen
 opDotColor (BinOp (AntiJoinS _) _ _)     = DCGreen
 opDotColor (BinOp (GroupJoin _) _ _)     = DCGreen
 opDotColor (BinOp Zip _ _)               = DCYelloGreen
+opDotColor (UnOp (Sort _) _)             = DCTomato
 opDotColor (UnOp (SortS _) _)            = DCTomato
+opDotColor (UnOp (Group _) _)            = DCTomato
 opDotColor (UnOp (GroupS _) _)           = DCTomato
 opDotColor (BinOp PropRename _ _)        = DCTan
 opDotColor (BinOp UnboxNested _ _)       = DCTan

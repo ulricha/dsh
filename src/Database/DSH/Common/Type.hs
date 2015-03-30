@@ -7,6 +7,7 @@
 -- | Types for backend languages.
 module Database.DSH.Common.Type
     ( isNum
+    , scalarType
     , isList
     , elemT
     , tupleElemT
@@ -63,6 +64,7 @@ data Type  = ListT Type
            | ScalarT ScalarType
            deriving (Show, Eq, Ord)
 
+
 data ScalarType  = IntT
                  | BoolT
                  | DoubleT
@@ -72,7 +74,6 @@ data ScalarType  = IntT
                  | DateT
                  deriving (Show, Eq, Ord)
 
-$(deriveJSON defaultOptions ''ScalarType)
 
 -- | Is the (scalar) type numeric?
 isNum :: Type -> Bool
@@ -85,6 +86,10 @@ isNum (ScalarT BoolT)       = False
 isNum (ScalarT StringT)     = False
 isNum (ScalarT UnitT)       = False
 isNum (ScalarT DateT)       = False
+
+scalarType :: Type -> Maybe ScalarType
+scalarType (ScalarT t) = Just t
+scalarType _           = Nothing
 
 --------------------------------------------------------------------------------
 -- Smart constructors and deconstructors.
@@ -151,3 +156,8 @@ unliftType t          = error $ "Type: " ++ pp t ++ " cannot be unlifted."
 -- | Typed terms
 class Typed a where
   typeOf :: a -> Type
+
+--------------------------------------------------------------------------------
+-- Aeson instances for JSON serialization
+
+$(deriveJSON defaultOptions ''ScalarType)

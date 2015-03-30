@@ -22,7 +22,7 @@ module Database.DSH.VL.Opt.Properties.NonEmpty where
 
 import Control.Monad
 
-import Database.DSH.Common.Lang(nonEmptyHint, Emptiness(..))
+import Database.DSH.Common.Lang
 import Database.DSH.VL.Lang
 
 import Database.DSH.VL.Opt.Properties.Types
@@ -43,7 +43,7 @@ inferNonEmptyNullOp op =
     SingletonDescr            -> Right $ VProp False
     Lit (NonEmpty, _, _)      -> Right $ VProp True
     Lit (PossiblyEmpty, _, _) -> Right $ VProp False
-    TableRef (_, _, hs)       -> return $ VProp $ (nonEmptyHint hs) == NonEmpty
+    TableRef (_, schema)      -> return $ VProp $ (tableNonEmpty schema) == NonEmpty
 
 inferNonEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferNonEmptyUnOp e op =
@@ -59,7 +59,9 @@ inferNonEmptyUnOp e op =
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
     Project _       -> Right e
     Select _        -> Right $ VPropPair False False
+    Sort _          -> let ue = unp e in liftM2 VPropPair ue ue
     SortS _         -> let ue = unp e in liftM2 VPropPair ue ue
+    Group _         -> let ue = unp e in liftM3 VPropTriple ue (return True) ue
     -- If the input is not completely empty (that is, segments exist),
     -- grouping leads to a nested vector in which every inner segment
     -- is not empty.

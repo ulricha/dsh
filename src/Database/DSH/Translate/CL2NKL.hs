@@ -145,7 +145,7 @@ freshIdent names = do
 -- comprehensions.
 expr :: CL.Expr -> NameEnv NKL.Expr
 expr (CL.MkTuple t es)           = NKL.MkTuple t <$> mapM expr es
-expr (CL.Table t s cs ks)        = return $ NKL.Table t s cs ks
+expr (CL.Table t s schema)       = return $ NKL.Table t s schema
 expr (CL.AppE1 t p e)            = prim1 t p e
 expr (CL.AppE2 t p e1 e2)        = prim2 t p e1 e2
 expr (CL.BinOp t o e1 e2)        = NKL.BinOp t o <$> expr e1 <*> expr e2

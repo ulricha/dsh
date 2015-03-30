@@ -9,6 +9,7 @@ import           Debug.Trace
 
 import           Control.Applicative
 import qualified Data.List                     as List
+import qualified Data.List.NonEmpty            as N
 import           Prelude                       hiding (reverse, zip)
 import qualified Prelude                       as P
 
@@ -173,7 +174,7 @@ sort (VShape q1 (LTuple [xl, sl])) = do
         sortExprs = map Column [leftWidth+1..leftWidth+rightWidth]
 
     -- Sort by all sorting columns from the right tuple component
-    (sortedVec, propVec) <- vlSortS sortExprs q1
+    (sortedVec, propVec) <- vlSort sortExprs q1
 
     -- After sorting, discard the sorting criteria columns
     resVec               <- vlProject (map Column [1..leftWidth]) sortedVec
@@ -189,7 +190,7 @@ group (VShape q (LTuple [lyt1, lyt2])) = do
 
         groupExprs = map Column [leftWidth+1..leftWidth+rightWidth]
 
-    (outerVec, innerVec, propVec) <- vlGroupS groupExprs q
+    (outerVec, innerVec, propVec) <- vlGroup groupExprs q
 
     -- Discard the grouping columns in the inner vector
     innerVec' <- vlProject (map Column [1..leftWidth]) innerVec
@@ -497,16 +498,35 @@ tailL (VShape d (LNest q lyt)) = do
 tailL _ = $impossible
 
 sortL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-sortL (VShape d (LNest v1 lyt1)) = do
-    VShape innerVec lyt <- sort (VShape v1 lyt1)
-    return $ VShape d (LNest innerVec lyt)
+sortL (VShape d (LNest q (LTuple [xl, sl]))) = do
+    let leftWidth  = columnsInLayout xl
+        rightWidth = columnsInLayout sl
+
+        sortExprs = map Column [leftWidth+1..leftWidth+rightWidth]
+
+    -- Sort by all sorting columns from the right tuple component
+    (sortedVec, propVec) <- vlSortS sortExprs q
+
+    -- After sorting, discard the sorting criteria columns
+    resVec               <- vlProject (map Column [1..leftWidth]) sortedVec
+    xl'  <- chainReorder propVec xl
+    return $ VShape d (LNest resVec xl')
 sortL _ = $impossible
 
 groupL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-groupL (VShape qo (LNest v1 lyt1)) = do
-    let flatRes = group (VShape v1 lyt1)
-    (VShape middleVec (LTuple [groupLyt, LNest innerVec innerLyt])) <- flatRes
-    return $ VShape qo (LNest middleVec (LTuple [groupLyt, LNest innerVec innerLyt]))
+groupL (VShape qo (LNest qi (LTuple [xl, gl]))) = do
+    let leftWidth  = columnsInLayout xl
+        rightWidth = columnsInLayout gl
+
+        groupExprs = map Column [leftWidth+1..leftWidth+rightWidth]
+
+    (outerVec, innerVec, propVec) <- vlGroupS groupExprs qi
+
+    -- Discard the grouping columns in the inner vector
+    innerVec' <- vlProject (map Column [1..leftWidth]) innerVec
+
+    xl'       <- chainReorder propVec xl
+    return $ VShape qo (LNest outerVec (LTuple [gl, LNest innerVec' xl']))
 groupL _ = $impossible
 
 concatL ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -592,10 +612,13 @@ singletonL _ = $impossible
 -- Construction of base tables and literal tables
 
 -- | Create a VL reference to a base table.
-dbTable ::  String -> [(L.ColName, Type)] -> L.TableHints -> Build VL (Shape VLDVec)
-dbTable n cs ks = do
-    t <- vlTableRef n (map (mapSnd typeToScalarType) cs) ks
-    return $ VShape t (LTuple $ map (const LCol) cs)
+dbTable ::  String -> L.BaseTableSchema -> Build VL (Shape VLDVec)
+dbTable n schema = do
+    tab <- vlTableRef n schema
+    let lyt = case L.tableCols schema of
+                  c N.:| [] -> LCol
+                  cs        -> LTuple $ map (const LCol) $ N.toList cs
+    return $ VShape tab lyt
 
 -- | Create a VL representation of a literal value.
 mkLiteral ::  Type -> L.Val -> Build VL (Shape VLDVec)

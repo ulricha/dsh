@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 module Database.DSH.Frontend.Externals where
 
@@ -15,6 +16,7 @@ import           Prelude                          (Bool (..), Char, Double,
 import qualified Prelude                          as P
 
 import           Data.Decimal
+import           Data.List.NonEmpty               (NonEmpty)
 import           Data.String
 import           Data.Text                        (Text)
 import qualified Data.Text                        as T
@@ -312,10 +314,10 @@ instance IsString (Q Text) where
 
 -- * Referring to persistent tables
 
-defaultHints :: TableHints
-defaultHints = TableHints [] PossiblyEmpty
+defaultHints :: NonEmpty Key -> TableHints
+defaultHints keys = TableHints keys PossiblyEmpty
 
-table :: (QA a, TA a) => String -> [ColName] -> TableHints -> Q [a]
+table :: (QA a, TA a) => String -> NonEmpty ColName -> TableHints -> Q [a]
 table name schema hints = Q (TableE (TableDB name schema hints))
 
 -- * toQ
@@ -706,6 +708,9 @@ reshape n (Q e) = Q (AppE (Reshape n) e)
 addDays :: Q Integer -> Q Day -> Q Day
 addDays (Q i) (Q d) = Q (AppE AddDays (pairE i d))
 
+subDays :: Q Integer -> Q Day -> Q Day
+subDays (Q i) (Q d) = Q (AppE SubDays (pairE i d))
+
 diffDays :: Q Day -> Q Day -> Q Integer
 diffDays (Q d1) (Q d2) = Q (AppE DiffDays (pairE d1 d2))
 
@@ -713,6 +718,10 @@ toGregorian :: Q Day -> Q (Integer, Integer, Integer)
 toGregorian (Q d) = Q $ tripleE (AppE DayYear d)
                                 (AppE DayMonth d)
                                 (AppE DayDay d)
+
+dateYear :: Q Day -> Q Integer
+dateYear d = let (view -> (year, _, _)) = toGregorian d
+             in year
 
 -- * Rebind Monadic Combinators
 

@@ -10,16 +10,19 @@ module Database.DSH.Translate.Frontend2CL
     ) where
 
 import           Control.Monad.State
-import           Data.Text                       (unpack)
+import           Data.List.NonEmpty               (NonEmpty((:|)))
+import qualified Data.List.NonEmpty               as N
+import           Data.Text                        (unpack)
+import           Text.Printf
 
-import           Database.DSH.Frontend.Builtins
-import           Database.DSH.Frontend.TupleTypes
-import           Database.DSH.Frontend.Internals
-import qualified Database.DSH.CL.Lang            as CL
-import qualified Database.DSH.CL.Primitives      as CP
+import qualified Database.DSH.CL.Lang             as CL
+import qualified Database.DSH.CL.Primitives       as CP
 import           Database.DSH.Common.Impossible
-import qualified Database.DSH.Common.Lang        as L
-import qualified Database.DSH.Common.Type        as T
+import qualified Database.DSH.Common.Lang         as L
+import qualified Database.DSH.Common.Type         as T
+import           Database.DSH.Frontend.Builtins
+import           Database.DSH.Frontend.Internals
+import           Database.DSH.Frontend.TupleTypes
 
 -- In the state, we store a counter for fresh variable names.
 type CompileState = Integer
@@ -83,19 +86,38 @@ translate (LamE _) = $impossible
 translate (TableE (TableDB tableName colNames hints)) = do
     -- Reify the type of the table expression
     let ty = reify (undefined :: a)
-    let colNames' = map L.ColName colNames
+    let colNames' = fmap L.ColName colNames
+    let bty = translateType ty
 
-    return $ CP.table (translateType ty) tableName colNames' (compileHints hints)
+    return $ CP.table bty tableName (schema tableName colNames' bty hints)
 
 translate (AppE f args) = translateApp f args
 
-compileHints :: TableHints -> L.TableHints
-compileHints hints = L.TableHints { L.keysHint = keys $ keysHint hints
-                                  , L.nonEmptyHint = ne $ nonEmptyHint hints
-                                  }
+schema :: String -> N.NonEmpty L.ColName -> T.Type -> TableHints -> L.BaseTableSchema
+schema tableName cols ty hints =
+    L.BaseTableSchema { L.tableCols     = colTys
+                      , L.tableKeys     = keys (keysHint hints)
+                      , L.tableNonEmpty = ne $ nonEmptyHint hints
+                      }
   where
-    keys :: [Key] -> [L.Key]
-    keys ks = [ L.Key [ L.ColName c | c <- k ] | Key k <- ks ]
+    colTys :: NonEmpty L.Column
+    colTys = case T.elemT ty of
+        T.TupleT ts@(_:_) | length ts == N.length cols ->
+            case mapM T.scalarType ts of
+                Just (st : sts) -> N.zip cols (st :| sts)
+                _               -> error errMsgScalar
+        (T.ScalarT st)      | N.length cols == 1       ->
+            N.zip cols (st :| [])
+        _                                              ->
+            error errMsgLen
+
+    errMsgLen = printf "Type for table %s does not match column specification"
+                       tableName
+
+    errMsgScalar = printf "Non-scalar types in table %s" tableName
+
+    keys :: N.NonEmpty Key -> N.NonEmpty L.Key
+    keys = fmap (\(Key k) -> L.Key $ fmap L.ColName k)
 
     ne :: Emptiness -> L.Emptiness
     ne NonEmpty      = L.NonEmpty
@@ -223,6 +245,7 @@ translateApp f args =
        Gt           -> translateApp2 CP.gt args
        Like         -> translateApp2 CP.like args
        AddDays      -> translateApp2 CP.addDays args
+       SubDays      -> translateApp2 CP.subDays args
        DiffDays     -> translateApp2 CP.diffDays args
 
        -- Builtin functions with arity one

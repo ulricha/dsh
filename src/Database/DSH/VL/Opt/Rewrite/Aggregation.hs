@@ -23,6 +23,7 @@ aggregationRules = [ inlineAggrSProject
                    , mergeNonEmptyAggrs
                    , mergeGroupAggr
                    , mergeGroupWithGroupAggrLeft
+                   , mergeGroupWithGroupAggrRight
                    , groupJoin
                    ]
 
@@ -135,15 +136,14 @@ inlineAggrSNonEmptyProject q =
             let aggrOp = UnOp (AggrNonEmptyS afuns') $(v "qi")
             void $ replaceWithNew q aggrOp |])
 
--- We rewrite a combination of GroupBy and aggregation operators into a single
--- VecAggr operator if the following conditions hold:
+-- We rewrite a combination of Group and aggregation operators into a single
+-- GroupAggr operator if the following conditions hold:
 --
--- 1. The R2 output of GroupBy is only consumed by aggregation operators (MaxL,
---    MinL, VecSumL, LengthSeg)
+-- 1. The R2 output of Group is only consumed by an AggrS operator
 -- 2. The grouping criteria is a simple column projection from the input vector
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "(R1 (qg)) UnboxScalar (AggrNonEmptyS afuns (R2 (qg1=GroupS groupExprs (q1))))"
+  $(dagPatMatch 'q "(R1 (qg)) UnboxScalar (AggrNonEmptyS afuns (R2 (qg1=Group groupExprs (q1))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -188,13 +188,13 @@ mergeGroupAggr q =
           void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
 
 -- | This is a cleanup rewrite: It applies in a situation when
--- aggregates have already been merged with GroupScalarS into
--- GroupAggr. If the GroupAggr output is combined with the R1 output
--- of GroupScalarS on the same input and grouping expressions via Zip,
--- the effect is that only the grouping expressions are duplicated.
+-- aggregates have already been merged with Group into GroupAggr. If
+-- the GroupAggr output is combined with the R1 output of Group on the
+-- same input and grouping expressions via Align, the effect is that
+-- only the grouping expressions are duplicated.
 mergeGroupWithGroupAggrLeft :: VLRule ()
 mergeGroupWithGroupAggrLeft q =
-  $(dagPatMatch 'q "(R1 (GroupS ges (q1))) Align (GroupAggr args (q2))"
+  $(dagPatMatch 'q "(R1 (Group ges (q1))) Align (GroupAggr args (q2))"
     [| do
         let (ges', afuns) = $(v "args")
 
@@ -203,7 +203,7 @@ mergeGroupWithGroupAggrLeft q =
         predicate $ $(v "ges") == ges'
 
         return $ do
-            logRewrite "Aggregation.Normalize.MergeGroupScalars" q
+            logRewrite "Aggregation.Normalize.MergeGroup.Left" q
 
             -- To keep the schema, we have to duplicate the grouping
             -- columns.
@@ -219,6 +219,34 @@ mergeGroupWithGroupAggrLeft q =
             groupNode <- insert $ UnOp (GroupAggr (ges', afuns)) $(v "q1")
             void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
 
+-- | The mirrored dual of rewrite
+-- 'Aggregation.Normalize.MergeGroup.Left'.
+mergeGroupWithGroupAggrRight :: VLRule ()
+mergeGroupWithGroupAggrRight q =
+  $(dagPatMatch 'q "(GroupAggr args (q1)) Align (R1 (Group ges (q2)))"
+    [| do
+        let (ges', afuns) = $(v "args")
+
+        -- Input vectors and grouping expressions have to be the same.
+        predicate $ $(v "q1") == $(v "q2")
+        predicate $ $(v "ges") == ges'
+
+        return $ do
+            logRewrite "Aggregation.Normalize.MergeGroup.Right" q
+
+            -- To keep the schema, we have to duplicate the grouping
+            -- columns.
+            let groupWidth = length ges'
+                aggrWidth  = N.length afuns
+                groupCols  = [ Column c | c <- [1..groupWidth] ]
+                proj       = groupCols
+                             ++
+                             [ Column $ c + groupWidth | c <- [1..aggrWidth] ]
+                             ++
+                             groupCols
+
+            groupNode <- insert $ UnOp (GroupAggr (ges', afuns)) $(v "q1")
+            void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
 
 -- | Merge nestjoin-based binary grouping and subsequent aggregation
 -- into one groupjoin operator.

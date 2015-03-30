@@ -7,6 +7,7 @@ import           Control.Monad
 import qualified Data.List.NonEmpty as N
 
 import           Database.DSH.VL.Opt.Properties.Types
+import           Database.DSH.Common.Lang
 
 import           Database.DSH.VL.Lang
 
@@ -19,9 +20,9 @@ vectorWidth _                        = error "vectorWidth: non-ValueVector input
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
-    SingletonDescr      -> Right $ VProp $ ValueVector 0
-    Lit (_, t, _)       -> Right $ VProp $ ValueVector $ length t
-    TableRef (_, cs, _) -> Right $ VProp $ ValueVector $ length cs
+    SingletonDescr       -> Right $ VProp $ ValueVector 0
+    Lit (_, t, _)        -> Right $ VProp $ ValueVector $ length t
+    TableRef (_, schema) -> Right $ VProp $ ValueVector $ N.length (tableCols schema)
 
 unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s
@@ -61,15 +62,22 @@ inferVectorTypeUnOp s op =
     Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
 
     Select _ -> VPropPair <$> unpack s <*> (Right RenameVector)
+    Sort _   -> liftM2 VPropPair (unpack s) (Right PropVector)
     SortS _  -> liftM2 VPropPair (unpack s) (Right PropVector)
     AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
 
+    Group es ->
+      case s of
+        VProp t@(ValueVector _) ->
+          Right $ VPropTriple (ValueVector $ length es) t PropVector
+        _                                                    ->
+          Left "Input of Group is not a value vector"
     GroupS es ->
       case s of
         VProp t@(ValueVector _) ->
           Right $ VPropTriple (ValueVector $ length es) t PropVector
         _                                                    ->
-          Left "Input of GroupSimple is not a value vector"
+          Left "Input of GroupS is not a value vector"
     GroupAggr (g, as) -> Right $ VProp $ ValueVector (length g + N.length as)
     Number -> do
         ValueVector w <- unpack s

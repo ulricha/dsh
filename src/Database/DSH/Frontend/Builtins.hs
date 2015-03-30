@@ -76,6 +76,7 @@ data Fun a b where
     ACos             :: Fun Double Double
     ATan             :: Fun Double Double
     AddDays          :: Fun (Integer, Day) Day
+    SubDays          :: Fun (Integer, Day) Day
     DiffDays         :: Fun (Day, Day) Integer
     DayDay           :: Fun Day Integer
     DayMonth         :: Fun Day Integer

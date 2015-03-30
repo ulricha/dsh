@@ -21,10 +21,10 @@ mapUnp = mapUnpack "Properties.Empty"
 inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
-    SingletonDescr     -> Right $ VProp False
-    Lit (_, _, [])     -> Right $ VProp True
-    Lit (_, _, _)      -> Right $ VProp False
-    TableRef (_, _, _) -> Right $ VProp False
+    SingletonDescr -> Right $ VProp False
+    Lit (_, _, []) -> Right $ VProp True
+    Lit{}          -> Right $ VProp False
+    TableRef{}     -> Right $ VProp False
 
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
@@ -40,7 +40,9 @@ inferEmptyUnOp e op =
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
     Project _       -> Right e
     Select _        -> let ue = unp e in liftM2 VPropPair ue ue
+    Sort _          -> let ue = unp e in liftM2 VPropPair ue ue
     SortS _         -> let ue = unp e in liftM2 VPropPair ue ue
+    Group _         -> let ue = unp e in liftM3 VPropTriple ue ue ue
     GroupS _        -> let ue = unp e in liftM3 VPropTriple ue ue ue
 
     -- FIXME this documents the current implementation behaviour, not

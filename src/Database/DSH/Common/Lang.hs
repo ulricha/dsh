@@ -59,10 +59,10 @@ newtype ColName = ColName String deriving (Eq, Ord, Show)
 $(deriveJSON defaultOptions ''ColName)
 
 -- | Typed table columns
-type Column = (ColName, Type)
+type Column = (ColName, ScalarType)
 
 -- | Table keys
-newtype Key = Key [ColName] deriving (Eq, Ord, Show)
+newtype Key = Key (N.NonEmpty ColName) deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''Key)
 
@@ -73,13 +73,14 @@ data Emptiness = NonEmpty
 
 $(deriveJSON defaultOptions ''Emptiness)
 
--- | Catalog information hints that users may give to DSH
-data TableHints = TableHints
-    { keysHint     :: [Key]
-    , nonEmptyHint :: Emptiness
+-- | Information about base tables
+data BaseTableSchema = BaseTableSchema
+    { tableCols     :: N.NonEmpty Column
+    , tableKeys     :: N.NonEmpty Key
+    , tableNonEmpty :: Emptiness
     } deriving (Eq, Ord, Show)
 
-$(deriveJSON defaultOptions ''TableHints)
+$(deriveJSON defaultOptions ''BaseTableSchema)
 
 -- | Identifiers
 type Ident = String
@@ -164,6 +165,7 @@ data BinStringOp = Like
 $(deriveJSON defaultOptions ''BinStringOp)
 
 data BinDateOp = AddDays
+               | SubDays
                | DiffDays
                deriving (Show, Eq, Ord)
 
@@ -278,6 +280,7 @@ instance Pretty BinBoolOp where
 
 instance Pretty BinDateOp where
     pretty AddDays  = text "addDays"
+    pretty SubDays  = text "subDays"
     pretty DiffDays = text "diffDays"
 
 instance Pretty UnNumOp where

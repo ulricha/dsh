@@ -190,7 +190,7 @@ zip e1 e2 = let ListT t1' = typeOf e1
 var :: Type -> P.String -> Expr
 var = Var
 
-table :: Type -> P.String -> [L.ColName] -> L.TableHints -> Expr
+table :: Type -> P.String -> L.BaseTableSchema -> Expr
 table = Table
 
 cond :: Expr -> Expr -> Expr -> Expr
@@ -345,7 +345,8 @@ scalarBinOp op e1 e2 =
             | t1 P.== t2                             -> BinOp PBoolT op e1 e2
         (L.SBBoolOp _, PBoolT, PBoolT)               -> BinOp PBoolT op e1 e2
         (L.SBStringOp L.Like, PStringT, PStringT)    -> BinOp PBoolT op e1 e2
-        (L.SBDateOp L.AddDays, PIntT, PDateT)         -> BinOp PDateT op e1 e2
+        (L.SBDateOp L.AddDays, PIntT, PDateT)        -> BinOp PDateT op e1 e2
+        (L.SBDateOp L.SubDays, PIntT, PDateT)        -> BinOp PDateT op e1 e2
         (L.SBDateOp L.DiffDays, PDateT, PDateT)      -> BinOp PIntT op e1 e2
         _                                            ->
             P.error P.$ printf "CL.Primitives.scalarBinOp: %s" (P.show (op, t1, t2))
@@ -355,6 +356,9 @@ scalarBinOp op e1 e2 =
 
 addDays :: Expr -> Expr -> Expr
 addDays = scalarBinOp (L.SBDateOp L.AddDays)
+
+subDays :: Expr -> Expr -> Expr
+subDays = scalarBinOp (L.SBDateOp L.SubDays)
 
 diffDays :: Expr -> Expr -> Expr
 diffDays = scalarBinOp (L.SBDateOp L.DiffDays)

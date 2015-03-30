@@ -68,6 +68,7 @@ evalBinOp (SBRelOp _)    (DateV _)    (DateV _)    = mzero
 
 evalBinOp (SBBoolOp _)   (BoolV _)    (BoolV _)    = mzero
 evalBinOp (SBStringOp _) (StringV _)  (StringV _)  = mzero
+evalBinOp (SBDateOp _)   (IntV _)     (DateV _)    = mzero
 evalBinOp (SBDateOp _)   (DateV _)    (DateV _)    = mzero
 evalBinOp _              _            _            = $impossible
 
@@ -126,7 +127,11 @@ inferConstVecNullOp op =
                                            else NonConstPL
               toConstPayload []          = NonConstPL
 
-    TableRef              (_, cols, _)    -> return $ VProp $ DBVConst (ConstDescr 1) $ map (const NonConstPL) cols
+    TableRef (_, schema)    -> return $ VProp
+                                      $ DBVConst (ConstDescr 1)
+                                      $ map (const NonConstPL)
+                                      $ N.toList
+                                      $ tableCols schema
 
 inferConstVecUnOp :: (VectorProp ConstVec) -> UnOp -> Either String (VectorProp ConstVec)
 inferConstVecUnOp c op =
@@ -196,10 +201,19 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (cols ++ [NonConstPL])
 
+    Sort _ -> do
+      (d, cs) <- unp c >>= fromDBV
+      return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+
     SortS _ -> do
       (d, cs) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
+    Group es -> do
+      (d, cs) <- unp c >>= fromDBV
+      return $ VPropTriple (DBVConst d (map (const NonConstPL) es))
+                           (DBVConst NonConstDescr (map (const NonConstPL) cs))
+                           (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
     GroupS es -> do
       (d, cs) <- unp c >>= fromDBV
       return $ VPropTriple (DBVConst d (map (const NonConstPL) es))
