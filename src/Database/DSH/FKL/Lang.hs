@@ -4,6 +4,7 @@
 
 module Database.DSH.FKL.Lang where
 
+import           Prelude hiding ((<$>))
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 

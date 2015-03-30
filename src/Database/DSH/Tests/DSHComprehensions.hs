@@ -270,7 +270,6 @@ nj12 njxs njys njzs =
 
 np1 :: [Integer] -> [Integer] -> Q [[Integer]]
 np1 njxs njys = [ [ x * y * 2 | y <- toQ njys ] | x <- toQ njxs ]
-	
 
 np2 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
 np2 njxs njys = [ pair x [ y * 2 | y <- toQ njys ] | x <- toQ njxs ]

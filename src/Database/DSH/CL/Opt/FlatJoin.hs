@@ -8,7 +8,6 @@ module Database.DSH.CL.Opt.FlatJoin
     ( flatjoinsR
     ) where
 
-import           Control.Applicative
 import           Control.Arrow
 import qualified Data.Map                      as M
 import qualified Data.Set                      as S

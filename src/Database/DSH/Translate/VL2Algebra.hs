@@ -12,7 +12,6 @@ import           Data.List
 import qualified Data.Map                             as M
 import qualified Data.Traversable                     as T
 
-import           Control.Applicative
 import           Control.Monad.State
 
 import qualified Database.Algebra.Dag                 as D

@@ -30,7 +30,6 @@ module Database.DSH.NKL.Kure
 
 
 import           Control.Monad
-import           Data.Monoid
 
 import           Language.KURE
 import           Language.KURE.Lens
@@ -277,15 +276,3 @@ instance Walker NestedCtx Expr where
             Var{}      -> idR
             Let{}      -> letR (extractR r) (extractR r)
             MkTuple{}  -> mkTupleR (extractR r)
-
---------------------------------------------------------------------------------
--- I find it annoying that Applicative is not a superclass of Monad.
-
-(<$>) :: Monad m => (a -> b) -> m a -> m b
-(<$>) = liftM
-{-# INLINE (<$>) #-}
-
-(<*>) :: Monad m => m (a -> b) -> m a -> m b
-(<*>) = ap
-{-# INLINE (<*>) #-}
-

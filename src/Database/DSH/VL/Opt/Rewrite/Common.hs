@@ -49,26 +49,25 @@ noProps = return M.empty
 -- Rewrite helper functions
 
 lookupR1Parents :: AlgNode -> VLRewrite [AlgNode]
-lookupR1Parents q = do
-  let isR1 q' = do
+lookupR1Parents q = parents q >>= \ps -> filterM isR1 ps
+  where
+    isR1 :: AlgNode -> VLRewrite Bool
+    isR1 q' = do
         o <- operator q'
         case o of
-          UnOp R1 _ -> return True
-          _         -> return False
+            UnOp R1 _ -> return True
+            _         -> return False
 
-  ps <- parents q
-  filterM isR1 ps
 
 lookupR2Parents :: AlgNode -> VLRewrite [AlgNode]
-lookupR2Parents q = do
-  let isR2 q' = do
+lookupR2Parents q = parents q >>= \ps -> filterM isR2 ps
+  where
+    isR2 :: AlgNode -> VLRewrite Bool
+    isR2 q' = do
         o <- operator q'
         case o of
-          UnOp R2 _ -> return True
-          _         -> return False
-
-  ps <- parents q
-  filterM isR2 ps
+            UnOp R2 _ -> return True
+            _         -> return False
 
 mergeExpr :: [(DBCol, Expr)] -> Expr -> Expr
 mergeExpr env expr =

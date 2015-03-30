@@ -6,7 +6,6 @@ module Database.DSH.VL.Opt.Rewrite.Expressions where
 -- This module contains rewrites which aim to simplify and merge complex expressions
 -- which are expressed through multiple operators.
 
-import           Control.Applicative
 import           Control.Monad
 import           Data.Maybe
 

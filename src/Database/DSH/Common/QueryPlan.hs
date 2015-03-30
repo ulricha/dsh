@@ -11,7 +11,6 @@ import           Data.Aeson.TH
 import qualified Data.ByteString.Lazy.Char8  as BL
 import qualified Data.Foldable               as F
 import qualified Data.Traversable            as T
-import           Control.Applicative
 
 import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Common

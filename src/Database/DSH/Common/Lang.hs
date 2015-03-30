@@ -5,7 +5,6 @@
 
 module Database.DSH.Common.Lang where
 
-import           Control.Applicative
 import           Data.Aeson
 import           Data.Aeson.TH
 import           Data.Decimal

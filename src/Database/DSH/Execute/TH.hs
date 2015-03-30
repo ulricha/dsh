@@ -8,13 +8,13 @@ module Database.DSH.Execute.TH
     , mkConstructTuple
     ) where
 
-import           Control.Applicative
 import           Language.Haskell.TH
 import           Data.List
 
 import           Text.Printf
 
 import           Database.DSH.Common.Impossible
+import           Database.DSH.Common.TH
 import           Database.DSH.Frontend.TupleTypes
 import qualified Database.DSH.Frontend.Internals as DSH
 
@@ -118,10 +118,10 @@ mkTupleLytCons tupTyName lytTyCons conName width = do
                            $ map VarT tupElemTyNames
 
         -- a ~ (t1, ..., t<n>)
-        tupConstraint    = EqualP (VarT tupTyName) tupTy
+        tupConstraint    = equalConstrTy (VarT tupTyName) tupTy
 
         -- Reify t1, ..., Reify t<n>
-        reifyConstraints = map (\n -> ClassP ''DSH.Reify [VarT n]) tupElemTyNames
+        reifyConstraints = map (\n -> nameTyApp ''DSH.Reify (VarT n)) tupElemTyNames
 
         constraints      = tupConstraint : reifyConstraints
 

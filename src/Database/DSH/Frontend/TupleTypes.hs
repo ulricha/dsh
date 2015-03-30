@@ -23,13 +23,13 @@ module Database.DSH.Frontend.TupleTypes
     , tupTyConstName
     ) where
 
-import           Control.Applicative
 import           Data.List
 import           Text.Printf
 
 import           Language.Haskell.TH
 
 import           Database.DSH.Common.Impossible
+import           Database.DSH.Common.TH
 import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Type   as T
 import qualified Database.DSH.CL.Primitives as CP
@@ -56,7 +56,7 @@ mkTupElemCon aTyVar bTyVar boundTyVars width elemIdx = do
     let binders = map PlainTV boundTyVars
     let tupTy   = mkTupType elemIdx width boundTyVars bTyVar
     let con     = tupAccName width elemIdx
-    let ctx     = [EqualP (VarT aTyVar) tupTy]
+    let ctx     = [equalConstrTy (VarT aTyVar) tupTy]
     return $ ForallC binders ctx (NormalC con [])
 
 -- | Generate the complete type of tuple acccessors for all tuple
@@ -151,7 +151,7 @@ mkReifyInstance :: Int -> Dec
 mkReifyInstance width =
     let tyNames  = map (\i -> mkName $ "t" ++ show i) [1..width]
         instTy   = AppT (ConT $ mkName "Reify") $ tupleType $ map VarT tyNames
-        reifyCxt = map (\tyName -> ClassP (mkName "Reify") [VarT tyName]) tyNames
+        reifyCxt = map (\tyName -> nameTyApp (mkName "Reify") (VarT tyName)) tyNames
 
     in InstanceD reifyCxt instTy [mkReifyFun tyNames]
 
@@ -173,8 +173,10 @@ mkToExp width elemNames =
 mkFrExp :: Int -> [Name] -> Q Dec
 mkFrExp width elemNames = do
     impossibleExpr <- [| error $(litE $ StringL $ printf "frExp %d" width) |]
-    let tupPattern       = ConP (outerConst "") [ConP (innerConst "" width) (map VarP elemNames) ]
-        tupleExpr        = TupE $ map (\n -> AppE (VarE $ mkName "frExp") (VarE n)) elemNames
+    let tupPattern       = ConP (outerConst "")
+                                [ConP (innerConst "" width) (map VarP elemNames) ]
+        tupleExpr        = TupE $ map (\n -> AppE (VarE $ mkName "frExp") (VarE n))
+                                      elemNames
         tupleClause      = Clause [tupPattern] (NormalB tupleExpr) []
         impossibleClause = Clause [WildP] (NormalB impossibleExpr) []
     return $ FunD (mkName "frExp") [tupleClause, impossibleClause]
@@ -191,7 +193,7 @@ mkQAInstance width = do
     let tyNames = map (\i -> mkName $ "t" ++ show i) [1..width]
         tupTy   = tupleType $ map VarT tyNames
         instTy  = AppT (ConT $ mkName "QA") tupTy
-        qaCxt   = map (\tyName -> ClassP (mkName "QA") [VarT tyName]) tyNames
+        qaCxt   = map (\tyName -> nameTyApp (mkName "QA") (VarT tyName)) tyNames
         rep     = mkRep width tyNames tupTy
         toExp   = mkToExp width tyNames
     frExp <- mkFrExp width tyNames
@@ -217,7 +219,7 @@ mkTAInstance width =
     let tyNames = map (\i -> mkName $ "t" ++ show i) [1..width]
         tupTy   = foldl' AppT (TupleT width) $ map VarT tyNames
         instTy  = AppT (ConT $ mkName "TA") tupTy
-        taCxt   = map (\tyName -> ClassP (mkName "BasicType") [VarT tyName]) tyNames
+        taCxt   = map (\tyName -> nameTyApp (mkName "BasicType") (VarT tyName)) tyNames
     in InstanceD taCxt instTy []
 
 -- | Generate TA instances for tuple types according to the following template:
@@ -245,7 +247,7 @@ mkTupleConstructor width =
         tupTy     = AppT (ConT qName) $ foldl' AppT (TupleT width) $ map VarT tyNames
         elemTys   = map (AppT (ConT qName)) $ map VarT tyNames
         arrowTy   = foldr mkArrowTy tupTy elemTys
-        qaConstr  = map (\n -> ClassP (mkName "QA") [VarT n]) tyNames
+        qaConstr  = map (\n -> nameTyApp (mkName "QA") (VarT n)) tyNames
         funTy     = ForallT (map PlainTV tyNames) qaConstr arrowTy
 
         -- Term stuff
@@ -373,7 +375,7 @@ mkViewInstance width = do
         tupTy     = tupleType $ map VarT names
         instTy    = AppT (ConT $ mkName "View") (AppT (ConT qName) tupTy)
 
-        viewCxt   = map (\n -> ClassP (mkName "QA") [VarT n]) names
+        viewCxt   = map (\n -> nameTyApp (mkName "QA") (VarT n)) names
         toViewDec = mkToView names tupTy
     viewDec <- mkViewFun width
     return $ InstanceD viewCxt instTy [toViewDec, viewDec]
@@ -400,10 +402,10 @@ mkTupleCons tupTyName conName elemTyCons width = do
                            $ map VarT tupElemTyNames
 
         -- a ~ (t1, ..., t<n>)
-        tupConstraint    = EqualP (VarT tupTyName) tupTy
+        tupConstraint    = equalConstrTy (VarT tupTyName) tupTy
 
         -- Reify t1, ..., Reify t<n>
-        reifyConstraints = map (\n -> ClassP (mkName "Reify") [VarT n]) tupElemTyNames
+        reifyConstraints = map (\n -> nameTyApp (mkName "Reify") (VarT n)) tupElemTyNames
 
         constraints      = tupConstraint : reifyConstraints
 

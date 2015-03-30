@@ -36,7 +36,6 @@ module Database.DSH.CL.Kure
 
 
 import           Control.Monad
-import           Data.Monoid
 import qualified Data.Map as M
 import qualified Data.Foldable as F
 import           Text.PrettyPrint.ANSI.Leijen(text)
@@ -448,14 +447,3 @@ singletonR = singletonT S
 
 instance Walker CompCtx (NL Qual) where
     allR r = consR r <+ singletonR
-
---------------------------------------------------------------------------------
--- I find it annoying that Applicative is not a superclass of Monad.
-
-(<$>) :: Monad m => (a -> b) -> m a -> m b
-(<$>) = liftM
-{-# INLINE (<$>) #-}
-
-(<*>) :: Monad m => m (a -> b) -> m a -> m b
-(<*>) = ap
-{-# INLINE (<*>) #-}

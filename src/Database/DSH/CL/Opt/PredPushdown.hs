@@ -8,7 +8,6 @@ module Database.DSH.CL.Opt.PredPushdown
   ( predpushdownR
   ) where
 
-import           Control.Applicative
 import           Control.Arrow
 import qualified Data.List.NonEmpty            as N
 import qualified Data.Set                      as S

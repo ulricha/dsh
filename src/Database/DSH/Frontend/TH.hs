@@ -16,7 +16,6 @@ module Database.DSH.Frontend.TH
     ) where
 
 import           Control.Monad
-import           Control.Applicative
 import           Data.Char
 import           Data.List
 
@@ -27,6 +26,7 @@ import qualified Database.DSH.Frontend.Internals  as DSH
 import           Database.DSH.Frontend.TupleTypes
 import qualified Database.DSH.Frontend.Builtins   as F
 import           Database.DSH.Common.Impossible
+import           Database.DSH.Common.TH
 
 
 -----------------------------------------
@@ -61,7 +61,7 @@ deriveQA name = do
 
 deriveTyConQA :: Name -> [TyVarBndr] -> [Con] -> Q [Dec]
 deriveTyConQA name tyVarBndrs cons = do
-  let context       = map (\tv -> ClassP ''DSH.QA [VarT (tyVarBndrToName tv)])
+  let context       = map (\tv -> nameTyApp ''DSH.QA (VarT (tyVarBndrToName tv)))
                           tyVarBndrs
   let typ           = foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs)
   let instanceHead  = AppT (ConT ''DSH.QA) typ
@@ -207,7 +207,7 @@ deriveTA name = do
 
 deriveTyConTA :: Name -> [TyVarBndr] -> [Con] -> Q [Dec]
 deriveTyConTA name tyVarBndrs _cons = do
-  let context       = map (\tv -> ClassP ''DSH.BasicType [VarT (tyVarBndrToName tv)])
+  let context       = map (\tv -> nameTyApp ''DSH.BasicType (VarT (tyVarBndrToName tv)))
                           tyVarBndrs
   let typ           = foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs)
   let instanceHead  = AppT (ConT ''DSH.TA) typ
@@ -229,7 +229,8 @@ deriveView name = do
 
 deriveTyConView :: Name -> [TyVarBndr] -> Con -> Q [Dec]
 deriveTyConView name tyVarBndrs con = do
-  let context = map (\tv -> ClassP ''DSH.QA [VarT (tyVarBndrToName tv)]) tyVarBndrs
+  let context = map (\tv -> nameTyApp ''DSH.QA (VarT (tyVarBndrToName tv)))
+                    tyVarBndrs
   let typ1 = AppT (ConT ''DSH.Q)
                   (foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs))
   let instanceHead = AppT (ConT ''DSH.View) typ1
@@ -276,8 +277,9 @@ deriveTyConElim name tyVarBndrs cons = do
   resultTyName <- newName "r"
   let resTy = VarT resultTyName
   let ty = foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs)
-  let context = ClassP ''DSH.QA [resTy] :
-                map (\tv -> ClassP ''DSH.QA [VarT (tyVarBndrToName tv)]) tyVarBndrs
+  let context = nameTyApp ''DSH.QA (resTy) :
+                map (\tv -> nameTyApp ''DSH.QA (VarT (tyVarBndrToName tv)))
+                    tyVarBndrs
   let instanceHead = AppT (AppT (ConT ''DSH.Elim) ty) resTy
   let eliminatorDec = deriveEliminator ty resTy cons
   elimDec <- deriveElimFun cons
@@ -392,7 +394,7 @@ deriveSmartConstructor typConName tyVarBndrs n i con = do
 
   let resTyp = AppT (ConT ''DSH.Q) (foldl AppT (ConT typConName) boundTyps)
 
-  let smartConContext = map (ClassP ''DSH.QA . return) boundTyps
+  let smartConContext = map (nameTyApp ''DSH.QA) boundTyps
 
   let smartConTyp = foldr (AppT . AppT ArrowT . AppT (ConT ''DSH.Q))
                           resTyp

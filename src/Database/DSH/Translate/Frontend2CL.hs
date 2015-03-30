@@ -9,7 +9,6 @@ module Database.DSH.Translate.Frontend2CL
     ( toComprehensions
     ) where
 
-import           Control.Applicative
 import           Control.Monad.State
 import           Data.List.NonEmpty               (NonEmpty((:|)))
 import qualified Data.List.NonEmpty               as N
@@ -24,7 +23,6 @@ import qualified Database.DSH.Common.Type         as T
 import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Frontend.TupleTypes
-
 
 -- In the state, we store a counter for fresh variable names.
 type CompileState = Integer

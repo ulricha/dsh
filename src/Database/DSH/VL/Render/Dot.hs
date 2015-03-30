@@ -2,6 +2,7 @@
 
 module Database.DSH.VL.Render.Dot(renderVLDot) where
 
+import Prelude hiding ((<$>))
 import qualified Data.IntMap                 as Map
 import qualified Data.List.NonEmpty          as N
 import           Data.List

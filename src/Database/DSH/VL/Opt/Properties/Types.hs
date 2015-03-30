@@ -1,5 +1,6 @@
 module Database.DSH.VL.Opt.Properties.Types where
 
+import           Prelude hiding ((<$>))
 import           Text.PrettyPrint.ANSI.Leijen
 
 import           Database.DSH.Common.Lang

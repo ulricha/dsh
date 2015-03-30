@@ -8,7 +8,6 @@ module Database.DSH.CL.Opt.LoopInvariant
   ( loopInvariantR
   ) where
 
-import           Control.Applicative
 import           Data.Maybe
 import           Data.List
 

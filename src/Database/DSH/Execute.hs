@@ -8,7 +8,6 @@ module Database.DSH.Execute
     ( execQueryBundle
     ) where
 
-import           Control.Applicative
 import           Control.Monad.State
 import qualified Data.DList                      as D
 import qualified Data.IntMap                     as IM
