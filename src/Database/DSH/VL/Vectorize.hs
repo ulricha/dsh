@@ -615,8 +615,11 @@ singletonL _ = $impossible
 dbTable ::  String -> L.BaseTableSchema -> Build VL (Shape VLDVec)
 dbTable n schema = do
     tab <- vlTableRef n schema
+    -- Single-column tables are represented by a flat list and map to
+    -- a flat one-column layout. Multi-column tables map to a list of
+    -- tuples and the corresponding tuple layout.
     let lyt = case L.tableCols schema of
-                  c N.:| [] -> LCol
+                  _ N.:| [] -> LCol
                   cs        -> LTuple $ map (const LCol) $ N.toList cs
     return $ VShape tab lyt
 
