@@ -30,12 +30,12 @@ import           Database.DSH.VL.VectorAlgebra
 type VecBuild a d p r = StateT (M.Map AlgNode (Res d p r)) (B.Build a)
 
 runVecBuild :: VectorAlgebra a
-            => VecBuild a (DVec a) (PVec a) (RVec a) r
+            => VecBuild a (DVec a) (RVec a) (KVec a) r
             -> (D.AlgebraDag a, r, NodeMap [Tag])
 runVecBuild c = B.runBuild $ fst <$> runStateT c M.empty
 
-data Res d p r = RPVec p
-               | RRVec r
+data Res d p r = RRVec p
+               | RKVec r
                | RDVec d
                | RLPair (Res d p r) (Res d p r)
                | RTriple (Res d p r) (Res d p r) (Res d p r)
@@ -49,19 +49,19 @@ fromDict n = do
 insertTranslation :: VectorAlgebra a => AlgNode -> Res d p r -> VecBuild a d p r ()
 insertTranslation n res = modify (M.insert n res)
 
-fromPVec :: p -> Res d p r
-fromPVec p = RPVec p
+fromRVec :: p -> Res d p r
+fromRVec p = RRVec p
 
-toPVec :: Res d p r -> p
-toPVec (RPVec p) = p
-toPVec _         = error "toPVec: Not a prop vector"
+toRVec :: Res d p r -> p
+toRVec (RRVec p) = p
+toRVec _         = error "toRVec: Not a prop vector"
 
-fromRVec :: r -> Res d p r
-fromRVec r = RRVec r
+fromKVec :: r -> Res d p r
+fromKVec r = RKVec r
 
-toRVec :: Res d p r -> r
-toRVec (RRVec r) = r
-toRVec _         = error "toRVec: Not a rename vector"
+toKVec :: Res d p r -> r
+toKVec (RKVec r) = r
+toKVec _         = error "toKVec: Not a rename vector"
 
 fromDVec :: d -> Res d p r
 fromDVec v = RDVec v
@@ -83,7 +83,7 @@ refreshShape shape = T.mapM refreshVec shape
 translate :: VectorAlgebra a
           => NodeMap V.VL
           -> AlgNode
-          -> VecBuild a (DVec a) (PVec a) (RVec a) (Res (DVec a) (PVec a) (RVec a))
+          -> VecBuild a (DVec a) (RVec a) (KVec a) (Res (DVec a) (RVec a) (KVec a))
 translate vlNodes n = do
     r <- fromDict n
 
@@ -123,7 +123,7 @@ pp m = intercalate ",\n" $ map show $ IM.toList m
 vl2Algebra :: VectorAlgebra a
            => NodeMap V.VL
            -> Shape VLDVec
-           -> VecBuild a (DVec a) (PVec a) (RVec a) (Shape (DVec a))
+           -> VecBuild a (DVec a) (RVec a) (KVec a) (Shape (DVec a))
 vl2Algebra vlNodes plan = do
     mapM_ (translate vlNodes) roots
 
@@ -134,117 +134,117 @@ vl2Algebra vlNodes plan = do
 
 translateTerOp :: VectorAlgebra a
                => V.TerOp
-               -> Res (DVec a) (PVec a) (RVec a)
-               -> Res (DVec a) (PVec a) (RVec a)
-               -> Res (DVec a) (PVec a) (RVec a)
-               -> B.Build a (Res (DVec a) (PVec a) (RVec a))
+               -> Res (DVec a) (RVec a) (KVec a)
+               -> Res (DVec a) (RVec a) (KVec a)
+               -> Res (DVec a) (RVec a) (KVec a)
+               -> B.Build a (Res (DVec a) (RVec a) (KVec a))
 translateTerOp t c1 c2 c3 =
     case t of
         V.Combine -> do
             (d, r1, r2) <- vecCombine (toDVec c1) (toDVec c2) (toDVec c3)
-            return $ RTriple (fromDVec d) (fromRVec r1) (fromRVec r2)
+            return $ RTriple (fromDVec d) (fromKVec r1) (fromKVec r2)
 
 translateBinOp :: VectorAlgebra a
                => V.BinOp
-               -> Res (DVec a) (PVec a) (RVec a)
-               -> Res (DVec a) (PVec a) (RVec a)
-               -> B.Build a (Res (DVec a) (PVec a) (RVec a))
+               -> Res (DVec a) (RVec a) (KVec a)
+               -> Res (DVec a) (RVec a) (KVec a)
+               -> B.Build a (Res (DVec a) (RVec a) (KVec a))
 translateBinOp b c1 c2 = case b of
     V.DistLift -> do
         (v, p) <- vecDistLift (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromPVec p)
+        return $ RLPair (fromDVec v) (fromRVec p)
 
-    V.PropRename -> fromDVec <$> vecPropRename (toRVec c1) (toDVec c2)
+    V.PropRename -> fromDVec <$> vecPropRename (toKVec c1) (toDVec c2)
 
     V.PropFilter -> do
-        (v, r) <- vecPropFilter (toRVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromRVec r)
+        (v, r) <- vecPropFilter (toKVec c1) (toDVec c2)
+        return $ RLPair (fromDVec v) (fromKVec r)
 
     V.PropReorder -> do
-        (v, p) <- vecPropReorder (toPVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromPVec p)
+        (v, p) <- vecPropReorder (toRVec c1) (toDVec c2)
+        return $ RLPair (fromDVec v) (fromRVec p)
 
     V.UnboxNested -> do
-        (v, r) <- vecUnboxNested (toRVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromRVec r)
+        (v, r) <- vecUnboxNested (toKVec c1) (toDVec c2)
+        return $ RLPair (fromDVec v) (fromKVec r)
 
     V.UnboxScalar -> RDVec <$> vecUnboxScalar (toDVec c1) (toDVec c2)
 
     V.Append -> do
         (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRVec r1) (fromRVec r2)
+        return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
 
     V.AppendS -> do
         (v, r1, r2) <- vecAppendS (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRVec r1) (fromRVec r2)
+        return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
 
     V.AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
 
 
     V.SelectPos o -> do
         (v, r, ru) <- vecSelectPos (toDVec c1) o (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRVec r) (fromRVec ru)
+        return $ RTriple (fromDVec v) (fromKVec r) (fromKVec ru)
 
     V.SelectPosS o -> do
         (v, rp, ru) <- vecSelectPosS (toDVec c1) o (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRVec rp) (fromRVec ru)
+        return $ RTriple (fromDVec v) (fromKVec rp) (fromKVec ru)
 
     V.Zip -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
     V.Align -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
 
     V.ZipS -> do
         (v, r1 ,r2) <- vecZipS (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRVec r1) (fromRVec r2)
+        return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
 
     V.CartProduct -> do
         (v, p1, p2) <- vecCartProduct (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
+        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.CartProductS -> do
         (v, p1, p2) <- vecCartProductS (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
+        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.NestProductS -> do
         (v, p2) <- vecNestProductS (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromPVec p2)
+        return $ RLPair (fromDVec v) (fromRVec p2)
 
     V.ThetaJoin p -> do
         (v, p1, p2) <- vecThetaJoin p (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
+        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.NestProduct -> do
         (v, p1, p2) <- vecNestProduct (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
+        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.NestJoin p -> do
         (v, p1, p2) <- vecNestJoin p (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
+        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.ThetaJoinS p -> do
         (v, p1, p2) <- vecThetaJoinS p (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
+        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.NestJoinS p -> do
         (v, p2) <- vecNestJoinS p (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromPVec p2)
+        return $ RLPair (fromDVec v) (fromRVec p2)
 
     V.GroupJoin (p, a) -> fromDVec <$> vecGroupJoin p a (toDVec c1) (toDVec c2)
 
     V.SemiJoin p -> do
         (v, r) <- vecSemiJoin p (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromRVec r)
+        return $ RLPair (fromDVec v) (fromKVec r)
 
     V.SemiJoinS p -> do
         (v, r) <- vecSemiJoinS p (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromRVec r)
+        return $ RLPair (fromDVec v) (fromKVec r)
 
     V.AntiJoin p -> do
         (v, r) <- vecAntiJoin p (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromRVec r)
+        return $ RLPair (fromDVec v) (fromKVec r)
 
     V.AntiJoinS p -> do
         (v, r) <- vecAntiJoinS p (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromRVec r)
+        return $ RLPair (fromDVec v) (fromKVec r)
 
     V.TransposeS -> do
         (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
@@ -252,14 +252,14 @@ translateBinOp b c1 c2 = case b of
 
 translateUnOp :: VectorAlgebra a
               => V.UnOp
-              -> Res (DVec a) (PVec a) (RVec a)
-              -> B.Build a (Res (DVec a) (PVec a) (RVec a))
+              -> Res (DVec a) (RVec a) (KVec a)
+              -> B.Build a (Res (DVec a) (RVec a) (KVec a))
 translateUnOp unop c = case unop of
     V.AggrNonEmptyS a  -> fromDVec <$> vecAggrNonEmptyS a (toDVec c)
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     V.Number           -> fromDVec <$> vecNumber (toDVec c)
     V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)
-    V.UnboxRename      -> fromRVec <$> descToRename (toDVec c)
+    V.UnboxRename      -> fromKVec <$> descToRename (toDVec c)
     V.Segment          -> fromDVec <$> vecSegment (toDVec c)
     V.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
     V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
@@ -267,32 +267,32 @@ translateUnOp unop c = case unop of
     V.AggrNonEmpty as  -> fromDVec <$> vecAggrNonEmpty as (toDVec c)
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
-        return $ RLPair (fromDVec d) (fromRVec r)
+        return $ RLPair (fromDVec d) (fromKVec r)
     V.Sort es         -> do
         (d, p) <- vecSort es (toDVec c)
-        return $ RLPair (fromDVec d) (fromPVec p)
+        return $ RLPair (fromDVec d) (fromRVec p)
     V.SortS es         -> do
         (d, p) <- vecSortS es (toDVec c)
-        return $ RLPair (fromDVec d) (fromPVec p)
+        return $ RLPair (fromDVec d) (fromRVec p)
     V.Group es -> do
         (qo, qi, p) <- vecGroup es (toDVec c)
-        return $ RTriple (fromDVec qo) (fromDVec qi) (fromPVec p)
+        return $ RTriple (fromDVec qo) (fromDVec qi) (fromRVec p)
     V.GroupS es -> do
         (qo, qi, p) <- vecGroupS es (toDVec c)
-        return $ RTriple (fromDVec qo) (fromDVec qi) (fromPVec p)
+        return $ RTriple (fromDVec qo) (fromDVec qi) (fromRVec p)
     V.Project cols -> fromDVec <$> vecProject cols (toDVec c)
     V.Reverse      -> do
         (d, p) <- vecReverse (toDVec c)
-        return $ RLPair (fromDVec d) (fromPVec p)
+        return $ RLPair (fromDVec d) (fromRVec p)
     V.ReverseS      -> do
         (d, p) <- vecReverseS (toDVec c)
-        return $ RLPair (fromDVec d) (fromPVec p)
+        return $ RLPair (fromDVec d) (fromRVec p)
     V.SelectPos1 (op, pos) -> do
         (d, p, u) <- vecSelectPos1 (toDVec c) op pos
-        return $ RTriple (fromDVec d) (fromRVec p) (fromRVec u)
+        return $ RTriple (fromDVec d) (fromKVec p) (fromKVec u)
     V.SelectPos1S (op, pos) -> do
         (d, p, u) <- vecSelectPos1S (toDVec c) op pos
-        return $ RTriple (fromDVec d) (fromRVec p) (fromRVec u)
+        return $ RTriple (fromDVec d) (fromKVec p) (fromKVec u)
     V.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
 
     V.Reshape n -> do
@@ -318,7 +318,7 @@ translateUnOp unop c = case unop of
 
 translateNullary :: VectorAlgebra a
                  => V.NullOp
-                 -> B.Build a (Res (DVec a) (PVec a) (RVec a))
+                 -> B.Build a (Res (DVec a) (RVec a) (KVec a))
 translateNullary V.SingletonDescr          = fromDVec <$> singletonDescr
 translateNullary (V.Lit (_, tys, vals))    = fromDVec <$> vecLit tys vals
 translateNullary (V.TableRef (n, schema))  = fromDVec <$> vecTableRef n schema

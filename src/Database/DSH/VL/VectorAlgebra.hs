@@ -11,8 +11,8 @@ import           Database.Algebra.Dag.Build
 
 class VectorAlgebra a where
     type DVec a
+    type KVec a
     type RVec a
-    type PVec a
 
     -- | A vector with one segment
     singletonDescr :: Build a (DVec a)
@@ -36,7 +36,7 @@ class VectorAlgebra a where
     -- vector's elements in each segment.
     vecNumberS :: DVec a -> Build a (DVec a)
 
-    descToRename :: DVec a -> Build a (RVec a)
+    descToRename :: DVec a -> Build a (KVec a)
 
     -- | From a vector with only one segment, create a segmented
     -- version in which every value in the original segment inhabits
@@ -61,42 +61,42 @@ class VectorAlgebra a where
     -- * Mapping old positions to segment descriptors (for unboxing one
     -- inner segment)
     -- FIXME should be restricted to RelOp!
-    vecSelectPos :: DVec a -> ScalarBinOp -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecSelectPos :: DVec a -> ScalarBinOp -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
     -- | Filter a vector positionally /by segment/. The right input
     -- vector provides a position offset /for each segment/. The
     -- operator produces the same triple of vectors as its non-segmented
     -- variant.
-    vecSelectPosS :: DVec a -> ScalarBinOp -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecSelectPosS :: DVec a -> ScalarBinOp -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
     -- | Filter a vector positionally on a /constant/ position.
-    vecSelectPos1 :: DVec a -> ScalarBinOp -> Int -> Build a (DVec a, RVec a, RVec a)
+    vecSelectPos1 :: DVec a -> ScalarBinOp -> Int -> Build a (DVec a, KVec a, KVec a)
 
     -- | Filter a vector positionally based on a /constant
     -- position/. The operator filters by segment, but the constant
     -- position argument is the same for all segments.
-    vecSelectPos1S :: DVec a -> ScalarBinOp -> Int -> Build a (DVec a, RVec a, RVec a)
+    vecSelectPos1S :: DVec a -> ScalarBinOp -> Int -> Build a (DVec a, KVec a, KVec a)
 
     -- | Reverse a vector.
-    vecReverse :: DVec a -> Build a (DVec a, PVec a)
+    vecReverse :: DVec a -> Build a (DVec a, RVec a)
 
     -- | Reverse each segment of a vector individually.
-    vecReverseS :: DVec a -> Build a (DVec a, PVec a)
+    vecReverseS :: DVec a -> Build a (DVec a, RVec a)
 
     -- | Filter a vector by applying a scalar boolean predicate.
-    vecSelect:: Expr -> DVec a -> Build a (DVec a, RVec a)
+    vecSelect:: Expr -> DVec a -> Build a (DVec a, KVec a)
 
     -- | Sort a vector
-    vecSort :: [Expr] -> DVec a -> Build a (DVec a, PVec a)
+    vecSort :: [Expr] -> DVec a -> Build a (DVec a, RVec a)
 
     -- | Per-segment sorting of a vector.
-    vecSortS :: [Expr] -> DVec a -> Build a (DVec a, PVec a)
+    vecSortS :: [Expr] -> DVec a -> Build a (DVec a, RVec a)
 
     -- | Regular grouping of a vector
-    vecGroup :: [Expr] -> DVec a -> Build a (DVec a, DVec a, PVec a)
+    vecGroup :: [Expr] -> DVec a -> Build a (DVec a, DVec a, RVec a)
 
     -- | Per-segment grouping of a vector
-    vecGroupS :: [Expr] -> DVec a -> Build a (DVec a, DVec a, PVec a)
+    vecGroupS :: [Expr] -> DVec a -> Build a (DVec a, DVec a, RVec a)
 
     -- | The VL aggregation operator groups the input vector by the
     -- given columns and then performs the list of aggregations
@@ -115,19 +115,19 @@ class VectorAlgebra a where
     vecProject :: [Expr] -> DVec a -> Build a (DVec a)
 
     -- FIXME is distprim really necessary? could maybe be replaced by distdesc
-    vecDistLift :: DVec a -> DVec a -> Build a (DVec a, PVec a)
+    vecDistLift :: DVec a -> DVec a -> Build a (DVec a, RVec a)
 
     -- | propRename uses a propagation (DVec a)ector to rename a vector (no
     -- filtering or reordering).
-    vecPropRename :: RVec a -> DVec a -> Build a (DVec a)
+    vecPropRename :: KVec a -> DVec a -> Build a (DVec a)
 
     -- | propFilter uses a propagation vector to rename and filter a
     -- vector (no reordering).
-    vecPropFilter :: RVec a -> DVec a -> Build a (DVec a, RVec a)
+    vecPropFilter :: KVec a -> DVec a -> Build a (DVec a, KVec a)
 
     -- | propReorder uses a propagation vector to rename, filter and
     -- reorder a vector.
-    vecPropReorder :: PVec a -> DVec a -> Build a (DVec a, PVec a)
+    vecPropReorder :: RVec a -> DVec a -> Build a (DVec a, RVec a)
 
     -- | Specialized unbox operator that merges DescrToRename
     -- and PropRename. It takes an inner and outer vector, and
@@ -137,13 +137,13 @@ class VectorAlgebra a where
     -- vector. Inner segments that are not referenced are
     -- silently discarded.
     --
-    -- Output: @(DVec r, RVec)@
-    vecUnboxNested :: RVec a -> DVec a -> Build a (DVec a, RVec a)
+    -- Output: @(DVec r, KVec)@
+    vecUnboxNested :: KVec a -> DVec a -> Build a (DVec a, KVec a)
 
     vecUnboxScalar :: (DVec a) -> (DVec a) -> Build a (DVec a)
 
-    vecAppend :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-    vecAppendS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecAppend :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
+    vecAppendS :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
     -- | Align two vectors positionally. However, in contrast to
     -- 'vecZip', these are not arbitrary vectors, but vectors which
@@ -156,29 +156,29 @@ class VectorAlgebra a where
 
     -- | Positionally align two vectors per segment: @map zip xss
     -- yss@.
-    vecZipS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecZipS :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
-    vecCartProduct :: DVec a -> DVec a -> Build a (DVec a, PVec a, PVec a)
-    vecCartProductS :: DVec a -> DVec a -> Build a (DVec a, PVec a, PVec a)
-    vecNestProduct :: DVec a -> DVec a -> Build a (DVec a, PVec a, PVec a)
+    vecCartProduct :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecCartProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecNestProduct :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     -- FIXME inner result vector contains the outer values. Produce a
     -- propagation vector to align the layout.
-    vecNestProductS :: DVec a -> DVec a -> Build a (DVec a, PVec a)
+    vecNestProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a)
 
-    vecThetaJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, PVec a, PVec a)
-    vecNestJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, PVec a, PVec a)
-    vecThetaJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, PVec a, PVec a)
-    vecNestJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, PVec a)
+    vecThetaJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecNestJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecThetaJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecNestJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a)
 
     vecGroupJoin :: JoinPredicate Expr -> AggrFun -> DVec a -> DVec a -> Build a (DVec a)
 
-    vecSemiJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a)
-    vecSemiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a)
+    vecSemiJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, KVec a)
+    vecSemiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, KVec a)
 
-    vecAntiJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a)
-    vecAntiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a)
+    vecAntiJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, KVec a)
+    vecAntiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, KVec a)
 
-    vecCombine :: DVec a -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecCombine :: DVec a -> DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
     -- | Experimental: @reshape m@ partitions a vector of length @n*m@
     -- into @n@ vectors of length @m@.
