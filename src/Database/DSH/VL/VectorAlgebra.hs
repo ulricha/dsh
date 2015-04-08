@@ -163,11 +163,11 @@ class VectorAlgebra a where
     vecAlign :: DVec a -> DVec a -> Build a (DVec a)
 
     -- | Positionally align two vectors. Basically: @zip xs ys@
-    vecZip :: (DVec a) -> DVec a -> Build a (DVec a)
+    vecZip :: (DVec a) -> DVec a -> Build a (DVec a, FVec a, FVec a)
 
     -- | Positionally align two vectors per segment: @map zip xss
     -- yss@.
-    vecZipS :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
+    vecZipS :: DVec a -> DVec a -> Build a (DVec a, FVec a, FVec a)
 
     vecCartProduct :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecCartProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)

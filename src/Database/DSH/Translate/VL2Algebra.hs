@@ -215,12 +215,15 @@ translateBinOp b c1 c2 = case b of
         (v, rp, ru) <- vecSelectPosS (toDVec c1) o (toDVec c2)
         return $ RTriple (fromDVec v) (fromFVec rp) (fromKVec ru)
 
-    V.Zip -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
-    V.Align -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
+    V.Zip -> do
+        (v, f1, f2) <- vecZip (toDVec c1) (toDVec c2)
+        return $ RTriple (fromDVec v) (fromFVec f1) (fromFVec f2)
+
+    V.Align -> fromDVec <$> vecAlign (toDVec c1) (toDVec c2)
 
     V.ZipS -> do
         (v, r1 ,r2) <- vecZipS (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
+        return $ RTriple (fromDVec v) (fromFVec r1) (fromFVec r2)
 
     V.CartProduct -> do
         (v, p1, p2) <- vecCartProduct (toDVec c1) (toDVec c2)

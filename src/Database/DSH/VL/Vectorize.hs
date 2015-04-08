@@ -28,9 +28,11 @@ import           Database.DSH.Common.Vector
 -- Construction of not-lifted primitives
 
 zip ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-zip (VShape q1 lyt1) (VShape q2 lyt2) = do
-    q' <- vlZip q1 q2
-    return $ VShape q' $ LTuple [lyt1, lyt2]
+zip (VShape dv1 lyt1) (VShape dv2 lyt2) = do
+    (dv, fv1, fv2) <- vlZip dv1 dv2
+    lyt1'          <- filterLayout fv1 lyt1
+    lyt2'          <- filterLayout fv2 lyt2
+    return $ VShape dv $ LTuple [lyt1', lyt2']
 zip _ _ = $impossible
 
 cartProduct :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)

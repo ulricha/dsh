@@ -251,8 +251,8 @@ vlSelectPos1S (VLDVec c1) op posConst =
 vlProject :: [Expr] -> VLDVec -> Build VL VLDVec
 vlProject projs (VLDVec c) = dvec $ insert $ UnOp (Project projs) c
 
-vlZip :: VLDVec -> VLDVec -> Build VL VLDVec
-vlZip (VLDVec c1) (VLDVec c2) = vec (BinOp Zip c1 c2) dvec
+vlZip :: VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec, VLFVec)
+vlZip (VLDVec c1) (VLDVec c2) = tripleVec (BinOp Zip c1 c2) dvec fvec fvec
 
 vlAlign :: VLDVec -> VLDVec -> Build VL VLDVec
 vlAlign (VLDVec c1) (VLDVec c2) = vec (BinOp Align c1 c2) dvec
