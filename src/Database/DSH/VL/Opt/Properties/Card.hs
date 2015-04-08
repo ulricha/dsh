@@ -68,9 +68,10 @@ inferCardOneBinOp c1 c2 op =
     AggrS _ -> return $ VProp False
     NestProduct -> return $ VPropTriple False False False
     DistLift -> return $ VPropPair False False
-    PropRename -> return $ VProp False
-    PropFilter -> return $ VPropPair False False
-    PropReorder -> return $ VPropPair False False
+    AppKey -> return $ VProp False
+    AppSort -> return $ VPropPair False False
+    AppFilter -> return $ VPropPair False False
+    AppRep -> return $ VPropPair False False
     UnboxNested -> return $ VPropPair False False
     UnboxScalar -> return $ VProp False
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)

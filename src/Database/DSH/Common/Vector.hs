@@ -12,8 +12,10 @@ module Database.DSH.Common.Vector
     , ADVec(..)
     , VLDVec(..)
     , NDVec
-    , NPVec(..)
-    , NRVec(..)
+    , VLRVec(..)
+    , VLKVec(..)
+    , VLSVec(..)
+    , VLFVec(..)
     ) where
 
 import           Data.Aeson.TH
@@ -58,15 +60,25 @@ instance DagVector VLDVec where
         | q == n1   = VLDVec n2
         | otherwise = VLDVec q
 
--- | Propagation vectors. A @PVec@ simply references a node in an
+-- | Replication vectors. A @NRVec@ simply references a node in an
 -- algebra Dag.
-data NPVec = NPVec AlgNode
+newtype VLRVec = VLRVec AlgNode
 
--- | Rename vectors. A @RVec@ simply references a node in an algebra
+-- | Rekeying vectors. A @NKVec@ simply references a node in an algebra
 -- Dag.
-data NRVec = NRVec AlgNode
+newtype VLKVec = VLKVec AlgNode
+
+-- | Filtering vectors. A @NFVec@ simply references a node in an algebra
+-- Dag.
+newtype VLFVec = VLFVec AlgNode
+
+-- | Sorting vectors. A @NSVec@ simply references a node in an algebra
+-- Dag.
+newtype VLSVec = VLSVec AlgNode
 
 $(deriveJSON defaultOptions ''ADVec)
-$(deriveJSON defaultOptions ''NPVec)
-$(deriveJSON defaultOptions ''NRVec)
+$(deriveJSON defaultOptions ''VLRVec)
+$(deriveJSON defaultOptions ''VLKVec)
+$(deriveJSON defaultOptions ''VLSVec)
+$(deriveJSON defaultOptions ''VLFVec)
 $(deriveJSON defaultOptions ''VLDVec)

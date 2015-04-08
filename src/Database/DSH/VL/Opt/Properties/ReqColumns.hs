@@ -269,19 +269,19 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
-      PropRename -> do
-          fromRight <- childReqColumns2 ∪ ownReqColumns
-          return (na, fromRight)
+      -- PropRename -> do
+      --     fromRight <- childReqColumns2 ∪ ownReqColumns
+      --     return (na, fromRight)
 
-      PropFilter      -> do
-          cols      <- fst <$> fromPropPair ownReqColumns
-          fromRight <- childReqColumns2 ∪ VProp cols
-          return (na, fromRight)
+      -- PropFilter      -> do
+      --     cols      <- fst <$> fromPropPair ownReqColumns
+      --     fromRight <- childReqColumns2 ∪ VProp cols
+      --     return (na, fromRight)
 
-      PropReorder -> do
-          cols      <- fst <$> fromPropPair ownReqColumns
-          fromRight <- childReqColumns2 ∪ VProp cols
-          return (na, fromRight)
+      -- PropReorder -> do
+      --     cols      <- fst <$> fromPropPair ownReqColumns
+      --     fromRight <- childReqColumns2 ∪ VProp cols
+      --     return (na, fromRight)
 
       UnboxNested -> do
           cols      <- fst <$> fromPropPair ownReqColumns

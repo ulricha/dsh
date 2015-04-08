@@ -10,9 +10,20 @@ import           Database.DSH.VL.Lang
 import           Database.Algebra.Dag.Build
 
 class VectorAlgebra a where
+    -- | Data Vector
     type DVec a
+
+    -- | Re-Keying Vector
     type KVec a
+
+    -- | Replication Vector
     type RVec a
+
+    -- | Sorting Vector
+    type SVec a
+
+    -- | Filtering Vector
+    type FVec a
 
     -- | A vector with one segment
     singletonDescr :: Build a (DVec a)
@@ -61,42 +72,42 @@ class VectorAlgebra a where
     -- * Mapping old positions to segment descriptors (for unboxing one
     -- inner segment)
     -- FIXME should be restricted to RelOp!
-    vecSelectPos :: DVec a -> ScalarBinOp -> DVec a -> Build a (DVec a, KVec a, KVec a)
+    vecSelectPos :: DVec a -> ScalarBinOp -> DVec a -> Build a (DVec a, FVec a, KVec a)
 
     -- | Filter a vector positionally /by segment/. The right input
     -- vector provides a position offset /for each segment/. The
     -- operator produces the same triple of vectors as its non-segmented
     -- variant.
-    vecSelectPosS :: DVec a -> ScalarBinOp -> DVec a -> Build a (DVec a, KVec a, KVec a)
+    vecSelectPosS :: DVec a -> ScalarBinOp -> DVec a -> Build a (DVec a, FVec a, KVec a)
 
     -- | Filter a vector positionally on a /constant/ position.
-    vecSelectPos1 :: DVec a -> ScalarBinOp -> Int -> Build a (DVec a, KVec a, KVec a)
+    vecSelectPos1 :: DVec a -> ScalarBinOp -> Int -> Build a (DVec a, FVec a, KVec a)
 
     -- | Filter a vector positionally based on a /constant
     -- position/. The operator filters by segment, but the constant
     -- position argument is the same for all segments.
-    vecSelectPos1S :: DVec a -> ScalarBinOp -> Int -> Build a (DVec a, KVec a, KVec a)
+    vecSelectPos1S :: DVec a -> ScalarBinOp -> Int -> Build a (DVec a, FVec a, KVec a)
 
     -- | Reverse a vector.
-    vecReverse :: DVec a -> Build a (DVec a, RVec a)
+    vecReverse :: DVec a -> Build a (DVec a, SVec a)
 
     -- | Reverse each segment of a vector individually.
-    vecReverseS :: DVec a -> Build a (DVec a, RVec a)
+    vecReverseS :: DVec a -> Build a (DVec a, SVec a)
 
     -- | Filter a vector by applying a scalar boolean predicate.
-    vecSelect:: Expr -> DVec a -> Build a (DVec a, KVec a)
+    vecSelect:: Expr -> DVec a -> Build a (DVec a, FVec a)
 
     -- | Sort a vector
-    vecSort :: [Expr] -> DVec a -> Build a (DVec a, RVec a)
+    vecSort :: [Expr] -> DVec a -> Build a (DVec a, SVec a)
 
     -- | Per-segment sorting of a vector.
-    vecSortS :: [Expr] -> DVec a -> Build a (DVec a, RVec a)
+    vecSortS :: [Expr] -> DVec a -> Build a (DVec a, SVec a)
 
     -- | Regular grouping of a vector
-    vecGroup :: [Expr] -> DVec a -> Build a (DVec a, DVec a, RVec a)
+    vecGroup :: [Expr] -> DVec a -> Build a (DVec a, DVec a, SVec a)
 
     -- | Per-segment grouping of a vector
-    vecGroupS :: [Expr] -> DVec a -> Build a (DVec a, DVec a, RVec a)
+    vecGroupS :: [Expr] -> DVec a -> Build a (DVec a, DVec a, SVec a)
 
     -- | The VL aggregation operator groups the input vector by the
     -- given columns and then performs the list of aggregations
@@ -117,17 +128,17 @@ class VectorAlgebra a where
     -- FIXME is distprim really necessary? could maybe be replaced by distdesc
     vecDistLift :: DVec a -> DVec a -> Build a (DVec a, RVec a)
 
-    -- | propRename uses a propagation (DVec a)ector to rename a vector (no
-    -- filtering or reordering).
-    vecPropRename :: KVec a -> DVec a -> Build a (DVec a)
+    -- | Apply a sorting vector to a data vector
+    vecAppSort   :: SVec a -> DVec a -> Build a (DVec a, SVec a)
 
-    -- | propFilter uses a propagation vector to rename and filter a
-    -- vector (no reordering).
-    vecPropFilter :: KVec a -> DVec a -> Build a (DVec a, KVec a)
+    -- | Apply a filter vector to a data vector
+    vecAppFilter :: FVec a -> DVec a -> Build a (DVec a, FVec a)
 
-    -- | propReorder uses a propagation vector to rename, filter and
-    -- reorder a vector.
-    vecPropReorder :: RVec a -> DVec a -> Build a (DVec a, RVec a)
+    -- | Apply a rekeying vector to a data vector
+    vecAppKey    :: KVec a -> DVec a -> Build a (DVec a)
+
+    -- | Apply a replication vector to a data vector
+    vecAppRep    :: RVec a -> DVec a -> Build a (DVec a, RVec a)
 
     -- | Specialized unbox operator that merges DescrToRename
     -- and PropRename. It takes an inner and outer vector, and
@@ -172,11 +183,11 @@ class VectorAlgebra a where
 
     vecGroupJoin :: JoinPredicate Expr -> AggrFun -> DVec a -> DVec a -> Build a (DVec a)
 
-    vecSemiJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, KVec a)
-    vecSemiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, KVec a)
+    vecSemiJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
+    vecSemiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
 
-    vecAntiJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, KVec a)
-    vecAntiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, KVec a)
+    vecAntiJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
+    vecAntiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
 
     vecCombine :: DVec a -> DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
 

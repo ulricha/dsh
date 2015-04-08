@@ -30,10 +30,11 @@ cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ pullProjectPropRename
-                 , pullProjectPropReorder
+redundantRules = [ pullProjectAppKey
+                 , pullProjectAppRep
+                 , pullProjectAppFilter
+                 , pullProjectAppSort
                  , pullProjectSelectPos1S
-                 , pullProjectPropFilter
                  , pullProjectUnboxRename
                  , pullProjectAggrS
                  , scalarConditional
@@ -757,14 +758,14 @@ pullProjectNumber q =
 -- assume that the cost of having unrequired columns around is
 -- negligible (best case: column store).
 
-pullProjectPropRename :: VLRule ()
-pullProjectPropRename q =
-  $(dagPatMatch 'q "(qp) PropRename (Project proj (qv))"
+pullProjectAppKey :: VLRule ()
+pullProjectAppKey q =
+  $(dagPatMatch 'q "(qp) AppKey (Project proj (qv))"
     [| do
          return $ do
-           logRewrite "Redundant.Project.PropRename" q
-           renameNode <- insert $ BinOp PropRename $(v "qp") $(v "qv")
-           void $ replaceWithNew q $ UnOp (Project $(v "proj")) renameNode |])
+           logRewrite "Redundant.Project.AppKey" q
+           rekeyNode <- insert $ BinOp AppKey $(v "qp") $(v "qv")
+           void $ replaceWithNew q $ UnOp (Project $(v "proj")) rekeyNode |])
 
 pullProjectUnboxScalarLeft :: VLRule BottomUpProps
 pullProjectUnboxScalarLeft q =
@@ -803,14 +804,14 @@ pullProjectUnboxScalarRight q =
 
            void $ replaceWithNew q $ UnOp (Project proj') unboxNode |])
 
-pullProjectPropReorder :: VLRule ()
-pullProjectPropReorder q =
-  $(dagPatMatch 'q "R1 ((qp) PropReorder (Project proj (qv)))"
+pullProjectAppRep :: VLRule ()
+pullProjectAppRep q =
+  $(dagPatMatch 'q "R1 ((qp) AppRep (Project proj (qv)))"
     [| do
          return $ do
-           logRewrite "Redundant.Project.Reorder" q
-           reorderNode <- insert $ BinOp PropReorder $(v "qp") $(v "qv")
-           r1Node      <- insert $ UnOp R1 reorderNode
+           logRewrite "Redundant.Project.AppRep" q
+           repNode <- insert $ BinOp AppRep $(v "qp") $(v "qv")
+           r1Node  <- insert $ UnOp R1 repNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
 pullProjectSelectPos1S :: VLRule ()
@@ -823,14 +824,24 @@ pullProjectSelectPos1S q =
            r1Node      <- insert $ UnOp R1 selectNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
-pullProjectPropFilter :: VLRule ()
-pullProjectPropFilter q =
-  $(dagPatMatch 'q "R1 ((q1) PropFilter (Project proj (q2)))"
+pullProjectAppFilter :: VLRule ()
+pullProjectAppFilter q =
+  $(dagPatMatch 'q "R1 ((q1) AppFilter (Project proj (q2)))"
     [| do
          return $ do
-           logRewrite "Redundant.Project.PropFilter" q
-           filterNode <- insert $ BinOp PropFilter $(v "q1") $(v "q2")
+           logRewrite "Redundant.Project.AppFilter" q
+           filterNode <- insert $ BinOp AppFilter $(v "q1") $(v "q2")
            r1Node     <- insert $ UnOp R1 filterNode
+           void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
+
+pullProjectAppSort :: VLRule ()
+pullProjectAppSort q =
+  $(dagPatMatch 'q "R1 ((q1) AppSort (Project proj (q2)))"
+    [| do
+         return $ do
+           logRewrite "Redundant.Project.AppSort" q
+           sortNode <- insert $ BinOp AppSort $(v "q1") $(v "q2")
+           r1Node   <- insert $ UnOp R1 sortNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
 pullProjectUnboxRename :: VLRule ()
@@ -890,7 +901,7 @@ selectConstPosS q =
 -- propagation vector for the left input is a NOOP.
 propProductCard1Right :: VLRule BottomUpProps
 propProductCard1Right q =
-  $(dagPatMatch 'q "R1 ((R2 ((_) CartProduct (q2))) PropReorder (qi))"
+  $(dagPatMatch 'q "R1 ((R2 ((_) CartProduct (q2))) AppRep (qi))"
     [| do
         VProp True <- card1Prop <$> properties $(v "q2")
 
@@ -934,7 +945,7 @@ propProductCard1Right q =
 -- the joins and drive them in a pipelined manner.
 nestJoinChain :: VLRule BottomUpProps
 nestJoinChain q =
-  $(dagPatMatch 'q "R1 ((R3 (lj=(xs) NestJoin _ (ys))) PropReorder (R1 ((ys1) NestJoin p (zs))))"
+  $(dagPatMatch 'q "R1 ((R3 (lj=(xs) NestJoin _ (ys))) AppRep (R1 ((ys1) NestJoin p (zs))))"
    [| do
        xsWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "xs")
        ysWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "ys")

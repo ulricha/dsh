@@ -27,51 +27,73 @@ import           Database.DSH.VL.VectorAlgebra
 
 -- | A layer on top of the DAG builder monad that caches the
 -- translation result of VL nodes.
-type VecBuild a d p r = StateT (M.Map AlgNode (Res d p r)) (B.Build a)
+type VecBuild a d r k f s = StateT (M.Map AlgNode (Res d r k f s)) (B.Build a)
 
 runVecBuild :: VectorAlgebra a
-            => VecBuild a (DVec a) (RVec a) (KVec a) r
+            => VecBuild a (DVec a) (RVec a) (KVec a) (FVec a) (SVec a) r
             -> (D.AlgebraDag a, r, NodeMap [Tag])
 runVecBuild c = B.runBuild $ fst <$> runStateT c M.empty
 
-data Res d p r = RRVec p
-               | RKVec r
-               | RDVec d
-               | RLPair (Res d p r) (Res d p r)
-               | RTriple (Res d p r) (Res d p r) (Res d p r)
-         deriving Show
+data Res d r k f s
+    = RRVec r
+    | RKVec k
+    | RFVec f
+    | RSVec s
+    | RDVec d
+    | RLPair (Res d r k f s) (Res d r k f s)
+    | RTriple (Res d r k f s) (Res d r k f s) (Res d r k f s)
+    deriving Show
 
-fromDict :: VectorAlgebra a => AlgNode -> VecBuild a d p r (Maybe (Res d p r))
+fromDict :: VectorAlgebra a => AlgNode -> VecBuild a d r k f s (Maybe (Res d r k f s))
 fromDict n = do
     dict <- get
     return $ M.lookup n dict
 
-insertTranslation :: VectorAlgebra a => AlgNode -> Res d p r -> VecBuild a d p r ()
+insertTranslation :: VectorAlgebra a => AlgNode -> Res d r k f s -> VecBuild a d r k f s ()
 insertTranslation n res = modify (M.insert n res)
 
-fromRVec :: p -> Res d p r
+--------------------------------------------------------------------------------
+-- Wrappers and unwrappers for vector references
+
+fromRVec :: r -> Res d r k f s
 fromRVec p = RRVec p
 
-toRVec :: Res d p r -> p
-toRVec (RRVec p) = p
-toRVec _         = error "toRVec: Not a prop vector"
-
-fromKVec :: r -> Res d p r
+fromKVec :: k -> Res d r k f s
 fromKVec r = RKVec r
 
-toKVec :: Res d p r -> r
-toKVec (RKVec r) = r
-toKVec _         = error "toKVec: Not a rename vector"
-
-fromDVec :: d -> Res d p r
+fromDVec :: d -> Res d r k f s
 fromDVec v = RDVec v
 
-toDVec :: Res d p r -> d
+fromFVec :: f -> Res d r k f s
+fromFVec v = RFVec v
+
+fromSVec :: s -> Res d r k f s
+fromSVec v = RSVec v
+
+toDVec :: Res d r k f s -> d
 toDVec (RDVec v) = v
 toDVec _         = error "toDVec: Not a NDVec"
 
+toRVec :: Res d r k f s -> r
+toRVec (RRVec p) = p
+toRVec _         = error "toRVec: Not a replication vector"
+
+toKVec :: Res d r k f s -> k
+toKVec (RKVec r) = r
+toKVec _         = error "toKVec: Not a rekeying vector"
+
+toFVec :: Res d r k f s -> f
+toFVec (RFVec r) = r
+toFVec _         = error "toFVec: Not a filtering vector"
+
+toSVec :: Res d r k f s -> s
+toSVec (RSVec r) = r
+toSVec _         = error "toSVec: Not a filtering vector"
+
+--------------------------------------------------------------------------------
+
 -- | Refresh vectors in a shape from the cache.
-refreshShape :: VectorAlgebra a => Shape VLDVec -> VecBuild a d p r (Shape d)
+refreshShape :: VectorAlgebra a => Shape VLDVec -> VecBuild a d r k f s (Shape d)
 refreshShape shape = T.mapM refreshVec shape
   where
     refreshVec (VLDVec n) = do
@@ -83,7 +105,7 @@ refreshShape shape = T.mapM refreshVec shape
 translate :: VectorAlgebra a
           => NodeMap V.VL
           -> AlgNode
-          -> VecBuild a (DVec a) (RVec a) (KVec a) (Res (DVec a) (RVec a) (KVec a))
+          -> VecBuild a (DVec a) (RVec a) (KVec a) (FVec a) (SVec a) (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translate vlNodes n = do
     r <- fromDict n
 
@@ -123,7 +145,7 @@ pp m = intercalate ",\n" $ map show $ IM.toList m
 vl2Algebra :: VectorAlgebra a
            => NodeMap V.VL
            -> Shape VLDVec
-           -> VecBuild a (DVec a) (RVec a) (KVec a) (Shape (DVec a))
+           -> VecBuild a (DVec a) (RVec a) (KVec a) (FVec a) (SVec a) (Shape (DVec a))
 vl2Algebra vlNodes plan = do
     mapM_ (translate vlNodes) roots
 
@@ -134,10 +156,10 @@ vl2Algebra vlNodes plan = do
 
 translateTerOp :: VectorAlgebra a
                => V.TerOp
-               -> Res (DVec a) (RVec a) (KVec a)
-               -> Res (DVec a) (RVec a) (KVec a)
-               -> Res (DVec a) (RVec a) (KVec a)
-               -> B.Build a (Res (DVec a) (RVec a) (KVec a))
+               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
+               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
+               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
+               -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateTerOp t c1 c2 c3 =
     case t of
         V.Combine -> do
@@ -146,23 +168,23 @@ translateTerOp t c1 c2 c3 =
 
 translateBinOp :: VectorAlgebra a
                => V.BinOp
-               -> Res (DVec a) (RVec a) (KVec a)
-               -> Res (DVec a) (RVec a) (KVec a)
-               -> B.Build a (Res (DVec a) (RVec a) (KVec a))
+               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
+               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
+               -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateBinOp b c1 c2 = case b of
     V.DistLift -> do
         (v, p) <- vecDistLift (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec p)
 
-    V.PropRename -> fromDVec <$> vecPropRename (toKVec c1) (toDVec c2)
+    -- V.PropRename -> fromDVec <$> vecPropRename (toKVec c1) (toDVec c2)
 
-    V.PropFilter -> do
-        (v, r) <- vecPropFilter (toKVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromKVec r)
+    -- V.PropFilter -> do
+    --     (v, r) <- vecPropFilter (toKVec c1) (toDVec c2)
+    --     return $ RLPair (fromDVec v) (fromKVec r)
 
-    V.PropReorder -> do
-        (v, p) <- vecPropReorder (toRVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromRVec p)
+    -- V.PropReorder -> do
+    --     (v, p) <- vecPropReorder (toRVec c1) (toDVec c2)
+    --     return $ RLPair (fromDVec v) (fromRVec p)
 
     V.UnboxNested -> do
         (v, r) <- vecUnboxNested (toKVec c1) (toDVec c2)
@@ -183,11 +205,11 @@ translateBinOp b c1 c2 = case b of
 
     V.SelectPos o -> do
         (v, r, ru) <- vecSelectPos (toDVec c1) o (toDVec c2)
-        return $ RTriple (fromDVec v) (fromKVec r) (fromKVec ru)
+        return $ RTriple (fromDVec v) (fromFVec r) (fromKVec ru)
 
     V.SelectPosS o -> do
         (v, rp, ru) <- vecSelectPosS (toDVec c1) o (toDVec c2)
-        return $ RTriple (fromDVec v) (fromKVec rp) (fromKVec ru)
+        return $ RTriple (fromDVec v) (fromFVec rp) (fromKVec ru)
 
     V.Zip -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
     V.Align -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
@@ -232,19 +254,19 @@ translateBinOp b c1 c2 = case b of
 
     V.SemiJoin p -> do
         (v, r) <- vecSemiJoin p (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromKVec r)
+        return $ RLPair (fromDVec v) (fromFVec r)
 
     V.SemiJoinS p -> do
         (v, r) <- vecSemiJoinS p (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromKVec r)
+        return $ RLPair (fromDVec v) (fromFVec r)
 
     V.AntiJoin p -> do
         (v, r) <- vecAntiJoin p (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromKVec r)
+        return $ RLPair (fromDVec v) (fromFVec r)
 
     V.AntiJoinS p -> do
         (v, r) <- vecAntiJoinS p (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromKVec r)
+        return $ RLPair (fromDVec v) (fromFVec r)
 
     V.TransposeS -> do
         (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
@@ -252,8 +274,8 @@ translateBinOp b c1 c2 = case b of
 
 translateUnOp :: VectorAlgebra a
               => V.UnOp
-              -> Res (DVec a) (RVec a) (KVec a)
-              -> B.Build a (Res (DVec a) (RVec a) (KVec a))
+              -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
+              -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateUnOp unop c = case unop of
     V.AggrNonEmptyS a  -> fromDVec <$> vecAggrNonEmptyS a (toDVec c)
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
@@ -267,32 +289,32 @@ translateUnOp unop c = case unop of
     V.AggrNonEmpty as  -> fromDVec <$> vecAggrNonEmpty as (toDVec c)
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
-        return $ RLPair (fromDVec d) (fromKVec r)
+        return $ RLPair (fromDVec d) (fromFVec r)
     V.Sort es         -> do
         (d, p) <- vecSort es (toDVec c)
-        return $ RLPair (fromDVec d) (fromRVec p)
+        return $ RLPair (fromDVec d) (fromSVec p)
     V.SortS es         -> do
         (d, p) <- vecSortS es (toDVec c)
-        return $ RLPair (fromDVec d) (fromRVec p)
+        return $ RLPair (fromDVec d) (fromSVec p)
     V.Group es -> do
         (qo, qi, p) <- vecGroup es (toDVec c)
-        return $ RTriple (fromDVec qo) (fromDVec qi) (fromRVec p)
+        return $ RTriple (fromDVec qo) (fromDVec qi) (fromSVec p)
     V.GroupS es -> do
         (qo, qi, p) <- vecGroupS es (toDVec c)
-        return $ RTriple (fromDVec qo) (fromDVec qi) (fromRVec p)
+        return $ RTriple (fromDVec qo) (fromDVec qi) (fromSVec p)
     V.Project cols -> fromDVec <$> vecProject cols (toDVec c)
     V.Reverse      -> do
         (d, p) <- vecReverse (toDVec c)
-        return $ RLPair (fromDVec d) (fromRVec p)
+        return $ RLPair (fromDVec d) (fromSVec p)
     V.ReverseS      -> do
         (d, p) <- vecReverseS (toDVec c)
-        return $ RLPair (fromDVec d) (fromRVec p)
+        return $ RLPair (fromDVec d) (fromSVec p)
     V.SelectPos1 (op, pos) -> do
         (d, p, u) <- vecSelectPos1 (toDVec c) op pos
-        return $ RTriple (fromDVec d) (fromKVec p) (fromKVec u)
+        return $ RTriple (fromDVec d) (fromFVec p) (fromKVec u)
     V.SelectPos1S (op, pos) -> do
         (d, p, u) <- vecSelectPos1S (toDVec c) op pos
-        return $ RTriple (fromDVec d) (fromKVec p) (fromKVec u)
+        return $ RTriple (fromDVec d) (fromFVec p) (fromKVec u)
     V.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
 
     V.Reshape n -> do
@@ -318,7 +340,7 @@ translateUnOp unop c = case unop of
 
 translateNullary :: VectorAlgebra a
                  => V.NullOp
-                 -> B.Build a (Res (DVec a) (RVec a) (KVec a))
+                 -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateNullary V.SingletonDescr          = fromDVec <$> singletonDescr
 translateNullary (V.Lit (_, tys, vals))    = fromDVec <$> vecLit tys vals
 translateNullary (V.TableRef (n, schema))  = fromDVec <$> vecTableRef n schema

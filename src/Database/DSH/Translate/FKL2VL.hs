@@ -107,11 +107,11 @@ papp1 t f Lifted =
         Singleton       -> V.singletonL
         Length          -> V.lengthL
         Concat          -> V.concatL
-        The             -> V.theL
-        Tail            -> V.tailL
+        The             -> $unimplemented
+        Tail            -> $unimplemented
         Reverse         -> V.reverseL
-        Init            -> V.initL
-        Last            -> V.lastL
+        Init            -> $unimplemented
+        Last            -> $unimplemented
         Nub             -> V.nubL
         Number          -> V.numberL
         Sort            -> V.sortL
@@ -138,12 +138,12 @@ papp1 t f NotLifted =
         Group            -> V.group
         Restrict         -> V.restrict
         Nub              -> V.nub
-        Last             -> V.last
-        Init             -> V.init
+        Last             -> $unimplemented
+        Init             -> $unimplemented
         Reverse          -> V.reverse
-        Tail             -> V.tail
+        Tail             -> $unimplemented
         Concat           -> V.concat
-        The              -> V.the
+        The              -> $unimplemented
         Sum              -> V.aggr $ VL.AggrSum $ typeToScalarType t
         Avg              -> V.aggr VL.AggrAvg
         Or               -> V.aggr VL.AggrAny
@@ -157,7 +157,7 @@ papp2 f Lifted =
     case f of
         Dist           -> V.distL
         Append         -> V.appendL
-        Index          -> V.indexL
+        Index          -> $unimplemented
         Zip            -> V.zipL
         CartProduct    -> V.cartProductL
         NestProduct    -> V.nestProductL
@@ -170,7 +170,7 @@ papp2 f NotLifted =
     case f of
         Dist            -> V.dist
         Append          -> V.append
-        Index           -> V.index
+        Index           -> $unimplemented
         Zip             -> V.zip
         CartProduct     -> V.cartProduct
         NestProduct     -> V.nestProduct

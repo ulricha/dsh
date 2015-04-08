@@ -67,13 +67,13 @@ seed (BinOp op _ _) =
         AppendS            -> vPropTripleSeed
         ZipS               -> vPropTripleSeed
         DistLift           -> vPropPairSeed
-        PropFilter         -> vPropPairSeed
-        PropReorder        -> vPropPairSeed
+        -- PropFilter         -> vPropPairSeed
+        -- PropReorder        -> vPropPairSeed
         UnboxNested        -> vPropPairSeed
         UnboxScalar        -> vPropSeed
         SelectPos _        -> vPropTripleSeed
         SelectPosS _       -> vPropTripleSeed
-        PropRename         -> vPropSeed
+        -- PropRename         -> vPropSeed
         AggrS _            -> vPropSeed
         Zip                -> vPropSeed
         Align              -> vPropSeed

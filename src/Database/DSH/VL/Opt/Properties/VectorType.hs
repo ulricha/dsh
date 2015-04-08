@@ -110,9 +110,9 @@ inferVectorTypeBinOp s1 s2 op =
         ValueVector w2 <- unpack s2
         return $ VPropPair (ValueVector $ w1 + w2) PropVector
 
-    PropRename -> Right s2
-    PropFilter -> liftM2 VPropPair (unpack s2) (Right RenameVector)
-    PropReorder -> liftM2 VPropPair (unpack s2) (Right PropVector)
+    -- PropRename -> Right s2
+    -- PropFilter -> liftM2 VPropPair (unpack s2) (Right RenameVector)
+    -- PropReorder -> liftM2 VPropPair (unpack s2) (Right PropVector)
     UnboxNested -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     Append ->
       case (s1, s2) of

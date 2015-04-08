@@ -122,9 +122,10 @@ $(deriveJSON defaultOptions ''UnOp)
 
 data BinOp = DistLift
 
-           | PropRename
-           | PropFilter
-           | PropReorder
+           | AppKey
+           | AppSort
+           | AppFilter
+           | AppRep
 
            | UnboxNested
            | UnboxScalar
