@@ -485,9 +485,6 @@ partitionEithers es = pair (lefts es) (rights es)
 nil :: (QA a) => Q [a]
 nil = Q (ListE [])
 
-empty :: (QA a) => Q [a]
-empty = nil
-
 cons :: (QA a) => Q a -> Q [a] -> Q [a]
 cons (Q a) (Q as) = Q (AppE Cons (pairE a as))
 
@@ -548,6 +545,9 @@ init (Q as) = Q (AppE Init as)
 
 null :: (QA a) => Q [a] -> Q Bool
 null (Q as) = Q (AppE Null as)
+
+empty :: QA a => Q [a] -> Q Bool
+empty = null
 
 length :: (QA a) => Q [a] -> Q Integer
 length (Q as) = Q (AppE Length as)
