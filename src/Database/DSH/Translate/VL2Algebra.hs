@@ -25,9 +25,13 @@ import           Database.DSH.Common.Vector
 import qualified Database.DSH.VL.Lang                 as V
 import           Database.DSH.VL.VectorAlgebra
 
+-- FIXME the vector types d r k f s are determined by the algebra a.
+-- The only type variable necessary should be a.
+type Cache d r k f s = M.Map AlgNode (Res d r k f s)
+
 -- | A layer on top of the DAG builder monad that caches the
 -- translation result of VL nodes.
-type VecBuild a d r k f s = StateT (M.Map AlgNode (Res d r k f s)) (B.Build a)
+type VecBuild a d r k f s = StateT (Cache d r k f s) (B.Build a)
 
 runVecBuild :: VectorAlgebra a
             => VecBuild a (DVec a) (RVec a) (KVec a) (FVec a) (SVec a) r
