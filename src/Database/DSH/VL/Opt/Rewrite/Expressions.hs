@@ -103,7 +103,7 @@ constProject :: VLRule BottomUpProps
 constProject q =
   $(dagPatMatch 'q "Project projs (q1)"
     [| do
-        VProp (DBVConst _ constCols) <- constProp <$> properties $(v "q1")
+        VProp (ConstVec constCols) <- constProp <$> properties $(v "q1")
         let envEntry = liftPairRight . mapPair id (constVal id)
         let constEnv = mapMaybe envEntry $ zip [1..] constCols
 
