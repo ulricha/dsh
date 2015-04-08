@@ -21,17 +21,9 @@ import           Database.DSH.Common.Lang
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Const"
 
-fromDBV :: ConstVec -> Either String (ConstDescr, [ConstPayload])
-fromDBV (DBVConst d ps)   = Right (d, ps)
-fromDBV x                 = Left $ "Properties.Const fromDBV " ++ (show x)
-
-fromRVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
-fromRVec (RenameVecConst s t) = Right (s, t)
-fromRVec x                    = Left ("Properties.Const fromRVec " ++ (show x))
-
-fromPVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
-fromPVec (PropVecConst s t)  = Right (s, t)
-fromPVec _                   = Left "Properties.Const fromPVec"
+fromDBV :: ConstVec -> Either String [ConstPayload]
+fromDBV (ConstVec pl) = Right pl
+fromDBV NA            = Left $ "Properties.Const.fromDBV"
 
 --------------------------------------------------------------------------------
 -- Evaluation of constant expressions
@@ -105,21 +97,15 @@ constExpr constCols expr =
 --------------------------------------------------------------------------------
 -- Stuff
 
-nonConstPVec :: ConstVec
-nonConstPVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
-
-nonConstRVec :: ConstVec
-nonConstRVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
   case op of
-    SingletonDescr                    -> return $ VProp $ DBVConst (ConstDescr 1) []
+    SingletonDescr                    -> return $ VProp $ ConstVec []
     -- do not include the first two columns in the payload columns because they represent descr and pos.
     Lit (_, colTypes, rows)      ->
       if null rows
-      then return $ VProp $ DBVConst NonConstDescr $ map (const NonConstPL) colTypes
-      else return $ VProp $ DBVConst (ConstDescr 1) constCols
+      then return $ VProp $ ConstVec $ map (const NonConstPL) colTypes
+      else return $ VProp $ ConstVec constCols
         where constCols       = map toConstPayload $ drop 2 $ transpose rows
 
               toConstPayload col@(c : _) = if all (c ==) col
@@ -128,7 +114,7 @@ inferConstVecNullOp op =
               toConstPayload []          = NonConstPL
 
     TableRef (_, schema)    -> return $ VProp
-                                      $ DBVConst (ConstDescr 1)
+                                      $ ConstVec
                                       $ map (const NonConstPL)
                                       $ N.toList
                                       $ tableCols schema
@@ -137,101 +123,96 @@ inferConstVecUnOp :: (VectorProp ConstVec) -> UnOp -> Either String (VectorProp 
 inferConstVecUnOp c op =
   case op of
     WinFun _ -> do
-      (d, cols) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d (cols ++ [NonConstPL])
+      cols <- unp c >>= fromDBV
+      return $ VProp $ ConstVec (cols ++ [NonConstPL])
 
     UniqueS -> return c
 
     Aggr _ -> do
-      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
+      return $ VProp $ ConstVec [NonConstPL]
 
     AggrNonEmpty _ -> do
-      return $ VProp $ DBVConst (ConstDescr 1) [NonConstPL]
+      return $ VProp $ ConstVec [NonConstPL]
 
-    UnboxRename -> do
-      (d, _) <- unp c >>= fromDBV
-      return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d)
+    UnboxRename -> return $ VProp NA
 
     Segment -> do
-      (_, constCols) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst NonConstDescr constCols
+      constCols <- unp c >>= fromDBV
+      return $ VProp $ ConstVec constCols
 
     Unsegment -> do
-      (_, constCols) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst NonConstDescr constCols
+      constCols <- unp c >>= fromDBV
+      return $ VProp $ ConstVec constCols
 
     SelectPos1{}  -> do
-      (d, cols) <- unp c >>= fromDBV
-      return $ VPropTriple (DBVConst d cols)
-                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
-                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cols <- unp c >>= fromDBV
+      return $ VPropTriple (ConstVec cols) NA NA
 
     SelectPos1S{} -> do
-      (d, cols) <- unp c >>= fromDBV
-      return $ VPropTriple (DBVConst d cols)
-                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
-                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cols <- unp c >>= fromDBV
+      return $ VPropTriple (ConstVec cols) NA NA
 
     Reverse -> do
-      (d, cs) <- unp c >>= fromDBV
-      return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cs <- unp c >>= fromDBV
+      return $ VPropPair (ConstVec cs) NA
 
     ReverseS -> do
-      (d, cs) <- unp c >>= fromDBV
-      return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cs <- unp c >>= fromDBV
+      return $ VPropPair (ConstVec cs) NA
 
     Project projExprs   -> do
-      (constDescr, constCols) <- unp c >>= fromDBV
-      constCols'              <- mapM (constExpr constCols) projExprs
-      return $ VProp $ DBVConst constDescr constCols'
+      constCols  <- unp c >>= fromDBV
+      constCols' <- mapM (constExpr constCols) projExprs
+      return $ VProp $ ConstVec constCols'
 
     Select _       -> do
-      (d, cols) <- unp c >>= fromDBV
-      return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cols <- unp c >>= fromDBV
+      return $ VPropPair (ConstVec cols) NA
 
     GroupAggr (g, as) -> do
-      (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (N.length as) ])
+      let pl = [ NonConstPL | _ <- [1 .. (length g) + (N.length as)] ]
+      return $ VProp $ ConstVec pl
 
     Number -> do
-      (d, cols) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d (cols ++ [NonConstPL])
+      cols <- unp c >>= fromDBV
+      return $ VProp $ ConstVec (cols ++ [NonConstPL])
 
     NumberS -> do
-      (d, cols) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d (cols ++ [NonConstPL])
+      cols <- unp c >>= fromDBV
+      return $ VProp $ ConstVec (cols ++ [NonConstPL])
 
     Sort _ -> do
-      (d, cs) <- unp c >>= fromDBV
-      return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cs <- unp c >>= fromDBV
+      return $ VPropPair (ConstVec cs) NA
 
     SortS _ -> do
-      (d, cs) <- unp c >>= fromDBV
-      return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cs <- unp c >>= fromDBV
+      return $ VPropPair (ConstVec cs) NA
 
     Group es -> do
-      (d, cs) <- unp c >>= fromDBV
-      return $ VPropTriple (DBVConst d (map (const NonConstPL) es))
-                           (DBVConst NonConstDescr (map (const NonConstPL) cs))
-                           (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cs <- unp c >>= fromDBV
+      return $ VPropTriple (ConstVec (map (const NonConstPL) es))
+                           (ConstVec (map (const NonConstPL) cs))
+                           NA
+
     GroupS es -> do
-      (d, cs) <- unp c >>= fromDBV
-      return $ VPropTriple (DBVConst d (map (const NonConstPL) es))
-                           (DBVConst NonConstDescr (map (const NonConstPL) cs))
-                           (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cs <- unp c >>= fromDBV
+      return $ VPropTriple (ConstVec (map (const NonConstPL) es))
+                           (ConstVec (map (const NonConstPL) cs))
+                           NA
 
     Transpose -> do
-      (_, cols) <- unp c >>= fromDBV
-      return $ VPropPair (DBVConst NonConstDescr []) (DBVConst NonConstDescr cols)
+      cols <- unp c >>= fromDBV
+      return $ VPropPair (ConstVec []) (ConstVec cols)
     Reshape _ -> do
-      (_, cols) <- unp c >>= fromDBV
-      return $ VPropPair (DBVConst NonConstDescr []) (DBVConst NonConstDescr cols)
+      cols <- unp c >>= fromDBV
+      return $ VPropPair (ConstVec []) (ConstVec cols)
     ReshapeS _ -> do
-      (_, cols) <- unp c >>= fromDBV
-      return $ VPropPair (DBVConst NonConstDescr []) (DBVConst NonConstDescr cols)
+      cols <- unp c >>= fromDBV
+      return $ VPropPair (ConstVec []) (ConstVec cols)
 
     AggrNonEmptyS _ -> do
-      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
+      return $ VProp $ ConstVec [NonConstPL]
 
     R1 ->
       case c of
@@ -254,245 +235,174 @@ inferConstVecBinOp c1 c2 op =
     -- FIXME use cardinality property to infer the length if possible
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
     AggrS _ -> do
-      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
+      return $ VProp $ ConstVec [NonConstPL]
 
     DistLift -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-      (d, cols2) <- unp c2 >>= fromDBV
-      return $ VPropPair (DBVConst d (cols1 ++ cols2)) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
+      return $ VPropPair (ConstVec (cols1 ++ cols2)) NA
 
 {-
     PropRename -> do
-      (_, cols) <- unp c2 >>= fromDBV
-      (SC _, TC target) <- unp c1 >>= fromRVec
-
-      return $ VProp $ DBVConst target cols
+      cols <- unp c2 >>= fromDBV
+      return $ VProp $ ConstVec cols
 
     PropFilter -> do
-      (_, cols) <- unp c2 >>= fromDBV
-      (SC _, TC target) <- unp c1 >>= fromRVec
-
-      return $ VPropPair (DBVConst target cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cols <- unp c2 >>= fromDBV
+      return $ VPropPair (ConstVec cols) NA
 
     PropReorder -> do
-      (_, cols) <- unp c2 >>= fromDBV
-      (SC _, TC target) <- unp c1 >>= fromPVec
-
-      return $ VPropPair (DBVConst target cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cols <- unp c2 >>= fromDBV
+      return $ VPropPair (ConstVec cols) NA
 -}
 
     UnboxNested -> do
-      (_, TC descr) <- unp c1 >>= fromRVec
-      (_, cols)     <- unp c2 >>= fromDBV
-
-      return $ VPropPair (DBVConst descr cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cols     <- unp c2 >>= fromDBV
+      return $ VPropPair (ConstVec cols) NA
 
     UnboxScalar -> do
-      (d1, cols1) <- unp c1 >>= fromDBV
-      (_, cols2)  <- unp c2 >>= fromDBV
-      return $ VProp $ DBVConst d1 (cols1 ++ cols2)
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
+      return $ VProp $ ConstVec (cols1 ++ cols2)
 
     Append -> do
-      (d1, cols1) <- unp c1 >>= fromDBV
-      (d2, cols2) <- unp c2 >>= fromDBV
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
 
       let constCols = map sameConst $ zip cols1 cols2
 
           sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
           sameConst (_, _)                                  = NonConstPL
 
-          d = case (d1, d2) of
-            (ConstDescr n1, ConstDescr n2) | n1 == n2 -> ConstDescr n1
-            _                                         -> NonConstDescr
-
-      return $ VPropTriple (DBVConst d constCols) nonConstRVec nonConstRVec
+      return $ VPropTriple (ConstVec constCols) NA NA
 
     AppendS -> do
-      (d1, cols1) <- unp c1 >>= fromDBV
-      (d2, cols2) <- unp c2 >>= fromDBV
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
 
       let constCols = map sameConst $ zip cols1 cols2
 
           sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
           sameConst (_, _)                                  = NonConstPL
 
-          d = case (d1, d2) of
-            (ConstDescr n1, ConstDescr n2) | n1 == n2 -> ConstDescr n1
-            _                                         -> NonConstDescr
-
-      return $ VPropTriple (DBVConst d constCols) nonConstRVec nonConstRVec
+      return $ VPropTriple (ConstVec constCols) NA NA
 
     SelectPos _ -> do
-      (d1, cols1) <- unp c1 >>= fromDBV
-
-      return $ VPropTriple (DBVConst d1 cols1)
-                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
-                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cols1 <- unp c1 >>= fromDBV
+      return $ VPropTriple (ConstVec cols1) NA NA
 
     SelectPosS _ -> do
-      (d1, cols1) <- unp c1 >>= fromDBV
-
-      return $ VPropTriple (DBVConst d1 cols1)
-                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
-                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+      cols1 <- unp c1 >>= fromDBV
+      return $ VPropTriple (ConstVec cols1) NA NA
 
     Align -> do
-      (d1, cols1) <- unp c1 >>= fromDBV
-      (_, cols2)  <- unp c2 >>= fromDBV
-
+      cols1 <- unp c1 >>= fromDBV
+      cols2  <- unp c2 >>= fromDBV
       let cols = cols1 ++ cols2
-
-      return $ VProp $ DBVConst d1 cols
+      return $ VProp $ ConstVec cols
 
     Zip -> do
-      (d1, cols1) <- unp c1 >>= fromDBV
-      (_, cols2)  <- unp c2 >>= fromDBV
-
+      cols1 <- unp c1 >>= fromDBV
+      cols2  <- unp c2 >>= fromDBV
       let cols = cols1 ++ cols2
-
-      return $ VProp $ DBVConst d1 cols
+      return $ VProp $ ConstVec cols
 
     ZipS -> do
-      (d1, cols1) <- unp c1 >>= fromDBV
-      (_, cols2)  <- unp c2 >>= fromDBV
-
+      cols1 <- unp c1 >>= fromDBV
+      cols2  <- unp c2 >>= fromDBV
       let cols = cols1 ++ cols2
-          renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-
-      return $ VPropTriple (DBVConst d1 cols) renameVec renameVec
+      return $ VPropTriple (ConstVec cols) NA NA
 
     CartProduct -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-      (_, cols2) <- unp c2 >>= fromDBV
-
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-
-      -- FIXME check propVec components for correctness/precision
-      -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (ConstVec constCols) NA NA
 
     CartProductS -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-      (_, cols2) <- unp c2 >>= fromDBV
-
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-
-      -- FIXME check propVec components for correctness/precision
-      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (ConstVec constCols) NA NA
 
     NestProductS -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-      (_, cols2) <- unp c2 >>= fromDBV
-
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-
-      -- FIXME check propVec components for correctness/precision
-      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (ConstVec constCols) NA NA
 
     NestJoin _ -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-      (_, cols2) <- unp c2 >>= fromDBV
-
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-
-      -- FIXME check propVec components for correctness/precision
-      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (ConstVec constCols) NA NA
 
     GroupJoin _ -> do
-      (_, cols1) <- unp c1 >>= fromDBV
+      cols1 <- unp c1 >>= fromDBV
       let constCols = cols1 ++ [NonConstPL]
-      return $ VProp (DBVConst NonConstDescr constCols)
+      return $ VProp (ConstVec constCols)
 
     NestProduct -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-      (_, cols2) <- unp c2 >>= fromDBV
-
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-
-      -- FIXME check propVec components for correctness/precision
-      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (ConstVec constCols) NA NA
 
     ThetaJoin _ -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-      (_, cols2) <- unp c2 >>= fromDBV
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/precision
-      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (ConstVec constCols) NA NA
 
     ThetaJoinS _ -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-      (_, cols2) <- unp c2 >>= fromDBV
-
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-
-      -- FIXME check propVec components for correctness/precision
-      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (ConstVec constCols) NA NA
 
     NestJoinS _ -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-      (_, cols2) <- unp c2 >>= fromDBV
-
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-
-      -- FIXME check propVec components for correctness/precision
-      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (ConstVec constCols) NA NA
 
     SemiJoin _ -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-
-      -- FIXME This is propably too pessimistic for the source descriptor
-      let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-
-      -- FIXME This is propably too pessimistic for the descr
-      return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
+      cols1 <- unp c1 >>= fromDBV
+      return $ VPropPair (ConstVec cols1) NA
 
     SemiJoinS _ -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-
-      -- FIXME This is propably too pessimistic for the source descriptor
-      let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-
-      -- FIXME This is propably too pessimistic for the descr
-      return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
+      cols1 <- unp c1 >>= fromDBV
+      return $ VPropPair (ConstVec cols1) NA
 
     AntiJoin _ -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-
-      -- FIXME This is propably too pessimistic for the source descriptor
-      let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-
-      -- FIXME This is propably too pessimistic for the descr
-      return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
+      cols1 <- unp c1 >>= fromDBV
+      return $ VPropPair (ConstVec cols1) NA
 
     AntiJoinS _ -> do
-      (_, cols1) <- unp c1 >>= fromDBV
-
-      -- FIXME This is propably too pessimistic for the source descriptor
-      let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-
-      -- FIXME This is propably too pessimistic for the descr
-      return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
+      cols1 <- unp c1 >>= fromDBV
+      return $ VPropPair (ConstVec cols1) NA
 
     TransposeS -> do
-      (_, cols2) <- unp c2 >>= fromDBV
-      return $ VPropPair (DBVConst NonConstDescr []) (DBVConst NonConstDescr cols2)
+      cols2 <- unp c2 >>= fromDBV
+      return $ VPropPair (ConstVec []) (ConstVec cols2)
 
-inferConstVecTerOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> (VectorProp ConstVec) -> TerOp -> Either String (VectorProp ConstVec)
-inferConstVecTerOp c1 c2 c3 op =
+inferConstVecTerOp :: VectorProp ConstVec
+                   -> VectorProp ConstVec
+                   -> VectorProp ConstVec
+                   -> TerOp
+                   -> Either String (VectorProp ConstVec)
+inferConstVecTerOp _c1 c2 c3 op =
   case op of
     Combine -> do
-      (d1, _) <- unp c1 >>= fromDBV
-      (_, cols2)  <- unp c2 >>= fromDBV
-      (_, cols3)  <- unp c3 >>= fromDBV
+      cols2  <- unp c2 >>= fromDBV
+      cols3  <- unp c3 >>= fromDBV
 
       let constCols = map sameConst $ zip cols2 cols3
 
           sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
           sameConst (_, _)                                  = NonConstPL
 
-          renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-
-      return $ VPropTriple (DBVConst d1 constCols) renameVec renameVec
+      return $ VPropTriple (ConstVec constCols) NA NA
 

@@ -25,31 +25,15 @@ data Const = Const ScalarVal
            | NoConst
             deriving Show
 
-data ConstDescr = ConstDescr Int
-                | NonConstDescr
-
 data ConstPayload = ConstPL ScalarVal
                   | NonConstPL
                   deriving Show
 
-data ConstVec = DBVConst ConstDescr [ConstPayload]
-              | RenameVecConst SourceConstDescr TargetConstDescr
-              | PropVecConst SourceConstDescr TargetConstDescr
-              deriving Show
-
-newtype SourceConstDescr = SC ConstDescr deriving Show
-newtype TargetConstDescr = TC ConstDescr deriving Show
+data ConstVec = ConstVec [ConstPayload]
+              | NA
+              deriving (Show)
 
 data BottomUpProps = BUProps { emptyProp      :: VectorProp Bool
-                             -- Documents wether a vector is
-                             -- statically known to be not empty. For
-                             -- a flat vector (i.e. a vector with only
-                             -- one segment) t his property is true if
-                             -- we can statically decide that the
-                             -- vector is not empty. For an inner
-                             -- vector, i.e. a vector with multiple
-                             -- segments, it is true if *every*
-                             -- segment is non-empty.
                              , nonEmptyProp   :: VectorProp Bool
                              , constProp      :: VectorProp ConstVec
                              , card1Prop      :: VectorProp Bool
@@ -76,20 +60,19 @@ instance Pretty a => Pretty (VectorProp a) where
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
 
-instance Show ConstDescr where
-  show (ConstDescr v) = pp $ int v
-  show NonConstDescr  = "NC"
+isConst :: (Int, ConstPayload) -> [(Int, ScalarVal)] -> [(Int, ScalarVal)]
+isConst (_, NonConstPL) vals   = vals
+isConst (i, (ConstPL v)) vals  = (i, v) : vals
+
+renderPL :: Pretty a => (Int, a) -> Doc
+renderPL (i, v)  = int i <> colon <> pretty v
 
 instance Pretty ConstVec where
-  pretty (DBVConst d ps) = (text $ show d) <+> payload
-    where payload = bracketList id $ map renderPL $ foldr isConst [] $ zip [1..] ps
-          isConst (_, NonConstPL) vals   = vals
-          isConst (i, (ConstPL v)) vals  = (i, v) : vals
-
-          renderPL (i, v)  = int i <> colon <> pretty v
-
-  pretty (RenameVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)
-  pretty (PropVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)
+  pretty (ConstVec ps) = bracketList id
+                         $ map renderPL
+                         $ foldr isConst []
+                         $ zip [1..] ps
+  pretty NA            = text "NA"
 
 instance Pretty VectorType where
   pretty = text . show

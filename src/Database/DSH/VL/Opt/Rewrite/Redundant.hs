@@ -100,9 +100,9 @@ cartProdConstant q =
     [| do
         qvProps <- properties $(v "q2")
 
-        VProp True              <- return $ card1Prop qvProps
-        VProp (DBVConst _ cols) <- return $ constProp qvProps
-        constProjs              <- mapM (constVal Constant) cols
+        VProp True            <- return $ card1Prop qvProps
+        VProp (ConstVec cols) <- return $ constProp qvProps
+        constProjs            <- mapM (constVal Constant) cols
 
         -- Preserve columns from the left input
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
@@ -123,9 +123,9 @@ constDistLift :: VLRule BottomUpProps
 constDistLift q =
   $(dagPatMatch 'q "R1 ((q1) DistLift (q2))"
     [| do
-         VProp (DBVConst _ constCols) <- constProp <$> properties $(v "q1")
-         VProp (ValueVector w)        <- vectorTypeProp <$> properties $(v "q2")
-         constVals                    <- mapM unwrapConstVal constCols
+         VProp (ConstVec constCols) <- constProp <$> properties $(v "q1")
+         VProp (ValueVector w)      <- vectorTypeProp <$> properties $(v "q2")
+         constVals                  <- mapM unwrapConstVal constCols
 
          return $ do
               logRewrite "Redundant.Const.DistLift" q
@@ -382,10 +382,9 @@ alignConstLeft :: VLRule BottomUpProps
 alignConstLeft q =
   $(dagPatMatch 'q "(q1) Align (q2)"
     [| do
-        VProp (DBVConst _ ps) <- constProp <$> properties $(v "q1")
-        w2                    <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
-
-        vals                  <- mapM fromConst ps
+        VProp (ConstVec ps) <- constProp <$> properties $(v "q1")
+        w2                  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+        vals                <- mapM fromConst ps
 
         return $ do
             logRewrite "Redundant.Align.Constant.Left" q
@@ -396,12 +395,9 @@ alignConstRight :: VLRule BottomUpProps
 alignConstRight q =
   $(dagPatMatch 'q "(q1) Align (q2)"
     [| do
-        w1                    <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-
-        VProp (DBVConst _ ps) <- constProp <$> properties $(v "q2")
-
-
-        vals                  <- mapM fromConst ps
+        w1                  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        VProp (ConstVec ps) <- constProp <$> properties $(v "q2")
+        vals                <- mapM fromConst ps
 
         return $ do
             logRewrite "Redundant.Align.Constant.Right" q
@@ -418,15 +414,15 @@ zipConstLeft :: VLRule BottomUpProps
 zipConstLeft q =
   $(dagPatMatch 'q "(q1) Zip (q2)"
     [| do
-        prop1                 <- properties $(v "q1")
-        VProp card1           <- return $ card1Prop prop1
-        VProp (DBVConst _ ps) <- return $ constProp prop1
+        prop1               <- properties $(v "q1")
+        VProp card1         <- return $ card1Prop prop1
+        VProp (ConstVec ps) <- return $ constProp prop1
 
-        prop2                 <- properties $(v "q2")
-        VProp card2           <- return $ card1Prop prop2
-        w2                    <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+        prop2               <- properties $(v "q2")
+        VProp card2         <- return $ card1Prop prop2
+        w2                  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
 
-        vals                  <- mapM fromConst ps
+        vals                <- mapM fromConst ps
         predicate $ card1 && card2
 
         return $ do
@@ -438,13 +434,13 @@ zipConstRight :: VLRule BottomUpProps
 zipConstRight q =
   $(dagPatMatch 'q "(q1) Zip (q2)"
     [| do
-        prop1                 <- properties $(v "q1")
-        VProp card1           <- return $ card1Prop prop1
-        w1                    <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        prop1               <- properties $(v "q1")
+        VProp card1         <- return $ card1Prop prop1
+        w1                  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
-        prop2                 <- properties $(v "q2")
-        VProp card2           <- return $ card1Prop prop2
-        VProp (DBVConst _ ps) <- return $ constProp prop2
+        prop2               <- properties $(v "q2")
+        VProp card2         <- return $ card1Prop prop2
+        VProp (ConstVec ps) <- return $ constProp prop2
 
 
         vals                  <- mapM fromConst ps
@@ -869,7 +865,7 @@ selectConstPos :: VLRule BottomUpProps
 selectConstPos q =
   $(dagPatMatch 'q "(q1) SelectPos op (qp)"
     [| do
-         VProp (DBVConst _ constCols) <- constProp <$> properties $(v "qp")
+         VProp (ConstVec constCols) <- constProp <$> properties $(v "qp")
          pos <- case constCols of
                     [ConstPL (IntV p)] -> return p
                     [NonConstPL]       -> fail "no match"
@@ -883,7 +879,7 @@ selectConstPosS :: VLRule BottomUpProps
 selectConstPosS q =
   $(dagPatMatch 'q "(q1) SelectPosS op (qp)"
     [| do
-         VProp (DBVConst _ constCols) <- constProp <$> properties $(v "qp")
+         VProp (ConstVec constCols) <- constProp <$> properties $(v "qp")
          pos <- case constCols of
                     [ConstPL (IntV p)] -> return p
                     [NonConstPL]       -> fail "no match"
