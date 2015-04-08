@@ -259,6 +259,9 @@ tests_lists conn = testGroup "Lists"
     , testPropertyConn conn "notElem"                      prop_notElem
     , testPropertyConn conn "lookup"                       prop_lookup
     , testPropertyConn conn "zip"                          prop_zip
+    , testPropertyConn conn "zip tuple1"                   prop_zip_tuple1
+    , testPropertyConn conn "zip tuple2"                   prop_zip_tuple2
+    , testPropertyConn conn "zip nested"                   prop_zip_nested
     , testPropertyConn conn "zip3"                         prop_zip3
     , testPropertyConn conn "zipWith"                      prop_zipWith
     , testPropertyConn conn "zipWith3"                     prop_zipWith3
@@ -1017,6 +1020,15 @@ prop_lookup = makePropEq (uncurryQ Q.lookup)
 
 prop_zip :: Backend c => ([Integer], [Integer]) -> c -> Property
 prop_zip = makePropEq (uncurryQ Q.zip) (uncurry zip)
+
+prop_zip_nested :: Backend c => ([Integer], [(Integer, [Integer])]) -> c -> Property
+prop_zip_nested = makePropEq (uncurryQ Q.zip) (uncurry zip)
+
+prop_zip_tuple1 :: Backend c => ([Integer], [(Text, Double)]) -> c -> Property
+prop_zip_tuple1 = makePropEq (uncurryQ Q.zip) (uncurry zip)
+
+prop_zip_tuple2 :: Backend c => ([(Integer, Integer)], [(Text, Double)]) -> c -> Property
+prop_zip_tuple2 = makePropEq (uncurryQ Q.zip) (uncurry zip)
 
 prop_map_zip :: Backend c => ([Integer], [[Integer]]) -> c -> Property
 prop_map_zip = makePropEq (\z -> Q.map (Q.zip $ Q.fst z) $ Q.snd z) (\(x, y) -> map (zip x) y)
