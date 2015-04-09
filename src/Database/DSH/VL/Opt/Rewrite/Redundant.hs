@@ -124,7 +124,7 @@ constDistLift q =
   $(dagPatMatch 'q "R1 ((q1) DistLift (q2))"
     [| do
          VProp (ConstVec constCols) <- constProp <$> properties $(v "q1")
-         VProp (ValueVector w)      <- vectorTypeProp <$> properties $(v "q2")
+         VProp (VTDataVec w)        <- vectorTypeProp <$> properties $(v "q2")
          constVals                  <- mapM unwrapConstVal constCols
 
          return $ do
@@ -140,9 +140,9 @@ unreferencedDistLift :: VLRule Properties
 unreferencedDistLift q =
   $(dagPatMatch 'q  "R1 ((q1) DistLift (q2))"
     [| do
-        VProp (Just reqCols)   <- reqColumnsProp <$> td <$> properties q
-        VProp (ValueVector w1) <- vectorTypeProp <$> bu <$> properties $(v "q1")
-        VProp (ValueVector w2) <- vectorTypeProp <$> bu <$> properties $(v "q2")
+        VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties q
+        VProp (VTDataVec w1) <- vectorTypeProp <$> bu <$> properties $(v "q1")
+        VProp (VTDataVec w2) <- vectorTypeProp <$> bu <$> properties $(v "q2")
 
         -- Check that only columns from the right input are required
         predicate $ all (> w1) reqCols
@@ -551,9 +551,9 @@ unboxNumber :: VLRule Properties
 unboxNumber q =
   $(dagPatMatch 'q "(Number (qo)) UnboxScalar (qi)"
     [| do
-        VProp (Just reqCols)   <- reqColumnsProp <$> td <$> properties q
-        VProp (ValueVector wo) <- vectorTypeProp <$> bu <$> properties $(v "qo")
-        VProp (ValueVector wi) <- vectorTypeProp <$> bu <$> properties $(v "qi")
+        VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties q
+        VProp (VTDataVec wo) <- vectorTypeProp <$> bu <$> properties $(v "qo")
+        VProp (VTDataVec wi) <- vectorTypeProp <$> bu <$> properties $(v "qi")
         predicate $ (wo+1) `notElem` reqCols
 
         return $ do

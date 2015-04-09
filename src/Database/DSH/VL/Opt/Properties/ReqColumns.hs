@@ -80,7 +80,7 @@ fromPropTriple _                   = fail "not a property triple"
 
 allCols :: BottomUpProps -> Either String (VectorProp ReqCols)
 allCols props = do
-    VProp (ValueVector w) <- return $ vectorTypeProp props
+    VProp (VTDataVec w) <- return $ vectorTypeProp props
     return $ VProp $ Just [1 .. w]
 
 -- | For operators that combine two value vectors in a product-like
@@ -91,12 +91,12 @@ partitionCols :: BottomUpProps   -- ^ Available columns in the left input
               -> ReqCols         -- ^ Columns required from above
               -> Either String (VectorProp ReqCols, VectorProp ReqCols)
 partitionCols childBUProps1 childBUProps2 ownReqCols = do
-    ValueVector w1 <- fromProp $ vectorTypeProp childBUProps1
-    ValueVector w2 <- fromProp $ vectorTypeProp childBUProps2
+    VTDataVec w1 <- fromProp $ vectorTypeProp childBUProps1
+    VTDataVec w2 <- fromProp $ vectorTypeProp childBUProps2
 
     let cols = maybe [] id ownReqCols
 
-    -- If both inputs are ValueVectors, map the required columns to
+    -- If both inputs are VTDataVecs, map the required columns to
     -- the respective inputs
     let leftReqCols  = cols `L.intersect` [1 .. w1]
         rightReqCols = map (\c -> c - w1) $ cols `L.intersect` [(w1 + 1) .. (w1 + w2)]
@@ -146,12 +146,12 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
         -- determine the column index of the new column and remove it
         -- from the set of required columns
         Number     -> do
-            ValueVector w <- fromProp $ vectorTypeProp childBUProps
+            VTDataVec w <- fromProp $ vectorTypeProp childBUProps
             Just cols     <- fromProp ownReqColumns
             let cols'     = filter (/= w) cols
             VProp (Just cols') ∪ childReqColumns
         NumberS    -> do
-            ValueVector w <- fromProp $ vectorTypeProp childBUProps
+            VTDataVec w <- fromProp $ vectorTypeProp childBUProps
             (Just cols)   <- fromProp ownReqColumns
             let cols'     = filter (/= w) cols
             VProp (Just cols') ∪ childReqColumns
@@ -269,19 +269,25 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
-      -- PropRename -> do
-      --     fromRight <- childReqColumns2 ∪ ownReqColumns
-      --     return (na, fromRight)
+      AppRep      -> do
+          cols      <- fst <$> fromPropPair ownReqColumns
+          fromRight <- childReqColumns2 ∪ VProp cols
+          return (na, fromRight)
 
-      -- PropFilter      -> do
-      --     cols      <- fst <$> fromPropPair ownReqColumns
-      --     fromRight <- childReqColumns2 ∪ VProp cols
-      --     return (na, fromRight)
+      AppFilter      -> do
+          cols      <- fst <$> fromPropPair ownReqColumns
+          fromRight <- childReqColumns2 ∪ VProp cols
+          return (na, fromRight)
 
-      -- PropReorder -> do
-      --     cols      <- fst <$> fromPropPair ownReqColumns
-      --     fromRight <- childReqColumns2 ∪ VProp cols
-      --     return (na, fromRight)
+      AppSort      -> do
+          cols      <- fst <$> fromPropPair ownReqColumns
+          fromRight <- childReqColumns2 ∪ VProp cols
+          return (na, fromRight)
+
+      AppKey      -> do
+          cols      <- fst <$> fromPropPair ownReqColumns
+          fromRight <- childReqColumns2 ∪ VProp cols
+          return (na, fromRight)
 
       UnboxNested -> do
           cols      <- fst <$> fromPropPair ownReqColumns

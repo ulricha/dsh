@@ -63,7 +63,7 @@ identityProject :: VLRule BottomUpProps
 identityProject q =
   $(dagPatMatch 'q "Project ps (q1)"
     [| do
-        VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "q1")
+        VProp (VTDataVec w) <- vectorTypeProp <$> properties $(v "q1")
         predicate $ length $(v "ps") == w
 
         let sameCol :: (Int, Expr) -> Bool

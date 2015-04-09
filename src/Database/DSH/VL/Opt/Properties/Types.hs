@@ -16,9 +16,8 @@ instance Show a => Show (VectorProp a) where
   show (VPropPair a1 a2) = show (a1, a2)
   show (VPropTriple a1 a2 a3) = show (a1, a2, a3)
 
-data VectorType = ValueVector Int
-                | RenameVector
-                | PropVector
+data VectorType = VTDataVec Int
+                | VTNA
                 deriving Show
 
 data Const = Const ScalarVal
@@ -30,7 +29,7 @@ data ConstPayload = ConstPL ScalarVal
                   deriving Show
 
 data ConstVec = ConstVec [ConstPayload]
-              | NA
+              | CNA
               deriving (Show)
 
 data BottomUpProps = BUProps { emptyProp      :: VectorProp Bool
@@ -72,7 +71,7 @@ instance Pretty ConstVec where
                          $ map renderPL
                          $ foldr isConst []
                          $ zip [1..] ps
-  pretty NA            = text "NA"
+  pretty CNA           = text "NA"
 
 instance Pretty VectorType where
   pretty = text . show

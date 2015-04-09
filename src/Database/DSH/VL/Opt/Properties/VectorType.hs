@@ -14,15 +14,15 @@ import           Database.DSH.VL.Lang
 {- Implement more checks: check the input types for correctness -}
 
 vectorWidth :: VectorProp VectorType -> Int
-vectorWidth (VProp (ValueVector w))  = w
-vectorWidth _                        = error "vectorWidth: non-ValueVector input"
+vectorWidth (VProp (VTDataVec w))  = w
+vectorWidth _                        = error "vectorWidth: non-VTDataVec input"
 
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
-    SingletonDescr       -> Right $ VProp $ ValueVector 0
-    Lit (_, t, _)        -> Right $ VProp $ ValueVector $ length t
-    TableRef (_, schema) -> Right $ VProp $ ValueVector $ N.length (tableCols schema)
+    SingletonDescr       -> Right $ VProp $ VTDataVec 0
+    Lit (_, t, _)        -> Right $ VProp $ VTDataVec $ length t
+    TableRef (_, schema) -> Right $ VProp $ VTDataVec $ N.length (tableCols schema)
 
 unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s
@@ -32,18 +32,18 @@ inferVectorTypeUnOp :: VectorProp VectorType -> UnOp -> Either String (VectorPro
 inferVectorTypeUnOp s op =
   case op of
     WinFun _ -> do
-        ValueVector w <- unpack s
-        return $ VProp $ ValueVector $ w + 1
+        VTDataVec w <- unpack s
+        return $ VProp $ VTDataVec $ w + 1
     UniqueS -> VProp <$> unpack s
-    Aggr _ -> Right $ VProp $ ValueVector 1
-    AggrNonEmpty as -> Right $ VProp $ ValueVector $ N.length as
-    UnboxRename -> Right $ VProp $ RenameVector
+    Aggr _ -> Right $ VProp $ VTDataVec 1
+    AggrNonEmpty as -> Right $ VProp $ VTDataVec $ N.length as
+    UnboxRename -> Right $ VProp $ VTNA
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
-    Reverse -> liftM2 VPropPair (unpack s) (Right PropVector)
-    ReverseS -> liftM2 VPropPair (unpack s) (Right PropVector)
-    SelectPos1{} -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
-    SelectPos1S{} -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
+    Reverse -> liftM2 VPropPair (unpack s) (Right VTNA)
+    ReverseS -> liftM2 VPropPair (unpack s) (Right VTNA)
+    SelectPos1{} -> liftM3 VPropTriple (unpack s) (Right VTNA) (Right VTNA)
+    SelectPos1S{} -> liftM3 VPropTriple (unpack s) (Right VTNA) (Right VTNA)
     R1 ->
       case s of
         VPropPair s1 _ -> Right $ VProp s1
@@ -59,116 +59,117 @@ inferVectorTypeUnOp s op =
         VPropTriple s3 _ _ -> Right $ VProp s3
         _ -> Left "Input of R3 is not a tuple"
 
-    Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
+    Project valProjs -> Right $ VProp $ VTDataVec $ length valProjs
 
-    Select _ -> VPropPair <$> unpack s <*> (Right RenameVector)
-    Sort _   -> liftM2 VPropPair (unpack s) (Right PropVector)
-    SortS _  -> liftM2 VPropPair (unpack s) (Right PropVector)
-    AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
+    Select _ -> VPropPair <$> unpack s <*> (Right VTNA)
+    Sort _   -> liftM2 VPropPair (unpack s) (Right VTNA)
+    SortS _  -> liftM2 VPropPair (unpack s) (Right VTNA)
+    AggrNonEmptyS as -> Right $ VProp $ VTDataVec $ N.length as
 
     Group es ->
       case s of
-        VProp t@(ValueVector _) ->
-          Right $ VPropTriple (ValueVector $ length es) t PropVector
+        VProp t@(VTDataVec _) ->
+          Right $ VPropTriple (VTDataVec $ length es) t VTNA
         _                                                    ->
           Left "Input of Group is not a value vector"
     GroupS es ->
       case s of
-        VProp t@(ValueVector _) ->
-          Right $ VPropTriple (ValueVector $ length es) t PropVector
+        VProp t@(VTDataVec _) ->
+          Right $ VPropTriple (VTDataVec $ length es) t VTNA
         _                                                    ->
           Left "Input of GroupS is not a value vector"
-    GroupAggr (g, as) -> Right $ VProp $ ValueVector (length g + N.length as)
+    GroupAggr (g, as) -> Right $ VProp $ VTDataVec (length g + N.length as)
     Number -> do
-        ValueVector w <- unpack s
-        return $ VProp $ ValueVector (w + 1)
+        VTDataVec w <- unpack s
+        return $ VProp $ VTDataVec (w + 1)
     NumberS -> do
-        ValueVector w <- unpack s
-        return $ VProp $ ValueVector (w + 1)
+        VTDataVec w <- unpack s
+        return $ VProp $ VTDataVec (w + 1)
 
-    Reshape _ -> liftM2 VPropPair (return $ ValueVector 0) (unpack s)
-    ReshapeS _ -> liftM2 VPropPair (return $ ValueVector 0) (unpack s)
-    Transpose -> liftM2 VPropPair (return $ ValueVector 0) (unpack s)
+    Reshape _ -> liftM2 VPropPair (return $ VTDataVec 0) (unpack s)
+    ReshapeS _ -> liftM2 VPropPair (return $ VTDataVec 0) (unpack s)
+    Transpose -> liftM2 VPropPair (return $ VTDataVec 0) (unpack s)
 
 reqValVectors :: VectorProp VectorType
                  -> VectorProp VectorType
                  -> (Int -> Int -> VectorProp VectorType)
                  -> String
                  -> Either String (VectorProp VectorType)
-reqValVectors (VProp (ValueVector w1)) (VProp (ValueVector w2)) f _ =
+reqValVectors (VProp (VTDataVec w1)) (VProp (VTDataVec w2)) f _ =
   Right $ f w1 w2
 reqValVectors _ _ _ e =
-  Left $ "Inputs of " ++ e ++ " are not ValueVectors"
+  Left $ "Inputs of " ++ e ++ " are not VTDataVecs"
 
 inferVectorTypeBinOp :: VectorProp VectorType -> VectorProp VectorType -> BinOp -> Either String (VectorProp VectorType)
 inferVectorTypeBinOp s1 s2 op =
   case op of
-    AggrS _ -> return $ VProp $ ValueVector 1
+    AggrS _ -> return $ VProp $ VTDataVec 1
 
     DistLift -> do
-        ValueVector w1 <- unpack s1
-        ValueVector w2 <- unpack s2
-        return $ VPropPair (ValueVector $ w1 + w2) PropVector
+        VTDataVec w1 <- unpack s1
+        VTDataVec w2 <- unpack s2
+        return $ VPropPair (VTDataVec $ w1 + w2) VTNA
 
-    -- PropRename -> Right s2
-    -- PropFilter -> liftM2 VPropPair (unpack s2) (Right RenameVector)
-    -- PropReorder -> liftM2 VPropPair (unpack s2) (Right PropVector)
-    UnboxNested -> liftM2 VPropPair (unpack s2) (Right RenameVector)
+    AppRep -> liftM2 VPropPair (unpack s2) (Right VTNA)
+    AppSort -> liftM2 VPropPair (unpack s2) (Right VTNA)
+    AppFilter -> liftM2 VPropPair (unpack s2) (Right VTNA)
+    AppKey -> liftM2 VPropPair (unpack s2) (Right VTNA)
+    UnboxNested -> liftM2 VPropPair (unpack s2) (Right VTNA)
     Append ->
       case (s1, s2) of
-        (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 ->
-          Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
-        (VProp (ValueVector w1), VProp (ValueVector w2)) ->
+        (VProp (VTDataVec w1), VProp (VTDataVec w2)) | w1 == w2 ->
+          Right $ VPropTriple (VTDataVec w1) VTNA VTNA
+        (VProp (VTDataVec w1), VProp (VTDataVec w2)) ->
           Left $ "Inputs of Append do not have the same width " ++ (show w1) ++ " " ++ (show w2)
         v ->
-          Left $ "Input of Append is not a ValueVector " ++ (show v)
+          Left $ "Input of Append is not a VTDataVec " ++ (show v)
     AppendS ->
       case (s1, s2) of
-        (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 ->
-          Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
-        (VProp (ValueVector w1), VProp (ValueVector w2)) ->
+        (VProp (VTDataVec w1), VProp (VTDataVec w2)) | w1 == w2 ->
+          Right $ VPropTriple (VTDataVec w1) VTNA VTNA
+        (VProp (VTDataVec w1), VProp (VTDataVec w2)) ->
           Left $ "Inputs of Append do not have the same width " ++ (show w1) ++ " " ++ (show w2)
         v ->
-          Left $ "Input of Append is not a ValueVector " ++ (show v)
+          Left $ "Input of Append is not a VTDataVec " ++ (show v)
 
-    SelectPos _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
-    SelectPosS _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
+    SelectPos _ -> liftM3 VPropTriple (unpack s1) (Right VTNA) (Right VTNA)
+    SelectPosS _ -> liftM3 VPropTriple (unpack s1) (Right VTNA) (Right VTNA)
     Align ->
       case (s1, s2) of
-        (VProp (ValueVector w1), VProp (ValueVector w2)) -> Right $ VProp $ ValueVector $ w1 + w2
-        _                                                -> Left "Inputs of Align are not ValueVectors"
+        (VProp (VTDataVec w1), VProp (VTDataVec w2)) -> Right $ VProp $ VTDataVec $ w1 + w2
+        _                                                -> Left "Inputs of Align are not VTDataVecs"
     Zip ->
       case (s1, s2) of
-        (VProp (ValueVector w1), VProp (ValueVector w2)) -> Right $ VProp $ ValueVector $ w1 + w2
-        _                                                -> Left "Inputs of PairL are not ValueVectors"
-    ZipS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) RenameVector RenameVector) "ZipL"
-    CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProduct"
-    CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProductS"
-    NestProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestProductS"
-    ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoin"
-    UnboxScalar -> reqValVectors s1 s2 (\w1 w2 -> VProp $ ValueVector $ w1 + w2) "UnboxScalar"
-    NestJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoin"
-    NestProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestProduct"
-    ThetaJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoinS"
-    NestJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoinS"
+        (VProp (VTDataVec w1), VProp (VTDataVec w2)) -> Right $ VProp $ VTDataVec $ w1 + w2
+        _                                                -> Left "Inputs of PairL are not VTDataVecs"
+    ZipS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ZipL"
+    CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "CartProduct"
+    CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "CartProductS"
+    NestProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestProductS"
+    ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ThetaJoin"
+    UnboxScalar -> reqValVectors s1 s2 (\w1 w2 -> VProp $ VTDataVec $ w1 + w2) "UnboxScalar"
+    NestJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestJoin"
+    NestProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestProduct"
+    ThetaJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ThetaJoinS"
+    NestJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestJoinS"
     GroupJoin _ -> do
-        ValueVector w <- unpack s1
-        return $ VProp $ ValueVector $ w + 1
-    SemiJoin _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    SemiJoinS _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    AntiJoin _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    AntiJoinS _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+        VTDataVec w <- unpack s1
+        return $ VProp $ VTDataVec $ w + 1
+    SemiJoin _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
+    SemiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
+    AntiJoin _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
+    AntiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
 
-    TransposeS -> liftM2 VPropPair (return $ ValueVector 0) (unpack s2)
+    TransposeS -> liftM2 VPropPair (return $ VTDataVec 0) (unpack s2)
 
 inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)
 inferVectorTypeTerOp _ s2 s3 op =
   case op of
     Combine ->
       case (s2, s3) of
-        (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 ->
-          Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
-        (VProp (ValueVector _), VProp (ValueVector _))              ->
+        (VProp (VTDataVec w1), VProp (VTDataVec w2)) | w1 == w2 ->
+          Right $ VPropTriple (VTDataVec w1) VTNA VTNA
+        (VProp (VTDataVec _), VProp (VTDataVec _))              ->
           Left $ "Inputs of CombineVec do not have the same width"
         _                                                           ->
-          Left $ "Inputs of CombineVec are not ValueVectors/DescrVectors " ++ (show (s2, s3))
+          Left $ "Inputs of CombineVec are not VTDataVecs/DescrVectors " ++ (show (s2, s3))

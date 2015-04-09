@@ -23,7 +23,7 @@ unp = unpack "Properties.Const"
 
 fromDBV :: ConstVec -> Either String [ConstPayload]
 fromDBV (ConstVec pl) = Right pl
-fromDBV NA            = Left $ "Properties.Const.fromDBV"
+fromDBV CNA           = Left $ "Properties.Const.fromDBV"
 
 --------------------------------------------------------------------------------
 -- Evaluation of constant expressions
@@ -134,7 +134,7 @@ inferConstVecUnOp c op =
     AggrNonEmpty _ -> do
       return $ VProp $ ConstVec [NonConstPL]
 
-    UnboxRename -> return $ VProp NA
+    UnboxRename -> return $ VProp CNA
 
     Segment -> do
       constCols <- unp c >>= fromDBV
@@ -146,19 +146,19 @@ inferConstVecUnOp c op =
 
     SelectPos1{}  -> do
       cols <- unp c >>= fromDBV
-      return $ VPropTriple (ConstVec cols) NA NA
+      return $ VPropTriple (ConstVec cols) CNA CNA
 
     SelectPos1S{} -> do
       cols <- unp c >>= fromDBV
-      return $ VPropTriple (ConstVec cols) NA NA
+      return $ VPropTriple (ConstVec cols) CNA CNA
 
     Reverse -> do
       cs <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec cs) NA
+      return $ VPropPair (ConstVec cs) CNA
 
     ReverseS -> do
       cs <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec cs) NA
+      return $ VPropPair (ConstVec cs) CNA
 
     Project projExprs   -> do
       constCols  <- unp c >>= fromDBV
@@ -167,7 +167,7 @@ inferConstVecUnOp c op =
 
     Select _       -> do
       cols <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec cols) NA
+      return $ VPropPair (ConstVec cols) CNA
 
     GroupAggr (g, as) -> do
       let pl = [ NonConstPL | _ <- [1 .. (length g) + (N.length as)] ]
@@ -183,23 +183,23 @@ inferConstVecUnOp c op =
 
     Sort _ -> do
       cs <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec cs) NA
+      return $ VPropPair (ConstVec cs) CNA
 
     SortS _ -> do
       cs <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec cs) NA
+      return $ VPropPair (ConstVec cs) CNA
 
     Group es -> do
       cs <- unp c >>= fromDBV
       return $ VPropTriple (ConstVec (map (const NonConstPL) es))
                            (ConstVec (map (const NonConstPL) cs))
-                           NA
+                           CNA
 
     GroupS es -> do
       cs <- unp c >>= fromDBV
       return $ VPropTriple (ConstVec (map (const NonConstPL) es))
                            (ConstVec (map (const NonConstPL) cs))
-                           NA
+                           CNA
 
     Transpose -> do
       cols <- unp c >>= fromDBV
@@ -240,25 +240,27 @@ inferConstVecBinOp c1 c2 op =
     DistLift -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
-      return $ VPropPair (ConstVec (cols1 ++ cols2)) NA
+      return $ VPropPair (ConstVec (cols1 ++ cols2)) CNA
 
-{-
-    PropRename -> do
+    AppKey -> do
       cols <- unp c2 >>= fromDBV
-      return $ VProp $ ConstVec cols
+      return $ VPropPair (ConstVec cols) CNA
 
-    PropFilter -> do
+    AppSort -> do
       cols <- unp c2 >>= fromDBV
-      return $ VPropPair (ConstVec cols) NA
+      return $ VPropPair (ConstVec cols) CNA
 
-    PropReorder -> do
+    AppFilter -> do
       cols <- unp c2 >>= fromDBV
-      return $ VPropPair (ConstVec cols) NA
--}
+      return $ VPropPair (ConstVec cols) CNA
+
+    AppRep -> do
+      cols <- unp c2 >>= fromDBV
+      return $ VPropPair (ConstVec cols) CNA
 
     UnboxNested -> do
       cols     <- unp c2 >>= fromDBV
-      return $ VPropPair (ConstVec cols) NA
+      return $ VPropPair (ConstVec cols) CNA
 
     UnboxScalar -> do
       cols1 <- unp c1 >>= fromDBV
@@ -274,7 +276,7 @@ inferConstVecBinOp c1 c2 op =
           sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
           sameConst (_, _)                                  = NonConstPL
 
-      return $ VPropTriple (ConstVec constCols) NA NA
+      return $ VPropTriple (ConstVec constCols) CNA CNA
 
     AppendS -> do
       cols1 <- unp c1 >>= fromDBV
@@ -285,15 +287,15 @@ inferConstVecBinOp c1 c2 op =
           sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
           sameConst (_, _)                                  = NonConstPL
 
-      return $ VPropTriple (ConstVec constCols) NA NA
+      return $ VPropTriple (ConstVec constCols) CNA CNA
 
     SelectPos _ -> do
       cols1 <- unp c1 >>= fromDBV
-      return $ VPropTriple (ConstVec cols1) NA NA
+      return $ VPropTriple (ConstVec cols1) CNA CNA
 
     SelectPosS _ -> do
       cols1 <- unp c1 >>= fromDBV
-      return $ VPropTriple (ConstVec cols1) NA NA
+      return $ VPropTriple (ConstVec cols1) CNA CNA
 
     Align -> do
       cols1 <- unp c1 >>= fromDBV
@@ -311,31 +313,31 @@ inferConstVecBinOp c1 c2 op =
       cols1 <- unp c1 >>= fromDBV
       cols2  <- unp c2 >>= fromDBV
       let cols = cols1 ++ cols2
-      return $ VPropTriple (ConstVec cols) NA NA
+      return $ VPropTriple (ConstVec cols) CNA CNA
 
     CartProduct -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-      return $ VPropTriple (ConstVec constCols) NA NA
+      return $ VPropTriple (ConstVec constCols) CNA CNA
 
     CartProductS -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-      return $ VPropTriple (ConstVec constCols) NA NA
+      return $ VPropTriple (ConstVec constCols) CNA CNA
 
     NestProductS -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-      return $ VPropTriple (ConstVec constCols) NA NA
+      return $ VPropTriple (ConstVec constCols) CNA CNA
 
     NestJoin _ -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-      return $ VPropTriple (ConstVec constCols) NA NA
+      return $ VPropTriple (ConstVec constCols) CNA CNA
 
     GroupJoin _ -> do
       cols1 <- unp c1 >>= fromDBV
@@ -346,7 +348,7 @@ inferConstVecBinOp c1 c2 op =
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-      return $ VPropTriple (ConstVec constCols) NA NA
+      return $ VPropTriple (ConstVec constCols) CNA CNA
 
     ThetaJoin _ -> do
       cols1 <- unp c1 >>= fromDBV
@@ -354,35 +356,35 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      return $ VPropTriple (ConstVec constCols) NA NA
+      return $ VPropTriple (ConstVec constCols) CNA CNA
 
     ThetaJoinS _ -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-      return $ VPropTriple (ConstVec constCols) NA NA
+      return $ VPropTriple (ConstVec constCols) CNA CNA
 
     NestJoinS _ -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
-      return $ VPropTriple (ConstVec constCols) NA NA
+      return $ VPropTriple (ConstVec constCols) CNA CNA
 
     SemiJoin _ -> do
       cols1 <- unp c1 >>= fromDBV
-      return $ VPropPair (ConstVec cols1) NA
+      return $ VPropPair (ConstVec cols1) CNA
 
     SemiJoinS _ -> do
       cols1 <- unp c1 >>= fromDBV
-      return $ VPropPair (ConstVec cols1) NA
+      return $ VPropPair (ConstVec cols1) CNA
 
     AntiJoin _ -> do
       cols1 <- unp c1 >>= fromDBV
-      return $ VPropPair (ConstVec cols1) NA
+      return $ VPropPair (ConstVec cols1) CNA
 
     AntiJoinS _ -> do
       cols1 <- unp c1 >>= fromDBV
-      return $ VPropPair (ConstVec cols1) NA
+      return $ VPropPair (ConstVec cols1) CNA
 
     TransposeS -> do
       cols2 <- unp c2 >>= fromDBV
@@ -404,5 +406,5 @@ inferConstVecTerOp _c1 c2 c3 op =
           sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
           sameConst (_, _)                                  = NonConstPL
 
-      return $ VPropTriple (ConstVec constCols) NA NA
+      return $ VPropTriple (ConstVec constCols) CNA CNA
 
