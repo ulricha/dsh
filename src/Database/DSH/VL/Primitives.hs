@@ -190,8 +190,8 @@ vlAppSort (VLSVec c1) (VLDVec c2) = pairVec (BinOp AppSort c1 c2) dvec svec
 vlAppFilter :: VLFVec -> VLDVec -> Build VL (VLDVec, VLFVec)
 vlAppFilter (VLFVec c1) (VLDVec c2) = pairVec (BinOp AppFilter c1 c2) dvec fvec
 
-vlAppKey :: VLKVec -> VLDVec -> Build VL VLDVec
-vlAppKey (VLKVec c1) (VLDVec c2) = vec (BinOp AppKey c1 c2) dvec
+vlAppKey :: VLKVec -> VLDVec -> Build VL (VLDVec, VLKVec)
+vlAppKey (VLKVec c1) (VLDVec c2) = pairVec (BinOp AppKey c1 c2) dvec kvec
 
 vlAppRep :: VLRVec -> VLDVec -> Build VL (VLDVec, VLRVec)
 vlAppRep (VLRVec c1) (VLDVec c2) = pairVec (BinOp AppKey c1 c2) dvec rvec
@@ -251,15 +251,15 @@ vlSelectPos1S (VLDVec c1) op posConst =
 vlProject :: [Expr] -> VLDVec -> Build VL VLDVec
 vlProject projs (VLDVec c) = dvec $ insert $ UnOp (Project projs) c
 
-vlZip :: VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec, VLFVec)
-vlZip (VLDVec c1) (VLDVec c2) = tripleVec (BinOp Zip c1 c2) dvec fvec fvec
+vlZip :: VLDVec -> VLDVec -> Build VL (VLDVec, VLKVec, VLKVec)
+vlZip (VLDVec c1) (VLDVec c2) = tripleVec (BinOp Zip c1 c2) dvec kvec kvec
 
 vlAlign :: VLDVec -> VLDVec -> Build VL VLDVec
 vlAlign (VLDVec c1) (VLDVec c2) = vec (BinOp Align c1 c2) dvec
 
-vlZipS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec, VLFVec)
+vlZipS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLKVec, VLKVec)
 vlZipS (VLDVec c1) (VLDVec c2) =
-    tripleVec (BinOp ZipS c1 c2) dvec fvec fvec
+    tripleVec (BinOp ZipS c1 c2) dvec kvec kvec
 
 vlCartProduct :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlCartProduct (VLDVec c1) (VLDVec c2) =

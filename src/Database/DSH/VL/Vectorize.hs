@@ -30,8 +30,8 @@ import           Database.DSH.Common.Vector
 zip ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 zip (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     (dv, fv1, fv2) <- vlZip dv1 dv2
-    lyt1'          <- filterLayout fv1 lyt1
-    lyt2'          <- filterLayout fv2 lyt2
+    lyt1'          <- rekeyOuter fv1 lyt1
+    lyt2'          <- rekeyOuter fv2 lyt2
     return $ VShape dv $ LTuple [lyt1', lyt2']
 zip _ _ = $impossible
 
@@ -104,7 +104,7 @@ last (VShape qs lyt@(LNest _ _)) = do
     (q, r, _)     <- vlSelectPos qs (L.SBRelOp L.Eq) i
     LNest qr lyt' <- filterLayout r lyt
     re            <- vlUnboxRename q
-    VShape <$> vlAppKey re qr <*> pure lyt'
+    VShape <$> (fst <$> vlAppKey re qr) <*> pure lyt'
 last (VShape qs lyt) = do
     i         <- vlAggr AggrCount qs
     (q, r, _) <- vlSelectPos qs (L.SBRelOp L.Eq) i
@@ -119,7 +119,7 @@ index (VShape qs (LNest qi lyti)) (SShape i _) = do
     -- Use the unboxing rename vector
     (_, _, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
     (qu, ri)  <- vlUnboxNested r qi
-    lyti'     <- rekeyLayout ri lyti
+    lyti'     <- rekeyOuter ri lyti
     return $ VShape qu lyti'
 index (VShape qs lyt) (SShape i _) = do
     one       <- literal PIntT (L.IntV 1)
@@ -134,8 +134,8 @@ append (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     -- Append the current vectors
     (dv12, kv1, kv2) <- vlAppend dv1 dv2
     -- Propagate position changes to descriptors of any inner vectors
-    lyt1'       <- rekeyLayout kv1 lyt1
-    lyt2'       <- rekeyLayout kv2 lyt2
+    lyt1'       <- rekeyOuter kv1 lyt1
+    lyt2'       <- rekeyOuter kv2 lyt2
     -- Append the layouts, i.e. actually append all inner vectors
     lyt'        <- appendLayout lyt1' lyt2'
     return $ VShape dv12 lyt'
@@ -229,8 +229,8 @@ restrict e1 = trace (show e1) $ $impossible
 combine ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 combine (VShape dvb LCol) (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     (dv, kv1, kv2) <- vlCombine dvb dv1 dv2
-    lyt1'          <- rekeyLayout kv1 lyt1
-    lyt2'          <- rekeyLayout kv2 lyt2
+    lyt1'          <- rekeyOuter kv1 lyt1
+    lyt2'          <- rekeyOuter kv2 lyt2
     lyt'           <- appendLayout lyt1' lyt2'
     return $ VShape dv lyt'
 combine l1 l2 l3 = trace (show l1 ++ " " ++ show l2 ++ " " ++ show l3) $ $impossible
@@ -362,8 +362,8 @@ combineL _ _ _ = $impossible
 zipL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 zipL (VShape d1 (LNest q1 lyt1)) (VShape _ (LNest q2 lyt2)) = do
     (q', r1, r2) <- vlZipS q1 q2
-    lyt1'        <- filterLayout r1 lyt1
-    lyt2'        <- filterLayout r2 lyt2
+    lyt1'        <- rekeyLayout r1 lyt1
+    lyt2'        <- rekeyLayout r2 lyt2
     return $ VShape d1 (LNest q' $ LTuple [lyt1', lyt2'])
 zipL _ _ = $impossible
 
@@ -444,13 +444,13 @@ lastL (VShape d (LNest qs lyt@(LNest _ _))) = do
     (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
     lyt'        <- filterLayout r lyt
     re          <- vlUnboxRename qs'
-    VShape d <$> rekeyLayout re lyt'
+    VShape d <$> rekeyOuter re lyt'
 lastL (VShape d (LNest qs lyt)) = do
     is          <- vlAggrS AggrCount d qs
     (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
     lyt'        <- filterLayout r lyt
     re          <- vlUnboxRename d
-    VShape <$> vlAppKey re qs' <*> pure lyt'
+    VShape <$> (fst <$> vlAppKey re qs') <*> pure lyt'
 lastL _ = $impossible
 
 indexL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -458,14 +458,14 @@ indexL (VShape d (LNest qs (LNest qi lyti))) (VShape idxs LCol) = do
     idxs'          <- vlProject [BinApp (L.SBNumOp L.Add) (Column 1) (Constant $ L.IntV 1)] idxs
     (_, _, u)      <- vlSelectPosS qs (L.SBRelOp L.Eq) idxs'
     (qu, ri)       <- vlUnboxNested u qi
-    lyti'          <- rekeyLayout ri lyti
+    lyti'          <- rekeyOuter ri lyti
     return $ VShape d (LNest qu lyti')
 indexL (VShape d (LNest qs lyt)) (VShape idxs LCol) = do
     idxs'          <- vlProject [BinApp (L.SBNumOp L.Add) (Column 1) (Constant $ L.IntV 1)] idxs
     (qs', r, _)    <- vlSelectPosS qs (L.SBRelOp L.Eq) idxs'
     lyt'           <- filterLayout r lyt
     re             <- vlUnboxRename d
-    VShape <$> vlAppKey re qs' <*> pure lyt'
+    VShape <$> (fst <$> vlAppKey re qs') <*> pure lyt'
 indexL _ _ = $impossible
 
 appendL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -484,9 +484,7 @@ theL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 theL (VShape d (LNest q lyt)) = do
     (v, p2, _) <- vlSelectPos1S q (L.SBRelOp L.Eq) 1
     prop       <- vlUnboxRename d
-    lyt'       <- filterLayout p2 lyt
-    v'         <- vlAppKey prop v
-    return $ VShape v' lyt'
+    VShape <$> (fst <$> vlAppKey prop v) <*> filterLayout p2 lyt
 theL _ = $impossible
 
 tailL ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -532,7 +530,7 @@ groupL _ = $impossible
 concatL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 concatL (VShape d (LNest d' vs)) = do
     p   <- vlUnboxRename d'
-    vs' <- rekeyLayout p vs
+    vs' <- rekeyOuter p vs
     return $ VShape d vs'
 concatL _ = $impossible
 
@@ -809,9 +807,14 @@ sortLayout :: VLSVec -> Layout VLDVec -> Build VL (Layout VLDVec)
 sortLayout v l = appLayout v vlAppSort l
 
 rekeyLayout :: VLKVec -> Layout VLDVec -> Build VL (Layout VLDVec)
-rekeyLayout _ LCol          = return LCol
-rekeyLayout r (LNest q lyt) = LNest <$> vlAppKey r q <*> pure lyt
-rekeyLayout r (LTuple lyts) = LTuple <$> mapM (rekeyLayout r) lyts
+rekeyLayout v l = appLayout v vlAppKey l
+
+-- | Apply a rekeying vector to the outermost nested vectors in the
+-- layout.
+rekeyOuter :: VLKVec -> Layout VLDVec -> Build VL (Layout VLDVec)
+rekeyOuter _ LCol          = return LCol
+rekeyOuter r (LNest q lyt) = LNest <$> (fst <$> vlAppKey r q) <*> pure lyt
+rekeyOuter r (LTuple lyts) = LTuple <$> mapM (rekeyOuter r) lyts
 
 -- | Traverse a layout and append all nested vectors that are
 -- encountered.
@@ -822,8 +825,8 @@ appendLayout (LNest dv1 lyt1) (LNest dv2 lyt2) = do
     -- Append the current vectors
     (dv12, kv1, kv2) <- vlAppendS dv1 dv2
     -- Propagate position changes to descriptors of any inner vectors
-    lyt1'       <- rekeyLayout kv1 lyt1
-    lyt2'       <- rekeyLayout kv2 lyt2
+    lyt1'       <- rekeyOuter kv1 lyt1
+    lyt2'       <- rekeyOuter kv2 lyt2
     -- Append the layouts, i.e. actually append all inner vectors
     lyt'        <- appendLayout lyt1' lyt2'
     return $ LNest dv12 lyt'

@@ -135,7 +135,7 @@ class VectorAlgebra a where
     vecAppFilter :: FVec a -> DVec a -> Build a (DVec a, FVec a)
 
     -- | Apply a rekeying vector to a data vector
-    vecAppKey    :: KVec a -> DVec a -> Build a (DVec a)
+    vecAppKey    :: KVec a -> DVec a -> Build a (DVec a, KVec a)
 
     -- | Apply a replication vector to a data vector
     vecAppRep    :: RVec a -> DVec a -> Build a (DVec a, RVec a)
@@ -163,11 +163,11 @@ class VectorAlgebra a where
     vecAlign :: DVec a -> DVec a -> Build a (DVec a)
 
     -- | Positionally align two vectors. Basically: @zip xs ys@
-    vecZip :: (DVec a) -> DVec a -> Build a (DVec a, FVec a, FVec a)
+    vecZip :: (DVec a) -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
     -- | Positionally align two vectors per segment: @map zip xss
     -- yss@.
-    vecZipS :: DVec a -> DVec a -> Build a (DVec a, FVec a, FVec a)
+    vecZipS :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
     vecCartProduct :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecCartProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
