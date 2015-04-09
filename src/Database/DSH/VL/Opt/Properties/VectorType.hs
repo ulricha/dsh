@@ -34,6 +34,7 @@ inferVectorTypeUnOp s op =
     WinFun _ -> do
         ValueVector w <- unpack s
         return $ VProp $ ValueVector $ w + 1
+    Unique -> VProp <$> unpack s
     UniqueS -> VProp <$> unpack s
     Aggr _ -> Right $ VProp $ ValueVector 1
     AggrNonEmpty as -> Right $ VProp $ ValueVector $ N.length as

@@ -31,6 +31,7 @@ inferEmptyUnOp e op =
   case op of
     WinFun _       -> Right e
     UniqueS         -> Right e
+    Unique          -> Right e
     Aggr _          -> Right $ VProp False
     AggrNonEmpty _  -> Right $ VProp False
     UnboxRename     -> Right e

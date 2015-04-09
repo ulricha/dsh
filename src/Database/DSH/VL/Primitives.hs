@@ -136,6 +136,9 @@ joinExpr expr = offsetExpr $ aux expr
 ----------------------------------------------------------------------------------
 -- DAG constructor functions for VL operators
 
+vlUnique :: VLDVec -> Build VL VLDVec
+vlUnique (VLDVec c) = vec (UnOp Unique c) dvec
+
 vlUniqueS :: VLDVec -> Build VL VLDVec
 vlUniqueS (VLDVec c) = vec (UnOp UniqueS c) dvec
 

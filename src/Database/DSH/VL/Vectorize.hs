@@ -80,7 +80,7 @@ antiJoin joinPred (VShape q1 lyt1) (VShape q2 _) = do
 antiJoin _ _ _ = $impossible
 
 nub ::  Shape VLDVec -> Build VL (Shape VLDVec)
-nub (VShape q lyt) = VShape <$> vlUniqueS q <*> pure lyt
+nub (VShape q lyt) = VShape <$> vlUnique q <*> pure lyt
 nub _ = $impossible
 
 number ::  Shape VLDVec -> Build VL (Shape VLDVec)

@@ -102,6 +102,7 @@ data UnOp = UnboxRename
 
           | Number
           | NumberS
+          | Unique
           | UniqueS
           | Reverse
           | ReverseS

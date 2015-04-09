@@ -128,6 +128,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             VProp cols ∪ childReqColumns
 
         UniqueS    -> ownReqColumns ∪ childReqColumns
+        Unique    -> ownReqColumns ∪ childReqColumns
 
         Aggr aggrFun -> (VProp $ Just $ aggrReqCols aggrFun)
                         ∪
