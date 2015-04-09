@@ -180,15 +180,21 @@ translateBinOp b c1 c2 = case b of
         (v, p) <- vecDistLift (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec p)
 
-    -- V.PropRename -> fromDVec <$> vecPropRename (toKVec c1) (toDVec c2)
+    V.AppKey -> do
+        (v, k) <- vecAppKey (toKVec c1) (toDVec c2)
+        return $ RLPair (fromDVec v) (fromKVec k)
 
-    -- V.PropFilter -> do
-    --     (v, r) <- vecPropFilter (toKVec c1) (toDVec c2)
-    --     return $ RLPair (fromDVec v) (fromKVec r)
+    V.AppSort -> do
+        (v, s) <- vecAppSort (toSVec c1) (toDVec c2)
+        return $ RLPair (fromDVec v) (fromSVec s)
 
-    -- V.PropReorder -> do
-    --     (v, p) <- vecPropReorder (toRVec c1) (toDVec c2)
-    --     return $ RLPair (fromDVec v) (fromRVec p)
+    V.AppRep -> do
+        (v, r) <- vecAppRep (toRVec c1) (toDVec c2)
+        return $ RLPair (fromDVec v) (fromRVec r)
+
+    V.AppFilter -> do
+        (v, f) <- vecAppFilter (toFVec c1) (toDVec c2)
+        return $ RLPair (fromDVec v) (fromFVec f)
 
     V.UnboxNested -> do
         (v, r) <- vecUnboxNested (toKVec c1) (toDVec c2)
