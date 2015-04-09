@@ -37,7 +37,7 @@ inferVectorTypeUnOp s op =
     UniqueS -> VProp <$> unpack s
     Aggr _ -> Right $ VProp $ VTDataVec 1
     AggrNonEmpty as -> Right $ VProp $ VTDataVec $ N.length as
-    UnboxRename -> Right $ VProp $ VTNA
+    UnboxKey -> Right $ VProp $ VTNA
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
     Reverse -> liftM2 VPropPair (unpack s) (Right VTNA)

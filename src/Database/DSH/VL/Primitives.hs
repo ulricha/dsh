@@ -169,8 +169,8 @@ vlAggr aFun (VLDVec c) = vec (UnOp (Aggr aFun) c) dvec
 vlAggrS :: AggrFun -> VLDVec -> VLDVec -> Build VL VLDVec
 vlAggrS aFun (VLDVec c1) (VLDVec c2) = vec (BinOp (AggrS aFun) c1 c2) dvec
 
-vlUnboxRename :: VLDVec -> Build VL VLKVec
-vlUnboxRename (VLDVec c) = vec (UnOp UnboxRename c) kvec
+vlUnboxKey :: VLDVec -> Build VL VLKVec
+vlUnboxKey (VLDVec c) = vec (UnOp UnboxKey c) kvec
 
 vlNestProduct :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlNestProduct (VLDVec c1) (VLDVec c2) = tripleVec (BinOp NestProduct c1 c2) dvec rvec rvec

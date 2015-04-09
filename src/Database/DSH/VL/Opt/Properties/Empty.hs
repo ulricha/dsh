@@ -29,35 +29,35 @@ inferEmptyNullOp op =
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
-    WinFun _       -> Right e
-    UniqueS         -> Right e
-    Aggr _          -> Right $ VProp False
-    AggrNonEmpty _  -> Right $ VProp False
-    UnboxRename     -> Right e
-    Segment         -> Right e
-    Unsegment       -> Right e
-    Reverse         -> let ue = unp e in liftM2 VPropPair ue ue
-    ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
-    Project _       -> Right e
-    Select _        -> let ue = unp e in liftM2 VPropPair ue ue
-    Sort _          -> let ue = unp e in liftM2 VPropPair ue ue
-    SortS _         -> let ue = unp e in liftM2 VPropPair ue ue
-    Group _         -> let ue = unp e in liftM3 VPropTriple ue ue ue
-    GroupS _        -> let ue = unp e in liftM3 VPropTriple ue ue ue
+    WinFun _         -> Right e
+    UniqueS          -> Right e
+    Aggr _           -> Right $ VProp False
+    AggrNonEmpty _   -> Right $ VProp False
+    UnboxKey         -> Right e
+    Segment          -> Right e
+    Unsegment        -> Right e
+    Reverse          -> let ue = unp e in liftM2 VPropPair ue ue
+    ReverseS         -> let ue = unp e in liftM2 VPropPair ue ue
+    Project _        -> Right e
+    Select _         -> let ue = unp e in liftM2 VPropPair ue ue
+    Sort _           -> let ue = unp e in liftM2 VPropPair ue ue
+    SortS _          -> let ue = unp e in liftM2 VPropPair ue ue
+    Group _          -> let ue = unp e in liftM3 VPropTriple ue ue ue
+    GroupS _         -> let ue = unp e in liftM3 VPropTriple ue ue ue
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
-    ReshapeS _ -> let ue = unp e in liftM2 VPropPair ue ue
-    Reshape _ -> let ue = unp e in liftM2 VPropPair ue ue
-    Transpose -> let ue = unp e in liftM2 VPropPair ue ue
+    ReshapeS _       -> let ue = unp e in liftM2 VPropPair ue ue
+    Reshape _        -> let ue = unp e in liftM2 VPropPair ue ue
+    Transpose        -> let ue = unp e in liftM2 VPropPair ue ue
 
-    SelectPos1{} -> let ue = unp e in liftM3 VPropTriple ue ue ue
-    SelectPos1S{} -> let ue = unp e in liftM3 VPropTriple ue ue ue
+    SelectPos1{}     -> let ue = unp e in liftM3 VPropTriple ue ue ue
+    SelectPos1S{}    -> let ue = unp e in liftM3 VPropTriple ue ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr (_, _) -> Right $ VProp False
-    Number -> Right e
-    NumberS -> Right e
-    AggrNonEmptyS _ -> return $ VProp False
+    Number           -> Right e
+    NumberS          -> Right e
+    AggrNonEmptyS _  -> return $ VProp False
 
     R1 ->
       case e of

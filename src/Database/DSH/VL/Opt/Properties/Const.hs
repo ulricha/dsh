@@ -134,7 +134,7 @@ inferConstVecUnOp c op =
     AggrNonEmpty _ -> do
       return $ VProp $ ConstVec [NonConstPL]
 
-    UnboxRename -> return $ VProp CNA
+    UnboxKey -> return $ VProp CNA
 
     Segment -> do
       constCols <- unp c >>= fromDBV

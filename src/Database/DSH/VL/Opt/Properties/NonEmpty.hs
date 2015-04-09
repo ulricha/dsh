@@ -57,7 +57,7 @@ inferNonEmptyUnOp e op =
     UniqueS         -> Right e
     Aggr _          -> Right $ VProp True
     AggrNonEmpty _  -> Right $ VProp True
-    UnboxRename     -> Right e
+    UnboxKey     -> Right e
     Segment         -> Right e
     Unsegment       -> Right e
     Reverse         -> let ue = unp e in liftM2 VPropPair ue ue

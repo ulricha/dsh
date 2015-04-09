@@ -25,7 +25,7 @@ inferCardOneUnOp c op =
     Aggr _ -> Right $ VProp True
     AggrNonEmpty _ -> Right $ VProp True
     WinFun _ -> Right c
-    UnboxRename -> Right c
+    UnboxKey -> Right c
     Segment -> Right c
     Unsegment -> Right c
     Project _  -> Right c

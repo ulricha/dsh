@@ -103,7 +103,7 @@ last (VShape qs lyt@(LNest _ _)) = do
     i             <- vlAggr AggrCount qs
     (q, r, _)     <- vlSelectPos qs (L.SBRelOp L.Eq) i
     LNest qr lyt' <- filterLayout r lyt
-    re            <- vlUnboxRename q
+    re            <- vlUnboxKey q
     VShape <$> (fst <$> vlAppKey re qr) <*> pure lyt'
 last (VShape qs lyt) = do
     i         <- vlAggr AggrCount qs
@@ -443,13 +443,13 @@ lastL (VShape d (LNest qs lyt@(LNest _ _))) = do
     is          <- vlAggrS AggrCount d qs
     (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
     lyt'        <- filterLayout r lyt
-    re          <- vlUnboxRename qs'
+    re          <- vlUnboxKey qs'
     VShape d <$> rekeyOuter re lyt'
 lastL (VShape d (LNest qs lyt)) = do
     is          <- vlAggrS AggrCount d qs
     (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
     lyt'        <- filterLayout r lyt
-    re          <- vlUnboxRename d
+    re          <- vlUnboxKey d
     VShape <$> (fst <$> vlAppKey re qs') <*> pure lyt'
 lastL _ = $impossible
 
@@ -464,7 +464,7 @@ indexL (VShape d (LNest qs lyt)) (VShape idxs LCol) = do
     idxs'          <- vlProject [BinApp (L.SBNumOp L.Add) (Column 1) (Constant $ L.IntV 1)] idxs
     (qs', r, _)    <- vlSelectPosS qs (L.SBRelOp L.Eq) idxs'
     lyt'           <- filterLayout r lyt
-    re             <- vlUnboxRename d
+    re             <- vlUnboxKey d
     VShape <$> (fst <$> vlAppKey re qs') <*> pure lyt'
 indexL _ _ = $impossible
 
@@ -483,7 +483,7 @@ reverseL _ = $impossible
 theL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 theL (VShape d (LNest q lyt)) = do
     (v, p2, _) <- vlSelectPos1S q (L.SBRelOp L.Eq) 1
-    prop       <- vlUnboxRename d
+    prop       <- vlUnboxKey d
     VShape <$> (fst <$> vlAppKey prop v) <*> filterLayout p2 lyt
 theL _ = $impossible
 
@@ -529,7 +529,7 @@ groupL _ = $impossible
 
 concatL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 concatL (VShape d (LNest d' vs)) = do
-    p   <- vlUnboxRename d'
+    p   <- vlUnboxKey d'
     vs' <- rekeyOuter p vs
     return $ VShape d vs'
 concatL _ = $impossible

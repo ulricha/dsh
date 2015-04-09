@@ -35,7 +35,7 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectAppFilter
                  , pullProjectAppSort
                  , pullProjectSelectPos1S
-                 , pullProjectUnboxRename
+                 , pullProjectUnboxKey
                  , pullProjectAggrS
                  , scalarConditional
                  ]
@@ -840,13 +840,13 @@ pullProjectAppSort q =
            r1Node   <- insert $ UnOp R1 sortNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
-pullProjectUnboxRename :: VLRule ()
-pullProjectUnboxRename q =
-  $(dagPatMatch 'q "UnboxRename (Project _ (q1))"
+pullProjectUnboxKey :: VLRule ()
+pullProjectUnboxKey q =
+  $(dagPatMatch 'q "UnboxKey (Project _ (q1))"
     [| do
          return $ do
-           logRewrite "Redundant.Project.UnboxRename" q
-           void $ replaceWithNew q $ UnOp UnboxRename $(v "q1") |])
+           logRewrite "Redundant.Project.UnboxKey" q
+           void $ replaceWithNew q $ UnOp UnboxKey $(v "q1") |])
 
 -- | Any projections on the left input of AggrS are irrelevant, as
 -- only the segment information are required from the vector.

@@ -47,7 +47,7 @@ class VectorAlgebra a where
     -- vector's elements in each segment.
     vecNumberS :: DVec a -> Build a (DVec a)
 
-    descToRename :: DVec a -> Build a (KVec a)
+    vecUnboxKey :: DVec a -> Build a (KVec a)
 
     -- | From a vector with only one segment, create a segmented
     -- version in which every value in the original segment inhabits

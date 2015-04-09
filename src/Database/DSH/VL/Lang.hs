@@ -84,7 +84,7 @@ data NullOp = SingletonDescr
 
 $(deriveJSON defaultOptions ''NullOp)
 
-data UnOp = UnboxRename
+data UnOp = UnboxKey
           | Segment
           | Unsegment
 

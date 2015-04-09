@@ -73,7 +73,7 @@ runningAggWin q =
 -- (which we should really do).
 firstValueWin :: VLRule Properties
 firstValueWin q =
-  $(dagPatMatch 'q "(UnboxRename (Number (q1))) AppKey (R1 (SelectPos1S selectArgs (R1 ((Number (q2)) NestJoin joinPred (Number (q3))))))"
+  $(dagPatMatch 'q "(UnboxKey (Number (q1))) AppKey (R1 (SelectPos1S selectArgs (R1 ((Number (q2)) NestJoin joinPred (Number (q3))))))"
     [| do
         predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3")
 
