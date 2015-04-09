@@ -291,6 +291,7 @@ translateUnOp :: VectorAlgebra a
               -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateUnOp unop c = case unop of
     V.AggrNonEmptyS a  -> fromDVec <$> vecAggrNonEmptyS a (toDVec c)
+    V.Unique           -> fromDVec <$> vecUnique (toDVec c)
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     V.Number           -> fromDVec <$> vecNumber (toDVec c)
     V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)

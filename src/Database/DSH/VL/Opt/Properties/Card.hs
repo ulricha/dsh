@@ -21,6 +21,7 @@ inferCardOneNullOp op =
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferCardOneUnOp c op =
   case op of
+    Unique -> Right c
     UniqueS -> Right c
     Aggr _ -> Right $ VProp True
     AggrNonEmpty _ -> Right $ VProp True

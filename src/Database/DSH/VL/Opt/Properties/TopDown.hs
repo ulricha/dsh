@@ -40,6 +40,7 @@ seed (UnOp op _)   =
         ReverseS           -> vPropPairSeed
         UniqueS            -> vPropSeed
         UnboxKey           -> vPropSeed
+        Unique             -> vPropSeed
         Segment            -> vPropSeed
         Unsegment          -> vPropSeed
         Select     _       -> vPropPairSeed

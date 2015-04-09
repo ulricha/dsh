@@ -34,6 +34,9 @@ class VectorAlgebra a where
     -- | A reference to a database-resident table.
     vecTableRef :: String -> BaseTableSchema -> Build a (DVec a)
 
+    -- | Eliminate duplicates
+    vecUnique :: DVec a -> Build a (DVec a)
+
     -- | Perform duplicate elimination per segment.
     vecUniqueS :: DVec a -> Build a (DVec a)
 

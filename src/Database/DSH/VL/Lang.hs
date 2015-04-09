@@ -102,6 +102,7 @@ data UnOp = UnboxKey
 
           | Number
           | NumberS
+          | Unique
           | UniqueS
           | Reverse
           | ReverseS

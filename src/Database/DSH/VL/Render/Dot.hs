@@ -122,6 +122,7 @@ opDotLabel tm i (NullaryOp (TableRef (n, schema))) =
                   <> align (bracketList (\c -> renderCol c <> text "\n")
                                         (N.toList $ tableCols schema)))
                  (lookupTags i tm)
+opDotLabel tm i (UnOp Unique _) = labelToDoc i "Unique" empty (lookupTags i tm)
 opDotLabel tm i (UnOp UniqueS _) = labelToDoc i "UniqueS" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Number _) = labelToDoc i "Number" empty (lookupTags i tm)
 opDotLabel tm i (UnOp NumberS _) = labelToDoc i "NumberS" empty (lookupTags i tm)

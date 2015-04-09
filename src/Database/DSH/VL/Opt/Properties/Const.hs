@@ -127,6 +127,7 @@ inferConstVecUnOp c op =
       return $ VProp $ ConstVec (cols ++ [NonConstPL])
 
     UniqueS -> return c
+    Unique -> return c
 
     Aggr _ -> do
       return $ VProp $ ConstVec [NonConstPL]
