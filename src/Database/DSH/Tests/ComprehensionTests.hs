@@ -1,10 +1,13 @@
 -- | Tests on certain aspects of comprehension nesting.
 module Database.DSH.Tests.ComprehensionTests
     ( tests_comprehensions
+    , tests_lifted_joins
     , tests_join_hunit
     , tests_nest_head_hunit
     , tests_nest_guard_hunit
     ) where
+
+import           GHC.Exts
 
 import           Test.Framework                       (Test, testGroup)
 import           Test.Framework.Providers.HUnit
@@ -43,6 +46,13 @@ tests_comprehensions conn = testGroup "Comprehensions"
     , testProperty "backdep4" (\a -> prop_backdep4 a conn)
     , testProperty "backdep5" (\a -> prop_backdep5 a conn)
     , testProperty "deep" (\a -> prop_deep_iter a conn)
+    ]
+
+tests_lifted_joins :: Backend c => c -> Test
+tests_lifted_joins conn = testGroup "Lifted Joins"
+    [ testProperty "lifted semijoin" (\a -> prop_liftsemijoin a conn)
+    , testProperty "lifted antijoin" (\a -> prop_liftantijoin a conn)
+    , testProperty "lifted thetajoin" (\a -> prop_liftthetajoin a conn)
     ]
 
 tests_join_hunit :: Backend c => c -> Test
@@ -247,7 +257,32 @@ prop_backdep5 = makePropEq C.backdep5 backdep5
                      | x <- take (length xs - 3) xs ]
                    | xs <- xss ]
 
+--------------------------------------------------------------------------------
+-- Tests for lifted join operators
 
+prop_liftsemijoin :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_liftsemijoin = makePropEq C.liftsemijoin liftsemijoin
+  where
+    liftsemijoin (xs, ys) =
+        [ [ x | x <- g, x `elem` ys ]
+        | g <- groupWith (`mod` 10) xs
+        ]
+
+prop_liftantijoin :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_liftantijoin = makePropEq C.liftantijoin liftantijoin
+  where
+    liftantijoin (xs, ys) =
+        [ [ x | x <- g, x `notElem` ys ]
+        | g <- groupWith (`mod` 10) xs
+        ]
+
+prop_liftthetajoin :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_liftthetajoin = makePropEq C.liftthetajoin liftthetajoin
+  where
+    liftthetajoin (xs, ys) =
+        [ [ (x, y) | x <- g, y <- ys, x < y ]
+        | g <- groupWith (`mod` 10) xs
+        ]
 
 -----------------------------------------------------------------------
 -- HUnit tests for comprehensions
