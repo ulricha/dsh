@@ -35,6 +35,7 @@ defaultTests =
     , tests_nest_guard_hunit
     , tests_combinators_hunit
     , tests_comprehensions
+    , tests_lifted_joins
     , tests_boolean
     , tests_numerics
     , tests_maybe

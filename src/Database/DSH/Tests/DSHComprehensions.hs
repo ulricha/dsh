@@ -125,6 +125,27 @@ groupjoin_length :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
 groupjoin_length (view -> (xs, ys)) =
     [ tup2 x (length [ y | y <- ys, x == y ]) | x <- xs ]
 
+--------------------------------------------------------------------------------
+-- Comprehensions for lifted join tests
+
+liftsemijoin :: Q ([Integer], [Integer]) -> Q [[Integer]]
+liftsemijoin (view -> (xs, ys)) =
+    [ [ x | x <- g, x `elem` ys ]
+    | g <- groupWith (`mod` 10) xs
+    ]
+
+liftantijoin :: Q ([Integer], [Integer]) -> Q [[Integer]]
+liftantijoin (view -> (xs, ys)) =
+    [ [ x | x <- g, x `notElem` ys ]
+    | g <- groupWith (`mod` 10) xs
+    ]
+
+liftthetajoin :: Q ([Integer], [Integer]) -> Q [[(Integer, Integer)]]
+liftthetajoin (view -> (xs, ys)) =
+    [ [ pair x y | x <- g, y <- ys, x < y ]
+    | g <- groupWith (`mod` 10) xs
+    ]
+
 --------------------------------------------------------------
 -- Comprehensions for HUnit tests
 
