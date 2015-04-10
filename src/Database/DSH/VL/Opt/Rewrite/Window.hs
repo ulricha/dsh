@@ -61,77 +61,77 @@ runningAggWin q =
 
             void $ replaceWithNew q $ UnOp (WinFun (afun', FAllPreceding)) $(v "qn") |])
 
--- | Employ a window function that maps to SQL's first_value when the
--- 'head' combinator is employed on a nestjoin-generated window.
---
--- FIXME this rewrite is currently extremely ugly and fragile: We map
--- directly to first_value which produces only one value, but start
--- with head one potentially broader inputs. To bring them into sync,
--- we demand that only one column is required downstream and produce
--- that column. This involves too much fiddling with column
--- offsets. It would be less dramatic if we had name-based columns
--- (which we should really do).
-firstValueWin :: VLRule Properties
-firstValueWin q =
-  $(dagPatMatch 'q "(UnboxKey (Number (q1))) AppKey (R1 (SelectPos1S selectArgs (R1 ((Number (q2)) NestJoin joinPred (Number (q3))))))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3")
+-- -- | Employ a window function that maps to SQL's first_value when the
+-- -- 'head' combinator is employed on a nestjoin-generated window.
+-- --
+-- -- FIXME this rewrite is currently extremely ugly and fragile: We map
+-- -- directly to first_value which produces only one value, but start
+-- -- with head one potentially broader inputs. To bring them into sync,
+-- -- we demand that only one column is required downstream and produce
+-- -- that column. This involves too much fiddling with column
+-- -- offsets. It would be less dramatic if we had name-based columns
+-- -- (which we should really do).
+-- firstValueWin :: VLRule Properties
+-- firstValueWin q =
+--   $(dagPatMatch 'q "(UnboxKey (Number (q1))) AppKey (R1 (SelectPos1S selectArgs (R1 ((Number (q2)) NestJoin joinPred (Number (q3))))))"
+--     [| do
+--         predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3")
 
-        inputWidth <- vectorWidth <$> vectorTypeProp <$> bu <$> properties $(v "q1")
-        resWidth   <- vectorWidth <$> vectorTypeProp <$> bu <$> properties $(v "q1")
+--         inputWidth <- vectorWidth <$> vectorTypeProp <$> bu <$> properties $(v "q1")
+--         resWidth   <- vectorWidth <$> vectorTypeProp <$> bu <$> properties $(v "q1")
 
-        VProp (Just [resCol]) <- reqColumnsProp <$> td <$> properties $(v "q")
+--         VProp (Just [resCol]) <- reqColumnsProp <$> td <$> properties $(v "q")
 
-        -- Perform a sanity check (because this rewrite is rather
-        -- insane): the required column must originate from the inner
-        -- window created by the nestjoin and must not be the
-        -- numbering column.
-        predicate $ resCol > inputWidth + 1
-        predicate $ resCol < 2 * inputWidth + 2
+--         -- Perform a sanity check (because this rewrite is rather
+--         -- insane): the required column must originate from the inner
+--         -- window created by the nestjoin and must not be the
+--         -- numbering column.
+--         predicate $ resCol > inputWidth + 1
+--         predicate $ resCol < 2 * inputWidth + 2
 
-        -- The evaluation of first_value produces only a single value
-        -- for each input column. To employ first_value, the input has
-        -- to consist of a single column.
+--         -- The evaluation of first_value produces only a single value
+--         -- for each input column. To employ first_value, the input has
+--         -- to consist of a single column.
 
-        -- We expect the VL representation of 'head'
-        (SBRelOp Eq, 1) <- return $(v "selectArgs")
+--         -- We expect the VL representation of 'head'
+--         (SBRelOp Eq, 1) <- return $(v "selectArgs")
 
-        -- We expect a window specification that for each element
-        -- includes its predecessor (if there is one) and the element
-        -- itself.
-        DoubleJoinPred e11 op1 e12 e21 op2 e22                   <- return $(v "joinPred")
-        (SubExpr (Column nrCol) frameOffset, LtE, Column nrCol') <- return (e11, op1, e12)
-        (Column nrCol'', GtE, Column nrCol''')                   <- return (e21, op2, e22)
-        Constant (IntV offset)                                   <- return frameOffset
+--         -- We expect a window specification that for each element
+--         -- includes its predecessor (if there is one) and the element
+--         -- itself.
+--         DoubleJoinPred e11 op1 e12 e21 op2 e22                   <- return $(v "joinPred")
+--         (SubExpr (Column nrCol) frameOffset, LtE, Column nrCol') <- return (e11, op1, e12)
+--         (Column nrCol'', GtE, Column nrCol''')                   <- return (e21, op2, e22)
+--         Constant (IntV offset)                                   <- return frameOffset
 
-        -- Check that all (assumed) numbering columns are actually the
-        -- column added by the Number operator.
-        predicate $ all (== (inputWidth + 1)) [nrCol, nrCol', nrCol'', nrCol''']
+--         -- Check that all (assumed) numbering columns are actually the
+--         -- column added by the Number operator.
+--         predicate $ all (== (inputWidth + 1)) [nrCol, nrCol', nrCol'', nrCol''']
 
-        return $ do
-            logRewrite "Window.FirstValue" q
-            let -- The input column for FirstValue is the column in
-                -- the inner window mapped to the input vector's
-                -- layout.
-                inputCol     = resCol - (inputWidth + 1)
-                winArgs      = (WinFirstValue $ Column inputCol, (FNPreceding offset))
-                placeHolders = repeat $ Constant $ IntV 0xdeadbeef
+--         return $ do
+--             logRewrite "Window.FirstValue" q
+--             let -- The input column for FirstValue is the column in
+--                 -- the inner window mapped to the input vector's
+--                 -- layout.
+--                 inputCol     = resCol - (inputWidth + 1)
+--                 winArgs      = (WinFirstValue $ Column inputCol, (FNPreceding offset))
+--                 placeHolders = repeat $ Constant $ IntV 0xdeadbeef
 
-                -- Now comes the ugly stuff: to keep the schema intact
-                -- (since columns are referred to by offset), we have
-                -- to keep columns that are not required in place and
-                -- replace them with placeholders.
-                proj         = -- Unreferenced columns in front of the
-                               -- required column
-                               take (resCol - 1) placeHolders
-                               -- The required column (which is added
-                               -- by WinFun to the input columns
-                               ++ [Column (inputWidth + 1)]
-                               -- Unrefeferenced columns after the
-                               -- required column
-                               ++ take (resWidth - resCol) placeHolders
-            winNode <- insert $ UnOp (WinFun winArgs) $(v "q1")
-            void $ replaceWithNew q $ UnOp (Project proj) winNode |])
+--                 -- Now comes the ugly stuff: to keep the schema intact
+--                 -- (since columns are referred to by offset), we have
+--                 -- to keep columns that are not required in place and
+--                 -- replace them with placeholders.
+--                 proj         = -- Unreferenced columns in front of the
+--                                -- required column
+--                                take (resCol - 1) placeHolders
+--                                -- The required column (which is added
+--                                -- by WinFun to the input columns
+--                                ++ [Column (inputWidth + 1)]
+--                                -- Unrefeferenced columns after the
+--                                -- required column
+--                                ++ take (resWidth - resCol) placeHolders
+--             winNode <- insert $ UnOp (WinFun winArgs) $(v "q1")
+--             void $ replaceWithNew q $ UnOp (Project proj) winNode |])
 
 inlineWinAggrProject :: VLRule BottomUpProps
 inlineWinAggrProject q =

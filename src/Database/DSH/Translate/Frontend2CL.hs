@@ -168,7 +168,6 @@ translateApp f args =
        Sub          -> translateApp2 CP.sub args
        Div          -> translateApp2 CP.div args
        Mod          -> translateApp2 CP.mod args
-       Index        -> translateApp2 CP.index args
        Cons         -> translateApp2 CP.cons args
 
        -- Map to a comprehension
@@ -249,6 +248,7 @@ translateApp f args =
        DiffDays     -> translateApp2 CP.diffDays args
 
        -- Builtin functions with arity one
+       Only             -> translateApp1 CP.only args
        SubString s e    -> translateApp1 (CP.substring s e) args
        IntegerToDouble  -> translateApp1 CP.castDouble args
        IntegerToDecimal -> translateApp1 CP.castDecimal args
@@ -267,8 +267,6 @@ translateApp f args =
        DayYear          -> translateApp1 CP.dateYear args
        Fst              -> translateApp1 CP.fst args
        Snd              -> translateApp1 CP.snd args
-       Head             -> translateApp1 CP.head args
-       Tail             -> translateApp1 CP.tail args
        Minimum          -> translateApp1 CP.minimum args
        Maximum          -> translateApp1 CP.maximum args
        Concat           -> translateApp1 CP.concat args
@@ -280,8 +278,6 @@ translateApp f args =
        Number           -> translateApp1 CP.number args
        Length           -> translateApp1 CP.length args
        Null             -> translateApp1 CP.null args
-       Init             -> translateApp1 CP.init args
-       Last             -> translateApp1 CP.last args
        Nub              -> translateApp1 CP.nub args
        Guard            -> translateApp1 CP.guard args
        Transpose        -> translateApp1 CP.transpose args

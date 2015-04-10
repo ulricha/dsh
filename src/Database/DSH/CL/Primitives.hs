@@ -100,22 +100,6 @@ maximum e = let (ListT t) = typeOf e
                  then AppE1 t Maximum e
                  else tyErr "maximum"
 
-the :: Expr -> Expr
-the e = let (ListT t) = typeOf e
-         in AppE1 t The e
-
-head :: Expr -> Expr
-head e = let (ListT t) = typeOf e
-          in AppE1 t Head e
-
-last :: Expr -> Expr
-last e = let (ListT t) = typeOf e
-          in AppE1 t Last e
-
-tail :: Expr -> Expr
-tail e = let (ListT t) = typeOf e
-          in AppE1 (ListT t) Tail e
-
 nub :: Expr -> Expr
 nub e = let (ListT t) = typeOf e
          in AppE1 (ListT t) Nub e
@@ -126,10 +110,6 @@ number e = let (ListT t) = typeOf e
 
 guard :: Expr -> Expr
 guard e = AppE1 (ListT PUnitT) Guard e
-
-init :: Expr -> Expr
-init e = let (ListT t) = typeOf e
-        in AppE1 (ListT t) Init e
 
 tupElem :: TupleIndex -> Expr -> Expr
 tupElem f e =
@@ -172,15 +152,11 @@ append e1 e2 = let t1@(ListT _) = typeOf e1
                     then AppE2 t1 Append e1 e2
                     else tyErr "append"
 
-index :: Expr -> Expr -> Expr
-index e1 e2 = let ListT t = typeOf e1
-                  t2 = typeOf e2
-                in if PIntT P.== t2
-                    then AppE2 t Index e1 e2
-                    else tyErr "index"
-
 sng :: Expr -> Expr
 sng e = AppE1 (ListT P.$ typeOf e) Singleton e
+
+only :: Expr -> Expr
+only e = AppE1 (elemT (typeOf e)) Only e
 
 zip :: Expr -> Expr -> Expr
 zip e1 e2 = let ListT t1' = typeOf e1

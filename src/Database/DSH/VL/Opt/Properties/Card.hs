@@ -32,8 +32,6 @@ inferCardOneUnOp c op =
     Project _  -> Right c
     Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    SelectPos1{}  -> Right $ VPropTriple False False False
-    SelectPos1S{} -> Right $ VPropTriple False False False
     Select _ -> Right $ VPropPair False False
     Sort _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     SortS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
@@ -78,8 +76,6 @@ inferCardOneBinOp c1 c2 op =
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
     Append -> Right $ VPropTriple False False False
     AppendS -> Right $ VPropTriple False False False
-    SelectPos _ -> return $ VPropTriple False False False
-    SelectPosS _ -> return $ VPropTriple False False False
     Zip -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     Align -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProduct -> return $ VPropTriple False False False

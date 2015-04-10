@@ -236,21 +236,6 @@ vlBinExpr o (VLDVec c1) (VLDVec c2) = do
 vlSelect :: Expr -> VLDVec -> Build VL (VLDVec, VLFVec)
 vlSelect p (VLDVec c) = pairVec (UnOp (Select p) c) dvec fvec
 
-vlSelectPos :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, VLFVec, VLKVec)
-vlSelectPos (VLDVec c1) op (VLDVec c2) = tripleVec (BinOp (SelectPos op) c1 c2) dvec fvec kvec
-
-vlSelectPos1 :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, VLFVec, VLKVec)
-vlSelectPos1 (VLDVec c1) op posConst =
-    tripleVec (UnOp (SelectPos1 (op, posConst)) c1) dvec fvec kvec
-
-vlSelectPosS :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, VLFVec, VLKVec)
-vlSelectPosS (VLDVec c1) op (VLDVec c2) = do
-    tripleVec (BinOp (SelectPosS op) c1 c2) dvec fvec kvec
-
-vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, VLFVec, VLKVec)
-vlSelectPos1S (VLDVec c1) op posConst =
-    tripleVec (UnOp (SelectPos1S (op, posConst)) c1) dvec fvec kvec
-
 vlProject :: [Expr] -> VLDVec -> Build VL VLDVec
 vlProject projs (VLDVec c) = dvec $ insert $ UnOp (Project projs) c
 

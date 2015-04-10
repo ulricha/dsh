@@ -34,8 +34,6 @@ seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
     case op of
         WinFun _           -> vPropSeed
-        SelectPos1{}       -> vPropTripleSeed
-        SelectPos1S{}      -> vPropTripleSeed
         Reverse            -> vPropPairSeed
         ReverseS           -> vPropPairSeed
         UniqueS            -> vPropSeed
@@ -74,8 +72,6 @@ seed (BinOp op _ _) =
         AppRep       -> vPropPairSeed
         UnboxNested  -> vPropPairSeed
         UnboxScalar  -> vPropSeed
-        SelectPos _  -> vPropTripleSeed
-        SelectPosS _ -> vPropTripleSeed
         AggrS _      -> vPropSeed
         Zip          -> vPropSeed
         Align        -> vPropSeed

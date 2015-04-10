@@ -145,14 +145,6 @@ inferConstVecUnOp c op =
       constCols <- unp c >>= fromDBV
       return $ VProp $ ConstVec constCols
 
-    SelectPos1{}  -> do
-      cols <- unp c >>= fromDBV
-      return $ VPropTriple (ConstVec cols) CNA CNA
-
-    SelectPos1S{} -> do
-      cols <- unp c >>= fromDBV
-      return $ VPropTriple (ConstVec cols) CNA CNA
-
     Reverse -> do
       cs <- unp c >>= fromDBV
       return $ VPropPair (ConstVec cs) CNA
@@ -289,14 +281,6 @@ inferConstVecBinOp c1 c2 op =
           sameConst (_, _)                                  = NonConstPL
 
       return $ VPropTriple (ConstVec constCols) CNA CNA
-
-    SelectPos _ -> do
-      cols1 <- unp c1 >>= fromDBV
-      return $ VPropTriple (ConstVec cols1) CNA CNA
-
-    SelectPosS _ -> do
-      cols1 <- unp c1 >>= fromDBV
-      return $ VPropTriple (ConstVec cols1) CNA CNA
 
     Align -> do
       cols1 <- unp c1 >>= fromDBV

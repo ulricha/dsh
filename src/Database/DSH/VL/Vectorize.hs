@@ -90,45 +90,6 @@ number (VShape q lyt) =
     VShape <$> vlNumber q <*> (pure $ LTuple [lyt, LCol])
 number _ = $impossible
 
-init ::  Shape VLDVec -> Build VL (Shape VLDVec)
-init (VShape q lyt) = do
-    i          <- vlAggr AggrCount q
-    (q', r, _) <- vlSelectPos q (L.SBRelOp L.Lt) i
-    lyt'       <- filterLayout r lyt
-    return $ VShape q' lyt'
-init _ = $impossible
-
-last ::  Shape VLDVec -> Build VL (Shape VLDVec)
-last (VShape qs lyt@(LNest _ _)) = do
-    i             <- vlAggr AggrCount qs
-    (q, r, _)     <- vlSelectPos qs (L.SBRelOp L.Eq) i
-    LNest qr lyt' <- filterLayout r lyt
-    re            <- vlUnboxKey q
-    VShape <$> (fst <$> vlAppKey re qr) <*> pure lyt'
-last (VShape qs lyt) = do
-    i         <- vlAggr AggrCount qs
-    (q, r, _) <- vlSelectPos qs (L.SBRelOp L.Eq) i
-    lyt'      <- filterLayout r lyt
-    return $ SShape q lyt'
-last _ = $impossible
-
-index ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-index (VShape qs (LNest qi lyti)) (SShape i _) = do
-    one       <- literal PIntT (L.IntV 1)
-    i'        <- vlBinExpr (L.SBNumOp L.Add) i one
-    -- Use the unboxing rename vector
-    (_, _, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
-    (qu, ri)  <- vlUnboxNested r qi
-    lyti'     <- rekeyOuter ri lyti
-    return $ VShape qu lyti'
-index (VShape qs lyt) (SShape i _) = do
-    one       <- literal PIntT (L.IntV 1)
-    i'        <- vlBinExpr (L.SBNumOp L.Add) i one
-    (q, r, _) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
-    lyt'      <- filterLayout r lyt
-    return $ SShape q lyt'
-index _ _ = $impossible
-
 append ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 append (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     -- Append the current vectors
@@ -141,32 +102,12 @@ append (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     return $ VShape dv12 lyt'
 append _ _ = $impossible
 
--- FIXME looks fishy, there should be an unboxing join.
-the ::  Shape VLDVec -> Build VL (Shape VLDVec)
-the (VShape d lyt@(LNest _ _)) = do
-    (_, prop, _)  <- vlSelectPos1 d (L.SBRelOp L.Eq) 1
-    LNest q' lyt' <- filterLayout prop lyt
-    return $ VShape q' lyt'
-the (VShape d lyt) = do
-    (q', prop, _) <- vlSelectPos1 d (L.SBRelOp L.Eq) 1
-    lyt'          <- filterLayout prop lyt
-    return $ SShape q' lyt'
-the _ = $impossible
-
 reverse ::  Shape VLDVec -> Build VL (Shape VLDVec)
 reverse (VShape dv lyt) = do
     (dv', sv) <- vlReverse dv
     lyt'      <- sortLayout sv lyt
     return (VShape dv' lyt')
 reverse _ = $impossible
-
-tail ::  Shape VLDVec -> Build VL (Shape VLDVec)
-tail (VShape d lyt) = do
-    p          <- literal PIntT (L.IntV 1)
-    (q', r, _) <- vlSelectPos d (L.SBRelOp L.Gt) p
-    lyt'       <- filterLayout r lyt
-    return $ VShape q' lyt'
-tail _ = $impossible
 
 sort :: Shape VLDVec -> Build VL (Shape VLDVec)
 sort (VShape dv (LTuple [xl, sl])) = do
@@ -275,6 +216,11 @@ dist (VShape dv lyt) (VShape dvo lyto) = do
     return $ VShape outerVec (LNest innerVec lyt')
 dist _ _ = $impossible
 
+only :: Shape VLDVec -> Build VL (Shape VLDVec)
+only (VShape _ (LNest qi lyti)) = return $ VShape qi lyti
+only (VShape q lyt)             = return $ SShape q lyt
+only _                          = $impossible
+
 aggr :: (Expr -> AggrFun) -> Shape VLDVec -> Build VL (Shape VLDVec)
 aggr afun (VShape q LCol) =
     SShape <$> vlAggr (afun (Column 1)) q <*> pure LCol
@@ -341,6 +287,10 @@ reshape _ _ = $impossible
 concat :: Shape VLDVec -> Build VL (Shape VLDVec)
 concat (VShape _ (LNest q lyt)) = VShape <$> vlUnsegment q <*> pure lyt
 concat _e                       = $impossible
+
+onlyL :: Shape VLDVec -> Build VL (Shape VLDVec)
+onlyL (VShape qo (LNest qi lyti)) = VShape <$> vlUnboxScalar qo qi <*> pure lyti
+onlyL _                          = $impossible
 
 --------------------------------------------------------------------------------
 -- Construction of lifted primitives
@@ -430,44 +380,6 @@ numberL (VShape d (LNest q lyt)) =
                         <*> (pure $ LTuple [lyt, LCol]))
 numberL _ = $impossible
 
-initL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-initL (VShape qs (LNest q lyt)) = do
-    is         <- vlAggrS AggrCount qs q
-    (q', r, _) <- vlSelectPosS q (L.SBRelOp L.Lt) is
-    lyt'       <- filterLayout r lyt
-    return $ VShape qs (LNest q' lyt')
-initL _ = $impossible
-
-lastL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-lastL (VShape d (LNest qs lyt@(LNest _ _))) = do
-    is          <- vlAggrS AggrCount d qs
-    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
-    lyt'        <- filterLayout r lyt
-    re          <- vlUnboxKey qs'
-    VShape d <$> rekeyOuter re lyt'
-lastL (VShape d (LNest qs lyt)) = do
-    is          <- vlAggrS AggrCount d qs
-    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
-    lyt'        <- filterLayout r lyt
-    re          <- vlUnboxKey d
-    VShape <$> (fst <$> vlAppKey re qs') <*> pure lyt'
-lastL _ = $impossible
-
-indexL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-indexL (VShape d (LNest qs (LNest qi lyti))) (VShape idxs LCol) = do
-    idxs'          <- vlProject [BinApp (L.SBNumOp L.Add) (Column 1) (Constant $ L.IntV 1)] idxs
-    (_, _, u)      <- vlSelectPosS qs (L.SBRelOp L.Eq) idxs'
-    (qu, ri)       <- vlUnboxNested u qi
-    lyti'          <- rekeyOuter ri lyti
-    return $ VShape d (LNest qu lyti')
-indexL (VShape d (LNest qs lyt)) (VShape idxs LCol) = do
-    idxs'          <- vlProject [BinApp (L.SBNumOp L.Add) (Column 1) (Constant $ L.IntV 1)] idxs
-    (qs', r, _)    <- vlSelectPosS qs (L.SBRelOp L.Eq) idxs'
-    lyt'           <- filterLayout r lyt
-    re             <- vlUnboxKey d
-    VShape <$> (fst <$> vlAppKey re qs') <*> pure lyt'
-indexL _ _ = $impossible
-
 appendL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 appendL (VShape d lyt1) (VShape _ lyt2) = do
     VShape d <$> appendLayout lyt1 lyt2
@@ -479,21 +391,6 @@ reverseL (VShape dvo (LNest dvi lyt)) = do
     lyt'     <- sortLayout sv lyt
     return (VShape dvo (LNest dv lyt'))
 reverseL _ = $impossible
-
-theL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-theL (VShape d (LNest q lyt)) = do
-    (v, p2, _) <- vlSelectPos1S q (L.SBRelOp L.Eq) 1
-    prop       <- vlUnboxKey d
-    VShape <$> (fst <$> vlAppKey prop v) <*> filterLayout p2 lyt
-theL _ = $impossible
-
-tailL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-tailL (VShape d (LNest q lyt)) = do
-    p              <- vlProject [Constant $ L.IntV 1] d
-    (v, p2, _)     <- vlSelectPosS q (L.SBRelOp L.Gt) p
-    lyt'           <- filterLayout p2 lyt
-    return $ VShape d (LNest v lyt')
-tailL _ = $impossible
 
 sortL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 sortL (VShape dvo (LNest dvi (LTuple [xl, sl]))) = do

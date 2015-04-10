@@ -23,12 +23,9 @@ data Fun a b where
     And              :: Fun [Bool] Bool
     Or               :: Fun [Bool] Bool
     Concat           :: Fun [[a]] [a]
-    Head             :: Fun [a] a
-    Tail             :: Fun [a] [a]
-    Init             :: Fun [a] [a]
-    Last             :: Fun [a] a
     Null             :: Fun [a] Bool
     Length           :: Fun [a] Integer
+    Only             :: Fun [a] a
     Guard            :: Fun Bool [()]
     Reverse          :: Fun [a] [a]
     Number           :: Fun [a] [(a, Integer)]
@@ -54,7 +51,6 @@ data Fun a b where
     Conj             :: Fun (Bool,Bool) Bool
     Disj             :: Fun (Bool,Bool) Bool
     Cons             :: Fun (a,[a]) [a]
-    Index            :: Fun ([a],Integer) a
     Zip              :: Fun ([a],[b]) [(a,b)]
     Map              :: Fun (a -> b,[a]) [b]
     ConcatMap        :: Fun (a -> [b],[a]) [b]

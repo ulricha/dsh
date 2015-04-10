@@ -84,20 +84,16 @@ parenthize e =
         _                     -> parens $ pretty e
 
 data Prim1 = Singleton
+           | Only
            | Length
            | Concat
            | Sum
            | Avg
-           | The
-           | Head
-           | Tail
            | Minimum
            | Maximum
            | Reverse
            | And
            | Or
-           | Init
-           | Last
            | Nub
            | Number
            | Sort
@@ -110,20 +106,16 @@ data Prim1 = Singleton
 
 instance Pretty Prim1 where
     pretty Singleton       = text "sng"
+    pretty Only            = text "only"
     pretty Length          = text "length"
     pretty Concat          = text "concat"
     pretty Sum             = text "sum"
     pretty Avg             = text "avg"
-    pretty The             = text "the"
-    pretty Head            = text "head"
     pretty Minimum         = text "minimum"
     pretty Maximum         = text "maximum"
-    pretty Tail            = text "tail"
     pretty Reverse         = text "reverse"
     pretty And             = text "and"
     pretty Or              = text "or"
-    pretty Init            = text "init"
-    pretty Last            = text "last"
     pretty Nub             = text "nub"
     pretty Number          = text "number"
     pretty Sort            = text "sort"
@@ -135,7 +127,6 @@ instance Pretty Prim1 where
     pretty TupElem{}       = text $impossible
 
 data Prim2 = Append
-           | Index
            | Zip
            | CartProduct
            | NestProduct
@@ -147,7 +138,6 @@ data Prim2 = Append
 
 instance Pretty Prim2 where
     pretty Append        = text "append"
-    pretty Index         = text "index"
     pretty Zip           = text "zip"
     pretty CartProduct   = text "⨯"
     pretty NestProduct   = text "▽"

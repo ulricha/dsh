@@ -213,14 +213,6 @@ translateBinOp b c1 c2 = case b of
     V.AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
 
 
-    V.SelectPos o -> do
-        (v, r, ru) <- vecSelectPos (toDVec c1) o (toDVec c2)
-        return $ RTriple (fromDVec v) (fromFVec r) (fromKVec ru)
-
-    V.SelectPosS o -> do
-        (v, rp, ru) <- vecSelectPosS (toDVec c1) o (toDVec c2)
-        return $ RTriple (fromDVec v) (fromFVec rp) (fromKVec ru)
-
     V.Zip -> do
         (v, f1, f2) <- vecZip (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromKVec f1) (fromKVec f2)
@@ -323,12 +315,6 @@ translateUnOp unop c = case unop of
     V.ReverseS      -> do
         (d, p) <- vecReverseS (toDVec c)
         return $ RLPair (fromDVec d) (fromSVec p)
-    V.SelectPos1 (op, pos) -> do
-        (d, p, u) <- vecSelectPos1 (toDVec c) op pos
-        return $ RTriple (fromDVec d) (fromFVec p) (fromKVec u)
-    V.SelectPos1S (op, pos) -> do
-        (d, p, u) <- vecSelectPos1S (toDVec c) op pos
-        return $ RTriple (fromDVec d) (fromFVec p) (fromKVec u)
     V.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
 
     V.Reshape n -> do

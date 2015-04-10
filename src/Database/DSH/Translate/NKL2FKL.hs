@@ -37,21 +37,17 @@ prim1 :: N.Prim1 -> F.LExpr -> Nat -> F.LExpr
 prim1 p =
     case p of
         N.Singleton -> P.sng
+        N.Only      -> P.only
         N.Length    -> P.length
         N.Concat    -> P.concat
         N.Sum       -> P.sum
         N.Avg       -> P.avg
-        N.The       -> P.the
         N.TupElem n -> P.tupElem n
-        N.Head      -> P.head
-        N.Tail      -> P.tail
         N.Minimum   -> P.minimum
         N.Maximum   -> P.maximum
         N.Reverse   -> P.reverse
         N.And       -> P.and
         N.Or        -> P.or
-        N.Init      -> P.init
-        N.Last      -> P.last
         N.Nub       -> P.nub
         N.Number    -> P.number
         N.Sort      -> P.sort
@@ -64,7 +60,6 @@ prim2 :: N.Prim2 -> F.LExpr -> F.LExpr -> Nat -> F.LExpr
 prim2 p =
     case p of
         N.Append       -> P.append
-        N.Index        -> P.index
         N.Zip          -> P.zip
         N.CartProduct  -> P.cartProduct
         N.NestProduct  -> P.nestProduct

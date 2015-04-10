@@ -317,57 +317,58 @@ deriveElimFun cons = do
   return (FunD 'DSH.elim [clause1])
 
 deriveElimFunClause :: [Con] -> Q Clause
-deriveElimFunClause cons = do
-  en  <- newName "e"
-  fns <- mapM (\ _ -> newName "f") cons
-  let fes = map VarE fns
-  let pats1 = ConP 'DSH.Q [VarP en] : map VarP fns
+deriveElimFunClause = $unimplemented
+-- deriveElimFunClause cons = do
+--   en  <- newName "e"
+--   fns <- mapM (\ _ -> newName "f") cons
+--   let fes = map VarE fns
+--   let pats1 = ConP 'DSH.Q [VarP en] : map VarP fns
 
-  fes2 <- zipWithM deriveElimToLamExp fes (map (length . conToTypes) cons)
+--   fes2 <- zipWithM deriveElimToLamExp fes (map (length . conToTypes) cons)
 
-  let e       = VarE en
-  liste <- [| DSH.ListE $(listE $ deriveElimFunClauseExp (return e) (map return fes2)) |]
-  let concate = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Concat)) liste
-  let heade   = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Head)) concate
-  let qe      = AppE (ConE 'DSH.Q) heade
-  return (Clause pats1 (NormalB qe) [])
+--   let e       = VarE en
+--   liste <- [| DSH.ListE $(listE $ deriveElimFunClauseExp (return e) (map return fes2)) |]
+--   let concate = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Concat)) liste
+--   let heade   = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Head)) concate
+--   let qe      = AppE (ConE 'DSH.Q) heade
+--   return (Clause pats1 (NormalB qe) [])
 
-deriveElimToLamExp :: Exp -> Int -> Q Exp
-deriveElimToLamExp f 0 =
-  return (AppE (VarE 'const) (AppE (VarE 'DSH.unQ) f))
-deriveElimToLamExp f 1 = do
-  xn <- newName "x"
-  let xe = VarE xn
-  let xp = VarP xn
-  let qe = AppE (ConE 'DSH.Q) xe
-  let fappe = AppE f qe
-  let unqe = AppE (VarE 'DSH.unQ) fappe
-  return (LamE [xp] unqe)
-deriveElimToLamExp f n = do
-  xn <- newName "x"
-  let xe = VarE xn
-  let xp = VarP xn
-  let fste = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Fst)) xe
-  let snde = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Snd)) xe
-  let qe = AppE (ConE 'DSH.Q) fste
-  let fappe = AppE f qe
-  f' <- deriveElimToLamExp fappe (n - 1)
-  return (LamE [xp] (AppE f' snde))
+-- deriveElimToLamExp :: Exp -> Int -> Q Exp
+-- deriveElimToLamExp f 0 =
+--   return (AppE (VarE 'const) (AppE (VarE 'DSH.unQ) f))
+-- deriveElimToLamExp f 1 = do
+--   xn <- newName "x"
+--   let xe = VarE xn
+--   let xp = VarP xn
+--   let qe = AppE (ConE 'DSH.Q) xe
+--   let fappe = AppE f qe
+--   let unqe = AppE (VarE 'DSH.unQ) fappe
+--   return (LamE [xp] unqe)
+-- deriveElimToLamExp f n = do
+--   xn <- newName "x"
+--   let xe = VarE xn
+--   let xp = VarP xn
+--   let fste = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Fst)) xe
+--   let snde = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Snd)) xe
+--   let qe = AppE (ConE 'DSH.Q) fste
+--   let fappe = AppE f qe
+--   f' <- deriveElimToLamExp fappe (n - 1)
+--   return (LamE [xp] (AppE f' snde))
 
-deriveElimFunClauseExp :: Q Exp -> [Q Exp] -> [Q Exp]
-deriveElimFunClauseExp _ [] = error errMsgExoticType
-deriveElimFunClauseExp e [f] = [ [| DSH.ListE [$f $e] |] ]
-deriveElimFunClauseExp e fs = go e fs
-  where
-  go :: Q Exp -> [Q Exp] -> [Q Exp]
-  go _ []  = error errMsgExoticType
-  -- FIXME PairE
-  go e1 [f1] = do
-    [ [| DSH.AppE F.Map (DSH.TupleConstE (DSH.Tuple2E (DSH.LamE $f1) $e1)) |] ]
-  go e1 (f1 : fs1) = do
-    let mape = [| DSH.AppE F.Map (DSH.TupleConstE (DSH.Tuple2E (DSH.LamE $f1) (DSH.AppE F.Fst $e1))) |]
-    let snde = [| DSH.AppE F.Snd $e1 |]
-    mape : go snde fs1
+-- deriveElimFunClauseExp :: Q Exp -> [Q Exp] -> [Q Exp]
+-- deriveElimFunClauseExp _ [] = error errMsgExoticType
+-- deriveElimFunClauseExp e [f] = [ [| DSH.ListE [$f $e] |] ]
+-- deriveElimFunClauseExp e fs = go e fs
+--   where
+--   go :: Q Exp -> [Q Exp] -> [Q Exp]
+--   go _ []  = error errMsgExoticType
+--   -- FIXME PairE
+--   go e1 [f1] = do
+--     [ [| DSH.AppE F.Map (DSH.TupleConstE (DSH.Tuple2E (DSH.LamE $f1) $e1)) |] ]
+--   go e1 (f1 : fs1) = do
+--     let mape = [| DSH.AppE F.Map (DSH.TupleConstE (DSH.Tuple2E (DSH.LamE $f1) (DSH.AppE F.Fst $e1))) |]
+--     let snde = [| DSH.AppE F.Snd $e1 |]
+--     mape : go snde fs1
 
 ---------------------------------
 -- Deriving Smart Constructors --

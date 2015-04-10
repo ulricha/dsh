@@ -43,8 +43,6 @@ inferVectorTypeUnOp s op =
     Unsegment -> VProp <$> unpack s
     Reverse -> liftM2 VPropPair (unpack s) (Right VTNA)
     ReverseS -> liftM2 VPropPair (unpack s) (Right VTNA)
-    SelectPos1{} -> liftM3 VPropTriple (unpack s) (Right VTNA) (Right VTNA)
-    SelectPos1S{} -> liftM3 VPropTriple (unpack s) (Right VTNA) (Right VTNA)
     R1 ->
       case s of
         VPropPair s1 _ -> Right $ VProp s1
@@ -133,8 +131,6 @@ inferVectorTypeBinOp s1 s2 op =
         v ->
           Left $ "Input of Append is not a VTDataVec " ++ (show v)
 
-    SelectPos _ -> liftM3 VPropTriple (unpack s1) (Right VTNA) (Right VTNA)
-    SelectPosS _ -> liftM3 VPropTriple (unpack s1) (Right VTNA) (Right VTNA)
     Align ->
       case (s1, s2) of
         (VProp (VTDataVec w1), VProp (VTDataVec w2)) -> Right $ VProp $ VTDataVec $ w1 + w2

@@ -171,14 +171,6 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             ownReqColumns' <- (VProp cols) ∪ (VProp $ Just $ reqExprCols e)
             ownReqColumns' ∪ childReqColumns
 
-        SelectPos1{}   -> do
-            (cols, _, _) <- fromPropTriple ownReqColumns
-            childReqColumns ∪ (VProp cols)
-
-        SelectPos1S{}   -> do
-            (cols, _, _) <- fromPropTriple ownReqColumns
-            childReqColumns ∪ (VProp cols)
-
         -- We don't need to look at the columns required from above,
         -- because they can only be a subset of (gs ++ as).
         GroupAggr (gs, as) -> childReqColumns
@@ -306,16 +298,6 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromLeft     <- (VProp cols) ∪ childReqColumns1
           fromRight    <- (VProp cols) ∪ childReqColumns2
           return (fromLeft, fromRight)
-
-      SelectPos _ -> do
-          (cols, _, _) <- fromPropTriple ownReqColumns
-          fromLeft     <- VProp cols ∪ childReqColumns1
-          return (fromLeft, one)
-
-      SelectPosS _ -> do
-          (cols, _, _) <- fromPropTriple ownReqColumns
-          fromLeft     <- VProp cols ∪ childReqColumns1
-          return (fromLeft, one)
 
       Align -> do
           cols <- fromProp ownReqColumns

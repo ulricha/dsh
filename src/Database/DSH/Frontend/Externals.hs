@@ -502,11 +502,23 @@ singleton (Q e) = cons (Q e) nil
 
 -- * List Operations
 
+only :: QA a => Q [a] -> Q a
+only (Q as) = Q (AppE Only as)
+
 head :: (QA a) => Q [a] -> Q a
-head (Q as) = Q (AppE Head as)
+head as = only $ map fst $ filter (\xp -> snd xp == 1) $ number as
 
 tail :: (QA a) => Q [a] -> Q [a]
-tail (Q as) = Q (AppE Tail as)
+tail as = map fst $ filter (\xp -> snd xp > 1) $ number as
+
+last :: (QA a) => Q [a] -> Q a
+last as = only $ map fst $ filter (\xp -> snd xp == length as) $ number as
+
+init :: (QA a) => Q [a] -> Q [a]
+init as = map fst $ filter (\xp -> snd xp < length as) $ number as
+
+index :: (QA a) => Q [a] -> Q Integer -> Q a
+index as i = only $ map fst $ filter (\xp -> snd xp == i + 1) $ number as 
 
 take :: (QA a) => Q Integer -> Q [a] -> Q [a]
 take i xs = map fst $ filter (\xp -> snd xp <= i) $ number xs
@@ -537,12 +549,6 @@ groupWith f as = map snd (groupWithKey f as)
 sortWith :: (QA a,QA b,Ord b, TA b) => (Q a -> Q b) -> Q [a] -> Q [a]
 sortWith f (Q as) = Q (AppE SortWith (pairE (LamE (toLam f)) as))
 
-last :: (QA a) => Q [a] -> Q a
-last (Q as) = Q (AppE Last as)
-
-init :: (QA a) => Q [a] -> Q [a]
-init (Q as) = Q (AppE Init as)
-
 null :: (QA a) => Q [a] -> Q Bool
 null (Q as) = Q (AppE Null as)
 
@@ -551,9 +557,6 @@ empty = null
 
 length :: (QA a) => Q [a] -> Q Integer
 length (Q as) = Q (AppE Length as)
-
-index :: (QA a) => Q [a] -> Q Integer -> Q a
-index (Q as) (Q i) = Q (AppE Index (pairE as i))
 
 (!!) :: (QA a) => Q [a] -> Q Integer -> Q a
 (!!) = index

@@ -106,8 +106,6 @@ data UnOp = UnboxKey
           | UniqueS
           | Reverse
           | ReverseS
-          | SelectPos1 (L.ScalarBinOp, Int)
-          | SelectPos1S (L.ScalarBinOp, Int)
           | Sort [Expr]
           | SortS [Expr]
           | Group [Expr]
@@ -135,8 +133,6 @@ data BinOp = DistLift
            | AggrS AggrFun
            | Append
            | AppendS
-           | SelectPos L.ScalarBinOp
-           | SelectPosS L.ScalarBinOp
            | Zip
            | ZipS
            | CartProduct

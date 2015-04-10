@@ -7,7 +7,7 @@ import           Control.Monad
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Impossible
+
 import           Database.DSH.Common.Opt
 import           Database.DSH.VL.Opt.Properties.Types
 import           Database.DSH.VL.Opt.Properties.VectorType
@@ -34,7 +34,6 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectAppRep
                  , pullProjectAppFilter
                  , pullProjectAppSort
-                 , pullProjectSelectPos1S
                  , pullProjectUnboxKey
                  , pullProjectAggrS
                  , scalarConditional
@@ -55,8 +54,6 @@ redundantRulesBottomUp = [ cartProdConstant
                          , distLiftStacked
                          , distLiftSelect
                          , alignedDistLift
-                         , selectConstPos
-                         , selectConstPosS
                          , zipConstLeft
                          , zipConstRight
                          , alignConstLeft
@@ -84,7 +81,6 @@ redundantRulesBottomUp = [ cartProdConstant
 
 redundantRulesAllProps :: VLRuleSet Properties
 redundantRulesAllProps = [ unreferencedDistLift
-                         , firstValueWin
                          , notReqNumber
                          , unboxNumber
                          ]
@@ -810,16 +806,6 @@ pullProjectAppRep q =
            r1Node  <- insert $ UnOp R1 repNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
-pullProjectSelectPos1S :: VLRule ()
-pullProjectSelectPos1S q =
-  $(dagPatMatch 'q "R1 (qs=SelectPos1S args (Project proj (q1)))"
-    [| do
-         return $ do
-           logRewrite "Redundant.Project.SelectPos1S" q
-           selectNode  <- insert $ UnOp (SelectPos1S $(v "args")) $(v "q1")
-           r1Node      <- insert $ UnOp R1 selectNode
-           void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
-
 pullProjectAppFilter :: VLRule ()
 pullProjectAppFilter q =
   $(dagPatMatch 'q "R1 ((q1) AppFilter (Project proj (q2)))"
@@ -857,37 +843,6 @@ pullProjectAggrS q =
         return $ do
             logRewrite "Redundant.Project.AggrS" q
             void $ replaceWithNew q $ BinOp (AggrS $(v "args")) $(v "q1") $(v "q2") |])
-
---------------------------------------------------------------------------------
--- Positional selection on constants
-
-selectConstPos :: VLRule BottomUpProps
-selectConstPos q =
-  $(dagPatMatch 'q "(q1) SelectPos op (qp)"
-    [| do
-         VProp (ConstVec constCols) <- constProp <$> properties $(v "qp")
-         pos <- case constCols of
-                    [ConstPL (IntV p)] -> return p
-                    [NonConstPL]       -> fail "no match"
-                    _                  -> $impossible
-
-         return $ do
-           logRewrite "Redundant.SelectPos.Constant" q
-           void $ replaceWithNew q $ UnOp (SelectPos1 ($(v "op"), pos)) $(v "q1") |])
-
-selectConstPosS :: VLRule BottomUpProps
-selectConstPosS q =
-  $(dagPatMatch 'q "(q1) SelectPosS op (qp)"
-    [| do
-         VProp (ConstVec constCols) <- constProp <$> properties $(v "qp")
-         pos <- case constCols of
-                    [ConstPL (IntV p)] -> return p
-                    [NonConstPL]       -> fail "no match"
-                    _                  -> $impossible
-
-         return $ do
-           logRewrite "Redundant.SelectPosS.Constant" q
-           void $ replaceWithNew q $ UnOp (SelectPos1S ($(v "op"), pos)) $(v "q1") |])
 
 --------------------------------------------------------------------------------
 -- Rewrites that deal with nested structures and propagation vectors.

@@ -79,8 +79,6 @@ inferNonEmptyUnOp e op =
     Reshape _ -> let ue = unp e in liftM2 VPropPair ue ue
     Transpose -> let ue = unp e in liftM2 VPropPair ue ue
 
-    SelectPos1{} -> return $ VPropTriple False False False
-    SelectPos1S{} -> return $ VPropTriple False False False
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr (_, _) -> Right e
     Number -> Right e
@@ -116,8 +114,6 @@ inferNonEmptyBinOp e1 e2 op =
     Append          -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
     AppendS         -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
     AggrS _         -> return $ VProp True
-    SelectPos _     -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 && ue2 in VPropTriple b b b)
-    SelectPosS _    -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 && ue2 in VPropTriple b b b)
     Zip             -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
     Align           -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
     ZipS            -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))

@@ -46,6 +46,11 @@ sng e d =
     let t = unliftTypeN d $ typeOf e
     in PApp1 (liftTypeN d t) Singleton (LiftedN d) e
 
+only :: LExpr -> Nat -> LExpr
+only e1 d =
+    let ListT t1 = unliftTypeN d $ typeOf e1
+    in PApp1 (liftTypeN d t1) Only (LiftedN d) e1
+
 tuple :: [LExpr] -> Nat -> LExpr
 tuple es d =
     let ts = map (unliftTypeN d . typeOf) es
@@ -101,33 +106,8 @@ append e1 e2 d =
     let t1 = unliftTypeN d $ typeOf e1
     in PApp2 (liftTypeN d t1) Append (LiftedN d) e1 e2
 
-index :: LExpr -> LExpr -> Nat -> LExpr
-index e1 e2 d =
-    let ListT t = unliftTypeN d $ typeOf e1
-    in PApp2 (liftTypeN d t) Index (LiftedN d) e1 e2
-
 length :: LExpr -> Nat -> LExpr
 length e1 d = PApp1 (liftTypeN d PIntT) Length (LiftedN d) e1
-
--- FIXME this is not the right place to perform this step. If at all,
--- do it during compilation to VL.
-head :: LExpr -> Nat -> LExpr
-head = the
-
-the :: LExpr -> Nat -> LExpr
-the e1 d =
-    let ListT t1 = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t1) The (LiftedN d) e1
-
-last :: LExpr -> Nat -> LExpr
-last e1 d =
-    let ListT t1 = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t1) Last (LiftedN d) e1
-
-tail :: LExpr -> Nat -> LExpr
-tail e1 d =
-    let t1@(ListT _) = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t1) Tail (LiftedN d) e1
 
 nub :: LExpr -> Nat -> LExpr
 nub e1 d =
@@ -139,11 +119,6 @@ number e1 d =
     let ListT t = unliftTypeN d $ typeOf e1
         rt      = (ListT (PPairT t PIntT ))
     in PApp1 (liftTypeN d rt) Number (LiftedN d) e1
-
-init :: LExpr -> Nat -> LExpr
-init e1 d =
-    let t1@(ListT _) = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t1) Init (LiftedN d) e1
 
 reverse :: LExpr -> Nat -> LExpr
 reverse e1 d =

@@ -105,13 +105,10 @@ papp1 :: Type -> Prim1 -> Lifted -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp1 t f Lifted =
     case f of
         Singleton       -> V.singletonL
+        Only            -> V.onlyL
         Length          -> V.lengthL
         Concat          -> V.concatL
-        The             -> V.theL
-        Tail            -> V.tailL
         Reverse         -> V.reverseL
-        Init            -> V.initL
-        Last            -> V.lastL
         Nub             -> V.nubL
         Number          -> V.numberL
         Sort            -> V.sortL
@@ -130,6 +127,7 @@ papp1 t f Lifted =
 papp1 t f NotLifted =
     case f of
         Singleton        -> V.singleton
+        Only             -> V.only
         Length           -> V.length_
         Reshape n        -> V.reshape n
         Transpose        -> V.transpose
@@ -138,12 +136,8 @@ papp1 t f NotLifted =
         Group            -> V.group
         Restrict         -> V.restrict
         Nub              -> V.nub
-        Last             -> V.last
-        Init             -> V.init
         Reverse          -> V.reverse
-        Tail             -> V.reverse
         Concat           -> V.concat
-        The              -> V.the
         Sum              -> V.aggr $ VL.AggrSum $ typeToScalarType t
         Avg              -> V.aggr VL.AggrAvg
         Or               -> V.aggr VL.AggrAny
@@ -157,7 +151,6 @@ papp2 f Lifted =
     case f of
         Dist           -> V.distL
         Append         -> V.appendL
-        Index          -> V.indexL
         Zip            -> V.zipL
         CartProduct    -> V.cartProductL
         NestProduct    -> V.nestProductL
@@ -170,7 +163,6 @@ papp2 f NotLifted =
     case f of
         Dist            -> V.dist
         Append          -> V.append
-        Index           -> V.index
         Zip             -> V.zip
         CartProduct     -> V.cartProduct
         NestProduct     -> V.nestProduct

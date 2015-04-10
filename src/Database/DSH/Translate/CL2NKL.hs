@@ -35,6 +35,7 @@ prim1 t p e = mkApp t <$> expr e
     mkApp =
         case p of
             CL.Singleton        -> mkPrim1 NKL.Singleton
+            CL.Only             -> mkPrim1 NKL.Only
             CL.Length           -> mkPrim1 NKL.Length
             CL.Concat           -> mkPrim1 NKL.Concat
             -- Null in explicit form is useful during CL optimization
@@ -45,16 +46,11 @@ prim1 t p e = mkApp t <$> expr e
             CL.Null             -> nklNull
             CL.Sum              -> mkPrim1 NKL.Sum
             CL.Avg              -> mkPrim1 NKL.Avg
-            CL.The              -> mkPrim1 NKL.The
-            CL.Head             -> mkPrim1 NKL.Head
             CL.Minimum          -> mkPrim1 NKL.Minimum
             CL.Maximum          -> mkPrim1 NKL.Maximum
-            CL.Tail             -> mkPrim1 NKL.Tail
             CL.Reverse          -> mkPrim1 NKL.Reverse
             CL.And              -> mkPrim1 NKL.And
             CL.Or               -> mkPrim1 NKL.Or
-            CL.Init             -> mkPrim1 NKL.Init
-            CL.Last             -> mkPrim1 NKL.Last
             CL.Nub              -> mkPrim1 NKL.Nub
             CL.Number           -> mkPrim1 NKL.Number
             (CL.Reshape n)      -> mkPrim1 $ NKL.Reshape n
@@ -79,7 +75,6 @@ prim2 t o e1 e2 = mkApp2
     mkApp2 =
         case o of
             CL.Append       -> mkPrim2 NKL.Append
-            CL.Index        -> mkPrim2 NKL.Index
             CL.Zip          -> mkPrim2 NKL.Zip
             CL.CartProduct  -> mkPrim2 NKL.CartProduct
             CL.NestProduct  -> mkPrim2 NKL.NestProduct
