@@ -71,7 +71,6 @@ inferCardOneBinOp c1 c2 op =
     AppSort -> return $ VPropPair False False
     AppFilter -> return $ VPropPair False False
     AppRep -> return $ VPropPair False False
-    UnboxNested -> return $ VPropPair False False
     UnboxScalar -> return $ VProp False
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
     Append -> Right $ VPropTriple False False False

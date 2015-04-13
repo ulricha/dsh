@@ -113,7 +113,6 @@ inferVectorTypeBinOp s1 s2 op =
     AppSort -> liftM2 VPropPair (unpack s2) (Right VTNA)
     AppFilter -> liftM2 VPropPair (unpack s2) (Right VTNA)
     AppKey -> liftM2 VPropPair (unpack s2) (Right VTNA)
-    UnboxNested -> liftM2 VPropPair (unpack s2) (Right VTNA)
     Append ->
       case (s1, s2) of
         (VProp (VTDataVec w1), VProp (VTDataVec w2)) | w1 == w2 ->

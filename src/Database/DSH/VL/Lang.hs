@@ -126,7 +126,6 @@ data BinOp = DistLift
            | AppFilter
            | AppRep
 
-           | UnboxNested
            | UnboxScalar
            | Align
 

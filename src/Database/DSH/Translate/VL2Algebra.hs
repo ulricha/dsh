@@ -196,10 +196,6 @@ translateBinOp b c1 c2 = case b of
         (v, f) <- vecAppFilter (toFVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromFVec f)
 
-    V.UnboxNested -> do
-        (v, r) <- vecUnboxNested (toKVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromKVec r)
-
     V.UnboxScalar -> RDVec <$> vecUnboxScalar (toDVec c1) (toDVec c2)
 
     V.Append -> do

@@ -118,17 +118,6 @@ class VectorAlgebra a where
     -- | Apply a replication vector to a data vector
     vecAppRep    :: RVec a -> DVec a -> Build a (DVec a, RVec a)
 
-    -- | Specialized unbox operator that merges DescrToRename
-    -- and PropRename. It takes an inner and outer vector, and
-    -- pulls the segment that is referenced by the outer vector
-    -- into the outer segment. Notice that there must be
-    -- /exactly one/ segment referenced by the outer
-    -- vector. Inner segments that are not referenced are
-    -- silently discarded.
-    --
-    -- Output: @(DVec r, KVec)@
-    vecUnboxNested :: KVec a -> DVec a -> Build a (DVec a, KVec a)
-
     vecUnboxScalar :: (DVec a) -> (DVec a) -> Build a (DVec a)
 
     vecAppend :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)

@@ -282,11 +282,6 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromRight <- childReqColumns2 ∪ VProp cols
           return (na, fromRight)
 
-      UnboxNested -> do
-          cols      <- fst <$> fromPropPair ownReqColumns
-          fromRight <- childReqColumns2 ∪ VProp cols
-          return (na, fromRight)
-
       Append -> do
           (cols, _, _) <- fromPropTriple ownReqColumns
           fromLeft     <- (VProp cols) ∪ childReqColumns1

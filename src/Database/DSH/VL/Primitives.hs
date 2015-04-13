@@ -181,9 +181,6 @@ vlNestProduct (VLDVec c1) (VLDVec c2) = tripleVec (BinOp NestProduct c1 c2) dvec
 vlDistLift :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
 vlDistLift (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistLift c1 c2) dvec rvec
 
-vlUnboxNested :: VLKVec -> VLDVec -> Build VL (VLDVec, VLKVec)
-vlUnboxNested (VLKVec c1) (VLDVec c2) = pairVec (BinOp UnboxNested c1 c2) dvec kvec
-
 vlUnboxScalar :: VLDVec -> VLDVec -> Build VL VLDVec
 vlUnboxScalar (VLDVec c1) (VLDVec c2) = vec (BinOp UnboxScalar c1 c2) dvec
 
