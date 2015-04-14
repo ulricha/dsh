@@ -84,9 +84,9 @@ seed (BinOp op _ _) =
         SemiJoinS _  -> vPropPairSeed
         AntiJoin _   -> vPropPairSeed
         AntiJoinS _  -> vPropPairSeed
-        NestJoinS _  -> vPropPairSeed
+        NestJoinS _  -> vPropTripleSeed
         GroupJoin _  -> vPropSeed
-        NestProductS -> vPropPairSeed
+        NestProductS -> vPropTripleSeed
         TransposeS   -> vPropPairSeed
 
 seed (TerOp op _ _ _) =

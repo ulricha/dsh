@@ -139,14 +139,12 @@ class VectorAlgebra a where
     vecCartProduct :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecCartProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecNestProduct :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-    -- FIXME inner result vector contains the outer values. Produce a
-    -- propagation vector to align the layout.
-    vecNestProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a)
+    vecNestProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
 
     vecThetaJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecNestJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecThetaJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-    vecNestJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a)
+    vecNestJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
 
     vecGroupJoin :: JoinPredicate Expr -> AggrFun -> DVec a -> DVec a -> Build a (DVec a)
 

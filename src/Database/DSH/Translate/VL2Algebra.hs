@@ -228,8 +228,8 @@ translateBinOp b c1 c2 = case b of
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.NestProductS -> do
-        (v, p2) <- vecNestProductS (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromRVec p2)
+        (v, p1, p2) <- vecNestProductS (toDVec c1) (toDVec c2)
+        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.ThetaJoin p -> do
         (v, p1, p2) <- vecThetaJoin p (toDVec c1) (toDVec c2)
@@ -248,8 +248,8 @@ translateBinOp b c1 c2 = case b of
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.NestJoinS p -> do
-        (v, p2) <- vecNestJoinS p (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromRVec p2)
+        (v, p1, p2) <- vecNestJoinS p (toDVec c1) (toDVec c2)
+        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.GroupJoin (p, a) -> fromDVec <$> vecGroupJoin p a (toDVec c1) (toDVec c2)
 

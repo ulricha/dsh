@@ -327,9 +327,10 @@ cartProductL _ _ = $impossible
 
 nestProductL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestProductL (VShape dvo1 (LNest dvi1 lyt1)) (VShape _dvo2 (LNest dvi2 lyt2)) = do
-    (dvi, rv) <- vlNestProductS dvi1 dvi2
-    lyt2'     <- repLayout rv lyt2
-    let lyt  = LTuple [lyt1, lyt2']
+    (dvi, rv1, rv2) <- vlNestProductS dvi1 dvi2
+    lyt1'           <- repLayout rv1 lyt1
+    lyt2'           <- repLayout rv2 lyt2
+    let lyt  = LTuple [lyt1', lyt2']
     return $ VShape dvo1 (LNest dvi1 (LTuple [lyt1, (LNest dvi lyt)]))
 nestProductL _ _ = $impossible
 
@@ -350,9 +351,10 @@ thetaJoinL _ _ _ = $impossible
 -- i.e. use the left input positions as descriptors
 nestJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do
-    (dv, rv2) <- vlNestJoinS joinPred dvi1 dvi2
-    lyt2'     <- repLayout rv2 lyt2
-    let lyt  = LTuple [lyt1, lyt2']
+    (dv, rv1, rv2) <- vlNestJoinS joinPred dvi1 dvi2
+    lyt1'          <- repLayout rv1 lyt1
+    lyt2'          <- repLayout rv2 lyt2
+    let lyt  = LTuple [lyt1', lyt2']
     return $ VShape dvo1 (LNest dvo1 (LTuple [lyt1, LNest dv lyt]))
 nestJoinL _ _ _ = $impossible
 

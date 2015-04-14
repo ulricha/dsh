@@ -272,15 +272,15 @@ vlThetaJoinS joinPred (VLDVec c1) (VLDVec c2) =
   where
     joinPred' = toVLJoinPred joinPred
 
-vlNestJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
+vlNestJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlNestJoinS joinPred (VLDVec c1) (VLDVec c2) =
-    pairVec (BinOp (NestJoinS joinPred') c1 c2) dvec rvec
+    tripleVec (BinOp (NestJoinS joinPred') c1 c2) dvec rvec rvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlNestProductS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
+vlNestProductS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlNestProductS (VLDVec c1) (VLDVec c2) = do
-    pairVec (BinOp NestProductS c1 c2) dvec rvec
+    tripleVec (BinOp NestProductS c1 c2) dvec rvec rvec
 
 vlSemiJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
 vlSemiJoin joinPred (VLDVec c1) (VLDVec c2) = do
