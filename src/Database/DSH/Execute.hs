@@ -169,10 +169,11 @@ segmentLayout tlyt =
         TTuple tup           -> let segmentTuple = $(mkSegmentTupleFun 16)
                                 in STuple $ segmentTuple tup
 
-data SegAcc a = SegAcc { currSeg :: Int
-                       , segMap  :: SegMap [a]
-                       , currVec :: D.DList (F.Exp a)
-                       }
+data SegAcc a = SegAcc
+    { currSeg :: Int
+    , segMap  :: SegMap [a]
+    , currVec :: D.DList (F.Exp a)
+    }
 
 -- | Construct a segment map from a segmented vector
 fromSegVector :: (F.Reify a, Row r) => [r] -> TabLayout a -> SegMap [a]
