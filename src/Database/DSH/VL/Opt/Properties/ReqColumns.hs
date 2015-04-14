@@ -332,7 +332,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
       NestProductS -> do
-          cols1 <- fst <$> fromPropPair ownReqColumns
+          (cols1, _, _)       <- fromPropTriple ownReqColumns
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols1
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
@@ -367,7 +367,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
 
       NestJoinS p -> do
-          cols1                       <- fst <$> fromPropPair ownReqColumns
+          (cols1, _, _)               <- fromPropTriple ownReqColumns
           (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
           leftReqCols'                <- (VProp $ Just $ reqLeftPredCols p) ∪ leftReqCols
           rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols

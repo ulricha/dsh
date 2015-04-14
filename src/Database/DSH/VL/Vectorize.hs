@@ -375,9 +375,10 @@ cartProductL _ _ = $impossible
 
 nestProductL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestProductL (VShape qd1 (LNest qv1 lyt1)) (VShape _qd2 (LNest qv2 lyt2)) = do
-    (qj, qp2) <- vlNestProductS qv1 qv2
-    lyt2'     <- chainReorder qp2 lyt2
-    let lytJ  = LTuple [lyt1, lyt2']
+    (qj, qp1, qp2) <- vlNestProductS qv1 qv2
+    lyt1'          <- chainReorder qp1 lyt1
+    lyt2'          <- chainReorder qp2 lyt2
+    let lytJ  = LTuple [lyt1', lyt2']
     return $ VShape qd1 (LNest qv1 (LTuple [lyt1, (LNest qj lytJ)]))
 nestProductL _ _ = $impossible
 
@@ -398,9 +399,10 @@ thetaJoinL _ _ _ = $impossible
 -- i.e. use the left input positions as descriptors
 nestJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestJoinL joinPred (VShape qd1 (LNest qv1 lyt1)) (VShape _qd2 (LNest qv2 lyt2)) = do
-    (qj, qp2) <- vlNestJoinS joinPred qv1 qv2
-    lyt2'     <- chainReorder qp2 lyt2
-    let lytJ  = LTuple [lyt1, lyt2']
+    (qj, qp1, qp2) <- vlNestJoinS joinPred qv1 qv2
+    lyt1'          <- chainReorder qp1 lyt1
+    lyt2'          <- chainReorder qp2 lyt2
+    let lytJ  = LTuple [lyt1', lyt2']
     return $ VShape qd1 (LNest qv1 (LTuple [lyt1,(LNest qj lytJ)]))
 nestJoinL _ _ _ = $impossible
 
