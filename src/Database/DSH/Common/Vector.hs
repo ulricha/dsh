@@ -6,6 +6,8 @@
 -- programs.
 module Database.DSH.Common.Vector
     ( DBCol
+    , ColName
+    , RelationalVector(..)
     , DagVector
     , vectorNodes
     , updateVector
@@ -24,13 +26,30 @@ import           Database.Algebra.Dag.Common
 
 import           Database.DSH.VL.Lang
 
--- | Common properties of data vectors
+type ColName = String
+
+--------------------------------------------------------------------------------
+-- Abstractions over data vectors
+
+-- | Concrete encodings of data vectors explicitly represent ordering
+-- and segment information in relational columns.
+class RelationalVector v where
+    ordCols :: v -> [ColName]
+    keyCols :: v -> [ColName]
+    refCols :: v -> [ColName]
+    itemCols :: v -> [ColName]
+
+-- | Common properties of data vectors that are represented by a DAG
+-- plan of operators.
 class DagVector v where
     -- | Return all graph nodes which represent the vector.
     vectorNodes :: v -> [AlgNode]
 
     -- | Replace a node in the vector
     updateVector :: AlgNode -> AlgNode -> v -> v
+
+--------------------------------------------------------------------------------
+-- Simple data vectors
 
 -- | Data vectors. A data vector references a result in an algebra DAG
 -- and stores the number of payload columns that it has. 'ADVec'
@@ -39,7 +58,7 @@ data ADVec r = ADVec r [DBCol]
     deriving (Show, Read)
 
 -- | Data vectors that reference single nodes in an algebra graph
--- (used for table algebra and X100 with an n-ary storage model).
+--  (used for X100 with an n-ary storage model).
 type NDVec = ADVec AlgNode
 
 instance DagVector NDVec where
@@ -48,6 +67,9 @@ instance DagVector NDVec where
     updateVector n1 n2 (ADVec q cols)
         | q == n1   = ADVec n2 cols
         | otherwise = ADVec q cols
+
+--------------------------------------------------------------------------------
+-- Abstract vector types for vectorization
 
 -- | A VL data vector references an operator in a VL DAG.
 newtype VLDVec = VLDVec AlgNode

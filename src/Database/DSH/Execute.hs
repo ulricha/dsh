@@ -22,6 +22,21 @@ import           Database.DSH.Execute.TH
 import qualified Database.DSH.Frontend.Internals as F
 import           Database.DSH.Common.Impossible
 
+{-
+
+Compare sequences of arbitrary types: [SqlValue]?
+
+Number of columns for a particular query is known. Construct vector or list?
+=>
+
+outer query: - ordered by order columns
+             - read in that order
+
+inner query: - ordered by ref and ord => provides some order of segments and ordered segments
+             - Read in this order and produce a segment map (propably a Data.HashMap - unordered-containers)
+
+-}
+
 ------------------------------------------------------------------------------
 -- Different kinds of layouts that contain results in various forms
 
@@ -34,7 +49,6 @@ data TabLayout a where
     TNest  :: (F.Reify a, Backend c)
            => F.Type [a] -> [BackendRow c] -> TabLayout a -> TabLayout [a]
     TTuple :: TabTuple a -> TabLayout a
-
 
 -- Generate the definition for the 'SegTuple' type
 $(mkSegTupleType 16)
