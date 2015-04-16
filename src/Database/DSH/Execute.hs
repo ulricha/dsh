@@ -31,11 +31,13 @@ import qualified Database.DSH.Frontend.Internals  as F
 $(mkTabTupleType 16)
 
 -- | Row layout with nesting data in the form of raw tabular results
+-- FIXME use newtypes to keep key and ref columns apart
 data TabLayout a where
     TCol   :: F.Type a -> ColName -> TabLayout a
     TNest  :: (F.Reify a, Backend c)
            => F.Type [a]
            -> [BackendRow c]
+           -> [ColName]
            -> [ColName]
            -> TabLayout a
            -> TabLayout [a]
@@ -116,7 +118,7 @@ execNested conn lyt ty =
         (CNest q clyt, F.ListT t)     -> do
             tab   <- execFlatQuery conn q
             clyt' <- execNested conn clyt t
-            return $ TNest ty tab (rvKeyCols q) clyt'
+            return $ TNest ty tab (rvKeyCols q) (rvRefCols q) clyt'
         (CTuple lyts, F.TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
                                          in execTuple lyts tupTy
         (_, _)                        ->
@@ -128,7 +130,7 @@ execNested conn lyt ty =
 -- | Construct a list from an outer vector
 fromVector :: (F.Reify a, Row r) => [r] -> [ColName] -> TabLayout a -> F.Exp [a]
 fromVector tab keyCols tlyt =
-    let slyt = segmentLayout keyCols tlyt
+    let slyt = segmentLayout tlyt
     in F.ListE $ D.toList $ foldl' (vecIter keyCols slyt) D.empty tab
 
 -- | Construct one element value of the result list from a single row
@@ -146,7 +148,7 @@ vecIter keyCols slyt vals row =
 -- | Construct a single value from an outer vector
 fromPrim :: Row r => [r] -> [ColName] -> TabLayout a -> F.Exp a
 fromPrim tab keyCols tlyt =
-    let slyt = segmentLayout keyCols tlyt
+    let slyt = segmentLayout tlyt
     in case tab of
            [row] -> constructVal keyCols slyt row
            _     -> $impossible
@@ -155,16 +157,16 @@ fromPrim tab keyCols tlyt =
 -- Construct nested result values from segmented vectors
 
 -- | Construct values for nested vectors in the layout.
-segmentLayout :: [ColName] -> TabLayout a -> SegLayout a
-segmentLayout keyCols tlyt =
+segmentLayout :: TabLayout a -> SegLayout a
+segmentLayout tlyt =
     case tlyt of
         TCol ty i                            -> SCol ty i
-        TNest ty tab keyCols' clyt  ->
-            let slyt = segmentLayout keyCols' clyt
-            in SNest ty (mkSegMap keyCols tab slyt)
+        TNest ty tab keyCols refCols clyt  ->
+            let slyt = segmentLayout clyt
+            in SNest ty (mkSegMap keyCols refCols tab slyt)
         TTuple tup                           ->
             let segmentTuple = $(mkSegmentTupleFun 16)
-            in STuple $ segmentTuple keyCols tup
+            in STuple $ segmentTuple tup
 
 data SegAcc a = SegAcc
     { saCurrSeg :: CompositeKey
@@ -173,14 +175,19 @@ data SegAcc a = SegAcc
     }
 
 -- | Construct a segment map from a segmented vector
-mkSegMap :: (F.Reify a, Row r) => [ColName] -> [r] -> SegLayout a -> SegMap [a]
-mkSegMap keyCols tab slyt =
+mkSegMap :: (F.Reify a, Row r)
+         => [ColName]
+         -> [ColName]
+         -> [r]
+         -> SegLayout a
+         -> SegMap [a]
+mkSegMap keyCols refCols tab slyt =
     let -- FIXME using the empty list as the starting key is not exactly nice
         initialAcc = SegAcc { saCurrSeg = (CompositeKey [])
                             , saSegMap  = M.empty
                             , saCurrVec = D.empty
                             }
-        finalAcc = foldl' (segIter keyCols slyt) initialAcc tab
+        finalAcc = foldl' (segIter keyCols refCols slyt) initialAcc tab
     in M.insert (saCurrSeg finalAcc)
                 (F.ListE $ D.toList $ saCurrVec finalAcc)
                 (saSegMap finalAcc)
@@ -189,13 +196,14 @@ mkSegMap keyCols tab slyt =
 -- the list value that is represented by that segment
 segIter :: (F.Reify a, Row r)
         => [ColName]
+        -> [ColName]
         -> SegLayout a
         -> SegAcc a
         -> r
         -> SegAcc a
-segIter keyCols lyt acc row =
+segIter keyCols refCols lyt acc row =
     let val = constructVal keyCols lyt row
-        ref = mkCKey row keyCols
+        ref = mkCKey row refCols
     in if ref == saCurrSeg acc
        then acc { saCurrVec = D.snoc (saCurrVec acc) val }
        else acc { saCurrSeg = ref

@@ -36,6 +36,7 @@ type ColName = String
 -- and segment information in relational columns.
 class RelationalVector v where
     rvKeyCols :: v -> [ColName]
+    rvRefCols :: v -> [ColName]
     rvItemCols :: v -> V.Vector ColName
 
 -- | Common properties of data vectors that are represented by a DAG

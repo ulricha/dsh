@@ -192,14 +192,14 @@ mkSegTupleType maxWidth = mkTupleLyt segTupleTyName segLayoutTyCons segTupleCons
 --------------------------------------------------------------------------------
 -- Generate the mapping function between tabular and segment map layouts.
 
-mkSegmentTupleMatch :: Name -> Int -> Q Match
-mkSegmentTupleMatch keysName width = do
+mkSegmentTupleMatch :: Int -> Q Match
+mkSegmentTupleMatch width = do
     tyName   <- newName "ty"
     lytNames <- mapM (\i -> newName $ printf "tlyt%d" i) [1..width]
     let tuplePat = ConP (tabTupleConsName width) (VarP tyName : map VarP lytNames)
 
     let segFun  = VarE $ mkName "segmentLayout"
-        segLyts = map (\l -> AppE (AppE segFun (VarE keysName)) (VarE l)) lytNames
+        segLyts = map (\l -> AppE segFun (VarE l)) lytNames
 
     let bodyExp = foldl' AppE (ConE $ segTupleConsName width)
                               (VarE tyName : segLyts)
@@ -218,12 +218,11 @@ mkSegmentTupleMatch keysName width = do
 -- @
 mkSegmentTupleFun :: Int -> Q Exp
 mkSegmentTupleFun maxWidth = do
-    keysName      <- newName "keyCols"
     lytName       <- newName "lyt"
-    tupMatches    <- mapM (mkSegmentTupleMatch keysName) [2..maxWidth]
+    tupMatches    <- mapM mkSegmentTupleMatch [2..maxWidth]
     let lamBody = CaseE (TupE [VarE lytName]) tupMatches
 
-    return $ LamE [VarP keysName, VarP lytName] lamBody
+    return $ LamE [VarP lytName] lamBody
 
 --------------------------------------------------------------------------------
 -- Generate the constructor function from a segmap tuple layout to a
