@@ -99,8 +99,8 @@ pattern PStringT  = ScalarT StringT
 pattern PDoubleT  = ScalarT DoubleT
 pattern PDecimalT = ScalarT DecimalT
 pattern PBoolT    = ScalarT BoolT
-pattern PDateT    = ScalarT BoolT
-pattern PUnitT    = ScalarT BoolT
+pattern PDateT    = ScalarT DateT
+pattern PUnitT    = ScalarT UnitT
 
 pattern PPairT t1 t2 = TupleT [t1, t2]
 
