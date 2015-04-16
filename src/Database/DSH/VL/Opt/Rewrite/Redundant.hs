@@ -752,12 +752,13 @@ pullProjectNumber q =
 
 pullProjectAppKey :: VLRule ()
 pullProjectAppKey q =
-  $(dagPatMatch 'q "(qp) AppKey (Project proj (qv))"
+  $(dagPatMatch 'q "R1 ((qp) AppKey (Project proj (qv)))"
     [| do
          return $ do
            logRewrite "Redundant.Project.AppKey" q
            rekeyNode <- insert $ BinOp AppKey $(v "qp") $(v "qv")
-           void $ replaceWithNew q $ UnOp (Project $(v "proj")) rekeyNode |])
+           r1Node    <- insert $ UnOp R1 rekeyNode
+           void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
 pullProjectUnboxScalarLeft :: VLRule BottomUpProps
 pullProjectUnboxScalarLeft q =
