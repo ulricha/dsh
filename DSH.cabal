@@ -75,27 +75,30 @@ Flag debuggraph
 
 Library
   Extensions:        CPP
-  Build-depends:     base                         >= 4.8 && < 5,
-                     template-haskell             >= 2.9,
-                     containers                   >= 0.5,
-                     mtl                          >= 2.1,
-                     time                         >= 1.4,
-                     bytestring                   >= 0.10,
-                     text                         >= 1.1,
-                     aeson                        >= 0.8,
-                     kure                         >= 2.16,
-                     either                       >= 4.0,
-                     semigroups                   >= 0.16,
-                     ansi-wl-pprint               >= 0.6.7.2,
-                     dlist                        >= 0.7,
-                     Decimal                      >= 0.4,
-                     QuickCheck                   >= 2.7,
-                     HUnit                        >= 1.2,
-                     test-framework               >= 0.8,
-                     test-framework-quickcheck2   >= 0.3,
-                     test-framework-hunit         >= 0.3,
-
-                     algebra-dag        >= 0.1.1
+  Build-depends:
+                    Decimal                      >= 0.4
+                , HUnit                        >= 1.2
+                , QuickCheck                   >= 2.7
+                , aeson                        >= 0.8
+                , algebra-dag                  >= 0.1.1
+                , ansi-wl-pprint               >= 0.6.7.2
+                , base                         >= 4.8 && < 5
+                , bytestring                   >= 0.10
+                , containers                   >= 0.5
+                , dlist                        >= 0.7
+                , either                       >= 4.0
+                , hashable                     >= 1.2.3.2
+                , kure                         >= 2.16
+                , mtl                          >= 2.1
+                , semigroups                   >= 0.16
+                , template-haskell             >= 2.9
+                , test-framework               >= 0.8
+                , test-framework-hunit         >= 0.3
+                , test-framework-quickcheck2   >= 0.3
+                , text                         >= 1.1
+                , time                         >= 1.4
+                , unordered-containers         >= 0.2
+                , vector >= 0.10
 
   Hs-source-dirs:    src
 
@@ -198,18 +201,19 @@ executable vldot
     Main-is: Database/DSH/Tools/VLDotGen.hs
     GHC-Options:      -Wall -fno-warn-orphans
     hs-source-dirs:   src
-    build-depends:    base                >= 4.8 && < 5,
-                      mtl                 >= 2.1,
-                      aeson               >= 0.8,
-                      time                >= 1.4,
-                      containers          >= 0.5,
-                      template-haskell    >= 2.9,
-                      bytestring          >= 0.10,
-                      Decimal             >= 0.4,
-                      ansi-wl-pprint      >= 0.6.7.2,
-                      semigroups          >= 0.16,
-
-                      algebra-dag          >= 0.1
+    build-depends:    
+                        Decimal             >= 0.4
+                      , aeson               >= 0.8
+                      , algebra-dag          >= 0.1
+                      , ansi-wl-pprint      >= 0.6.7.2
+                      , base                >= 4.8 && < 5
+                      , bytestring          >= 0.10
+                      , containers          >= 0.5
+                      , mtl                 >= 2.1
+                      , semigroups          >= 0.16
+                      , template-haskell    >= 2.9
+                      , time                >= 1.4
+                      , vector >= 0.10
     GHC-Options: -Wall -fno-warn-orphans
 
 source-repository head

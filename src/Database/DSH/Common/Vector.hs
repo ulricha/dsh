@@ -1,6 +1,6 @@
+{-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances    #-}
 
 -- | This module defines the kinds of vectors that occur in VL
 -- programs.
@@ -21,6 +21,7 @@ module Database.DSH.Common.Vector
     ) where
 
 import           Data.Aeson.TH
+import qualified Data.Vector                 as V
 
 import           Database.Algebra.Dag.Common
 
@@ -34,10 +35,8 @@ type ColName = String
 -- | Concrete encodings of data vectors explicitly represent ordering
 -- and segment information in relational columns.
 class RelationalVector v where
-    ordCols :: v -> [ColName]
-    keyCols :: v -> [ColName]
-    refCols :: v -> [ColName]
-    itemCols :: v -> [ColName]
+    rvKeyCols :: v -> [ColName]
+    rvItemCols :: v -> V.Vector ColName
 
 -- | Common properties of data vectors that are represented by a DAG
 -- plan of operators.

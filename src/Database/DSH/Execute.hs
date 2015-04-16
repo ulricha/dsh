@@ -9,33 +9,20 @@ module Database.DSH.Execute
     ) where
 
 import           Control.Monad.State
-import qualified Data.DList                      as D
-import qualified Data.IntMap                     as IM
+import qualified Data.DList                       as D
+import qualified Data.HashMap.Lazy                as M
 import           Data.List
+import qualified Data.Vector                      as V
 import           Text.Printf
 
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.QueryPlan
+import           Database.DSH.Common.Vector
 
 import           Database.DSH.Backend
-import           Database.DSH.Execute.TH
-import qualified Database.DSH.Frontend.Internals as F
 import           Database.DSH.Common.Impossible
-
-{-
-
-Compare sequences of arbitrary types: [SqlValue]?
-
-Number of columns for a particular query is known. Construct vector or list?
-=>
-
-outer query: - ordered by order columns
-             - read in that order
-
-inner query: - ordered by ref and ord => provides some order of segments and ordered segments
-             - Read in this order and produce a segment map (propably a Data.HashMap - unordered-containers)
-
--}
+import           Database.DSH.Execute.TH
+import qualified Database.DSH.Frontend.Internals  as F
 
 ------------------------------------------------------------------------------
 -- Different kinds of layouts that contain results in various forms
@@ -45,39 +32,43 @@ $(mkTabTupleType 16)
 
 -- | Row layout with nesting data in the form of raw tabular results
 data TabLayout a where
-    TCol   :: F.Type a -> String -> TabLayout a
+    TCol   :: F.Type a -> ColName -> TabLayout a
     TNest  :: (F.Reify a, Backend c)
-           => F.Type [a] -> [BackendRow c] -> TabLayout a -> TabLayout [a]
+           => F.Type [a]
+           -> [BackendRow c]
+           -> [ColName]
+           -> TabLayout a
+           -> TabLayout [a]
     TTuple :: TabTuple a -> TabLayout a
 
 -- Generate the definition for the 'SegTuple' type
 $(mkSegTupleType 16)
 
 -- | A map from segment descriptor to list value expressions
-type SegMap a = IM.IntMap (F.Exp a)
+type SegMap a = M.HashMap CompositeKey (F.Exp a)
 
 -- | Row layout with nesting data in the form of segment maps
 data SegLayout a where
-    SCol   :: F.Type a -> String -> SegLayout a
+    SCol   :: F.Type a -> ColName -> SegLayout a
     SNest  :: F.Reify a => F.Type [a] -> SegMap [a] -> SegLayout [a]
     STuple :: SegTuple a -> SegLayout a
 
 --------------------------------------------------------------------------------
--- Turn layouts into layouts with explicit column position indexes
+-- Turn layouts into layouts with explicit column names
 
-data PosLayout q = PCol Int
-                 | PNest q (PosLayout q)
-                 | PTuple [PosLayout q]
+data ColLayout q = CCol ColName
+                 | CNest q (ColLayout q)
+                 | CTuple [ColLayout q]
 
 -- | Annotate every column reference with its column index in a flat
 -- column layout.
-columnIndexes :: Layout q -> PosLayout q
-columnIndexes lyt = evalState (numberCols lyt) 1
+columnIndexes :: RelationalVector v => V.Vector ColName -> Layout v -> ColLayout v
+columnIndexes itemCols lyt = evalState (numberCols itemCols lyt) 1
 
-numberCols :: Layout q -> State Int (PosLayout q)
-numberCols LCol          = currentCol >>= \i -> return (PCol i)
-numberCols (LTuple lyts) = PTuple <$> mapM numberCols lyts
-numberCols (LNest q lyt) = PNest q <$> posBracket (numberCols lyt)
+numberCols :: RelationalVector v => V.Vector ColName -> Layout v -> State Int (ColLayout v)
+numberCols itemCols LCol          = currentCol >>= \i -> return (CCol $ itemCols V.! (i - 1))
+numberCols itemCols (LTuple lyts) = CTuple <$> mapM (numberCols itemCols) lyts
+numberCols _        (LNest q lyt) = CNest q <$> posBracket (numberCols (rvItemCols q) lyt)
 
 currentCol :: State Int Int
 currentCol = do
@@ -85,7 +76,7 @@ currentCol = do
     put $ i + 1
     return i
 
-posBracket :: State Int (PosLayout q) -> State Int (PosLayout q)
+posBracket :: State Int (ColLayout q) -> State Int (ColLayout q)
 posBracket ma = do
     c <- get
     put 1
@@ -106,27 +97,27 @@ execQueryBundle conn shape ty =
     case (shape, ty) of
         (VShape q lyt, F.ListT ety) -> do
             tab  <- execFlatQuery conn' q
-            tlyt <- execNested conn' (columnIndexes lyt) ety
-            return $ fromVector tab tlyt
+            tlyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ety
+            return $ fromVector tab (rvKeyCols q) tlyt
         (SShape q lyt, _) -> do
             tab  <- execFlatQuery conn' q
-            tlyt <- execNested conn' (columnIndexes lyt) ty
-            return $ fromPrim tab tlyt
+            tlyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ty
+            return $ fromPrim tab (rvKeyCols q) tlyt
         _ -> $impossible
 
 -- | Traverse the layout and execute all subqueries for nested vectors
 execNested :: Backend c
-           => c -> PosLayout (BackendCode c)
+           => c -> ColLayout (BackendCode c)
            -> F.Type a
            -> IO (TabLayout a)
 execNested conn lyt ty =
     case (lyt, ty) of
-        (PCol i, t)                   -> return $ TCol t (itemCol i)
-        (PNest q clyt, F.ListT t)     -> do
+        (CCol i, t)                   -> return $ TCol t i
+        (CNest q clyt, F.ListT t)     -> do
             tab   <- execFlatQuery conn q
             clyt' <- execNested conn clyt t
-            return $ TNest ty tab clyt'
-        (PTuple lyts, F.TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
+            return $ TNest ty tab (rvKeyCols q) clyt'
+        (CTuple lyts, F.TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
                                          in execTuple lyts tupTy
         (_, _)                        ->
             error $ printf "Type does not match query structure: %s" (pp ty)
@@ -134,93 +125,99 @@ execNested conn lyt ty =
 ------------------------------------------------------------------------------
 -- Construct result value terms from raw tabular results
 
--- |
-itemCol :: Int -> String
-itemCol 1 = "item1"
-itemCol 2 = "item2"
-itemCol 3 = "item3"
-itemCol 4 = "item4"
-itemCol 5 = "item5"
-itemCol 6 = "item6"
-itemCol 7 = "item7"
-itemCol 8 = "item8"
-itemCol 9 = "item9"
-itemCol 10 = "item10"
-itemCol n = "item" ++ show n
+-- | Construct a list from an outer vector
+fromVector :: (F.Reify a, Row r) => [r] -> [ColName] -> TabLayout a -> F.Exp [a]
+fromVector tab keyCols tlyt =
+    let slyt = segmentLayout keyCols tlyt
+    in F.ListE $ D.toList $ foldl' (vecIter keyCols slyt) D.empty tab
 
-posCol :: Row r => r -> Int
-posCol row = descrVal $ col "pos" row
-
-descrCol :: Row r => r -> Int
-descrCol row = descrVal $ col "descr" row
-
-fromVector :: (F.Reify a, Row r) => [r] -> TabLayout a -> F.Exp [a]
-fromVector tab tlyt =
-    let slyt = segmentLayout tlyt
-    in F.ListE $ D.toList $ foldl' (vecIter slyt) D.empty tab
-
-vecIter :: Row r => SegLayout a -> D.DList (F.Exp a) -> r -> D.DList (F.Exp a)
-vecIter slyt vals row =
-    let val = constructVal slyt row
+-- | Construct one element value of the result list from a single row
+-- of the outer vector.
+vecIter :: Row r
+        => [ColName]
+        -> SegLayout a
+        -> D.DList (F.Exp a)
+        -> r
+        -> D.DList (F.Exp a)
+vecIter keyCols slyt vals row =
+    let val = constructVal keyCols slyt row
     in D.snoc vals val
 
-fromPrim :: Row r => [r] -> TabLayout a -> F.Exp a
-fromPrim tab tlyt =
-    let slyt = segmentLayout tlyt
+-- | Construct a single value from an outer vector
+fromPrim :: Row r => [r] -> [ColName] -> TabLayout a -> F.Exp a
+fromPrim tab keyCols tlyt =
+    let slyt = segmentLayout keyCols tlyt
     in case tab of
-           [row] -> constructVal slyt row
+           [row] -> constructVal keyCols slyt row
            _     -> $impossible
 
 ------------------------------------------------------------------------------
 -- Construct nested result values from segmented vectors
 
 -- | Construct values for nested vectors in the layout.
-segmentLayout :: TabLayout a -> SegLayout a
-segmentLayout tlyt =
+segmentLayout :: [ColName] -> TabLayout a -> SegLayout a
+segmentLayout keyCols tlyt =
     case tlyt of
-        TCol ty s            -> SCol ty s
-        TNest ty tab clyt    -> SNest ty (fromSegVector tab clyt)
-        TTuple tup           -> let segmentTuple = $(mkSegmentTupleFun 16)
-                                in STuple $ segmentTuple tup
+        TCol ty i                            -> SCol ty i
+        TNest ty tab keyCols' clyt  ->
+            let slyt = segmentLayout keyCols' clyt
+            in SNest ty (mkSegMap keyCols tab slyt)
+        TTuple tup                           ->
+            let segmentTuple = $(mkSegmentTupleFun 16)
+            in STuple $ segmentTuple keyCols tup
 
 data SegAcc a = SegAcc
-    { currSeg :: Int
-    , segMap  :: SegMap [a]
-    , currVec :: D.DList (F.Exp a)
+    { saCurrSeg :: CompositeKey
+    , saSegMap  :: SegMap [a]
+    , saCurrVec :: D.DList (F.Exp a)
     }
 
 -- | Construct a segment map from a segmented vector
-fromSegVector :: (F.Reify a, Row r) => [r] -> TabLayout a -> SegMap [a]
-fromSegVector tab tlyt =
-    let slyt = segmentLayout tlyt
-        initialAcc = SegAcc { currSeg = 0, segMap = IM.empty, currVec = D.empty }
-        finalAcc = foldl' (segIter slyt) initialAcc tab
-    in IM.insert (currSeg finalAcc) (F.ListE $ D.toList $ currVec finalAcc) (segMap finalAcc)
+mkSegMap :: (F.Reify a, Row r) => [ColName] -> [r] -> SegLayout a -> SegMap [a]
+mkSegMap keyCols tab slyt =
+    let -- FIXME using the empty list as the starting key is not exactly nice
+        initialAcc = SegAcc { saCurrSeg = (CompositeKey [])
+                            , saSegMap  = M.empty
+                            , saCurrVec = D.empty
+                            }
+        finalAcc = foldl' (segIter keyCols slyt) initialAcc tab
+    in M.insert (saCurrSeg finalAcc)
+                (F.ListE $ D.toList $ saCurrVec finalAcc)
+                (saSegMap finalAcc)
 
 -- | Fold iterator that constructs a map from segment descriptor to
 -- the list value that is represented by that segment
-segIter :: (F.Reify a, Row r) => SegLayout a -> SegAcc a -> r -> SegAcc a
-segIter lyt acc row =
-    let val   = constructVal lyt row
-        descr = descrCol row
-    in if descr == currSeg acc
-       then acc { currVec = D.snoc (currVec acc) val }
-       else acc { currSeg = descr
-                , segMap  = IM.insert (currSeg acc) (F.ListE $ D.toList $ currVec acc) (segMap acc)
-                , currVec = D.singleton val
+segIter :: (F.Reify a, Row r)
+        => [ColName]
+        -> SegLayout a
+        -> SegAcc a
+        -> r
+        -> SegAcc a
+segIter keyCols lyt acc row =
+    let val = constructVal keyCols lyt row
+        ref = mkCKey row keyCols
+    in if ref == saCurrSeg acc
+       then acc { saCurrVec = D.snoc (saCurrVec acc) val }
+       else acc { saCurrSeg = ref
+                , saSegMap  = M.insert (saCurrSeg acc)
+                                     (F.ListE $ D.toList $ saCurrVec acc)
+                                     (saSegMap acc)
+                , saCurrVec = D.singleton val
                 }
 
 ------------------------------------------------------------------------------
 -- Construct values from table rows
 
+mkCKey :: Row r => r -> [ColName] -> CompositeKey
+mkCKey r cs = CompositeKey $ map (keyVal . flip col r) cs
+
 -- | Construct a value from a vector row according to the given layout
-constructVal :: Row r => SegLayout a -> r -> F.Exp a
-constructVal lyt row =
+constructVal :: Row r => [ColName] -> SegLayout a -> r -> F.Exp a
+constructVal keyCols lyt row =
     case lyt of
         STuple stup       -> let constructTuple = $(mkConstructTuple 16)
-                             in constructTuple stup row
-        SNest _ segmap    -> let pos = posCol row
-                              in case IM.lookup pos segmap of
+                             in constructTuple keyCols stup row
+        SNest _ segMap    -> case M.lookup (mkCKey row keyCols) segMap of
                                   Just v  -> v
                                   Nothing -> F.ListE []
         SCol F.DoubleT c  -> doubleVal (col c row)
@@ -234,4 +231,3 @@ constructVal lyt row =
         SCol _       _    -> $impossible
 
 --------------------------------------------------------------------------------
-
