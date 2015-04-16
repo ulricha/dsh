@@ -194,7 +194,7 @@ vlAppKey :: VLKVec -> VLDVec -> Build VL (VLDVec, VLKVec)
 vlAppKey (VLKVec c1) (VLDVec c2) = pairVec (BinOp AppKey c1 c2) dvec kvec
 
 vlAppRep :: VLRVec -> VLDVec -> Build VL (VLDVec, VLRVec)
-vlAppRep (VLRVec c1) (VLDVec c2) = pairVec (BinOp AppKey c1 c2) dvec rvec
+vlAppRep (VLRVec c1) (VLDVec c2) = pairVec (BinOp AppRep c1 c2) dvec rvec
 
 vlSingletonDescr :: Build VL VLDVec
 vlSingletonDescr = vec (NullaryOp SingletonDescr) dvec
