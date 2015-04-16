@@ -67,7 +67,7 @@ inferCardOneBinOp c1 c2 op =
     AggrS _ -> return $ VProp False
     NestProduct -> return $ VPropTriple False False False
     DistLift -> return $ VPropPair False False
-    AppKey -> return $ VProp False
+    AppKey -> return $ VPropPair False False
     AppSort -> return $ VPropPair False False
     AppFilter -> return $ VPropPair False False
     AppRep -> return $ VPropPair False False
