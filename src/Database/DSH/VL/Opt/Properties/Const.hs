@@ -288,7 +288,7 @@ inferConstVecBinOp c1 c2 op =
       cols1 <- unp c1 >>= fromDBV
       cols2  <- unp c2 >>= fromDBV
       let cols = cols1 ++ cols2
-      return $ VProp $ ConstVec cols
+      return $ VPropTriple (ConstVec cols) CNA CNA
 
     ZipS -> do
       cols1 <- unp c1 >>= fromDBV
