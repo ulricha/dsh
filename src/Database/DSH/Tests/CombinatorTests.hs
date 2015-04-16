@@ -23,6 +23,9 @@ import           Test.Framework                       (Test, testGroup)
 import           Test.Framework.Providers.HUnit
 import           Test.HUnit                           (Assertion)
 import           Test.QuickCheck
+import qualified Data.Time.Calendar                   as C
+import qualified Data.Decimal                         as D
+import           Data.Word
 
 import           Data.Char
 import           Data.Text                            (Text)
@@ -94,6 +97,8 @@ tests_types conn = testGroup "Supported Types"
   , testPropertyConn conn "Bool"                      prop_bool
   , testPropertyConn conn "Char"                      prop_char
   , testPropertyConn conn "Text"                      prop_text
+  , testPropertyConn conn "Day"                       prop_day
+  , testPropertyConn conn "Decimal"                   prop_decimal
   , testPropertyConn conn "Integer"                   prop_integer
   , testPropertyConn conn "Double"                    prop_double
   , testPropertyConn conn "[Integer]"                 prop_list_integer_1
@@ -385,6 +390,12 @@ prop_char c conn = isPrint c ==> makePropEq id id c conn
 
 prop_text :: Backend c => Text -> c -> Property
 prop_text t conn = Text.all isPrint t ==> makePropEq id id t conn
+
+prop_day :: Backend c => (Integer, Int, Int) -> c -> Property
+prop_day (y, m, d) conn = makePropEq id id (C.fromGregorian y m d) conn
+
+prop_decimal :: Backend c => (Word8, Integer) -> c -> Property
+prop_decimal (p, m) conn = makePropEq id id (D.Decimal p m) conn
 
 prop_list_integer_1 :: Backend c => [Integer] -> c -> Property
 prop_list_integer_1 = makePropEq id id
