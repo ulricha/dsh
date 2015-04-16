@@ -41,12 +41,15 @@ redundantRules = [ pullProjectAppKey
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ cartProdConstant
+                         , sameInputAlign
                          , sameInputZip
-                         , sameInputZipProject
-                         , sameInputZipProjectLeft
-                         , sameInputZipProjectRight
+                         -- , sameInputZipProject
+                         -- , sameInputZipProjectLeft
+                         -- , sameInputZipProjectRight
                          , zipProjectLeft
+                         , alignProjectLeft
                          , zipProjectRight
+                         , alignProjectRight
                          , distLiftProjectLeft
                          , distLiftProjectRight
                          , distLiftNestProduct
@@ -59,11 +62,11 @@ redundantRulesBottomUp = [ cartProdConstant
                          , alignConstLeft
                          , alignConstRight
                          , zipZipLeft
-                         , zipWinLeft
-                         , zipWinRight
-                         , zipWinRightPush
-                         , zipUnboxScalarRight
-                         , zipUnboxScalarLeft
+                         , alignWinLeft
+                         , alignWinRight
+                         , alignWinRightPush
+                         , alignUnboxScalarRight
+                         , alignUnboxScalarLeft
                          , alignCartProdRight
                          , alignGroupJoin
                          , propProductCard1Right
@@ -290,83 +293,129 @@ alignedDistLift q =
 -- inputs have the same length and can be positionally aligned without
 -- discarding elements.
 
--- | Replace a Zip operator with a projection if both inputs are the
+-- | Replace an Align operator with a projection if both inputs are the
 -- same.
-sameInputZip :: VLRule BottomUpProps
-sameInputZip q =
-  $(dagPatMatch 'q "(q1) [Zip | Align] (q2)"
+sameInputAlign :: VLRule BottomUpProps
+sameInputAlign q =
+  $(dagPatMatch 'q "(q1) Align (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
-          logRewrite "Redundant.Zip/Align.Self" q
+          logRewrite "Redundant.Align.Self" q
           let ps = map Column [1 .. w]
           void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
 
-sameInputZipProject :: VLRule BottomUpProps
-sameInputZipProject q =
-  $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align] (Project ps2 (q2))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-
-        return $ do
-          logRewrite "Redundant.Zip/Align.Self.Project" q
-          void $ replaceWithNew q $ UnOp (Project ($(v "ps1") ++ $(v "ps2"))) $(v "q1") |])
-
-sameInputZipProjectLeft :: VLRule BottomUpProps
-sameInputZipProjectLeft q =
-  $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align] (q2)"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-
-        return $ do
-          logRewrite "Redundant.Zip/Align.Self.Project.Left" q
-          let proj = $(v "ps1") ++ (map Column [1..w1])
-          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
-
-sameInputZipProjectRight :: VLRule BottomUpProps
-sameInputZipProjectRight q =
-  $(dagPatMatch 'q "(q1) [Zip | Align] (Project ps2 (q2))"
+-- | Replace an Align operator with a projection if both inputs are the
+-- same.
+sameInputZip :: VLRule BottomUpProps
+sameInputZip q =
+  $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
-          logRewrite "Redundant.Zip/Align.Self.Project.Right" q
-          let proj = (map Column [1 .. w]) ++ $(v "ps2")
-          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
+          logRewrite "Redundant.Zip.Self" q
+          let ps = map Column [1 .. w]
+          void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
 
-zipProjectLeft :: VLRule BottomUpProps
-zipProjectLeft q =
-  $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align]@op (q2)"
+-- sameInputZipProject :: VLRule BottomUpProps
+-- sameInputZipProject q =
+--   $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align] (Project ps2 (q2))"
+--     [| do
+--         predicate $ $(v "q1") == $(v "q2")
+
+--         return $ do
+--           logRewrite "Redundant.Zip/Align.Self.Project" q
+--           void $ replaceWithNew q $ UnOp (Project ($(v "ps1") ++ $(v "ps2"))) $(v "q1") |])
+
+-- sameInputZipProjectLeft :: VLRule BottomUpProps
+-- sameInputZipProjectLeft q =
+--   $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align] (q2)"
+--     [| do
+--         predicate $ $(v "q1") == $(v "q2")
+--         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+
+--         return $ do
+--           logRewrite "Redundant.Zip/Align.Self.Project.Left" q
+--           let proj = $(v "ps1") ++ (map Column [1..w1])
+--           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
+
+-- sameInputZipProjectRight :: VLRule BottomUpProps
+-- sameInputZipProjectRight q =
+--   $(dagPatMatch 'q "(q1) [Zip | Align] (Project ps2 (q2))"
+--     [| do
+--         predicate $ $(v "q1") == $(v "q2")
+--         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+
+--         return $ do
+--           logRewrite "Redundant.Zip/Align.Self.Project.Right" q
+--           let proj = (map Column [1 .. w]) ++ $(v "ps2")
+--           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
+
+alignProjectLeft :: VLRule BottomUpProps
+alignProjectLeft q =
+  $(dagPatMatch 'q "(Project ps1 (q1)) Align (q2)"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
 
         return $ do
-          logRewrite "Redundant.Zip/Align.Project.Left" q
+          logRewrite "Redundant.Align.Project.Left" q
           -- Take the projection expressions from the left and the
           -- shifted columns from the right.
           let proj = $(v "ps1") ++ [ Column $ c + w1 | c <- [1 .. w2]]
-          zipNode <- insert $ BinOp $(v "op") $(v "q1") $(v "q2")
-          void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
+          alignNode <- insert $ BinOp Align $(v "q1") $(v "q2")
+          void $ replaceWithNew q $ UnOp (Project proj) alignNode |])
 
-zipProjectRight :: VLRule BottomUpProps
-zipProjectRight q =
-  $(dagPatMatch 'q "(q1) [Zip | Align]@op (Project p2 (q2))"
+zipProjectLeft :: VLRule BottomUpProps
+zipProjectLeft q =
+  $(dagPatMatch 'q "R1 ((Project ps1 (q1)) Zip (q2))"
+    [| do
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
+
+        return $ do
+          logRewrite "Redundant.Zip.Project.Left" q
+          -- Take the projection expressions from the left and the
+          -- shifted columns from the right.
+          let proj = $(v "ps1") ++ [ Column $ c + w1 | c <- [1 .. w2]]
+          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
+          r1Node  <- insert $ UnOp R1 zipNode
+          void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
+
+alignProjectRight :: VLRule BottomUpProps
+alignProjectRight q =
+  $(dagPatMatch 'q "(q1) Align (Project p2 (q2))"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
-          logRewrite "Redundant.Zip/Align.Project.Right" q
+          logRewrite "Redundant.Align.Project.Right" q
           -- Take the columns from the left and the expressions from
           -- the right projection. Since expressions are applied after
           -- the zip, their column references have to be shifted.
           let proj = [Column c | c <- [1..w1]] ++ [ mapExprCols (+ w1) e | e <- $(v "p2") ]
-          zipNode <- insert $ BinOp $(v "op") $(v "q1") $(v "q2")
+          zipNode <- insert $ BinOp Align $(v "q1") $(v "q2")
           void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
+
+zipProjectRight :: VLRule BottomUpProps
+zipProjectRight q =
+  $(dagPatMatch 'q "R1 ((q1) Zip (Project p2 (q2)))"
+    [| do
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+
+        return $ do
+          logRewrite "Redundant.Zip.Project.Right" q
+          -- Take the columns from the left and the expressions from
+          -- the right projection. Since expressions are applied after
+          -- the zip, their column references have to be shifted.
+          let proj = [Column c | c <- [1..w1]] ++ [ mapExprCols (+ w1) e | e <- $(v "p2") ]
+          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
+          r1Node  <- insert $ UnOp R1 zipNode
+          void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
 fromConst :: Monad m => ConstPayload -> m ScalarVal
 fromConst (ConstPL val) = return val
@@ -408,7 +457,7 @@ alignConstRight q =
 -- length for the special case of length one.
 zipConstLeft :: VLRule BottomUpProps
 zipConstLeft q =
-  $(dagPatMatch 'q "(q1) Zip (q2)"
+  $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
     [| do
         prop1               <- properties $(v "q1")
         VProp card1         <- return $ card1Prop prop1
@@ -428,7 +477,7 @@ zipConstLeft q =
 
 zipConstRight :: VLRule BottomUpProps
 zipConstRight q =
-  $(dagPatMatch 'q "(q1) Zip (q2)"
+  $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
     [| do
         prop1               <- properties $(v "q1")
         VProp card1         <- return $ card1Prop prop1
@@ -461,33 +510,33 @@ zipZipLeft q =
              let proj = map Column $ [1..w1] ++ [1..wz]
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qz") |])
 
-zipWinRight :: VLRule BottomUpProps
-zipWinRight q =
-  $(dagPatMatch 'q "(q1) [Zip | Align] (qw=WinFun _ (q2))"
+alignWinRight :: VLRule BottomUpProps
+alignWinRight q =
+  $(dagPatMatch 'q "(q1) Align (qw=WinFun _ (q2))"
      [| do
          predicate $ $(v "q1") == $(v "q2")
 
          w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
          return $ do
-             logRewrite "Redundant.Zip.Self.Win.Right" q
+             logRewrite "Redundant.Align.Self.Win.Right" q
              -- We get all columns from the left input. The WinAggr
              -- operator produces the input column followed the window
              -- function result.
              let proj = map Column $ [1 .. w] ++ [1 .. w] ++ [w+1]
-             logGeneral ("zipWinRight " ++ show proj)
+             -- logGeneral ("zipWinRight " ++ show proj)
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qw") |])
 
-zipWinLeft :: VLRule BottomUpProps
-zipWinLeft q =
-  $(dagPatMatch 'q "(qw=WinFun _ (q1)) [Zip | Align] (q2)"
+alignWinLeft :: VLRule BottomUpProps
+alignWinLeft q =
+  $(dagPatMatch 'q "(qw=WinFun _ (q1)) Align (q2)"
      [| do
          predicate $ $(v "q1") == $(v "q2")
 
          w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
          return $ do
-             logRewrite "Redundant.Zip.Self.Win.Left" q
+             logRewrite "Redundant.Align.Self.Win.Left" q
              -- We get all input columns plus the window function
              -- output from the left. From the right we get all input
              -- columns.
@@ -500,17 +549,17 @@ isPrecedingFrameSpec fs =
         FAllPreceding -> True
         FNPreceding _ -> True
 
-zipWinRightPush :: VLRule BottomUpProps
-zipWinRightPush q =
-  $(dagPatMatch 'q "(q1) Zip (WinFun args (q2))"
+alignWinRightPush :: VLRule BottomUpProps
+alignWinRightPush q =
+  $(dagPatMatch 'q "(q1) Align (WinFun args (q2))"
     [| do
         let (winFun, frameSpec) = $(v "args")
         predicate $ isPrecedingFrameSpec frameSpec
         w1 <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
         return $ do
-            logRewrite "Redundant.Zip.Win.Right" q
-            zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
+            logRewrite "Redundant.Align.Win.Right" q
+            zipNode <- insert $ BinOp Align $(v "q1") $(v "q2")
             let winFun' = mapWinFun (mapExprCols (\c -> c + w1)) winFun
                 args'   = (winFun', frameSpec)
             void $ replaceWithNew q $ UnOp (WinFun args') zipNode |])
@@ -564,15 +613,15 @@ unboxNumber q =
             void $ replaceWithNew q $ UnOp (Project proj) unboxNode |])
 
 -- | If singleton scalar elements in an inner vector (with singleton
--- segments) are unboxed using an outer vector and then zipped with
--- the same outer vector, we can eliminate the zip, because the
+-- segments) are unboxed using an outer vector and then aligned with
+-- the same outer vector, we can eliminate the align, because the
 -- positional alignment is implicitly performed by the UnboxScalar
 -- operator. We exploit the fact that UnboxScalar is only a
 -- specialized join which nevertheless produces payload columns from
 -- both inputs.
-zipUnboxScalarRight :: VLRule BottomUpProps
-zipUnboxScalarRight q =
-  $(dagPatMatch 'q "(q11) [Zip | Align] (qu=(q12) UnboxScalar (q2))"
+alignUnboxScalarRight :: VLRule BottomUpProps
+alignUnboxScalarRight q =
+  $(dagPatMatch 'q "(q11) Align (qu=(q12) UnboxScalar (q2))"
      [| do
          predicate $ $(v "q11") == $(v "q12")
 
@@ -598,8 +647,8 @@ zipUnboxScalarRight q =
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qu") |])
 
 -- | See Align.UnboxScalar.Right
-zipUnboxScalarLeft :: VLRule BottomUpProps
-zipUnboxScalarLeft q =
+alignUnboxScalarLeft :: VLRule BottomUpProps
+alignUnboxScalarLeft q =
   $(dagPatMatch 'q "(qu=(q11) UnboxScalar (q2)) Align (q12)"
      [| do
          predicate $ $(v "q11") == $(v "q12")
