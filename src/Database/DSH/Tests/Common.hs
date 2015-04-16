@@ -1,4 +1,6 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 -- | Helpers for the construction of DSH test cases.
 module Database.DSH.Tests.Common
@@ -12,6 +14,8 @@ module Database.DSH.Tests.Common
     ) where
 
 import qualified Data.Text                            as T
+import qualified Data.Time.Calendar                   as C
+import qualified Data.Decimal                         as D
 
 import           Test.Framework
 import           Test.Framework.Providers.QuickCheck2
@@ -19,12 +23,19 @@ import           Test.HUnit                           (Assertion, assertEqual)
 import           Test.QuickCheck
 import           Test.QuickCheck.Monadic
 
+
 import qualified Database.DSH                         as Q
 import           Database.DSH.Backend
 import           Database.DSH.Compiler
 
 instance Arbitrary T.Text where
   arbitrary = fmap T.pack arbitrary
+
+instance Arbitrary C.Day where
+  arbitrary = C.ModifiedJulianDay <$> choose (25000, 80000)
+
+instance Arbitrary D.Decimal where
+  arbitrary = D.Decimal <$> choose (1,8) <*> choose (1,10^6)
 
 uncurryQ :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
 uncurryQ f = uncurry f . Q.view

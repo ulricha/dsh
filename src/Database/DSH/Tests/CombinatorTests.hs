@@ -391,11 +391,11 @@ prop_char c conn = isPrint c ==> makePropEq id id c conn
 prop_text :: Backend c => Text -> c -> Property
 prop_text t conn = Text.all isPrint t ==> makePropEq id id t conn
 
-prop_day :: Backend c => (Integer, Int, Int) -> c -> Property
-prop_day (y, m, d) conn = makePropEq id id (C.fromGregorian y m d) conn
+prop_day :: Backend c => C.Day -> c -> Property
+prop_day d conn = makePropEq id id d conn
 
 prop_decimal :: Backend c => (Word8, Integer) -> c -> Property
-prop_decimal (p, m) conn = makePropEq id id (D.Decimal p m) conn
+prop_decimal (p, m) conn = p > 0 ==> makePropEq id id (D.Decimal p m) conn
 
 prop_list_integer_1 :: Backend c => [Integer] -> c -> Property
 prop_list_integer_1 = makePropEq id id
