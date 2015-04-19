@@ -48,8 +48,6 @@ seed (UnOp op _)   =
         GroupS _           -> vPropTripleSeed
         Project      _     -> vPropSeed
         Aggr _             -> vPropSeed
-        AggrNonEmpty _     -> vPropSeed
-        AggrNonEmptyS _    -> vPropSeed
         GroupAggr (_, _)   -> vPropSeed
         R1                 -> vPropSeed
         R2                 -> vPropSeed

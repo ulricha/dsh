@@ -24,7 +24,6 @@ inferCardOneUnOp c op =
     Unique -> Right c
     UniqueS -> Right c
     Aggr _ -> Right $ VProp True
-    AggrNonEmpty _ -> Right $ VProp True
     WinFun _ -> Right c
     UnboxKey -> Right c
     Segment -> Right c
@@ -58,7 +57,6 @@ inferCardOneUnOp c op =
     Reshape _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReshapeS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     Transpose -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    AggrNonEmptyS _ -> return $ VProp False
 
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)

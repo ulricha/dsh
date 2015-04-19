@@ -11,7 +11,6 @@ import Database.DSH.Common.Opt
 import Database.DSH.VL.Opt.Properties.Card
 import Database.DSH.VL.Opt.Properties.Const
 import Database.DSH.VL.Opt.Properties.Empty
-import Database.DSH.VL.Opt.Properties.NonEmpty
 import Database.DSH.VL.Opt.Properties.Types
 import Database.DSH.VL.Opt.Properties.VectorType
 
@@ -43,12 +42,10 @@ checkError _ _ _ _ (Right props) = props
 inferNullOp :: NullOp -> Either String BottomUpProps
 inferNullOp op = do
   opEmpty    <- inferEmptyNullOp op
-  opNonEmpty <- inferNonEmptyNullOp op
   opConst    <- inferConstVecNullOp op
   opType     <- inferVectorTypeNullOp op
   opCard     <- inferCardOneNullOp op
   return $ BUProps { emptyProp = opEmpty
-                   , nonEmptyProp = opNonEmpty
                    , constProp = opConst
                    , card1Prop = opCard
                    , vectorTypeProp = opType }
@@ -56,12 +53,10 @@ inferNullOp op = do
 inferUnOp :: UnOp -> BottomUpProps -> Either String BottomUpProps
 inferUnOp op cProps = do
   opEmpty    <- inferEmptyUnOp (emptyProp cProps) op
-  opNonEmpty <- inferNonEmptyUnOp (nonEmptyProp cProps) op
   opType     <- inferVectorTypeUnOp (vectorTypeProp cProps) op
   opConst    <- inferConstVecUnOp (constProp cProps) op
   opCard     <- inferCardOneUnOp (card1Prop cProps) op
   return $ BUProps { emptyProp = opEmpty
-                   , nonEmptyProp = opNonEmpty
                    , constProp = opConst
                    , card1Prop = opCard
                    , vectorTypeProp = opType }
@@ -69,12 +64,10 @@ inferUnOp op cProps = do
 inferBinOp :: BinOp -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
 inferBinOp op c1Props c2Props = do
   opEmpty    <- inferEmptyBinOp (emptyProp c1Props) (emptyProp c2Props) op
-  opNonEmpty <- inferNonEmptyBinOp (nonEmptyProp c1Props) (nonEmptyProp c2Props) op
   opType     <- inferVectorTypeBinOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) op
   opConst    <- inferConstVecBinOp (constProp c1Props) (constProp c2Props) op
   opCard     <- inferCardOneBinOp (card1Prop c1Props) (card1Prop c2Props) op
   return $ BUProps { emptyProp = opEmpty
-                   , nonEmptyProp = opNonEmpty
                    , constProp = opConst
                    , card1Prop = opCard
                    , vectorTypeProp = opType }
@@ -86,12 +79,10 @@ inferTerOp :: TerOp
            -> Either String BottomUpProps
 inferTerOp op c1Props c2Props c3Props = do
   opEmpty    <- inferEmptyTerOp (emptyProp c1Props) (emptyProp c2Props) (emptyProp c3Props) op
-  opNonEmpty <- inferNonEmptyTerOp (nonEmptyProp c1Props) (nonEmptyProp c2Props) (nonEmptyProp c3Props) op
   opType     <- inferVectorTypeTerOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) (vectorTypeProp c3Props) op
   opConst    <- inferConstVecTerOp (constProp c1Props) (constProp c2Props) (constProp c3Props) op
   opCard     <- inferCardOneTerOp (card1Prop c1Props) (card1Prop c2Props) (card1Prop c3Props) op
   return $ BUProps { emptyProp = opEmpty
-                   , nonEmptyProp = opNonEmpty
                    , constProp = opConst
                    , card1Prop = opCard
                    , vectorTypeProp = opType }

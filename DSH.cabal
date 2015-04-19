@@ -178,7 +178,6 @@ Library
                      Database.DSH.VL.Opt.Properties.Common
                      Database.DSH.VL.Opt.Properties.Const
                      Database.DSH.VL.Opt.Properties.Empty
-                     Database.DSH.VL.Opt.Properties.NonEmpty
                      Database.DSH.VL.Opt.Properties.ReqColumns
                      Database.DSH.VL.Opt.Properties.TopDown
                      Database.DSH.VL.Opt.Properties.Types

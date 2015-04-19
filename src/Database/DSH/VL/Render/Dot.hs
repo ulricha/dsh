@@ -145,8 +145,6 @@ opDotLabel tm i (UnOp (Aggr a) _) = labelToDoc i "Aggr" (renderAggrFun a) (looku
 opDotLabel tm i (UnOp (Reshape n) _) =
   labelToDoc i "Reshape" (integer n) (lookupTags i tm)
 opDotLabel tm i (BinOp (AggrS a) _ _) = labelToDoc i "AggrS" (renderAggrFun a) (lookupTags i tm)
-opDotLabel tm i (UnOp (AggrNonEmpty as) _) = labelToDoc i "AggrNonEmpty" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
-opDotLabel tm i (UnOp (AggrNonEmptyS as) _) = labelToDoc i "AggrNonEmptyS" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (UnOp (Sort cols) _) = labelToDoc i "Sort" (bracketList renderExpr cols) (lookupTags i tm)
 opDotLabel tm i (UnOp (SortS cols) _) = labelToDoc i "SortS" (bracketList renderExpr cols) (lookupTags i tm)
 opDotLabel tm i (UnOp (Group cols) _) = labelToDoc i "Group" (bracketList renderExpr cols) (lookupTags i tm)
@@ -221,8 +219,6 @@ opDotColor (UnOp (Select _) _)         = DCLightSkyBlue
 opDotColor (UnOp (Aggr _) _)           = DCCrimson
 opDotColor (BinOp (AggrS _) _ _)       = DCCrimson
 opDotColor (UnOp (WinFun _) _)         = DCTomato
-opDotColor (UnOp (AggrNonEmpty _) _)   = DCCrimson
-opDotColor (UnOp (AggrNonEmptyS _) _)  = DCCrimson
 opDotColor (UnOp (GroupAggr (_, _)) _) = DCTomato
 opDotColor (UnOp (Project _) _)        = DCLightSkyBlue
 opDotColor (UnOp Transpose _)          = DCHotPink

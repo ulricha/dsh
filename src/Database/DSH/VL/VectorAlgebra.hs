@@ -61,8 +61,6 @@ class VectorAlgebra a where
 
     vecAggr :: AggrFun -> DVec a -> Build a (DVec a)
     vecAggrS :: AggrFun -> DVec a -> DVec a -> Build a (DVec a)
-    vecAggrNonEmpty :: N.NonEmpty AggrFun -> DVec a -> Build a (DVec a)
-    vecAggrNonEmptyS :: N.NonEmpty AggrFun -> DVec a -> Build a (DVec a)
 
     vecWinFun :: WinFun -> FrameSpec -> DVec a -> Build a (DVec a)
 

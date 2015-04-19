@@ -33,7 +33,6 @@ inferEmptyUnOp e op =
     Unique           -> Right e
     UniqueS          -> Right e
     Aggr _           -> Right $ VProp False
-    AggrNonEmpty _   -> Right $ VProp False
     UnboxKey         -> Right e
     Segment          -> Right e
     Unsegment        -> Right e
@@ -56,7 +55,6 @@ inferEmptyUnOp e op =
     GroupAggr (_, _) -> Right $ VProp False
     Number           -> Right e
     NumberS          -> Right e
-    AggrNonEmptyS _  -> return $ VProp False
 
     R1 ->
       case e of

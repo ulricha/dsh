@@ -134,10 +134,6 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
                         ∪
                         childReqColumns
 
-        AggrNonEmpty aggrFuns -> (VProp $ Just $ concatMap aggrReqCols (N.toList aggrFuns))
-                                 ∪
-                                 childReqColumns
-
         UnboxKey -> none ∪ childReqColumns
 
         Segment    -> ownReqColumns ∪ childReqColumns
@@ -204,12 +200,6 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
                               ∪
                               (VProp $ Just $ L.nub $ concatMap reqExprCols exprs)
             childReqColumns ∪ ownReqColumns'
-
-        AggrNonEmptyS aggrFuns -> do
-          reqCols <- (VProp $ Just $ concatMap aggrReqCols (N.toList aggrFuns))
-                      ∪
-                      childReqColumns
-          return reqCols
 
         R1               ->
             case childReqColumns of

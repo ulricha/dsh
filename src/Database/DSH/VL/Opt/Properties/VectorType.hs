@@ -37,7 +37,6 @@ inferVectorTypeUnOp s op =
     Unique -> VProp <$> unpack s
     UniqueS -> VProp <$> unpack s
     Aggr _ -> Right $ VProp $ VTDataVec 1
-    AggrNonEmpty as -> Right $ VProp $ VTDataVec $ N.length as
     UnboxKey -> Right $ VProp $ VTNA
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
@@ -63,7 +62,6 @@ inferVectorTypeUnOp s op =
     Select _ -> VPropPair <$> unpack s <*> (Right VTNA)
     Sort _   -> liftM2 VPropPair (unpack s) (Right VTNA)
     SortS _  -> liftM2 VPropPair (unpack s) (Right VTNA)
-    AggrNonEmptyS as -> Right $ VProp $ VTDataVec $ N.length as
 
     Group es ->
       case s of

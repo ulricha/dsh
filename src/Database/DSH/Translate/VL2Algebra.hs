@@ -278,7 +278,6 @@ translateUnOp :: VectorAlgebra a
               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
               -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateUnOp unop c = case unop of
-    V.AggrNonEmptyS a  -> fromDVec <$> vecAggrNonEmptyS a (toDVec c)
     V.Unique           -> fromDVec <$> vecUnique (toDVec c)
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     V.Number           -> fromDVec <$> vecNumber (toDVec c)
@@ -288,7 +287,6 @@ translateUnOp unop c = case unop of
     V.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
     V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
     V.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
-    V.AggrNonEmpty as  -> fromDVec <$> vecAggrNonEmpty as (toDVec c)
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
         return $ RLPair (fromDVec d) (fromFVec r)

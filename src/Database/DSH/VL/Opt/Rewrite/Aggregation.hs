@@ -17,10 +17,8 @@ import           Database.DSH.VL.Lang
 aggregationRules :: VLRuleSet ()
 aggregationRules = [ inlineAggrSProject
                    , inlineAggrProject
-                   , inlineAggrNonEmptyProject
-                   , inlineAggrSNonEmptyProject
                    , flatGrouping
-                   , mergeNonEmptyAggrs
+                   -- , mergeNonEmptyAggrs
                    , mergeGroupAggr
                    , mergeGroupWithGroupAggrLeft
                    , mergeGroupWithGroupAggrRight
@@ -28,8 +26,8 @@ aggregationRules = [ inlineAggrSProject
                    ]
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
-aggregationRulesBottomUp = [ nonEmptyAggr
-                           , nonEmptyAggrS
+aggregationRulesBottomUp = [ {- nonEmptyAggr
+                           , nonEmptyAggrS -}
                            ]
 
 groupingToAggregation :: VLRewrite Bool
@@ -39,47 +37,47 @@ groupingToAggregation =
                        , applyToAll noProps aggregationRules
                        ]
 
--- FIXME this rewrite will no longer work: take the UnboxScalarS
--- operator into account.
-mergeNonEmptyAggrs :: VLRule ()
-mergeNonEmptyAggrs q =
-  $(dagPatMatch 'q "(AggrNonEmptyS afuns1 (qi1)) Zip (AggrNonEmptyS afuns2 (qi2))"
-    [| do
-        predicate $ $(v "qi1") == $(v "qi2")
+-- -- FIXME this rewrite will no longer work: take the UnboxScalarS
+-- -- operator into account.
+-- mergeNonEmptyAggrs :: VLRule ()
+-- mergeNonEmptyAggrs q =
+--   $(dagPatMatch 'q "(AggrNonEmptyS afuns1 (qi1)) Zip (AggrNonEmptyS afuns2 (qi2))"
+--     [| do
+--         predicate $ $(v "qi1") == $(v "qi2")
 
-        return $ do
-            logRewrite "Aggregation.NonEmpty.Merge" q
-            let afuns  = $(v "afuns1") <> $(v "afuns2")
-            let aggrOp = UnOp (AggrNonEmptyS afuns) $(v "qi1")
-            void $ replaceWithNew q aggrOp |])
+--         return $ do
+--             logRewrite "Aggregation.NonEmpty.Merge" q
+--             let afuns  = $(v "afuns1") <> $(v "afuns2")
+--             let aggrOp = UnOp (AggrNonEmptyS afuns) $(v "qi1")
+--             void $ replaceWithNew q aggrOp |])
 
--- | If we can infer that the vector is not empty, we can employ a
--- simplified version of the aggregate operator that does not add a
--- default value for an empty input.
-nonEmptyAggr :: VLRule BottomUpProps
-nonEmptyAggr q =
-  $(dagPatMatch 'q "Aggr aggrFun (q1)"
-    [| do
-        VProp True <- nonEmptyProp <$> properties $(v "q1")
+-- -- | If we can infer that the vector is not empty, we can employ a
+-- -- simplified version of the aggregate operator that does not add a
+-- -- default value for an empty input.
+-- nonEmptyAggr :: VLRule BottomUpProps
+-- nonEmptyAggr q =
+--   $(dagPatMatch 'q "Aggr aggrFun (q1)"
+--     [| do
+--         VProp True <- nonEmptyProp <$> properties $(v "q1")
 
-        return $ do
-            logRewrite "Aggregation.NonEmpty.Aggr" q
-            let aggrOp = UnOp (AggrNonEmpty ($(v "aggrFun") N.:| [])) $(v "q1")
-            void $ replaceWithNew q aggrOp |])
+--         return $ do
+--             logRewrite "Aggregation.NonEmpty.Aggr" q
+--             let aggrOp = UnOp (AggrNonEmpty ($(v "aggrFun") N.:| [])) $(v "q1")
+--             void $ replaceWithNew q aggrOp |])
 
--- | If we can infer that all segments (if there are any) are not
--- empty, we can employ a simplified version of the aggregate operator
--- that does not add default values for empty segments.
-nonEmptyAggrS :: VLRule BottomUpProps
-nonEmptyAggrS q =
-  $(dagPatMatch 'q "(_) AggrS aggrFun (q2)"
-    [| do
-        VProp True <- nonEmptyProp <$> properties $(v "q2")
+-- -- | If we can infer that all segments (if there are any) are not
+-- -- empty, we can employ a simplified version of the aggregate operator
+-- -- that does not add default values for empty segments.
+-- nonEmptyAggrS :: VLRule BottomUpProps
+-- nonEmptyAggrS q =
+--   $(dagPatMatch 'q "(_) AggrS aggrFun (q2)"
+--     [| do
+--         VProp True <- nonEmptyProp <$> properties $(v "q2")
 
-        return $ do
-            logRewrite "Aggregation.NonEmpty.AggrS" q
-            let aggrOp = UnOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q2")
-            void $ replaceWithNew q aggrOp |])
+--         return $ do
+--             logRewrite "Aggregation.NonEmpty.AggrS" q
+--             let aggrOp = UnOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q2")
+--             void $ replaceWithNew q aggrOp |])
 
 -- | Merge a projection into a segmented aggregate operator.
 inlineAggrProject :: VLRule ()
@@ -105,37 +103,6 @@ inlineAggrSProject q =
             logRewrite "Aggregation.Normalize.AggrS.Project" q
             void $ replaceWithNew q $ BinOp (AggrS afun') $(v "qo") $(v "qi") |])
 
--- | Merge a projection into a non-empty aggregate operator. We
--- restrict this to only one aggregate function. Therefore, merging of
--- projections must happen before merging of aggregate operators
-inlineAggrNonEmptyProject :: VLRule ()
-inlineAggrNonEmptyProject q =
-  $(dagPatMatch 'q "AggrNonEmpty afuns (Project proj (qi))"
-    [| do
-        let env = zip [1..] $(v "proj")
-        let afuns' = fmap (mapAggrFun (mergeExpr env)) $(v "afuns")
-
-        return $ do
-            logRewrite "Aggregation.Normalize.AggrNonEmpty.Project" q
-            let aggrOp = UnOp (AggrNonEmpty afuns') $(v "qi")
-            void $ replaceWithNew q aggrOp |])
-
--- | Merge a projection into a non-empty segmented aggregate
--- operator. We restrict this to only one aggregate
--- function. Therefore, merging of projections must happen before
--- merging of aggregate operators
-inlineAggrSNonEmptyProject :: VLRule ()
-inlineAggrSNonEmptyProject q =
-  $(dagPatMatch 'q "AggrNonEmptyS afuns (Project proj (qi))"
-    [| do
-        let env = zip [1..] $(v "proj")
-        let afuns' = fmap (mapAggrFun (mergeExpr env)) $(v "afuns")
-
-        return $ do
-            logRewrite "Aggregation.Normalize.AggrNonEmptyS.Project" q
-            let aggrOp = UnOp (AggrNonEmptyS afuns') $(v "qi")
-            void $ replaceWithNew q aggrOp |])
-
 -- We rewrite a combination of Group and aggregation operators into a single
 -- GroupAggr operator if the following conditions hold:
 --
@@ -143,7 +110,7 @@ inlineAggrSNonEmptyProject q =
 -- 2. The grouping criteria is a simple column projection from the input vector
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "(R1 (qg)) UnboxScalar (AggrNonEmptyS afuns (R2 (qg1=Group groupExprs (q1))))"
+  $(dagPatMatch 'q "(R1 (qg)) UnboxScalar ((_) AggrS afun (R2 (qg1=Group groupExprs (q1))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -152,7 +119,8 @@ flatGrouping q =
 
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
-          void $ replaceWithNew q $ UnOp (GroupAggr ($(v "groupExprs"), $(v "afuns"))) $(v "q1") |])
+          let afuns = $(v "afun") N.:| []
+          void $ replaceWithNew q $ UnOp (GroupAggr ($(v "groupExprs"), afuns)) $(v "q1") |])
 
 mergeGroupAggr :: VLRule ()
 mergeGroupAggr q =

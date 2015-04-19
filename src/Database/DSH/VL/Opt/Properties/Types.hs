@@ -33,7 +33,6 @@ data ConstVec = ConstVec [ConstPayload]
               deriving (Show)
 
 data BottomUpProps = BUProps { emptyProp      :: VectorProp Bool
-                             , nonEmptyProp   :: VectorProp Bool
                              , constProp      :: VectorProp ConstVec
                              , card1Prop      :: VectorProp Bool
                              , vectorTypeProp :: VectorProp VectorType

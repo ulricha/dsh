@@ -97,9 +97,6 @@ data UnOp = UnboxKey
 
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
           | Aggr AggrFun
-          | AggrNonEmpty (N.NonEmpty AggrFun)
-          | AggrNonEmptyS (N.NonEmpty AggrFun)
-
           | Number
           | NumberS
           | Unique

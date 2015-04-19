@@ -132,9 +132,6 @@ inferConstVecUnOp c op =
     Aggr _ -> do
       return $ VProp $ ConstVec [NonConstPL]
 
-    AggrNonEmpty _ -> do
-      return $ VProp $ ConstVec [NonConstPL]
-
     UnboxKey -> return $ VProp CNA
 
     Segment -> do
@@ -203,9 +200,6 @@ inferConstVecUnOp c op =
     ReshapeS _ -> do
       cols <- unp c >>= fromDBV
       return $ VPropPair (ConstVec []) (ConstVec cols)
-
-    AggrNonEmptyS _ -> do
-      return $ VProp $ ConstVec [NonConstPL]
 
     R1 ->
       case c of
