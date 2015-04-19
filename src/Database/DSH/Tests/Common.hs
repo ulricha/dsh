@@ -35,7 +35,7 @@ instance Arbitrary C.Day where
   arbitrary = C.ModifiedJulianDay <$> choose (25000, 80000)
 
 instance Arbitrary D.Decimal where
-  arbitrary = D.Decimal <$> choose (1,8) <*> choose (1,10^6)
+  arbitrary = D.Decimal <$> choose (1,8) <*> choose (1,10^(6 :: Int))
 
 uncurryQ :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
 uncurryQ f = uncurry f . Q.view
