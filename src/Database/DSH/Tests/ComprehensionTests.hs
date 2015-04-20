@@ -46,6 +46,7 @@ tests_comprehensions conn = testGroup "Comprehensions"
     , testProperty "backdep4" (\a -> prop_backdep4 a conn)
     , testProperty "backdep5" (\a -> prop_backdep5 a conn)
     , testProperty "deep" (\a -> prop_deep_iter a conn)
+    , testProperty "only tuple" (\a -> prop_only_tuple a conn)
     ]
 
 tests_lifted_joins :: Backend c => c -> Test
@@ -574,3 +575,13 @@ prop_deep_iter = makePropEq C.deep_iter deep_iter_native
         ]
       | x <- xs
       ]
+
+-- | Test non-lifted tuple construction with a singleton extracted
+-- from a nested list.
+prop_only_tuple :: Backend c => (Integer, [Integer], [Integer]) -> c -> Property
+prop_only_tuple (x, ys, zs) = not (empty ys)
+                              ==>
+                              makePropEq C.only_tuple only_tuple_native
+  where
+    only_tuple_native (x, ys, zs) =
+        pair x (head [ (y, [ z | z <- zs, x == y ])  | y <- ys ])
