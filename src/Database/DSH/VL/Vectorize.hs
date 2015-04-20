@@ -27,6 +27,12 @@ import           Database.DSH.Common.Vector
 --------------------------------------------------------------------------------
 -- Construction of not-lifted primitives
 
+binOp :: L.ScalarBinOp -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+binOp o (SShape dv1 lyt1) (SShape dv2 lyt2) = do
+    dv <- vlProject [BinApp o (Column 1) (Column 2)] =<< vlAlign dv1 dv2
+    return $ SShape dv LCol
+binOp _ _ _ = $impossible
+
 zip ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 zip (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     (dv, fv1, fv2) <- vlZip dv1 dv2
@@ -295,6 +301,12 @@ onlyL _                          = $impossible
 
 --------------------------------------------------------------------------------
 -- Construction of lifted primitives
+
+binOpL :: L.ScalarBinOp -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+binOpL o (VShape dv1 lyt1) (VShape dv2 lyt2) = do
+    dv <- vlProject [BinApp o (Column 1) (Column 2)] =<< vlAlign dv1 dv2
+    return $ VShape dv LCol
+binOpL _ _ _ = $impossible
 
 restrictL :: Shape VLDVec -> Build VL (Shape VLDVec)
 restrictL (VShape qo (LNest qi lyt)) = do
