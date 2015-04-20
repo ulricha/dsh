@@ -49,15 +49,13 @@ fkl2VL expr =
             lift $ V.dbTable n schema
         Const t v -> lift $ V.mkLiteral t v
         BinOp _ o NotLifted e1 e2    -> do
-            SShape p1 lyt <- fkl2VL e1
-            SShape p2 _   <- fkl2VL e2
-            p              <- lift $ vlBinExpr o p1 p2
-            return $ SShape p lyt
+            s1 <- fkl2VL e1
+            s2 <- fkl2VL e2
+            lift $ V.binOp o s1 s2
         BinOp _ o Lifted e1 e2     -> do
-            VShape p1 lyt <- fkl2VL e1
-            VShape p2 _   <- fkl2VL e2
-            p                  <- lift $ vlBinExpr o p1 p2
-            return $ VShape p lyt
+            s1 <- fkl2VL e1
+            s2 <- fkl2VL e2
+            lift $ V.binOpL o s1 s2
         UnOp _ o NotLifted e1 -> do
             SShape p1 lyt <- fkl2VL e1
             p              <- lift $ vlUnExpr o p1
