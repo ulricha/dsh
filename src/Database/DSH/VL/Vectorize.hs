@@ -29,8 +29,9 @@ import           Database.DSH.Common.Vector
 
 binOp :: L.ScalarBinOp -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 binOp o (SShape dv1 _) (SShape dv2 _) = do
-    dv <- vlProject [BinApp o (Column 1) (Column 2)] =<< vlAlign dv1 dv2
-    return $ SShape dv LCol
+    (dv, _, _) <- vlCartProduct dv1 dv2
+    dv'        <- vlProject [BinApp o (Column 1) (Column 2)] dv
+    return $ SShape dv' LCol
 binOp _ _ _ = $impossible
 
 zip ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -292,12 +293,12 @@ reshape n (VShape q lyt) = do
 reshape _ _ = $impossible
 
 concat :: Shape VLDVec -> Build VL (Shape VLDVec)
-concat (VShape _ (LNest q lyt)) = VShape <$> vlUnsegment q <*> pure lyt
+concat (VShape _ (LNest q lyt)) = return $ VShape q lyt
 concat _e                       = $impossible
 
 onlyL :: Shape VLDVec -> Build VL (Shape VLDVec)
 onlyL (VShape qo (LNest qi lyti)) = VShape <$> vlUnboxScalar qo qi <*> pure lyti
-onlyL _                          = $impossible
+onlyL _                           = $impossible
 
 --------------------------------------------------------------------------------
 -- Construction of lifted primitives
@@ -643,14 +644,19 @@ boxVectors (SShape q1 lyt1 : [])     = return (q1, [lyt1])
 boxVectors (VShape q1 lyt1 : [])     = do
     (dvo, dvi) <- vlNest q1
     return (dvo, [LNest dvi lyt1])
-boxVectors (SShape q1 lyt1 : shapes) = do
-    (q, lyts) <- boxVectors shapes
-    qz'       <- vlAlign q1 q
-    return (qz', lyt1 : lyts)
-boxVectors (VShape q1 lyt1 : shapes) = do
-    (q, lyts) <- boxVectors shapes
-    q1'       <- vlUnsegment q1
-    return (q, LNest q1' lyt1 : lyts)
+boxVectors (SShape dv1 lyt1 : shapes) = do
+    (dv, lyts)      <- boxVectors shapes
+    (dv', rv1, rv2) <- vlCartProduct dv1 dv
+    lyt1'           <- repLayout rv1 lyt1
+    lyts'           <- mapM (repLayout rv2) lyts
+    return (dv', lyt1' : lyts')
+boxVectors (VShape dv1 lyt1 : shapes) = do
+    (dv, lyts)      <- boxVectors shapes
+    (dvo, dvi)      <- vlNest dv1
+    (dv', rv1, rv2) <- vlCartProduct dvo dv
+    lyt1'           <- repLayout rv1 (LNest dvi lyt1)
+    lyts'           <- mapM (repLayout rv2) lyts
+    return (dv', lyt1' : lyts')
 boxVectors s = error $ show s
 
 --------------------------------------------------------------------------------
