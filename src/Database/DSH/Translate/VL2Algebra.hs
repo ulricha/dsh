@@ -284,7 +284,6 @@ translateUnOp unop c = case unop of
     V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)
     V.UnboxKey         -> fromKVec <$> vecUnboxKey (toDVec c)
     V.Segment          -> fromDVec <$> vecSegment (toDVec c)
-    V.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
     V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
     V.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
     V.Select e         -> do

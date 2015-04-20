@@ -208,9 +208,6 @@ vlAppendS (VLDVec c1) (VLDVec c2) = tripleVec (BinOp AppendS c1 c2) dvec kvec kv
 vlSegment :: VLDVec -> Build VL VLDVec
 vlSegment (VLDVec c) = vec (UnOp Segment c) dvec
 
-vlUnsegment :: VLDVec -> Build VL VLDVec
-vlUnsegment (VLDVec c) = vec (UnOp Unsegment c) dvec
-
 vlCombine :: VLDVec -> VLDVec -> VLDVec -> Build VL (VLDVec, VLKVec, VLKVec)
 vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) =
     tripleVec (TerOp Combine c1 c2 c3) dvec kvec kvec

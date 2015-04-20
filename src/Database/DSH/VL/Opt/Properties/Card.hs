@@ -27,7 +27,6 @@ inferCardOneUnOp c op =
     UnboxKey -> Right c
     Segment -> Right c
     Nest -> unp c >>= (\uc -> return $ VPropPair True uc)
-    Unsegment -> Right c
     Project _  -> Right c
     Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)

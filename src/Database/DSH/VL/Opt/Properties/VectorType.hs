@@ -41,7 +41,6 @@ inferVectorTypeUnOp s op =
     Aggr _ -> Right $ VProp $ VTDataVec 1
     UnboxKey -> Right $ VProp $ VTNA
     Segment -> VProp <$> unpack s
-    Unsegment -> VProp <$> unpack s
     Reverse -> liftM2 VPropPair (unpack s) (Right VTNA)
     ReverseS -> liftM2 VPropPair (unpack s) (Right VTNA)
     R1 ->
