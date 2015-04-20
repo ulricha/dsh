@@ -21,7 +21,6 @@ mapUnp = mapUnpack "Properties.Empty"
 inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
-    SingletonDescr -> Right $ VProp False
     Lit (_, _, []) -> Right $ VProp True
     Lit{}          -> Right $ VProp False
     TableRef{}     -> Right $ VProp False
@@ -29,6 +28,7 @@ inferEmptyNullOp op =
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
+    Nest             -> VPropPair False <$> unp e
     WinFun _         -> Right e
     Unique           -> Right e
     UniqueS          -> Right e

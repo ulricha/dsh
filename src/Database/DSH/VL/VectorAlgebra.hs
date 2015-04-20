@@ -25,8 +25,8 @@ class VectorAlgebra a where
     -- | Filtering Vector
     type FVec a
 
-    -- | A vector with one segment
-    singletonDescr :: Build a (DVec a)
+    -- | Turn a flat vector into a nested vector with one segment.
+    vecNest :: DVec a -> Build a (DVec a, DVec a)
 
     -- | A vector representing a literal list.
     vecLit :: [ScalarType] -> [[ScalarVal]] -> Build a (DVec a)

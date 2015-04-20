@@ -14,7 +14,6 @@ unp = unpack "Properties.Card"
 inferCardOneNullOp :: NullOp -> Either String (VectorProp Bool)
 inferCardOneNullOp op =
   case op of
-    SingletonDescr   -> Right $ VProp True
     Lit (_, _, rows) -> Right $ VProp $ length rows == 1
     TableRef _       -> Right $ VProp False
 
@@ -27,6 +26,7 @@ inferCardOneUnOp c op =
     WinFun _ -> Right c
     UnboxKey -> Right c
     Segment -> Right c
+    Nest -> unp c >>= (\uc -> return $ VPropPair True uc)
     Unsegment -> Right c
     Project _  -> Right c
     Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)

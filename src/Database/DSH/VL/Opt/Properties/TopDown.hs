@@ -33,6 +33,7 @@ seed :: VL -> TopDownProps
 seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
     case op of
+        Nest               -> vPropPairSeed
         WinFun _           -> vPropSeed
         Reverse            -> vPropPairSeed
         ReverseS           -> vPropPairSeed

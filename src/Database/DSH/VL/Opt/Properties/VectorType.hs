@@ -20,7 +20,6 @@ vectorWidth _                        = error "vectorWidth: non-VTDataVec input"
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
-    SingletonDescr       -> Right $ VProp $ VTDataVec 0
     Lit (_, t, _)        -> Right $ VProp $ VTDataVec $ length t
     TableRef (_, schema) -> Right $ VProp $ VTDataVec $ N.length (tableCols schema)
 
@@ -31,6 +30,9 @@ unpack _         = Left "Input is not a single vector property"
 inferVectorTypeUnOp :: VectorProp VectorType -> UnOp -> Either String (VectorProp VectorType)
 inferVectorTypeUnOp s op =
   case op of
+    Nest -> do
+        VTDataVec w <- unpack s
+        return $ VPropPair (VTDataVec 0) (VTDataVec w)
     WinFun _ -> do
         VTDataVec w <- unpack s
         return $ VProp $ VTDataVec $ w + 1

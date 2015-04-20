@@ -77,8 +77,7 @@ $(deriveJSON defaultOptions ''FrameSpec)
 -- Vector Language operators. Documentation can be found in module
 -- VectorPrimitives.
 
-data NullOp = SingletonDescr
-            | Lit (L.Emptiness, [ScalarType], [[L.ScalarVal]])
+data NullOp = Lit (L.Emptiness, [ScalarType], [[L.ScalarVal]])
             | TableRef (String, L.BaseTableSchema)
             deriving (Eq, Ord, Show)
 
@@ -87,6 +86,7 @@ $(deriveJSON defaultOptions ''NullOp)
 data UnOp = UnboxKey
           | Segment
           | Unsegment
+          | Nest
 
           | R1
           | R2

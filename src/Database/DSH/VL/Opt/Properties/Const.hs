@@ -100,7 +100,6 @@ constExpr constCols expr =
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
   case op of
-    SingletonDescr                    -> return $ VProp $ ConstVec []
     -- do not include the first two columns in the payload columns because they represent descr and pos.
     Lit (_, colTypes, rows)      ->
       if null rows
@@ -122,6 +121,10 @@ inferConstVecNullOp op =
 inferConstVecUnOp :: (VectorProp ConstVec) -> UnOp -> Either String (VectorProp ConstVec)
 inferConstVecUnOp c op =
   case op of
+    Nest -> do
+      cols <- unp c >>= fromDBV
+      return $ VPropPair (ConstVec []) (ConstVec cols)
+
     WinFun _ -> do
       cols <- unp c >>= fromDBV
       return $ VProp $ ConstVec (cols ++ [NonConstPL])

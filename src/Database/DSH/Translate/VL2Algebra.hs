@@ -320,6 +320,11 @@ translateUnOp unop c = case unop of
     V.Transpose -> do
         (qo, qi) <- vecTranspose (toDVec c)
         return $ RLPair (fromDVec qo) (fromDVec qi)
+
+    V.Nest -> do
+        (qo, qi) <- vecNest (toDVec c)
+        return $ RLPair (fromDVec qo) (fromDVec qi)
+
     V.R1            -> case c of
         (RLPair c1 _)     -> return c1
         (RTriple c1 _ _) -> return c1
@@ -335,6 +340,5 @@ translateUnOp unop c = case unop of
 translateNullary :: VectorAlgebra a
                  => V.NullOp
                  -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
-translateNullary V.SingletonDescr          = fromDVec <$> singletonDescr
 translateNullary (V.Lit (_, tys, vals))    = fromDVec <$> vecLit tys vals
 translateNullary (V.TableRef (n, schema))  = fromDVec <$> vecTableRef n schema

@@ -28,7 +28,7 @@ import           Database.DSH.Common.Vector
 -- Construction of not-lifted primitives
 
 binOp :: L.ScalarBinOp -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-binOp o (SShape dv1 lyt1) (SShape dv2 lyt2) = do
+binOp o (SShape dv1 _) (SShape dv2 _) = do
     dv <- vlProject [BinApp o (Column 1) (Column 2)] =<< vlAlign dv1 dv2
     return $ SShape dv LCol
 binOp _ _ _ = $impossible
@@ -303,7 +303,7 @@ onlyL _                          = $impossible
 -- Construction of lifted primitives
 
 binOpL :: L.ScalarBinOp -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-binOpL o (VShape dv1 lyt1) (VShape dv2 lyt2) = do
+binOpL o (VShape dv1 _) (VShape dv2 _) = do
     dv <- vlProject [BinApp o (Column 1) (Column 2)] =<< vlAlign dv1 dv2
     return $ VShape dv LCol
 binOpL _ _ _ = $impossible
@@ -507,8 +507,8 @@ projectColumns i lyts =
 
 singleton :: Shape VLDVec -> Build VL (Shape VLDVec)
 singleton (VShape q lyt) = do
-    VLDVec d <- vlSingletonDescr
-    return $ VShape (VLDVec d) (LNest q lyt)
+    (dvo, dvi) <- vlNest q
+    return $ VShape dvo (LNest dvi lyt)
 singleton (SShape q1 lyt) = return $ VShape q1 lyt
 
 singletonL :: Shape VLDVec -> Build VL (Shape VLDVec)
@@ -641,9 +641,8 @@ alignVectors _ = $impossible
 boxVectors :: [Shape VLDVec] -> Build VL (VLDVec, [Layout VLDVec])
 boxVectors (SShape q1 lyt1 : [])     = return (q1, [lyt1])
 boxVectors (VShape q1 lyt1 : [])     = do
-    qo <- vlSingletonDescr
-    qi <- vlUnsegment q1
-    return (qo, [LNest qi lyt1])
+    (dvo, dvi) <- vlNest q1
+    return (dvo, [LNest dvi lyt1])
 boxVectors (SShape q1 lyt1 : shapes) = do
     (q, lyts) <- boxVectors shapes
     qz'       <- vlAlign q1 q

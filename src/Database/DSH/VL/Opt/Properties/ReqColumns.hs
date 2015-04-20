@@ -110,6 +110,11 @@ inferReqColumnsUnOp :: BottomUpProps          -- ^ Input properties
                     -> Either String (VectorProp ReqCols)
 inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
     case op of
+
+        Nest -> do
+            cols <- snd <$> fromPropPair ownReqColumns
+            childReqColumns ∪ VProp cols
+
         WinFun (wfun, _) -> do
             cs <- (VProp $ Just $ winReqCols wfun)
                   ∪
