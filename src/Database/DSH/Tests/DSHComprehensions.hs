@@ -405,3 +405,7 @@ deep_iter (view -> (ws1, ws2, xs, ys, zs)) =
     ]
   | x <- xs
   ]
+
+only_tuple :: Q (Integer, [Integer], [Integer]) -> Q (Integer, (Integer, [Integer]))
+only_tuple (view -> (x, ys, zs)) =
+    pair x (head [ pair y [ z | z <- zs, x == y ]  | y <- ys ])
