@@ -579,9 +579,10 @@ prop_deep_iter = makePropEq C.deep_iter deep_iter_native
 -- | Test non-lifted tuple construction with a singleton extracted
 -- from a nested list.
 prop_only_tuple :: Backend c => (Integer, [Integer], [Integer]) -> c -> Property
-prop_only_tuple (x, ys, zs) = not (empty ys)
-                              ==>
-                              makePropEq C.only_tuple only_tuple_native
+prop_only_tuple (x, ys, zs) c =
+    not (null ys)
+    ==>
+    makePropEq C.only_tuple only_tuple_native (x, ys, zs) c
   where
-    only_tuple_native (x, ys, zs) =
+    only_tuple_native _ =
         pair x (head [ (y, [ z | z <- zs, x == y ])  | y <- ys ])
