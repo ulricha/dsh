@@ -234,27 +234,28 @@ combine (VShape qb LCol) (VShape q1 lyt1) (VShape q2 lyt2) = do
 combine l1 l2 l3 = trace (show l1 ++ " " ++ show l2 ++ " " ++ show l3) $ $impossible
 
 -- | Distribute a single value in vector 'q2' over an arbitrary shape.
--- FIXME accepting a scalar shape makes no sense here. we can only distribute over a list.
-distSingleton :: Shape VLDVec -> VLDVec -> Layout VLDVec -> Build VL (Shape VLDVec)
-distSingleton shape1 q2 lyt2 = do
-    let (shapeCon, q1, lyt1) = unwrapShape shape1
-
-        leftWidth  = columnsInLayout lyt1
+distSingleton :: VLDVec                  -- ^ The inner vector distributed over
+              -> Layout VLDVec           -- ^ The inner vector's layout
+              -> VLDVec                  -- ^ The singleton outer vector
+              -> Layout VLDVec           -- ^ The outer layout
+              -> Build VL (Shape VLDVec)
+distSingleton qo lyto q2 lyt2 = do
+    let leftWidth  = columnsInLayout lyto
         rightWidth = columnsInLayout lyt2
         proj       = map Column [leftWidth+1..leftWidth+rightWidth]
 
-    (prodVec, _, propVec) <- q1 `vlCartProduct` q2
+    (prodVec, _, propVec) <- qo `vlCartProduct` q2
     resVec                <- vlProject proj prodVec
 
     lyt'                  <- chainReorder propVec lyt2
-    return $ shapeCon resVec lyt'
+    return $ VShape resVec lyt'
 
 dist ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 -- Distributing a single value is implemented using a cartesian
 -- product. After the product, we discard columns from the vector that
 -- we distributed over. Vectors are swapped because CartProduct uses
 -- the descriptor of its left input and that is what we want.
-dist (SShape q lyt) v = distSingleton v q lyt
+dist (SShape q lyt) (VShape qo lyto) = distSingleton qo lyto q lyt
 dist (VShape q lyt) (VShape qo lyto) = do
     let leftWidth  = columnsInLayout lyto
         rightWidth = columnsInLayout lyt
@@ -283,14 +284,14 @@ ifList (SShape qb lytb) (VShape q1 lyt1) (VShape q2 lyt2) = do
     let leftWidth = columnsInLayout lyt1
         predicate = Column $ leftWidth + 1
 
-    VShape trueSelVec _        <- distSingleton (VShape q1 lyt1) qb lytb
+    VShape trueSelVec _        <- distSingleton q1 lyt1 qb lytb
     (trueVec, trueRenameVec)   <- vlSelect predicate
                                   =<< vlAlign q1 trueSelVec
     trueVec'                   <- vlProject (map Column [1..leftWidth]) trueVec
 
     let predicate' = UnApp (L.SUBoolOp L.Not) predicate
 
-    VShape falseSelVec _       <- distSingleton (VShape q2 lyt2) qb lytb
+    VShape falseSelVec _       <- distSingleton q2 lyt2 qb lytb
     (falseVec, falseRenameVec) <- vlSelect predicate'
                                   =<< vlAlign q2 falseSelVec
     falseVec'                  <- vlProject (map Column [1..leftWidth]) falseVec
@@ -782,12 +783,6 @@ implantInnerVec _          _            _  _        =
 
 --------------------------------------------------------------------------------
 -- Vectorization Helper Functions
-
--- | Take a shape apart by extracting the vector, the layout and the
--- shape constructor itself.
-unwrapShape :: Shape VLDVec -> (VLDVec -> Layout VLDVec -> Shape VLDVec, VLDVec, Layout VLDVec)
-unwrapShape (VShape q lyt) = (VShape, q, lyt)
-unwrapShape (SShape q lyt) = (SShape, q, lyt)
 
 -- | chainRenameFilter renames and filters a vector according to a rename vector
 -- and propagates these changes to all inner vectors. No reordering is applied,
