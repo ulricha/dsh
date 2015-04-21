@@ -107,6 +107,10 @@ inferVectorTypeBinOp s1 s2 op =
         VTDataVec w1 <- unpack s1
         VTDataVec w2 <- unpack s2
         return $ VPropPair (VTDataVec $ w1 + w2) VTNA
+    DistSng -> do
+        VTDataVec w1 <- unpack s1
+        VTDataVec w2 <- unpack s2
+        return $ VPropPair (VTDataVec $ w1 + w2) VTNA
 
     AppRep -> liftM2 VPropPair (unpack s2) (Right VTNA)
     AppSort -> liftM2 VPropPair (unpack s2) (Right VTNA)

@@ -183,21 +183,20 @@ combine (VShape dvb LCol) (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     return $ VShape dv lyt'
 combine l1 l2 l3 = trace (show l1 ++ " " ++ show l2 ++ " " ++ show l3) $ $impossible
 
--- | Distribute a single value in vector 'q2' over an arbitrary shape.
-distSingleton :: VLDVec                  -- ^ The inner vector distributed over
-              -> Layout VLDVec           -- ^ The inner vector's layout
-              -> VLDVec                  -- ^ The singleton outer vector
-              -> Layout VLDVec           -- ^ The outer layout
+-- | Distribute a single value in vector 'dv2' over an arbitrary
+-- (inner) vector.
+distSingleton :: VLDVec                  -- ^ The singleton outer vector
+              -> Layout VLDVec           -- ^ The outer vector's layout
+              -> VLDVec                  -- ^ The inner vector distributed over
               -> Build VL (Shape VLDVec)
-distSingleton dv1 lyt1 dv2 lyt2 = do
+distSingleton dv1 lyt1 dv2 = do
     let leftWidth  = columnsInLayout lyt1
-        rightWidth = columnsInLayout lyt2
-        proj       = map Column [leftWidth+1..leftWidth+rightWidth]
+        proj       = map Column [1..leftWidth]
 
-    (dv, _, rv) <- dv1 `vlCartProduct` dv2
-    dv'         <- vlProject proj dv
+    (dv, rv) <- dv1 `vlDistSng` dv2
+    dv'      <- vlProject proj dv
 
-    lyt'        <- repLayout rv lyt2
+    lyt'     <- repLayout rv lyt1
     return $ VShape dv' lyt'
 
 dist ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -205,7 +204,7 @@ dist ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 -- product. After the product, we discard columns from the vector that
 -- we distributed over. Vectors are swapped because CartProduct uses
 -- the descriptor of its left input and that is what we want.
-dist (SShape dv lyt) (VShape dv1 lyt1) = distSingleton dv1 lyt1 dv lyt
+dist (SShape dv lyt) (VShape dv1 _)    = distSingleton dv lyt dv1
 dist (VShape dv lyt) (VShape dvo lyto) = do
     let leftWidth  = columnsInLayout lyto
         rightWidth = columnsInLayout lyt
@@ -239,14 +238,14 @@ ifList (SShape qb lytb) (VShape q1 lyt1) (VShape q2 lyt2) = do
     let leftWidth = columnsInLayout lyt1
         predicate = Column $ leftWidth + 1
 
-    VShape trueSelVec _  <- distSingleton q1 lyt1 qb lytb
+    VShape trueSelVec _  <- distSingleton qb lytb q1
     (trueVec, truefv)    <- vlSelect predicate
                             =<< vlAlign q1 trueSelVec
     trueVec'             <- vlProject (map Column [1..leftWidth]) trueVec
 
     let predicate' = UnApp (L.SUBoolOp L.Not) predicate
 
-    VShape falseSelVec _ <- distSingleton q2 lyt2 qb lytb
+    VShape falseSelVec _ <- distSingleton qb lytb q2
     (falseVec, falsefv)  <- vlSelect predicate'
                             =<< vlAlign q2 falseSelVec
     falseVec'            <- vlProject (map Column [1..leftWidth]) falseVec

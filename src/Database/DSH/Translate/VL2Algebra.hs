@@ -179,6 +179,9 @@ translateBinOp b c1 c2 = case b of
     V.DistLift -> do
         (v, p) <- vecDistLift (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec p)
+    V.DistSng -> do
+        (v, p) <- vecDistSng (toDVec c1) (toDVec c2)
+        return $ RLPair (fromDVec v) (fromRVec p)
 
     V.AppKey -> do
         (v, k) <- vecAppKey (toKVec c1) (toDVec c2)

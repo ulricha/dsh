@@ -102,6 +102,8 @@ class VectorAlgebra a where
     -- FIXME is distprim really necessary? could maybe be replaced by distdesc
     vecDistLift :: DVec a -> DVec a -> Build a (DVec a, RVec a)
 
+    vecDistSng :: DVec a -> DVec a -> Build a (DVec a, RVec a)
+
     -- | Apply a sorting vector to a data vector
     vecAppSort   :: SVec a -> DVec a -> Build a (DVec a, SVec a)
 

@@ -228,6 +228,11 @@ inferConstVecBinOp c1 c2 op =
       cols2 <- unp c2 >>= fromDBV
       return $ VPropPair (ConstVec (cols1 ++ cols2)) CNA
 
+    DistSng -> do
+      cols1 <- unp c1 >>= fromDBV
+      cols2 <- unp c2 >>= fromDBV
+      return $ VPropPair (ConstVec (cols1 ++ cols2)) CNA
+
     AppKey -> do
       cols <- unp c2 >>= fromDBV
       return $ VPropPair (ConstVec cols) CNA

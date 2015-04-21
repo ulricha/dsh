@@ -258,6 +258,11 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
+      DistSng -> do
+          cols <- fst <$> fromPropPair ownReqColumns
+          (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
+          (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
+
       AppRep      -> do
           cols      <- fst <$> fromPropPair ownReqColumns
           fromRight <- childReqColumns2 ∪ VProp cols
