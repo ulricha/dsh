@@ -391,6 +391,9 @@ min a b = cond (a < b) a b
 max :: (QA a,Ord a,TA a) => Q a -> Q a -> Q a
 max a b = cond (a > b) a b
 
+-- | Remainder of division. Note that this operator maps to the
+-- backends' modulo operator which behaves differently for negative
+-- numbers on usual SQL engines.
 mod :: Q Integer -> Q Integer -> Q Integer
 mod (Q a) (Q b) = Q (AppE Mod (pairE a b))
 
