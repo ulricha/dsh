@@ -131,19 +131,19 @@ groupjoin_length (view -> (xs, ys)) =
 liftsemijoin :: Q ([Integer], [Integer]) -> Q [[Integer]]
 liftsemijoin (view -> (xs, ys)) =
     [ [ x | x <- g, x `elem` ys ]
-    | g <- groupWith (`mod` 10) xs
+    | g <- groupWith (`rem` 10) xs
     ]
 
 liftantijoin :: Q ([Integer], [Integer]) -> Q [[Integer]]
 liftantijoin (view -> (xs, ys)) =
     [ [ x | x <- g, x `notElem` ys ]
-    | g <- groupWith (`mod` 10) xs
+    | g <- groupWith (`rem` 10) xs
     ]
 
 liftthetajoin :: Q ([Integer], [Integer]) -> Q [[(Integer, Integer)]]
 liftthetajoin (view -> (xs, ys)) =
     [ [ pair x y | x <- g, y <- ys, x < y ]
-    | g <- groupWith (`mod` 10) xs
+    | g <- groupWith (`rem` 10) xs
     ]
 
 --------------------------------------------------------------
@@ -210,7 +210,7 @@ antijoin_class15 :: Q [Integer]
 antijoin_class15 =
     let xs = toQ ([3,4,5,6,7,8] :: [Integer])
         ys = toQ ([4,5,8,16] :: [Integer])
-    in [ x | x <- xs, and [ y `mod` 4 == 0 | y <- ys, x < y ]]
+    in [ x | x <- xs, and [ y `rem` 4 == 0 | y <- ys, x < y ]]
 
 antijoin_class16 :: Q [Integer]
 antijoin_class16 =
@@ -354,7 +354,7 @@ aj_class15 :: Q ([Integer], [Integer]) -> Q [Integer]
 aj_class15 (view -> (xs, ys)) =
   [ x
   | x <- xs
-  , and [ y `mod` 4 == 0 | y <- ys, x < y ]
+  , and [ y `rem` 4 == 0 | y <- ys, x < y ]
   ]
 
 aj_class16 :: Q ([Integer], [Integer]) -> Q [Integer]

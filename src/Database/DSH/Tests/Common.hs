@@ -5,7 +5,6 @@
 -- | Helpers for the construction of DSH test cases.
 module Database.DSH.Tests.Common
     ( makePropEq
-    , makePropNotNull
     , makePropDouble
     , makePropDoubles
     , makeEqAssertion
@@ -66,16 +65,6 @@ makePropEq :: (Eq b, Q.QA a, Q.QA b, Show a, Show b, Backend c)
            -> c
            -> Property
 makePropEq f1 f2 arg conn = makeProp (==) f1 f2 arg conn
-
--- | Compare query result and native result by equality for a list
--- test input that must not be empty.
-makePropNotNull ::  (Eq b, Q.QA a, Q.QA b, Show a, Show b, Backend c)
-                => (Q.Q [a] -> Q.Q b)
-                -> ([a] -> b)
-                -> [a]
-                -> c
-                -> Property
-makePropNotNull q f arg conn = not (null arg) ==> makePropEq q f arg conn
 
 -- | Compare the double query result and native result.
 makePropDouble :: (Q.QA a, Show a, Backend c)

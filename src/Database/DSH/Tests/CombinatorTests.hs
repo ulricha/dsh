@@ -394,8 +394,8 @@ prop_text t conn = Text.all isPrint t ==> makePropEq id id t conn
 prop_day :: Backend c => C.Day -> c -> Property
 prop_day d conn = makePropEq id id d conn
 
-prop_decimal :: Backend c => (Word8, Integer) -> c -> Property
-prop_decimal (p, m) conn = p > 0 ==> makePropEq id id (D.Decimal p m) conn
+prop_decimal :: Backend c => (Positive Word8, Integer) -> c -> Property
+prop_decimal (p, m) conn = makePropEq id id (D.Decimal (getPositive p) m) conn
 
 prop_list_integer_1 :: Backend c => [Integer] -> c -> Property
 prop_list_integer_1 = makePropEq id id
@@ -522,9 +522,6 @@ prop_map_cond_tuples = makePropEq (Q.map (\b -> Q.cond b
 
 prop_concatmapcond :: Backend c => [Integer] -> c -> Property
 prop_concatmapcond l1 conn =
-        -- FIXME remove precondition as soon as X100 is fixed
-    (not $ null l1)
-    ==>
     makePropEq q n l1 conn
         where q l = Q.concatMap (\x -> Q.cond ((Q.>) x (Q.toQ 0)) (x Q.<| el) el) l
               n l = concatMap (\x -> if x > 0 then [x] else []) l
@@ -580,8 +577,8 @@ prop_isJust = makePropEq Q.isJust isJust
 prop_isNothing :: Backend c => Maybe Integer -> c -> Property
 prop_isNothing = makePropEq Q.isNothing isNothing
 
-prop_fromJust :: Backend c => Maybe Integer -> c -> Property
-prop_fromJust mi conn = isJust mi ==> makePropEq Q.fromJust fromJust mi conn
+prop_fromJust :: Backend c => Integer -> c -> Property
+prop_fromJust i conn = makePropEq Q.fromJust fromJust (Just i) conn
 
 prop_fromMaybe :: Backend c => (Integer,Maybe Integer) -> c -> Property
 prop_fromMaybe = makePropEq (uncurryQ Q.fromMaybe) (uncurry fromMaybe)
@@ -642,94 +639,85 @@ prop_map_snoc = makePropEq (\z -> Q.map ((Q.fst z) Q.|>) (Q.snd z)) (\(a,b) -> m
 prop_singleton :: Backend c => Integer -> c -> Property
 prop_singleton = makePropEq Q.singleton (: [])
 
-prop_head :: Backend c => [Integer] -> c -> Property
-prop_head = makePropNotNull Q.head head
+prop_head :: Backend c => NonEmptyList Integer -> c -> Property
+prop_head (NonEmpty is) = makePropEq Q.head head is
 
-prop_tail :: Backend c => [Integer] -> c -> Property
-prop_tail = makePropNotNull Q.tail tail
+prop_tail :: Backend c => NonEmptyList Integer -> c -> Property
+prop_tail (NonEmpty is) = makePropEq Q.tail tail is
 
-prop_last :: Backend c => [Integer] -> c -> Property
-prop_last = makePropNotNull Q.last last
+prop_last :: Backend c => NonEmptyList Integer -> c -> Property
+prop_last (NonEmpty is) = makePropEq Q.last last is
 
-prop_map_last :: Backend c => [[Integer]] -> c -> Property
-prop_map_last ps conn =
-    and (map ((>0) . length) ps)
-    ==>
-    makePropEq (Q.map Q.last) (map last) ps conn
+prop_map_last :: Backend c => [NonEmptyList Integer] -> c -> Property
+prop_map_last ps =
+    makePropEq (Q.map Q.last) (map last) (map getNonEmpty ps)
 
-prop_init :: Backend c => [Integer] -> c -> Property
-prop_init = makePropNotNull Q.init init
+prop_init :: Backend c => NonEmptyList Integer -> c -> Property
+prop_init (NonEmpty is) = makePropEq Q.init init is
 
-prop_map_init  :: Backend c => [[Integer]] -> c -> Property
-prop_map_init ps conn =
-    and (map ((>0) . length) ps)
-    ==>
-    makePropEq (Q.map Q.init) (map init) ps conn
+prop_map_init  :: Backend c => [NonEmptyList Integer] -> c -> Property
+prop_map_init ps =
+    makePropEq (Q.map Q.init) (map init) (map getNonEmpty ps)
 
-prop_the   :: Backend c => (Int, Integer) -> c -> Property
+prop_the   :: Backend c => (Positive Int, Integer) -> c -> Property
 prop_the (n, i) conn =
-    n > 0
-    ==>
-    let l = replicate n i in makePropEq Q.head the l conn
+    let l = replicate (getPositive n) i
+    in makePropEq Q.head the l conn
 
-prop_map_the :: Backend c => [(Int, Integer)] -> c -> Property
+prop_map_the :: Backend c => [(Positive Int, Integer)] -> c -> Property
 prop_map_the ps conn =
-    let ps' = filter ((>0) . fst) ps in (length ps') > 0
-    ==>
-    let xss = map (\(n, i) -> replicate n i) ps'
+    let xss = map (\(Positive n, i) -> replicate n i) ps
     in makePropEq (Q.map Q.head) (map the) xss conn
 
-prop_map_tail :: Backend c => [[Integer]] -> c -> Property
+prop_map_tail :: Backend c => [NonEmptyList Integer] -> c -> Property
 prop_map_tail ps conn =
-    and [length p > 0 | p <- ps]
-    ==>
-    makePropEq (Q.map Q.tail) (map tail) ps conn
+    makePropEq (Q.map Q.tail) (map tail) (map getNonEmpty ps) conn
 
-prop_index :: Backend c => ([Integer], Integer)  -> c -> Property
-prop_index (l, i) conn =
-    i > 0 && i < fromIntegral (length l)
+prop_index :: Backend c => ([Integer], NonNegative Integer)  -> c -> Property
+prop_index (l, NonNegative i) conn =
+    i < fromIntegral (length l)
     ==>
     makePropEq (uncurryQ (Q.!!))
                (\(a,b) -> a !! fromIntegral b)
                (l, i)
                conn
 
-prop_index_pair :: Backend c => ([(Integer, [Integer])], Integer) -> c -> Property
-prop_index_pair (l, i) conn =
-    i > 0 && i < fromIntegral (length l)
+prop_index_pair :: Backend c => ([(Integer, [Integer])], NonNegative Integer) -> c -> Property
+prop_index_pair (l, NonNegative i) conn =
+    i < fromIntegral (length l)
     ==>
     makePropEq (uncurryQ (Q.!!))
                (\(a,b) -> a !! fromIntegral b)
                (l, i)
                conn
 
-prop_index_nest :: Backend c => ([[Integer]], Integer)  -> c -> Property
-prop_index_nest (l, i) conn =
-    i > 0 && i < fromIntegral (length l)
+prop_index_nest :: Backend c => ([[Integer]], NonNegative Integer)  -> c -> Property
+prop_index_nest (l, NonNegative i) conn =
+    i < fromIntegral (length l)
     ==>
     makePropEq (uncurryQ (Q.!!))
                (\(a,b) -> a !! fromIntegral b)
                (l, i)
                conn
 
-prop_map_index :: Backend c => ([Integer], [Integer])  -> c -> Property
+prop_map_index :: Backend c => ([Integer], [NonNegative Integer])  -> c -> Property
 prop_map_index (l, is) conn =
-    and [i >= 0 && i < 2 * fromIntegral (length l) | i <-  is]
+    and [i < 3 * fromIntegral (length l) | NonNegative i <-  is]
     ==>
     makePropEq (\z -> Q.map (((Q.fst z) Q.++ (Q.fst z) Q.++ (Q.fst z)) Q.!!)
                             (Q.snd z))
                (\(a,b) -> map ((a ++ a ++ a) !!)
                               (map fromIntegral b))
-               (l, is)
+               (l, map getNonNegative is)
                conn
 
-prop_map_index_nest :: Backend c => ([[Integer]], [Integer])  -> c -> Property
+prop_map_index_nest :: Backend c => ([[Integer]], [NonNegative Integer])  -> c -> Property
 prop_map_index_nest (l, is) conn =
-    and [i >= 0 && i < 3 * fromIntegral (length l) | i <-  is]
+    and [i < 3 * fromIntegral (length l) | NonNegative i <-  is]
     ==> makePropEq (\z -> Q.map (((Q.fst z) Q.++ (Q.fst z) Q.++ (Q.fst z)) Q.!!)
                                 (Q.snd z))
                    (\(a,b) -> map ((a ++ a ++ a) !!) (map fromIntegral b))
-                   (l, is)
+                   (l, map getNonNegative is)
                    conn
 
 prop_take :: Backend c => (Integer, [Integer]) -> c -> Property
@@ -868,29 +856,33 @@ prop_length_tuple = makePropEq Q.length (fromIntegral . length)
 prop_map_length :: Backend c => [[Integer]] -> c -> Property
 prop_map_length = makePropEq (Q.map Q.length) (map (fromIntegral . length))
 
-prop_map_minimum :: Backend c => [[Integer]] -> c -> Property
+prop_map_minimum :: Backend c => [NonEmptyList Integer] -> c -> Property
 prop_map_minimum ps conn =
-    and (map (\p -> length p > 0) ps)
-    ==>
-    makePropEq (Q.map Q.minimum) (map (fromIntegral . minimum)) ps conn
+    makePropEq (Q.map Q.minimum)
+               (map (fromIntegral . minimum))
+               (map getNonEmpty ps)
+               conn
 
-prop_map_maximum :: Backend c => [[Integer]] -> c -> Property
+prop_map_maximum :: Backend c => [NonEmptyList Integer] -> c -> Property
 prop_map_maximum ps conn =
-    and (map (\p -> length p > 0) ps)
-    ==>
-    makePropEq (Q.map Q.maximum) (map (fromIntegral . maximum)) ps conn
+    makePropEq (Q.map Q.maximum)
+               (map (fromIntegral . maximum))
+               (map getNonEmpty ps)
+               conn
 
-prop_map_map_minimum :: Backend c => [[[Integer]]] -> c -> Property
+prop_map_map_minimum :: Backend c => [[NonEmptyList Integer]] -> c -> Property
 prop_map_map_minimum ps conn =
-    and (map (and . map (\p -> length p > 0)) ps)
-    ==>
-    makePropEq (Q.map (Q.map Q.minimum)) (map (map(fromIntegral . minimum))) ps conn
+    makePropEq (Q.map (Q.map Q.minimum))
+               (map (map(fromIntegral . minimum)))
+               (map (map getNonEmpty) ps)
+               conn
 
-prop_map_map_maximum :: Backend c => [[[Integer]]] -> c -> Property
+prop_map_map_maximum :: Backend c => [[NonEmptyList Integer]] -> c -> Property
 prop_map_map_maximum ps conn =
-    and (map (and . map (\p -> length p > 0)) ps)
-    ==>
-    makePropEq (Q.map (Q.map Q.maximum)) (map (map(fromIntegral . maximum))) ps conn
+    makePropEq (Q.map (Q.map Q.maximum))
+               (map (map(fromIntegral . maximum)))
+               (map (map getNonEmpty) ps)
+               conn
 
 
 prop_map_length_tuple :: Backend c => [[(Integer, Integer)]] -> c -> Property
@@ -944,19 +936,19 @@ prop_sum_integer = makePropEq Q.sum sum
 prop_map_sum :: Backend c => [[Integer]] -> c -> Property
 prop_map_sum = makePropEq (Q.map Q.sum) (map sum)
 
-prop_map_avg :: Backend c => [[Double]] -> c -> Property
-prop_map_avg is conn = (not $ any null is)
-                       ==>
-                       makePropDoubles (Q.map Q.avg) (map avgDouble) is conn
+prop_map_avg :: Backend c => [NonEmptyList Double] -> c -> Property
+prop_map_avg is conn =
+    makePropDoubles (Q.map Q.avg) (map avgDouble) (map getNonEmpty is) conn
 
 prop_map_map_sum :: Backend c => [[[Integer]]] -> c -> Property
 prop_map_map_sum = makePropEq (Q.map (Q.map Q.sum)) (map (map sum))
 
--- prop_map_map_avg :: Backend c => [[[Integer]]] -> c -> Property
+-- prop_map_map_avg :: Backend c => [[NonEmptyList Integer]] -> c -> Property
 -- prop_map_map_avg is conn =
---     (not $ any (any null) is)
---     ==>
---     makePropEq (Q.map (Q.map Q.avg)) (map (map avgInt)) is conn
+--     makePropEq (Q.map (Q.map Q.avg))
+--                (map (map avgInt))
+--                (map (map getNonEmpty) is)
+--                conn
 
 prop_sum_double :: Backend c => [Double] -> c -> Property
 prop_sum_double = makePropDouble Q.sum sum
@@ -964,8 +956,8 @@ prop_sum_double = makePropDouble Q.sum sum
 avgDouble :: [Double] -> Double
 avgDouble ds = sum ds / (fromIntegral $ length ds)
 
-prop_avg_double :: Backend c => [Double] -> c -> Property
-prop_avg_double ds conn = (not $ null ds) ==> makePropDouble Q.avg avgDouble ds conn
+prop_avg_double :: Backend c => NonEmptyList Double -> c -> Property
+prop_avg_double ds conn = makePropDouble Q.avg avgDouble (getNonEmpty ds) conn
 
 prop_concat :: Backend c => [[Integer]] -> c -> Property
 prop_concat = makePropEq Q.concat concat
@@ -976,11 +968,11 @@ prop_map_concat = makePropEq (Q.map Q.concat) (map concat)
 prop_concatMap :: Backend c => [Integer] -> c -> Property
 prop_concatMap = makePropEq (Q.concatMap Q.singleton) (concatMap (: []))
 
-prop_maximum :: Backend c => [Integer] -> c -> Property
-prop_maximum = makePropNotNull Q.maximum maximum
+prop_maximum :: Backend c => NonEmptyList Integer -> c -> Property
+prop_maximum (NonEmpty is) = makePropEq Q.maximum maximum is
 
-prop_minimum :: Backend c => [Integer] -> c -> Property
-prop_minimum = makePropNotNull Q.minimum minimum
+prop_minimum :: Backend c => NonEmptyList Integer -> c -> Property
+prop_minimum (NonEmpty is) = makePropEq Q.minimum minimum is
 
 prop_splitAt :: Backend c => (Integer, [Integer]) -> c -> Property
 prop_splitAt = makePropEq (uncurryQ Q.splitAt) (\(a,b) -> splitAt (fromIntegral a) b)
@@ -1126,10 +1118,8 @@ prop_mul_integer = makePropEq (uncurryQ (*)) (uncurry (*))
 prop_mul_double :: Backend c => (Double,Double) -> c -> Property
 prop_mul_double = makePropDouble (uncurryQ (*)) (uncurry (*))
 
-prop_div_double :: Backend c => (Double,Double) -> c -> Property
-prop_div_double (x,y) conn =
-    y /= 0
-    ==>
+prop_div_double :: Backend c => (Double,NonZero Double) -> c -> Property
+prop_div_double (x,NonZero y) conn =
     makePropDouble (uncurryQ (/)) (uncurry (/)) (x,y) conn
 
 prop_integer_to_double :: Backend c => Integer -> c -> Property
@@ -1172,11 +1162,11 @@ prop_trig_tan = makePropDouble Q.tan tan
 prop_exp :: Backend c => Double -> c -> Property
 prop_exp = makePropDouble Q.exp exp
 
-prop_log :: Backend c => Double -> c -> Property
-prop_log d conn = d > 0 ==> makePropDouble Q.log log d conn
+prop_log :: Backend c => Positive Double -> c -> Property
+prop_log (Positive d) conn = makePropDouble Q.log log d conn
 
-prop_sqrt :: Backend c => Double -> c -> Property
-prop_sqrt d conn = d > 0 ==> makePropDouble Q.sqrt sqrt d conn
+prop_sqrt :: Backend c => Positive Double -> c -> Property
+prop_sqrt (Positive d) conn = makePropDouble Q.sqrt sqrt d conn
 
 arc :: Double -> Bool
 arc d = d >= -1 && d <= 1
@@ -1250,15 +1240,13 @@ prop_map_trig_atan = makePropDoubles (Q.map Q.atan) (map atan)
 prop_map_exp :: Backend c => [Double] -> c -> Property
 prop_map_exp = makePropDoubles (Q.map Q.exp) (map exp)
 
-prop_map_log :: Backend c => [Double] -> c -> Property
-prop_map_log ds conn = all (> 0) ds
-                       ==>
-                       makePropDoubles (Q.map Q.log) (map log) ds conn
+prop_map_log :: Backend c => [Positive Double] -> c -> Property
+prop_map_log ds conn =
+    makePropDoubles (Q.map Q.log) (map log) (map getPositive ds) conn
 
-prop_map_sqrt :: Backend c => [Double] -> c -> Property
-prop_map_sqrt ds conn = all (> 0) ds
-                        ==>
-                        makePropDoubles (Q.map Q.sqrt) (map sqrt) ds conn
+prop_map_sqrt :: Backend c => [Positive Double] -> c -> Property
+prop_map_sqrt ds conn =
+    makePropDoubles (Q.map Q.sqrt) (map sqrt) (map getPositive ds) conn
 
 hnegative_sum :: Backend c => c -> Assertion
 hnegative_sum conn = makeEqAssertion "hnegative_sum" (Q.sum (Q.toQ xs)) (sum xs) conn

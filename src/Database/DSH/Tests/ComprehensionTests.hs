@@ -35,7 +35,7 @@ tests_comprehensions conn = testGroup "Comprehensions"
     , testProperty "eqjoin_nested_both" (\a -> prop_eqjoin_nested_both a conn)
     , testProperty "nestjoin" (\a -> prop_nestjoin a conn)
     , testProperty "nestjoin3" (\a -> prop_nestjoin3 a conn)
-    , testProperty "prop_groupjoin_length" (\a -> prop_groupjoin_length a conn)
+    , testProperty "groupjoin_length" (\a -> prop_groupjoin_length a conn)
     , testProperty "antijoin class12" (\a -> prop_aj_class12 a conn)
     , testProperty "antijoin class15" (\a -> prop_aj_class15 a conn)
     , testProperty "antijoin class16" (\a -> prop_aj_class16 a conn)
@@ -209,7 +209,7 @@ prop_aj_class15 = makePropEq C.aj_class15 aj_class15_native
   where
     aj_class15_native (ajxs, ajys) = [ x
                                      | x <- ajxs
-                                     , and [ y `mod` 4 == 0 | y <- ajys, x < y ]
+                                     , and [ y `rem` 4 == 0 | y <- ajys, x < y ]
                                      ]
 
 prop_aj_class16 :: Backend c => ([Integer], [Integer]) -> c -> Property
@@ -261,29 +261,38 @@ prop_backdep5 = makePropEq C.backdep5 backdep5
 --------------------------------------------------------------------------------
 -- Tests for lifted join operators
 
-prop_liftsemijoin :: Backend c => ([Integer], [Integer]) -> c -> Property
-prop_liftsemijoin = makePropEq C.liftsemijoin liftsemijoin
+prop_liftsemijoin :: Backend c => ([Positive Integer], [Integer]) -> c -> Property
+prop_liftsemijoin (xs, ys) = makePropEq C.liftsemijoin liftsemijoin (xs', ys)
   where
-    liftsemijoin (xs, ys) =
-        [ [ x | x <- g, x `elem` ys ]
-        | g <- groupWith (`mod` 10) xs
-        ]
+    xs' = map getPositive xs
 
-prop_liftantijoin :: Backend c => ([Integer], [Integer]) -> c -> Property
-prop_liftantijoin = makePropEq C.liftantijoin liftantijoin
-  where
-    liftantijoin (xs, ys) =
-        [ [ x | x <- g, x `notElem` ys ]
-        | g <- groupWith (`mod` 10) xs
-        ]
+liftsemijoin :: ([Integer], [Integer]) -> [[Integer]]
+liftsemijoin (xs, ys) =
+    [ [ x | x <- g, x `elem` ys ]
+    | g <- groupWith (`rem` 10) xs
+    ]
 
-prop_liftthetajoin :: Backend c => ([Integer], [Integer]) -> c -> Property
-prop_liftthetajoin = makePropEq C.liftthetajoin liftthetajoin
+prop_liftantijoin :: Backend c => ([Positive Integer], [Integer]) -> c -> Property
+prop_liftantijoin (xs, ys) = makePropEq C.liftantijoin liftantijoin (xs', ys)
   where
-    liftthetajoin (xs, ys) =
-        [ [ (x, y) | x <- g, y <- ys, x < y ]
-        | g <- groupWith (`mod` 10) xs
-        ]
+    xs' = map getPositive xs
+
+liftantijoin :: ([Integer], [Integer]) -> [[Integer]]
+liftantijoin (xs, ys) =
+    [ [ x | x <- g, x `notElem` ys ]
+    | g <- groupWith (`rem` 10) xs
+    ]
+
+prop_liftthetajoin :: Backend c => ([Positive Integer], [Integer]) -> c -> Property
+prop_liftthetajoin (xs, ys) = makePropEq C.liftthetajoin liftthetajoin (xs', ys)
+  where
+    xs' = map getPositive xs
+
+liftthetajoin :: ([Integer], [Integer]) -> [[(Integer, Integer)]]
+liftthetajoin (xs, ys) =
+    [ [ (x, y) | x <- g, y <- ys, x < y ]
+    | g <- groupWith (`rem` 10) xs
+    ]
 
 -----------------------------------------------------------------------
 -- HUnit tests for comprehensions
@@ -578,10 +587,13 @@ prop_deep_iter = makePropEq C.deep_iter deep_iter_native
 
 -- | Test non-lifted tuple construction with a singleton extracted
 -- from a nested list.
-prop_only_tuple :: Backend c => (Integer, [Integer], [Integer]) -> c -> Property
-prop_only_tuple (x, ys, zs) = not (empty ys)
-                              ==>
-                              makePropEq C.only_tuple only_tuple_native
-  where
-    only_tuple_native (x, ys, zs) =
-        pair x (head [ (y, [ z | z <- zs, x == y ])  | y <- ys ])
+prop_only_tuple :: Backend c
+                => (Integer, NonEmptyList Integer, [Integer])
+                -> c
+                -> Property
+prop_only_tuple (x, ys, zs) c =
+    makePropEq C.only_tuple only_tuple (x, getNonEmpty ys, zs) c
+
+only_tuple :: (Integer, [Integer], [Integer]) -> (Integer, (Integer, [Integer]))
+only_tuple (x, ys, zs) =
+    pair x (head [ (y, [ z | z <- zs, x == y ])  | y <- ys ])
