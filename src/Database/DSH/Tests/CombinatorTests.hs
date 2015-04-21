@@ -27,9 +27,9 @@ import qualified Data.Time.Calendar                   as C
 import qualified Data.Decimal                         as D
 import           Data.Word
 
-import           Data.Char
+
 import           Data.Text                            (Text)
-import qualified Data.Text                            as Text
+
 
 import           Data.Either
 import           Data.List
@@ -386,10 +386,10 @@ prop_double :: Backend c => Double -> c -> Property
 prop_double = makePropDouble id id
 
 prop_char :: Backend c => Char -> c -> Property
-prop_char c conn = isPrint c ==> makePropEq id id c conn
+prop_char c conn = c /= '\0' ==> makePropEq id id c conn
 
 prop_text :: Backend c => Text -> c -> Property
-prop_text t conn = Text.all isPrint t ==> makePropEq id id t conn
+prop_text t conn = makePropEq id id (filterNullChar t) conn
 
 prop_day :: Backend c => C.Day -> c -> Property
 prop_day d conn = makePropEq id id d conn
@@ -1028,10 +1028,19 @@ prop_zip_nested :: Backend c => ([Integer], [(Integer, [Integer])]) -> c -> Prop
 prop_zip_nested = makePropEq (uncurryQ Q.zip) (uncurry zip)
 
 prop_zip_tuple1 :: Backend c => ([Integer], [(Text, Double)]) -> c -> Property
-prop_zip_tuple1 = makePropEq (uncurryQ Q.zip) (uncurry zip)
+prop_zip_tuple1 (xs, tds) =
+    makePropEq (uncurryQ Q.zip) (uncurry zip) (xs, tds')
+  where
+    tds' = map (\(t, d) -> (filterNullChar t, d)) tds
 
-prop_zip_tuple2 :: Backend c => ([(Integer, Integer)], [(Text, Double)]) -> c -> Property
-prop_zip_tuple2 = makePropEq (uncurryQ Q.zip) (uncurry zip)
+prop_zip_tuple2 :: Backend c
+                => ([(Integer, Integer)], [(Text, Double)])
+                -> c
+                -> Property
+prop_zip_tuple2 (xs, tds) =
+    makePropEq (uncurryQ Q.zip) (uncurry zip) (xs, tds')
+  where
+    tds' = map (\(t, d) -> (filterNullChar t, d)) tds
 
 prop_map_zip :: Backend c => ([Integer], [[Integer]]) -> c -> Property
 prop_map_zip = makePropEq (\z -> Q.map (Q.zip $ Q.fst z) $ Q.snd z) (\(x, y) -> map (zip x) y)

@@ -10,6 +10,7 @@ module Database.DSH.Tests.Common
     , makeEqAssertion
     , testPropertyConn
     , uncurryQ
+    , filterNullChar
     ) where
 
 import qualified Data.Text                            as T
@@ -38,6 +39,9 @@ instance Arbitrary D.Decimal where
 
 uncurryQ :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
 uncurryQ f = uncurry f . Q.view
+
+filterNullChar :: T.Text -> T.Text
+filterNullChar = T.filter (/= '\0')
 
 eps :: Double
 eps = 1.0E-4
