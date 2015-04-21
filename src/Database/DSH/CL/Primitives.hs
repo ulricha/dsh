@@ -1,18 +1,19 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Smart constructors for CL primitives
 module Database.DSH.CL.Primitives where
 
-import qualified Prelude                        as P
+import qualified Prelude                    as P
 
-import qualified Data.List                      as List
-import qualified Data.Time.Calendar             as C
-import           Text.Printf
 import           Data.Decimal
+import qualified Data.List                  as List
+import qualified Data.Text                  as T
+import qualified Data.Time.Calendar         as C
+import           Text.Printf
 
 import           Database.DSH.CL.Lang
-import qualified Database.DSH.Common.Lang       as L
+import qualified Database.DSH.Common.Lang   as L
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
 
@@ -222,7 +223,7 @@ int i = Lit PIntT (L.ScalarV (L.IntV i))
 bool :: P.Bool -> Expr
 bool b = Lit PBoolT (L.ScalarV (L.BoolV b))
 
-string :: P.String -> Expr
+string :: T.Text -> Expr
 string s = Lit PStringT (L.ScalarV (L.StringV s))
 
 double :: P.Double -> Expr

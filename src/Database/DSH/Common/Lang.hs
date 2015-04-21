@@ -9,6 +9,7 @@ import           Data.Aeson
 import           Data.Aeson.TH
 import           Data.Decimal
 import qualified Data.List.NonEmpty           as N
+import qualified Data.Text                    as T
 import qualified Data.Time.Calendar           as C
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import           Text.Printf
@@ -45,7 +46,7 @@ instance ToJSON C.Day where
 
 data ScalarVal = IntV      Int
                | BoolV     Bool
-               | StringV   String
+               | StringV   T.Text
                | DoubleV   Double
                | DecimalV  Decimal
                | DateV     C.Day
@@ -249,7 +250,7 @@ instance Pretty Val where
 instance Pretty ScalarVal where
     pretty (IntV i)      = int i
     pretty (BoolV b)     = bool b
-    pretty (StringV s)   = dquotes $ string s
+    pretty (StringV t)   = dquotes $ string $ T.unpack t
     pretty (DoubleV d)   = double d
     pretty (DecimalV d)  = text $ show d
     pretty UnitV         = text "()"

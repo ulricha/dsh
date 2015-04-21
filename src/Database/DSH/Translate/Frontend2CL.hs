@@ -12,14 +12,14 @@ module Database.DSH.Translate.Frontend2CL
 import           Control.Monad.State
 import           Data.List.NonEmpty               (NonEmpty((:|)))
 import qualified Data.List.NonEmpty               as N
-import           Data.Text                        (unpack)
+import qualified Data.Text                        as T
 import           Text.Printf
 
 import qualified Database.DSH.CL.Lang             as CL
 import qualified Database.DSH.CL.Primitives       as CP
 import           Database.DSH.Common.Impossible
 import qualified Database.DSH.Common.Lang         as L
-import qualified Database.DSH.Common.Type         as T
+import qualified Database.DSH.Common.Type         as Ty
 import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Frontend.TupleTypes
@@ -65,10 +65,10 @@ translate (TupleConstE tc) = let translateTupleConst = $(mkTranslateTupleTerm 16
                              in translateTupleConst tc
 translate UnitE = return $ CP.unit
 translate (BoolE b) = return $ CP.bool b
-translate (CharE c) = return $ CP.string [c]
+translate (CharE c) = return $ CP.string $ T.singleton c
 translate (IntegerE i) = return $ CP.int (fromInteger i)
 translate (DoubleE d) = return $ CP.double d
-translate (TextE t) = return $ CP.string (unpack t)
+translate (TextE t) = return $ CP.string t
 translate (DecimalE d) = return $ CP.decimal d
 translate (DayE d) = return $ CP.day d
 translate (VarE i) = do
@@ -93,7 +93,7 @@ translate (TableE (TableDB tableName colNames hints)) = do
 
 translate (AppE f args) = translateApp f args
 
-schema :: String -> N.NonEmpty L.ColName -> T.Type -> TableHints -> L.BaseTableSchema
+schema :: String -> N.NonEmpty L.ColName -> Ty.Type -> TableHints -> L.BaseTableSchema
 schema tableName cols ty hints =
     L.BaseTableSchema { L.tableCols     = colTys
                       , L.tableKeys     = keys (keysHint hints)
@@ -101,12 +101,12 @@ schema tableName cols ty hints =
                       }
   where
     colTys :: NonEmpty L.Column
-    colTys = case T.elemT ty of
-        T.TupleT ts@(_:_) | length ts == N.length cols ->
-            case mapM T.scalarType ts of
+    colTys = case Ty.elemT ty of
+        Ty.TupleT ts@(_:_) | length ts == N.length cols ->
+            case mapM Ty.scalarType ts of
                 Just (st : sts) -> N.zip cols (st :| sts)
                 _               -> error errMsgScalar
-        (T.ScalarT st)      | N.length cols == 1       ->
+        (Ty.ScalarT st)      | N.length cols == 1       ->
             N.zip cols (st :| [])
         _                                              ->
             error errMsgLen
@@ -142,16 +142,16 @@ translateApp1 :: (CL.Expr -> CL.Expr) -> Exp a -> Compile CL.Expr
 translateApp1 f e = f <$> translate e
 
 -- | Translate DSH frontend types into backend types.
-translateType :: Type a -> T.Type
-translateType UnitT          = T.PUnitT
-translateType BoolT          = T.PBoolT
-translateType CharT          = T.PStringT
-translateType IntegerT       = T.PIntT
-translateType DoubleT        = T.PDoubleT
-translateType DecimalT       = T.PDecimalT
-translateType TextT          = T.PStringT
-translateType DayT           = T.PDateT
-translateType (ListT t)      = T.ListT (translateType t)
+translateType :: Type a -> Ty.Type
+translateType UnitT          = Ty.PUnitT
+translateType BoolT          = Ty.PBoolT
+translateType CharT          = Ty.PStringT
+translateType IntegerT       = Ty.PIntT
+translateType DoubleT        = Ty.PDoubleT
+translateType DecimalT       = Ty.PDecimalT
+translateType TextT          = Ty.PStringT
+translateType DayT           = Ty.PDateT
+translateType (ListT t)      = Ty.ListT (translateType t)
 translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)
                                in translateTupleType tupTy
 translateType (ArrowT _ _)   = $impossible
@@ -200,7 +200,7 @@ translateApp f args =
                    (boundName, sortExp) <- lamBody lam
                    sortExp'             <- translate sortExp
 
-                   let boundVar = CL.Var (T.elemT $ T.typeOf xs') boundName
+                   let boundVar = CL.Var (Ty.elemT $ Ty.typeOf xs') boundName
 
                    return $ CP.sort $ CP.singleGenComp (CP.pair boundVar sortExp') boundName xs'
                _ -> $impossible
@@ -212,7 +212,7 @@ translateApp f args =
                    xs'                 <- translate xs
                    (boundVar, bodyExp) <- lamBody lam
                    bodyExp'            <- translate bodyExp
-                   let xt    = T.typeOf xs'
+                   let xt    = Ty.typeOf xs'
                        quals = CL.BindQ boundVar xs' CL.:* (CL.S $ CL.GuardQ bodyExp')
                    return $ CL.Comp xt (CL.Var xt boundVar) quals
                _ -> $impossible
@@ -226,7 +226,7 @@ translateApp f args =
                    (boundName, groupExp) <- lamBody lam
                    groupExp'             <- translate groupExp
 
-                   let boundVar = CL.Var (T.elemT $ T.typeOf xs') boundName
+                   let boundVar = CL.Var (Ty.elemT $ Ty.typeOf xs') boundName
 
                    return $ CP.group $ CP.singleGenComp (CP.pair boundVar groupExp') boundName xs'
 
