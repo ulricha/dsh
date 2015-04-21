@@ -40,8 +40,7 @@ redundantRules = [ pullProjectAppKey
                  ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
-redundantRulesBottomUp = [ cartProdConstant
-                         , sameInputAlign
+redundantRulesBottomUp = [ sameInputAlign
                          , sameInputZip
                          -- , sameInputZipProject
                          -- , sameInputZipProjectLeft
@@ -89,26 +88,6 @@ redundantRulesAllProps = [ unreferencedDistLift
 
 --------------------------------------------------------------------------------
 --
-
--- | Replace a 'CartProduct' operator with a projection if its right
--- input is constant and has cardinality one.
-cartProdConstant :: VLRule BottomUpProps
-cartProdConstant q =
-  $(dagPatMatch 'q "R1 ((q1) CartProduct (q2))"
-    [| do
-        qvProps <- properties $(v "q2")
-
-        VProp True            <- return $ card1Prop qvProps
-        VProp (ConstVec cols) <- return $ constProp qvProps
-        constProjs            <- mapM (constVal Constant) cols
-
-        -- Preserve columns from the left input
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-        let proj = map Column [1..w1] ++ constProjs
-
-        return $ do
-          logRewrite "Redundant.CartProduct.Constant" q
-          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
 unwrapConstVal :: ConstPayload -> VLMatch p ScalarVal
 unwrapConstVal (ConstPL val) = return val
