@@ -139,7 +139,7 @@ inferConstVecUnOp c op =
 
     Segment -> do
       constCols <- unp c >>= fromDBV
-      return $ VProp $ ConstVec constCols
+      return $ VPropPair (ConstVec []) (ConstVec constCols)
 
     Reverse -> do
       cs <- unp c >>= fromDBV

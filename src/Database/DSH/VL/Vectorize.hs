@@ -514,9 +514,8 @@ singleton (SShape q1 lyt) = return $ VShape q1 lyt
 
 singletonL :: Shape VLDVec -> Build VL (Shape VLDVec)
 singletonL (VShape q lyt) = do
-    innerVec <- vlSegment q
-    outerVec <- vlProject [] q
-    return $ VShape outerVec (LNest innerVec lyt)
+    (dvo, dvi) <- vlSegment q
+    return $ VShape dvo (LNest dvi lyt)
 singletonL _ = $impossible
 
 --------------------------------------------------------------------------------

@@ -141,7 +141,9 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
 
         UnboxKey -> none ∪ childReqColumns
 
-        Segment    -> ownReqColumns ∪ childReqColumns
+        Segment    -> do
+            cols <- snd <$> fromPropPair ownReqColumns
+            VProp cols ∪ childReqColumns
 
         -- Numbering operators add one column at the end. We have to
         -- determine the column index of the new column and remove it

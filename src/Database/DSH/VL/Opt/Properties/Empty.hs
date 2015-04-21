@@ -34,7 +34,7 @@ inferEmptyUnOp e op =
     UniqueS          -> Right e
     Aggr _           -> Right $ VProp False
     UnboxKey         -> Right e
-    Segment          -> Right e
+    Segment          -> let ue = unp e in liftM2 VPropPair ue ue
     Reverse          -> let ue = unp e in liftM2 VPropPair ue ue
     ReverseS         -> let ue = unp e in liftM2 VPropPair ue ue
     Project _        -> Right e
