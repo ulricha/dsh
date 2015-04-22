@@ -44,7 +44,7 @@ filterNullChar :: T.Text -> T.Text
 filterNullChar = T.filter (/= '\0')
 
 eps :: Double
-eps = 1.0E-4
+eps = 1.0E-3
 
 -- | A simple property that should hold for a DSH query: Given any
 -- input, its result should be the same as the corresponding native

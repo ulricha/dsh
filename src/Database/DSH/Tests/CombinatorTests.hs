@@ -1248,7 +1248,7 @@ prop_map_exp :: Backend c => [Double] -> c -> Property
 prop_map_exp = makePropDoubles (Q.map Q.exp) (map exp)
 
 prop_map_log :: Backend c => [Positive Double] -> c -> Property
-prop_map_log ds conn =
+prop_map_log ds conn = noShrinking $
     makePropDoubles (Q.map Q.log) (map log) (map getPositive ds) conn
 
 prop_map_sqrt :: Backend c => [Positive Double] -> c -> Property
