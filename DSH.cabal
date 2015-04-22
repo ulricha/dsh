@@ -193,6 +193,7 @@ Library
 
                      Database.DSH.Tests.Common
                      Database.DSH.Tests.ComprehensionTests
+                     Database.DSH.Tests.LawTests
                      Database.DSH.Tests.CombinatorTests
                      Database.DSH.Tests.DSHComprehensions
 
