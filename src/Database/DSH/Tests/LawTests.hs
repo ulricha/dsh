@@ -42,9 +42,8 @@ prop_reverse_sort (Ordered xs) conn = monadicIO $ do
     res <- run $ runQ conn q
     assert $ res == xs
 
-prop_reverse_sort_tuple :: Backend c => OrderedList (T.Text, Integer) -> c -> Property
+prop_reverse_sort_tuple :: Backend c => OrderedList (Integer, Integer) -> c -> Property
 prop_reverse_sort_tuple (Ordered xs) conn = monadicIO $ do
-    let xs' = map (\(t, i) -> (filterNullChar t, i)) xs
-    let q = Q.sortWith id $ Q.reverse (Q.toQ xs')
+    let q = Q.sortWith id $ Q.reverse (Q.toQ xs)
     res <- run $ runQ conn q
-    assert $ res == xs'
+    assert $ res == xs
