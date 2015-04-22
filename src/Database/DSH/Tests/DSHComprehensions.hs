@@ -125,6 +125,10 @@ groupjoin_length :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
 groupjoin_length (view -> (xs, ys)) =
     [ tup2 x (length [ y | y <- ys, x == y ]) | x <- xs ]
 
+groupjoin_sum :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
+groupjoin_sum (view -> (xs, ys)) =
+    [ tup2 x (sum [ 2 * y | y <- ys, x == y ]) | x <- xs ]
+
 --------------------------------------------------------------------------------
 -- Comprehensions for lifted join tests
 

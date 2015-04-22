@@ -2,7 +2,7 @@ module Database.DSH.Tests.LawTests
     ( tests_laws
     ) where
 
-import qualified Data.Text                 as T
+
 
 import           Test.Framework            (Test, testGroup)
 import           Test.QuickCheck
