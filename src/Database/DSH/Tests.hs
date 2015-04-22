@@ -15,6 +15,7 @@ import           Test.Framework
 import           Database.DSH.Backend
 import           Database.DSH.Tests.CombinatorTests
 import           Database.DSH.Tests.ComprehensionTests
+import           Database.DSH.Tests.LawTests
 
 -- | Convenience function for running tests
 runTests :: Backend c => c -> [c -> Test] -> IO ()
@@ -42,4 +43,5 @@ defaultTests =
     , tests_either
     , tests_lists
     , tests_lifted
+    , tests_laws
     ]

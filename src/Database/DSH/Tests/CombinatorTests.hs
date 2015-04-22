@@ -19,26 +19,24 @@ module Database.DSH.Tests.CombinatorTests
     , tests_combinators_hunit
     ) where
 
-import           Test.Framework                       (Test, testGroup)
-import           Test.Framework.Providers.HUnit
-import           Test.HUnit                           (Assertion)
-import           Test.QuickCheck
-import qualified Data.Time.Calendar                   as C
-import qualified Data.Decimal                         as D
-import           Data.Word
 
-
-import           Data.Text                            (Text)
-
-
+import qualified Data.Decimal                   as D
 import           Data.Either
 import           Data.List
 import           Data.Maybe
+import           Data.Text                      (Text)
+import qualified Data.Time.Calendar             as C
+import           Data.Word
 import           GHC.Exts
 
-import qualified Database.DSH                         as Q
-import           Database.DSH.Tests.Common
+import           Test.Framework                 (Test, testGroup)
+import           Test.Framework.Providers.HUnit
+import           Test.HUnit                     (Assertion)
+import           Test.QuickCheck
+
+import qualified Database.DSH                   as Q
 import           Database.DSH.Backend
+import           Database.DSH.Tests.Common
 
 {-
 data D0 = C01 deriving (Eq,Ord,Show)
