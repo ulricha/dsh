@@ -36,6 +36,7 @@ tests_comprehensions conn = testGroup "Comprehensions"
     , testProperty "nestjoin" (\a -> prop_nestjoin a conn)
     , testProperty "nestjoin3" (\a -> prop_nestjoin3 a conn)
     , testProperty "groupjoin_length" (\a -> prop_groupjoin_length a conn)
+    , testProperty "groupjoin_sum" (\a -> prop_groupjoin_sum a conn)
     , testProperty "antijoin class12" (\a -> prop_aj_class12 a conn)
     , testProperty "antijoin class15" (\a -> prop_aj_class15 a conn)
     , testProperty "antijoin class16" (\a -> prop_aj_class16 a conn)
@@ -195,6 +196,12 @@ prop_groupjoin_length = makePropEq C.groupjoin_length groupjoin_length_native
   where
     groupjoin_length_native (njxs, njys) =
         [ (x, fromIntegral $ length [ y | y <- njys, x == y ]) | x <- njxs ]
+
+prop_groupjoin_sum :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_groupjoin_sum = makePropEq C.groupjoin_sum groupjoin_sum_native
+  where
+    groupjoin_sum_native (njxs, njys) =
+        [ (x, fromIntegral $ sum [ 2 * y | y <- njys, x == y ]) | x <- njxs ]
 
 prop_aj_class12 :: Backend c => ([Integer], [Integer]) -> c -> Property
 prop_aj_class12 = makePropEq C.aj_class12 aj_class12_native
