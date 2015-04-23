@@ -71,7 +71,7 @@ redundantRulesBottomUp = [ sameInputAlign
                          -- , runningAggWin
                          , inlineWinAggrProject
                          , pullProjectNumber
-                         , constDistLift
+                         , constDist
                          , nestJoinChain
                          , pullProjectUnboxSngLeft
                          , pullProjectUnboxSngRight
@@ -93,12 +93,12 @@ unwrapConstVal :: ConstPayload -> VLMatch p ScalarVal
 unwrapConstVal (ConstPL val) = return val
 unwrapConstVal  NonConstPL   = fail "not a constant"
 
--- | If the left input of an distLift is constant, a normal projection
--- can be used because the DistLift operator keeps the shape of the right
--- input.
-constDistLift :: VLRule BottomUpProps
-constDistLift q =
-  $(dagPatMatch 'q "R1 ((q1) DistLift (q2))"
+-- | If the left input of a dist operator is constant, a normal projection
+-- can be used because the Dist* operators keeps the shape of the
+-- right input.
+constDist :: VLRule BottomUpProps
+constDist q =
+  $(dagPatMatch 'q "R1 ((q1) [DistLift | DistSng] (q2))"
     [| do
          VProp (ConstVec constCols) <- constProp <$> properties $(v "q1")
          VProp (VTDataVec w)        <- vectorTypeProp <$> properties $(v "q2")
@@ -262,6 +262,7 @@ alignedDistLift q =
                        ++
                        [w1+1..w1+w2]
             void $ replaceWithNew q $ UnOp (Project proj) $(v "qr1") |])
+
 
 --------------------------------------------------------------------------------
 -- Zip and Align rewrites.
