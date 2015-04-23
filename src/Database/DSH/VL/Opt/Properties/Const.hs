@@ -249,10 +249,10 @@ inferConstVecBinOp c1 c2 op =
       cols <- unp c2 >>= fromDBV
       return $ VPropPair (ConstVec cols) CNA
 
-    UnboxScalar -> do
+    UnboxSng -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
-      return $ VProp $ ConstVec (cols1 ++ cols2)
+      return $ VPropPair (ConstVec (cols1 ++ cols2)) CNA
 
     Append -> do
       cols1 <- unp c1 >>= fromDBV

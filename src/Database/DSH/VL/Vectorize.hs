@@ -296,7 +296,10 @@ concat (VShape _ (LNest q lyt)) = return $ VShape q lyt
 concat _e                       = $impossible
 
 onlyL :: Shape VLDVec -> Build VL (Shape VLDVec)
-onlyL (VShape qo (LNest qi lyti)) = VShape <$> vlUnboxScalar qo qi <*> pure lyti
+onlyL (VShape dvo (LNest dvi lyt)) = do
+    (dv, kv) <- vlUnboxSng dvo dvi
+    lyt'     <- rekeyOuter kv lyt
+    return $ VShape dv lyt'
 onlyL _                           = $impossible
 
 --------------------------------------------------------------------------------
@@ -449,7 +452,7 @@ concatL _ = $impossible
 lengthL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 lengthL (VShape q (LNest qi _)) = do
     ls  <- vlAggrS AggrCount q qi
-    lsu <- vlUnboxScalar q ls
+    lsu <- fst <$> vlUnboxSng q ls
     return $ VShape lsu LCol
 lengthL s = trace (show s) $ $impossible
 
@@ -460,7 +463,7 @@ outer (VShape q _)        = return q
 aggrL :: (Expr -> AggrFun) -> Shape VLDVec -> Build VL (Shape VLDVec)
 aggrL afun (VShape d (LNest q LCol)) = do
     qr <- vlAggrS (afun (Column 1)) d q
-    qu <- vlUnboxScalar d qr
+    qu <- fst <$> vlUnboxSng d qr
     return $ VShape qu LCol
 aggrL _ _ = $impossible
 

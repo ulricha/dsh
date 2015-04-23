@@ -327,8 +327,8 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
           (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
 
-      UnboxScalar -> do
-          cols1                       <- fromProp ownReqColumns
+      UnboxSng -> do
+          cols1                       <- fst <$> fromPropPair ownReqColumns
           (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
           (,) <$> (childReqColumns1 ∪ leftReqCols) <*> (childReqColumns2 ∪ rightReqCols)
 

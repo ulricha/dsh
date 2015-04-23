@@ -123,7 +123,7 @@ data BinOp = DistLift
            | AppFilter
            | AppRep
 
-           | UnboxScalar
+           | UnboxSng
            | Align
 
            | AggrS AggrFun

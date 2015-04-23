@@ -116,7 +116,7 @@ class VectorAlgebra a where
     -- | Apply a replication vector to a data vector
     vecAppRep    :: RVec a -> DVec a -> Build a (DVec a, RVec a)
 
-    vecUnboxScalar :: (DVec a) -> (DVec a) -> Build a (DVec a)
+    vecUnboxSng :: DVec a -> DVec a -> Build a (DVec a, KVec a)
 
     vecAppend :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
     vecAppendS :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)

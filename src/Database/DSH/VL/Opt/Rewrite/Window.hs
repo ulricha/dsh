@@ -34,7 +34,7 @@ aggrToWinFun AggrCount     = WinCount
 -- Turn a running aggregate based on a self-join into a window operator.
 runningAggWin :: VLRule BottomUpProps
 runningAggWin q =
-  $(dagPatMatch 'q "(qo) UnboxScalar ((_) AggrS afun (R1 ((qn=Number (q1)) NestJoin p (Number (q2)))))"
+  $(dagPatMatch 'q "(qo) UnboxSng ((_) AggrS afun (R1 ((qn=Number (q1)) NestJoin p (Number (q2)))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         predicate $ $(v "qo") == $(v "qn")

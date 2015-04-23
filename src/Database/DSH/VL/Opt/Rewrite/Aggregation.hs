@@ -37,7 +37,7 @@ groupingToAggregation =
                        , applyToAll noProps aggregationRules
                        ]
 
--- -- FIXME this rewrite will no longer work: take the UnboxScalarS
+-- -- FIXME this rewrite will no longer work: take the UnboxSngS
 -- -- operator into account.
 -- mergeNonEmptyAggrs :: VLRule ()
 -- mergeNonEmptyAggrs q =
@@ -110,7 +110,7 @@ inlineAggrSProject q =
 -- 2. The grouping criteria is a simple column projection from the input vector
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "(R1 (qg)) UnboxScalar ((_) AggrS afun (R2 (qg1=Group groupExprs (q1))))"
+  $(dagPatMatch 'q "R1 ((R1 (qg)) UnboxSng ((_) AggrS afun (R2 (qg1=Group groupExprs (q1)))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -220,7 +220,7 @@ mergeGroupWithGroupAggrRight q =
 -- into one groupjoin operator.
 groupJoin :: VLRule ()
 groupJoin q =
-  $(dagPatMatch 'q "(qo) UnboxScalar ((qo1) AggrS a (R1 ((qo2) NestJoin p (qi))))"
+  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((qo1) AggrS a (R1 ((qo2) NestJoin p (qi)))))"
     [| do
         predicate $ $(v "qo1") == $(v "qo")
         predicate $ $(v "qo2") == $(v "qo")

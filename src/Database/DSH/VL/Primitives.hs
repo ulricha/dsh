@@ -184,8 +184,8 @@ vlDistLift (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistLift c1 c2) dvec rvec
 vlDistSng :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
 vlDistSng (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistSng c1 c2) dvec rvec
 
-vlUnboxScalar :: VLDVec -> VLDVec -> Build VL VLDVec
-vlUnboxScalar (VLDVec c1) (VLDVec c2) = vec (BinOp UnboxScalar c1 c2) dvec
+vlUnboxSng :: VLDVec -> VLDVec -> Build VL (VLDVec, VLKVec)
+vlUnboxSng (VLDVec c1) (VLDVec c2) = pairVec (BinOp UnboxSng c1 c2) dvec kvec
 
 vlAppSort :: VLSVec -> VLDVec -> Build VL (VLDVec, VLSVec)
 vlAppSort (VLSVec c1) (VLDVec c2) = pairVec (BinOp AppSort c1 c2) dvec svec

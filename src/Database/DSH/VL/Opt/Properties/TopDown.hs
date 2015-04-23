@@ -69,7 +69,7 @@ seed (BinOp op _ _) =
         AppSort      -> vPropPairSeed
         AppFilter    -> vPropPairSeed
         AppRep       -> vPropPairSeed
-        UnboxScalar  -> vPropSeed
+        UnboxSng  -> vPropPairSeed
         AggrS _      -> vPropSeed
         Zip          -> vPropSeed
         Align        -> vPropSeed

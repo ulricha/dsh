@@ -15,7 +15,7 @@ import           Database.DSH.VL.Lang
 
 vectorWidth :: VectorProp VectorType -> Int
 vectorWidth (VProp (VTDataVec w))  = w
-vectorWidth _                        = error "vectorWidth: non-VTDataVec input"
+vectorWidth _                      = error "vectorWidth: non-VTDataVec input"
 
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
@@ -148,7 +148,7 @@ inferVectorTypeBinOp s1 s2 op =
     CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "CartProductS"
     NestProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestProductS"
     ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ThetaJoin"
-    UnboxScalar -> reqValVectors s1 s2 (\w1 w2 -> VProp $ VTDataVec $ w1 + w2) "UnboxScalar"
+    UnboxSng -> reqValVectors s1 s2 (\w1 w2 -> VPropPair (VTDataVec $ w1 + w2) VTNA) "UnboxSng"
     NestJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestJoin"
     NestProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestProduct"
     ThetaJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ThetaJoinS"

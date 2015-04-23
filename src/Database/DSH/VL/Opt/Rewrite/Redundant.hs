@@ -64,8 +64,8 @@ redundantRulesBottomUp = [ sameInputAlign
                          , alignWinLeft
                          , alignWinRight
                          , alignWinRightPush
-                         , alignUnboxScalarRight
-                         , alignUnboxScalarLeft
+                         , alignUnboxSngRight
+                         , alignUnboxSngLeft
                          , alignCartProdRight
                          , alignGroupJoin
                          -- , runningAggWin
@@ -73,8 +73,8 @@ redundantRulesBottomUp = [ sameInputAlign
                          , pullProjectNumber
                          , constDistLift
                          , nestJoinChain
-                         , pullProjectUnboxScalarLeft
-                         , pullProjectUnboxScalarRight
+                         , pullProjectUnboxSngLeft
+                         , pullProjectUnboxSngRight
                          , pullProjectNestJoinLeft
                          , pullProjectNestJoinRight
                          , selectCartProd
@@ -572,7 +572,7 @@ alignGroupJoin q =
 -- the vertical shape.
 unboxNumber :: VLRule Properties
 unboxNumber q =
-  $(dagPatMatch 'q "(Number (qo)) UnboxScalar (qi)"
+  $(dagPatMatch 'q "R1 ((Number (qo)) UnboxSng (qi))"
     [| do
         VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties q
         VProp (VTDataVec wo) <- vectorTypeProp <$> bu <$> properties $(v "qo")
@@ -587,19 +587,20 @@ unboxNumber q =
             let proj = map Column [1..wo]
                      ++ [Constant $ IntV 0xdeadbeef]
                      ++ map Column [wo+1..wi+wo]
-            unboxNode <- insert $ BinOp UnboxScalar $(v "qo") $(v "qi")
-            void $ replaceWithNew q $ UnOp (Project proj) unboxNode |])
+            unboxNode <- insert $ BinOp UnboxSng $(v "qo") $(v "qi")
+            r1Node    <- insert $ UnOp R1 unboxNode
+            void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
 -- | If singleton scalar elements in an inner vector (with singleton
 -- segments) are unboxed using an outer vector and then aligned with
 -- the same outer vector, we can eliminate the align, because the
--- positional alignment is implicitly performed by the UnboxScalar
--- operator. We exploit the fact that UnboxScalar is only a
+-- positional alignment is implicitly performed by the UnboxSng
+-- operator. We exploit the fact that UnboxSng is only a
 -- specialized join which nevertheless produces payload columns from
 -- both inputs.
-alignUnboxScalarRight :: VLRule BottomUpProps
-alignUnboxScalarRight q =
-  $(dagPatMatch 'q "(q11) Align (qu=(q12) UnboxScalar (q2))"
+alignUnboxSngRight :: VLRule BottomUpProps
+alignUnboxSngRight q =
+  $(dagPatMatch 'q "(q11) Align (qu=R1 ((q12) UnboxSng (q2)))"
      [| do
          predicate $ $(v "q11") == $(v "q12")
 
@@ -607,11 +608,11 @@ alignUnboxScalarRight q =
          rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
 
          return $ do
-             logRewrite "Redundant.Align.UnboxScalar.Right" q
+             logRewrite "Redundant.Align.UnboxSng.Right" q
 
 
              -- Keep the original schema intact by duplicating columns
-             -- from the left input (UnboxScalar produces columns from
+             -- from the left input (UnboxSng produces columns from
              -- its left and right inputs).
              let outputCols = -- Two times the left input columns
                               [1..leftWidth] ++ [1..leftWidth]
@@ -624,10 +625,10 @@ alignUnboxScalarRight q =
              -- intact.
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qu") |])
 
--- | See Align.UnboxScalar.Right
-alignUnboxScalarLeft :: VLRule BottomUpProps
-alignUnboxScalarLeft q =
-  $(dagPatMatch 'q "(qu=(q11) UnboxScalar (q2)) Align (q12)"
+-- | See Align.UnboxSng.Right
+alignUnboxSngLeft :: VLRule BottomUpProps
+alignUnboxSngLeft q =
+  $(dagPatMatch 'q "(qu=R1 ((q11) UnboxSng (q2))) Align (q12)"
      [| do
          predicate $ $(v "q11") == $(v "q12")
 
@@ -635,11 +636,11 @@ alignUnboxScalarLeft q =
          rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
 
          return $ do
-             logRewrite "Redundant.Align.UnboxScalar.Left" q
+             logRewrite "Redundant.Align.UnboxSng.Left" q
 
 
              -- Keep the original schema intact by duplicating columns
-             -- from the left input (UnboxScalar produces columns from
+             -- from the left input (UnboxSng produces columns from
              -- its left and right inputs).
              let outputCols = -- The left (outer) columns
                               [1..leftWidth]
@@ -787,31 +788,32 @@ pullProjectAppKey q =
            r1Node    <- insert $ UnOp R1 rekeyNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
-pullProjectUnboxScalarLeft :: VLRule BottomUpProps
-pullProjectUnboxScalarLeft q =
-  $(dagPatMatch 'q "(Project proj (q1)) UnboxScalar (q2)"
+pullProjectUnboxSngLeft :: VLRule BottomUpProps
+pullProjectUnboxSngLeft q =
+  $(dagPatMatch 'q "R1 ((Project proj (q1)) UnboxSng (q2))"
     [| do
          leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
          rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
 
          return $ do
-           logRewrite "Redundant.Project.UnboxScalar" q
+           logRewrite "Redundant.Project.UnboxSng" q
 
            -- Employ projection expressions on top of the unboxing
            -- operator, add right input columns.
            let proj' = $(v "proj") ++ map Column [ leftWidth + 1 .. leftWidth + rightWidth ]
-           unboxNode <- insert $ BinOp UnboxScalar $(v "q1") $(v "q2")
+           unboxNode <- insert $ BinOp UnboxSng $(v "q1") $(v "q2")
+           r1Node    <- insert $ UnOp R1 unboxNode
 
-           void $ replaceWithNew q $ UnOp (Project proj') unboxNode |])
+           void $ replaceWithNew q $ UnOp (Project proj') r1Node |])
 
-pullProjectUnboxScalarRight :: VLRule BottomUpProps
-pullProjectUnboxScalarRight q =
-  $(dagPatMatch 'q "(q1) UnboxScalar (Project proj (q2))"
+pullProjectUnboxSngRight :: VLRule BottomUpProps
+pullProjectUnboxSngRight q =
+  $(dagPatMatch 'q "R1 ((q1) UnboxSng (Project proj (q2)))"
     [| do
          leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
          return $ do
-           logRewrite "Redundant.Project.UnboxScalar" q
+           logRewrite "Redundant.Project.UnboxSng" q
 
            -- Preserve left input columns on top of the unboxing
            -- operator and add right input expressions with shifted
@@ -820,9 +822,10 @@ pullProjectUnboxScalarRight q =
                        ++
                        [ mapExprCols (+ leftWidth) e | e <- $(v "proj") ]
 
-           unboxNode <- insert $ BinOp UnboxScalar $(v "q1") $(v "q2")
+           unboxNode <- insert $ BinOp UnboxSng $(v "q1") $(v "q2")
+           r1Node    <- insert $ UnOp R1 unboxNode
 
-           void $ replaceWithNew q $ UnOp (Project proj') unboxNode |])
+           void $ replaceWithNew q $ UnOp (Project proj') r1Node |])
 
 pullProjectAppRep :: VLRule ()
 pullProjectAppRep q =
