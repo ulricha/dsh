@@ -44,12 +44,6 @@ inferEmptyUnOp e op =
     Group _          -> let ue = unp e in liftM3 VPropTriple ue ue ue
     GroupS _         -> let ue = unp e in liftM3 VPropTriple ue ue ue
 
-    -- FIXME this documents the current implementation behaviour, not
-    -- what _should_ happen!
-    ReshapeS _       -> let ue = unp e in liftM2 VPropPair ue ue
-    Reshape _        -> let ue = unp e in liftM2 VPropPair ue ue
-    Transpose        -> let ue = unp e in liftM2 VPropPair ue ue
-
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr (_, _) -> Right $ VProp False
     Number           -> Right e
@@ -100,9 +94,6 @@ inferEmptyBinOp e1 e2 op =
     AppFilter -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     AppSort -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     AppRep -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
-    -- FIXME This documents the current behaviour of the algebraic
-    -- implementations, not what _should_ happen!
-    TransposeS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
 
 inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferEmptyTerOp _ e2 e3 op =

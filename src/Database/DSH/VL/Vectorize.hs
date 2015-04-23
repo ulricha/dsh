@@ -278,19 +278,6 @@ tupElem i (SShape q (LTuple lyts)) =
             return $ SShape proj lyt'
 tupElem _ _ = $impossible
 
-transpose :: Shape VLDVec -> Build VL (Shape VLDVec)
-transpose (VShape _ (LNest qi lyt)) = do
-    (qo', qi') <- vlTranspose qi
-    return $ VShape qo' (LNest qi' lyt)
-transpose _ = $impossible
-
-
-reshape :: Integer -> Shape VLDVec -> Build VL (Shape VLDVec)
-reshape n (VShape q lyt) = do
-    (qo, qi) <- vlReshape n q
-    return $ VShape qo (LNest qi lyt)
-reshape _ _ = $impossible
-
 concat :: Shape VLDVec -> Build VL (Shape VLDVec)
 concat (VShape _ (LNest q lyt)) = return $ VShape q lyt
 concat _e                       = $impossible
@@ -488,18 +475,6 @@ tupElemL i (VShape q (LTuple lyts)) = do
     proj <- vlProject (map Column cols) q
     return $ VShape proj lyt'
 tupElemL i s = trace (show i ++ " " ++ show s) $impossible
-
-transposeL :: Shape VLDVec -> Build VL (Shape VLDVec)
-transposeL (VShape qo (LNest qm (LNest qi lyt))) = do
-    (qm', qi') <- vlTransposeS qm qi
-    return $ VShape qo (LNest qm' (LNest qi' lyt))
-transposeL _ = $impossible
-
-reshapeL :: Integer -> Shape VLDVec -> Build VL (Shape VLDVec)
-reshapeL n (VShape qo (LNest qi lyt)) = do
-    (qm, qi') <- vlReshapeS n qi
-    return $ VShape qo (LNest qm (LNest qi' lyt))
-reshapeL _ _ = $impossible
 
 projectColumns :: TupleIndex -> [Layout VLDVec] -> (Layout VLDVec, [DBCol])
 projectColumns i lyts =

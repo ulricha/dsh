@@ -272,9 +272,6 @@ tests_lists conn = testGroup "Lists"
     , testPropertyConn conn "unzip3"                       prop_unzip3
     , testPropertyConn conn "nub"                          prop_nub
     , testPropertyConn conn "number"                       prop_number
-    , testPropertyConn conn "reshape"                      prop_reshape
-    , testPropertyConn conn "reshape2"                     prop_reshape2
-    , testPropertyConn conn "transpose"                    prop_transpose
     ]
 
 tests_lifted :: Backend c => c -> Test
@@ -348,9 +345,6 @@ tests_lifted conn = testGroup "Lifted operations"
     , testPropertyConn conn "map span"                              prop_map_span
     , testPropertyConn conn "map break"                             prop_map_break
     , testPropertyConn conn "map number"                            prop_map_number
-    , testPropertyConn conn "map reshape"                           prop_map_reshape
-    , testPropertyConn conn "map reshape2"                          prop_map_reshape2
-    -- , testPropertyConn conn "map transpose"                      prop_map_transpose
     , testPropertyConn conn "map sin"                               prop_map_trig_sin
     , testPropertyConn conn "map cos"                               prop_map_trig_cos
     , testPropertyConn conn "map tan"                               prop_map_trig_tan
@@ -366,7 +360,6 @@ tests_combinators_hunit :: Backend c => c -> Test
 tests_combinators_hunit conn = testGroup "HUnit combinators"
     [ testCase "hnegative_sum"     (hnegative_sum conn)
     , testCase "hnegative_map_sum" (hnegative_map_sum conn)
-    , testCase "hmap_transpose"    (hmap_transpose conn)
     ]
 
 -- * Supported Types
@@ -1194,33 +1187,6 @@ prop_map_number :: Backend c => [[Integer]] -> c -> Property
 prop_map_number = makePropEq (Q.map (Q.map Q.snd . Q.number))
                             (map (\xs -> map snd $ zip xs [1..]))
 
-prop_transpose :: Backend c => [[Integer]] -> c -> Property
-prop_transpose = makePropEq Q.transpose transpose
-
-{-
-prop_map_transpose :: Backend c => [[[Integer]]] -> c -> Property
-prop_map_transpose xss =
-    (all (not . null) (xss :: [[[Integer]]])
-    &&
-    and (map (all (not . null)) xss))
-    ==> makePropEq (Q.map Q.transpose) (map transpose)
--}
-
-reshape :: Int -> [a] -> [[a]]
-reshape _ [] = []
-reshape i xs = take i xs : reshape i (drop i xs)
-
-prop_reshape :: Backend c => [Integer] -> c -> Property
-prop_reshape = makePropEq (Q.reshape 5) (reshape 5)
-
-prop_reshape2 :: Backend c => [Integer] -> c -> Property
-prop_reshape2 = makePropEq (Q.reshape 2) (reshape 2)
-
-prop_map_reshape :: Backend c => [[Integer]] -> c -> Property
-prop_map_reshape = makePropEq (Q.map (Q.reshape 8)) (map (reshape 8))
-
-prop_map_reshape2 :: Backend c => [[Integer]] -> c -> Property
-prop_map_reshape2 = makePropEq (Q.map (Q.reshape 2)) (map (reshape 2))
 
 prop_map_trig_sin :: Backend c => [Double] -> c -> Property
 prop_map_trig_sin = makePropDoubles (Q.map Q.sin) (map sin)
@@ -1269,27 +1235,3 @@ hnegative_map_sum conn = makeEqAssertion "hnegative_map_sum"
   where
     xss :: [[Integer]]
     xss = [[10, 20, 30], [-10, -20, -30], [], [0]]
-
-hmap_transpose :: Backend c => c -> Assertion
-hmap_transpose conn = makeEqAssertion "hmap_transpose"
-                                      (Q.map Q.transpose (Q.toQ xss))
-                                      res
-                                      conn
-  where
-    xss :: [[[Integer]]]
-    xss = [ [ [10, 20, 30]
-            , [40, 50, 60]]
-          , [ [100, 200]
-            , [300, 400]
-            , [500, 600]]
-          ]
-
-    res :: [[[Integer]]]
-    res = [ [ [10, 40]
-            , [20, 50]
-            , [30, 60]
-            ]
-          , [ [100, 300, 500]
-            , [200, 400, 600]
-            ]
-          ]

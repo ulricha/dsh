@@ -280,8 +280,6 @@ translateApp f args =
        Null             -> translateApp1 CP.null args
        Nub              -> translateApp1 CP.nub args
        Guard            -> translateApp1 CP.guard args
-       Transpose        -> translateApp1 CP.transpose args
-       Reshape n        -> translateApp1 (CP.reshape n) args
        TupElem te       -> do
            e' <- translate args
            let tupAcc = $(mkTupElemCompile 16) te

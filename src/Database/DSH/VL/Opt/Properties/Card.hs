@@ -53,10 +53,6 @@ inferCardOneUnOp c op =
     GroupAggr (_, _)  -> Right c
     Number -> Right c
     NumberS -> Right c
-    Reshape _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    ReshapeS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    Transpose -> unp c >>= (\uc -> return $ VPropPair uc uc)
-
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
@@ -87,7 +83,6 @@ inferCardOneBinOp c1 c2 op =
     SemiJoinS _ -> return $ VPropPair False False
     AntiJoin _ -> return $ VPropPair False False
     AntiJoinS _ -> return $ VPropPair False False
-    TransposeS -> return $ VPropPair False False
     ZipS -> do
       c <- (||) <$> unp c1 <*> unp c2
       return $ VPropTriple c c c

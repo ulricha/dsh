@@ -68,8 +68,6 @@ data Prim1 = Length
            | Group
            | Singleton
            | Only
-           | Transpose
-           | Reshape Integer
     deriving (Show, Eq)
 
 data Prim2 = Append
@@ -142,8 +140,6 @@ instance Pretty Prim1 where
     pretty Sort         = text "sort"
     pretty Restrict     = text "restrict"
     pretty Group        = text "group"
-    pretty Transpose    = text "transpose"
-    pretty (Reshape n)  = text $ printf "reshape(%d)" n
     pretty Singleton    = text "sng"
     pretty Only         = text "only"
     pretty TupElem{}    = $impossible

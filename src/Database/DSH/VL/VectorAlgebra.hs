@@ -153,22 +153,3 @@ class VectorAlgebra a where
     vecAntiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
 
     vecCombine :: DVec a -> DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
-
-    -- | Experimental: @reshape m@ partitions a vector of length @n*m@
-    -- into @n@ vectors of length @m@.
-    --
-    -- reshapeS can be computed only on the inner vector. As its
-    -- result is one list nesting level deeper, it computes the new
-    -- innermost vector from the old inner vector and then derives
-    -- from that a 'middle' descriptor vector which represents lists
-    -- at nesting depth 1.
-    vecReshape :: Integer -> DVec a -> Build a (DVec a, DVec a)
-
-    -- | Experimental: segmented version of reshape.
-    vecReshapeS :: Integer -> DVec a -> Build a (DVec a, DVec a)
-
-    -- | Experimental: Matrix transposition
-    vecTranspose :: DVec a -> Build a (DVec a, DVec a)
-
-    -- | Experimental: Segmented matrix transposition
-    vecTransposeS :: DVec a -> DVec a -> Build a (DVec a, DVec a)

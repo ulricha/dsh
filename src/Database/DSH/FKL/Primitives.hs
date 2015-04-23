@@ -18,18 +18,6 @@ import           Database.DSH.Common.Impossible
 --------------------------------------------------------------------------------
 -- Smart constructors for primitive combinators in the lifting FKL dialect
 
--- tranpose :: [[a]] -> [[a]]
-transpose :: LExpr -> Nat -> LExpr
-transpose e d =
-    let t = unliftTypeN d $ typeOf e
-    in PApp1 (liftTypeN d t) Transpose (LiftedN d) e
-
--- transpose :: [a] -> [[a]]
-reshape :: Integer -> LExpr -> Nat -> LExpr
-reshape n e d =
-    let t = unliftTypeN d $ typeOf e
-    in PApp1 (liftTypeN d $ ListT t) (Reshape n) (LiftedN d) e
-
 group :: LExpr -> Nat -> LExpr
 group xs d =
     let ListT (TupleT [xt, gt]) = unliftTypeN d $ typeOf xs

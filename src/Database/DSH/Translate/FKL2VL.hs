@@ -112,8 +112,6 @@ papp1 t f Lifted =
         Sort            -> V.sortL
         Group           -> V.groupL
         Restrict        -> V.restrictL
-        Transpose       -> V.transposeL
-        Reshape n       -> V.reshapeL n
         And             -> V.aggrL VL.AggrAll
         Or              -> V.aggrL VL.AggrAny
         Minimum         -> V.aggrL VL.AggrMin
@@ -127,8 +125,6 @@ papp1 t f NotLifted =
         Singleton        -> V.singleton
         Only             -> V.only
         Length           -> V.length_
-        Reshape n        -> V.reshape n
-        Transpose        -> V.transpose
         Number           -> V.number
         Sort             -> V.sort
         Group            -> V.group

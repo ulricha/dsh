@@ -107,10 +107,6 @@ data UnOp = UnboxKey
           | Group [Expr]
           | GroupS [Expr]
           | WinFun (WinFun, FrameSpec)
-
-          | Reshape Integer
-          | ReshapeS Integer
-          | Transpose
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''UnOp)
@@ -144,7 +140,6 @@ data BinOp = DistLift
            | GroupJoin (L.JoinPredicate Expr, AggrFun)
            | NestProduct
            | NestProductS
-           | TransposeS
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''BinOp)

@@ -141,8 +141,6 @@ opDotLabel tm i (UnOp (Project pCols) _) =
 opDotLabel tm i (UnOp (Select e) _) = labelToDoc i "Select" (renderExpr e) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupAggr (g, as)) _) = labelToDoc i "GroupAggr" (bracketList renderExpr g <+> bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (UnOp (Aggr a) _) = labelToDoc i "Aggr" (renderAggrFun a) (lookupTags i tm)
-opDotLabel tm i (UnOp (Reshape n) _) =
-  labelToDoc i "Reshape" (integer n) (lookupTags i tm)
 opDotLabel tm i (BinOp (AggrS a) _ _) = labelToDoc i "AggrS" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (Sort cols) _) = labelToDoc i "Sort" (bracketList renderExpr cols) (lookupTags i tm)
 opDotLabel tm i (UnOp (SortS cols) _) = labelToDoc i "SortS" (bracketList renderExpr cols) (lookupTags i tm)
@@ -182,11 +180,7 @@ opDotLabel tm i (BinOp (AntiJoinS p) _ _) =
   labelToDoc i "AntiJoinS" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (GroupJoin (p, a)) _ _) =
   labelToDoc i "GroupJoin" (renderJoinPred p <+> renderAggrFun a) (lookupTags i tm)
-opDotLabel tm i (UnOp (ReshapeS n) _) =
-  labelToDoc i "ReshapeS" (integer n) (lookupTags i tm)
-opDotLabel tm i (UnOp Transpose _) = labelToDoc i "Transpose" empty (lookupTags i tm)
 opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "Combine" empty (lookupTags i tm)
-opDotLabel tm i (BinOp TransposeS _ _) = labelToDoc i "TransposeS" empty (lookupTags i tm)
 
 opDotColor :: VL -> DotColor
 opDotColor (BinOp NestProduct _ _)     = DCRed
@@ -222,10 +216,6 @@ opDotColor (BinOp (AggrS _) _ _)       = DCCrimson
 opDotColor (UnOp (WinFun _) _)         = DCTomato
 opDotColor (UnOp (GroupAggr (_, _)) _) = DCTomato
 opDotColor (UnOp (Project _) _)        = DCLightSkyBlue
-opDotColor (UnOp Transpose _)          = DCHotPink
-opDotColor (BinOp TransposeS _ _)      = DCHotPink
-opDotColor (UnOp (ReshapeS _) _)       = DCHotPink
-opDotColor (UnOp (Reshape _) _)        = DCHotPink
 opDotColor _                           = DCGray
 
 -- Dot colors

@@ -84,10 +84,6 @@ inferVectorTypeUnOp s op =
         VTDataVec w <- unpack s
         return $ VProp $ VTDataVec (w + 1)
 
-    Reshape _ -> liftM2 VPropPair (return $ VTDataVec 0) (unpack s)
-    ReshapeS _ -> liftM2 VPropPair (return $ VTDataVec 0) (unpack s)
-    Transpose -> liftM2 VPropPair (return $ VTDataVec 0) (unpack s)
-
 reqValVectors :: VectorProp VectorType
                  -> VectorProp VectorType
                  -> (Int -> Int -> VectorProp VectorType)
@@ -160,8 +156,6 @@ inferVectorTypeBinOp s1 s2 op =
     SemiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
     AntiJoin _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
     AntiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
-
-    TransposeS -> liftM2 VPropPair (return $ VTDataVec 0) (unpack s2)
 
 inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)
 inferVectorTypeTerOp _ s2 s3 op =

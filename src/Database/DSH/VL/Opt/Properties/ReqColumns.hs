@@ -120,18 +120,6 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
                   ∪
                   childReqColumns
             cs ∪ ownReqColumns
-        Transpose  -> do
-            cols <- snd <$> fromPropPair ownReqColumns
-            childReqColumns ∪ VProp cols
-
-        Reshape _  -> do
-            cols <- snd <$> fromPropPair ownReqColumns
-            VProp cols ∪ childReqColumns
-
-        ReshapeS _ -> do
-            cols <- snd <$> fromPropPair ownReqColumns
-            VProp cols ∪ childReqColumns
-
         UniqueS    -> ownReqColumns ∪ childReqColumns
         Unique    -> ownReqColumns ∪ childReqColumns
 
@@ -412,11 +400,6 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromLeft  <- ((VProp $ Just $ reqLeftPredCols p) ∪ VProp cols1) >>= (∪ childReqColumns1)
           fromRight <- (VProp $ Just $ reqRightPredCols p) ∪ childReqColumns2
           return (fromLeft, fromRight)
-
-      TransposeS -> do
-          cols      <- snd <$> fromPropPair ownReqColumns
-          fromRight <- childReqColumns2 ∪ VProp cols
-          return (none, fromRight)
 
 inferReqColumnsTerOp :: VectorProp ReqCols
                      -> VectorProp ReqCols

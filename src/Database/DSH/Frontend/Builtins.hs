@@ -60,8 +60,6 @@ data Fun a b where
     Cond             :: Fun (Bool,a,a) a
     Like             :: Fun (Text,Text) Bool
     SubString        :: Integer -> Integer -> Fun Text Text
-    Transpose        :: Fun [[a]] [[a]]
-    Reshape          :: Integer -> Fun [a] [[a]]
     Sin              :: Fun Double Double
     Cos              :: Fun Double Double
     Tan              :: Fun Double Double

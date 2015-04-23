@@ -311,18 +311,3 @@ vlReverse (VLDVec c) = pairVec (UnOp Reverse c) dvec svec
 
 vlReverseS :: VLDVec -> Build VL (VLDVec, VLSVec)
 vlReverseS (VLDVec c) = pairVec (UnOp ReverseS c) dvec svec
-
-vlTranspose :: VLDVec -> Build VL (VLDVec, VLDVec)
-vlTranspose (VLDVec c) = pairVec (UnOp Transpose c) dvec dvec
-
-vlTransposeS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLDVec)
-vlTransposeS (VLDVec c1) (VLDVec c2) = do
-    pairVec (BinOp TransposeS c1 c2) dvec dvec
-
-vlReshape :: Integer -> VLDVec -> Build VL (VLDVec, VLDVec)
-vlReshape n (VLDVec c) = do
-    pairVec (UnOp (Reshape n) c) dvec dvec
-
-vlReshapeS :: Integer -> VLDVec -> Build VL (VLDVec, VLDVec)
-vlReshapeS n (VLDVec c) = do
-    pairVec (UnOp (ReshapeS n) c) dvec dvec

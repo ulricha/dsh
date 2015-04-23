@@ -53,8 +53,6 @@ prim1 t p e = mkApp t <$> expr e
             CL.Or               -> mkPrim1 NKL.Or
             CL.Nub              -> mkPrim1 NKL.Nub
             CL.Number           -> mkPrim1 NKL.Number
-            (CL.Reshape n)      -> mkPrim1 $ NKL.Reshape n
-            CL.Transpose        -> mkPrim1 NKL.Transpose
             CL.TupElem i        -> mkPrim1 $ NKL.TupElem i
             CL.Sort             -> mkPrim1 NKL.Sort
             CL.Group            -> mkPrim1 NKL.Group

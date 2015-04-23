@@ -53,8 +53,6 @@ prim1 p =
         N.Sort      -> P.sort
         N.Group     -> P.group
         N.Restrict  -> P.restrict
-        N.Reshape n -> P.reshape n
-        N.Transpose -> P.transpose
 
 prim2 :: N.Prim2 -> F.LExpr -> F.LExpr -> Nat -> F.LExpr
 prim2 p =

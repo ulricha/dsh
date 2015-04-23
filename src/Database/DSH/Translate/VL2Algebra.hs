@@ -274,10 +274,6 @@ translateBinOp b c1 c2 = case b of
         (v, r) <- vecAntiJoinS p (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromFVec r)
 
-    V.TransposeS -> do
-        (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec qo) (fromDVec qi)
-
 translateUnOp :: VectorAlgebra a
               => V.UnOp
               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
@@ -316,16 +312,6 @@ translateUnOp unop c = case unop of
         (d, p) <- vecReverseS (toDVec c)
         return $ RLPair (fromDVec d) (fromSVec p)
     V.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
-
-    V.Reshape n -> do
-        (qo, qi) <- vecReshape n (toDVec c)
-        return $ RLPair (fromDVec qo) (fromDVec qi)
-    V.ReshapeS n -> do
-        (qo, qi) <- vecReshapeS n (toDVec c)
-        return $ RLPair (fromDVec qo) (fromDVec qi)
-    V.Transpose -> do
-        (qo, qi) <- vecTranspose (toDVec c)
-        return $ RLPair (fromDVec qo) (fromDVec qi)
 
     V.Nest -> do
         (qo, qi) <- vecNest (toDVec c)

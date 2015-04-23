@@ -697,17 +697,6 @@ like (Q t) (Q p) = Q (AppE Like (pairE t p))
 subString :: Integer -> Integer -> Q Text -> Q Text
 subString from to (Q t) = Q (AppE (SubString from to) t)
 
--- * Matrix/Vector-like operators
-
--- | Transpose a matrix in nested-list representation
-transpose :: QA a => Q [[a]] -> Q [[a]]
-transpose (Q ass) = Q (AppE Transpose ass)
-
--- | Divide the list into sublists of length 'n'
--- FIXME should propably have a constraint to flat types
-reshape :: QA a => Integer -> Q [a] -> Q [[a]]
-reshape n (Q e) = Q (AppE (Reshape n) e)
-
 -- * Date and Time Combinators
 
 addDays :: Q Integer -> Q Day -> Q Day

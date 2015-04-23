@@ -190,16 +190,6 @@ inferConstVecUnOp c op =
                            (ConstVec (map (const NonConstPL) cs))
                            CNA
 
-    Transpose -> do
-      cols <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec []) (ConstVec cols)
-    Reshape _ -> do
-      cols <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec []) (ConstVec cols)
-    ReshapeS _ -> do
-      cols <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec []) (ConstVec cols)
-
     R1 ->
       case c of
         VProp _           -> Left "Properties.Const: not a pair/triple"
@@ -364,10 +354,6 @@ inferConstVecBinOp c1 c2 op =
     AntiJoinS _ -> do
       cols1 <- unp c1 >>= fromDBV
       return $ VPropPair (ConstVec cols1) CNA
-
-    TransposeS -> do
-      cols2 <- unp c2 >>= fromDBV
-      return $ VPropPair (ConstVec []) (ConstVec cols2)
 
 inferConstVecTerOp :: VectorProp ConstVec
                    -> VectorProp ConstVec

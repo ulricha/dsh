@@ -99,8 +99,6 @@ data Prim1 = Singleton
            | Sort
            | Group
            | Restrict
-           | Reshape Integer
-           | Transpose
            | TupElem TupleIndex
            deriving (Eq, Show)
 
@@ -121,8 +119,6 @@ instance Pretty Prim1 where
     pretty Sort            = text "sort"
     pretty Restrict        = text "restrict"
     pretty Group           = text "group"
-    pretty Transpose       = text "transpose"
-    pretty (Reshape n)     = text $ printf "reshape(%d)" n
     -- tuple access is pretty-printed in a special way
     pretty TupElem{}       = text $impossible
 

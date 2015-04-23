@@ -64,18 +64,6 @@ concat e = let t = typeOf e
                then AppE1 (unliftType t) Concat e
                else tyErr "concat"
 
--- reshape :: [a] -> [[a]]
-reshape :: P.Integer -> Expr -> Expr
-reshape n e =
-    let t = typeOf e
-    in AppE1 (ListT t) (Reshape n) e
-
--- transpose :: [[a]] -> [[a]]
-transpose :: Expr -> Expr
-transpose e =
-    let t = typeOf e
-    in AppE1 t Transpose e
-
 sum :: Expr -> Expr
 sum e = let (ListT t) = typeOf e
          in if isNum t
