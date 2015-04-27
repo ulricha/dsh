@@ -55,7 +55,8 @@ redundantRulesBottomUp = [ sameInputAlign
                          , distLiftNestJoin
                          , distLiftStacked
                          , distLiftSelect
-                         , alignedDistLift
+                         , alignedDistLeft
+                         , alignedDistRight
                          , zipConstLeft
                          , zipConstRight
                          , alignConstLeft
@@ -245,16 +246,16 @@ distLiftSelect q =
 -- input, we can eliminate the Align. Reasoning: DistLift does not
 -- change the shape of the vector, only adds columns from its right
 -- input.
-alignedDistLift :: VLRule BottomUpProps
-alignedDistLift q =
-  $(dagPatMatch 'q "(q21) Align (qr1=R1 ((q1) DistLift (q22)))"
+alignedDistRight :: VLRule BottomUpProps
+alignedDistRight q =
+  $(dagPatMatch 'q "(q21) Align (qr1=R1 ((q1) [DistLift | DistSng] (q22)))"
     [| do
         predicate $ $(v "q21") == $(v "q22")
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q21")
 
         return $ do
-            logRewrite "Redundant.DistLift.Align" q
+            logRewrite "Redundant.Dist.Align.Right" q
             let proj = map Column $
                        [w1+1..w1+w2]
                        ++
@@ -263,6 +264,27 @@ alignedDistLift q =
                        [w1+1..w1+w2]
             void $ replaceWithNew q $ UnOp (Project proj) $(v "qr1") |])
 
+-- | When a DistLift result is aligned with the right (inner) DistLift
+-- input, we can eliminate the Align. Reasoning: DistLift does not
+-- change the shape of the vector, only adds columns from its right
+-- input.
+alignedDistLeft :: VLRule BottomUpProps
+alignedDistLeft q =
+  $(dagPatMatch 'q "(qr1=R1 ((q1) [DistLift | DistSng] (q21))) Align (q22)"
+    [| do
+        predicate $ $(v "q21") == $(v "q22")
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q21")
+
+        return $ do
+            logRewrite "Redundant.Dist.Align.Left" q
+            let proj = map Column $
+                       [1..w1]
+                       ++
+                       [w1+1..w1+w2]
+                       ++
+                       [w1+1..w1+w2]
+            void $ replaceWithNew q $ UnOp (Project proj) $(v "qr1") |])
 
 --------------------------------------------------------------------------------
 -- Zip and Align rewrites.
