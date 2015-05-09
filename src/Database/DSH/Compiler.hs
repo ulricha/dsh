@@ -8,9 +8,11 @@ module Database.DSH.Compiler
   ( -- * Executing queries
     runQ
   , debugQ
+  , codeQ
   ) where
 
 import           Control.Arrow
+import qualified Data.Foldable                      as F
 
 import           Database.DSH.Translate.Frontend2CL
 
@@ -64,3 +66,15 @@ debugQ prefix _ (Q q) = do
     exportPlan (prefix ++ "_vl_opt") vlOpt
     let bp = generatePlan vlOpt :: BackendPlan c
     dumpPlan prefix bp
+
+-- | Compile a query to the actual backend code that will be executed
+-- (for benchmarking purposes).
+codeQ :: forall a c.(Backend c, QA a)
+      => c
+      -> Q a
+      -> [BackendCode c]
+codeQ _ (Q q) =
+    let vl    = optimizeVLDefault $ compileQ $ toComprehensions q
+        plan  = generatePlan vl :: BackendPlan c
+        shape = generateCode plan :: Shape (BackendCode c)
+    in F.foldr (:) [] shape
