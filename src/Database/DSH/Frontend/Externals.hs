@@ -536,6 +536,17 @@ groupWithKey f (Q as) = Q (AppE GroupWithKey (pairE (LamE (toLam f)) as))
 groupWith :: (QA a,QA b,Ord b, TA b) => (Q a -> Q b) -> Q [a] -> Q [[a]]
 groupWith f as = map snd (groupWithKey f as)
 
+-- | Group a list and apply an aggregate.
+groupAggr :: (QA a, QA b, QA c, QA k, Ord k, TA k)
+          => (Q a -> Q k)    -- ^ The grouping key
+          -> (Q a -> Q b)    -- ^ The aggregate input
+          -> (Q [b] -> Q c)  -- ^ The aggregate function
+          -> Q [a]           -- ^ The input list
+          -> Q [(k, c)]
+groupAggr k p agg as =
+    map (\kg -> pair (fst kg) (agg $ map p $ snd kg)) (groupWithKey k as)
+
+
 sortWith :: (QA a,QA b,Ord b, TA b) => (Q a -> Q b) -> Q [a] -> Q [a]
 sortWith f (Q as) = Q (AppE SortWith (pairE (LamE (toLam f)) as))
 
