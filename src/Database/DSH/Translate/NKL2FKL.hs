@@ -1,6 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 -- | The Flattening Transformation
-module Database.DSH.Translate.NKL2FKL (flatTransform) where
+module Database.DSH.Translate.NKL2FKL
+    ( flatTransform
+    , normalizeLifted
+    , liftOperators
+    ) where
 
 -- FIXME use more let bindings to avoid term replication, e.g. in if conditionals
 -- FIXME make sure that no wrong shadowing occurs while lifting or restricting the environment.
@@ -19,15 +23,20 @@ import qualified Database.DSH.NKL.Lang       as N
 
 -- | Transform an expression in the Nested Kernel Language into its
 -- equivalent Flat Kernel Language expression by means of the
--- flattening transformation.
+-- flattening transformation. Apply standard optimization rewrites.
 flatTransform :: N.Expr -> F.FExpr
 flatTransform expr = optimizeNormFKL
-                     $ normalize
-                     $ optimizeFKL "FKL Intermediate"
+                     $ normalizeLifted
+                     $ optimizeFKL
                      $ runFlat initEnv (flatten expr)
 
 --------------------------------------------------------------------------------
 -- The Flattening Transformation
+
+-- | The first stage of the flattening transformation: replace
+-- iterators by lifted operators.
+liftOperators :: N.Expr -> F.LExpr
+liftOperators expr = runFlat initEnv (flatten expr)
 
 --------------------------------------------------------------------------------
 -- Translation of built-in combinators. Combinators are lifted
@@ -232,8 +241,8 @@ freshNameN = do
     put $ i + 1
     return $ "nf" ++ show i
 
-normalize :: F.LExpr -> F.FExpr
-normalize e = evalState (normLifting e) 0
+normalizeLifted :: F.LExpr -> F.FExpr
+normalizeLifted e = evalState (normLifting e) 0
 
 implementBroadcast :: F.BroadcastExt -> NormFlat F.FExpr
 implementBroadcast (F.Broadcast d _ e1 e2) = do

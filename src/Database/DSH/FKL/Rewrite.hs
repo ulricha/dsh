@@ -16,7 +16,7 @@ import           Data.Monoid
 import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
-import           Database.DSH.Common.Pretty
+
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Kure
@@ -244,11 +244,7 @@ optimizeNormFKL expr = debugOpt "FKL" expr expr'
   where
     expr' = applyExpr (fklNormOptimizations >>> projectT) expr
 
-optimizeFKL :: ( Injection (ExprTempl l e) (FKL l e)
-               , Walker FlatCtx (FKL l e)
-               , Typed e, Pretty (ExprTempl l e)
-               )
-            => String -> ExprTempl l e -> ExprTempl l e
-optimizeFKL stage expr = debugOpt stage expr expr'
+optimizeFKL :: LExpr -> LExpr
+optimizeFKL expr = debugOpt "FKL Intermediate" expr expr'
   where
     expr' = applyExpr (fklOptimizations >>> projectT) expr

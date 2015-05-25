@@ -5,11 +5,20 @@
 
 -- | Compilation, execution and introspection of queries
 module Database.DSH.Compiler
-  ( -- * Executing queries
-    runQ
-  , debugQ
-  , codeQ
-  ) where
+    ( -- * Executing queries
+      runQ
+      -- * Debugging and benchmarking queries
+    , debugQ
+    , codeQ
+    , showComprehensionsQ
+    , showComprehensionsOptQ
+    , showDesugaredQ
+    , showDesugaredOptQ
+    , showLiftedQ
+    , showLiftedOptQ
+    , showFlattenedQ
+    , showFlattenedOptQ
+    ) where
 
 import           Control.Arrow
 import qualified Data.Foldable                      as F
@@ -19,11 +28,13 @@ import           Database.DSH.Translate.Frontend2CL
 import           Database.DSH.Backend
 import qualified Database.DSH.CL.Lang               as CL
 import           Database.DSH.CL.Opt
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Vector
 import           Database.DSH.Execute
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.NKL.Rewrite
+import           Database.DSH.FKL.Rewrite
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
@@ -52,6 +63,8 @@ runQ c (Q q) = do
     let bc = generateCode bp
     frExp <$> execQueryBundle c bc ty
 
+--------------------------------------------------------------------------------
+
 -- | Compile a query and dump intermediate plans to files.
 debugQ :: forall a c.(Backend c, QA a)
        => String
@@ -78,3 +91,77 @@ codeQ _ (Q q) =
         plan  = generatePlan vl :: BackendPlan c
         shape = generateCode plan :: Shape (BackendCode c)
     in F.foldr (:) [] shape
+
+--------------------------------------------------------------------------------
+
+decorate :: String -> String
+decorate msg = sepLine ++ msg ++ "\n" ++ sepLine
+  where
+    sepLine = replicate 80 '-' ++ "\n"
+
+showComprehensionsQ :: forall a.QA a => Q a -> IO ()
+showComprehensionsQ (Q q) = do
+    let cl = toComprehensions q
+    putStrLn $ decorate $ pp cl
+
+showComprehensionsOptQ :: forall a. QA a => Q a -> IO ()
+showComprehensionsOptQ (Q q) = do
+    let cl = optimizeComprehensions $ toComprehensions q
+    putStrLn $ decorate $ pp cl
+
+showDesugaredQ :: forall a. QA a => Q a -> IO ()
+showDesugaredQ (Q q) = do
+    let nkl = desugarComprehensions
+              $ optimizeComprehensions
+              $ toComprehensions q
+    putStrLn $ decorate $ pp nkl
+
+showDesugaredOptQ :: forall a. QA a => Q a -> IO ()
+showDesugaredOptQ (Q q) = do
+    let nkl = optimizeNKL
+              $ desugarComprehensions
+              $ optimizeComprehensions
+              $ toComprehensions q
+    putStrLn $ decorate $ pp nkl
+
+showLiftedQ :: forall a. QA a => Q a -> IO ()
+showLiftedQ (Q q) = do
+    let fkl = liftOperators
+              $ optimizeNKL
+              $ desugarComprehensions
+              $ optimizeComprehensions
+              $ toComprehensions q
+    putStrLn $ decorate $ pp fkl
+
+showLiftedOptQ :: forall a. QA a => Q a -> IO ()
+showLiftedOptQ (Q q) = do
+    let fkl = optimizeFKL
+              $ liftOperators
+              $ optimizeNKL
+              $ desugarComprehensions
+              $ optimizeComprehensions
+              $ toComprehensions q
+    putStrLn $ decorate $ pp fkl
+
+showFlattenedQ :: forall a. QA a => Q a -> IO ()
+showFlattenedQ (Q q) = do
+    let fkl = normalizeLifted
+              $ optimizeFKL
+              $ liftOperators
+              $ optimizeNKL
+              $ desugarComprehensions
+              $ optimizeComprehensions
+              $ toComprehensions q
+    putStrLn $ decorate $ pp fkl
+
+showFlattenedOptQ :: forall a. QA a => Q a -> IO ()
+showFlattenedOptQ (Q q) = do
+    let fkl = optimizeNormFKL
+              $ normalizeLifted
+              $ optimizeFKL
+              $ liftOperators
+              $ optimizeNKL
+              $ desugarComprehensions
+              $ optimizeComprehensions
+              $ toComprehensions q
+    putStrLn $ decorate $ pp fkl
