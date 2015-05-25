@@ -10,6 +10,7 @@ module Database.DSH.Compiler
       -- * Debugging and benchmarking queries
     , debugQ
     , codeQ
+    , vectorPlanQ
     , showComprehensionsQ
     , showComprehensionsOptQ
     , showDesugaredQ
@@ -84,7 +85,14 @@ debugQ prefix _ (Q q) = do
     exportPlan (prefix ++ "_vl") vl
     exportPlan (prefix ++ "_vl_opt") vlOpt
     let bp = generatePlan vlOpt :: BackendPlan c
-    dumpPlan prefix bp
+    void $ dumpPlan prefix False bp
+    void $ dumpPlan prefix True bp
+
+vectorPlanQ :: forall a. QA a
+            => Q a
+            -> QueryPlan VL.VL VLDVec
+vectorPlanQ (Q q) =
+    optimizeVLDefault $ compileQ $ toComprehensions q
 
 -- | Compile a query to the actual backend code that will be executed
 -- (for benchmarking purposes).
@@ -204,3 +212,4 @@ showVectorizedOptQ (Q q) = do
     exportPlan fileName vl
     void $ runCommand $ printf ".cabal-sandbox/bin/vldot -i %s.plan | dot -Tpdf -o %s.pdf" fileName fileName
     void $ runCommand $ printf "evince %s.pdf" fileName
+

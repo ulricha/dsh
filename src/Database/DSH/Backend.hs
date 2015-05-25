@@ -73,7 +73,7 @@ class (RelationalVector (BackendCode c), Row (BackendRow c)) => Backend c where
     generateCode  :: BackendPlan c -> Shape (BackendCode c)
 
     -- | Dump versions of the plan in JSON form to the specified file.
-    dumpPlan :: String -> BackendPlan c -> IO ()
+    dumpPlan :: String -> Bool -> BackendPlan c -> IO FilePath
 
     transactionally :: c -> (c -> IO a) -> IO a
 
