@@ -51,27 +51,25 @@ instance Pretty Expr where
     pretty (MkTuple _ es)      = tupled $ map pretty es
     pretty (AppE1 _ (TupElem n) e1) =
         parenthize e1 <> dot <> int (tupleIndex n)
-    pretty (Table _ n _)       = text "table" <> parens (text n)
+    pretty (Table _ n _)       = kw (text "table") <> parens (text n)
     pretty (AppE1 _ p1 e)      = pretty p1 <+> (parenthize e)
     pretty (AppE2 _ p2 e1 e2)  = pretty p2 <+> (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)   = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
     pretty (UnOp _ o e)        = pretty o <> parens (pretty e)
-    pretty (If _ c t e)        = text "if"
+    pretty (If _ c t e)        = kw (text "if")
                                  <+> pretty c
-                                 <+> text "then"
+                                 <+> kw (text "then")
                                  <+> (parenthize t)
-                                 <+> text "else"
+                                 <+> kw (text "else")
                                  <+> (parenthize e)
     pretty (Const _ v)         = pretty v
     pretty (Var _ s)           = text s
-    pretty (Iterator _ e x xs) = align
-                                $ brackets
-                                $ enclose (char ' ') (char ' ')
-                                $ pretty e </> char '|' <+> text x <+> text "<-" <+> pretty xs
+    pretty (Iterator _ e x xs) =
+        prettyComp (pretty e) [text x <+> comp (text "<-") <+> pretty xs]
     pretty (Let _ x e1 e)      =
-        align $ text "let" <+> text x <+> char '=' <+> pretty e1
+        align $ kw (text "let") <+> text x <+> kw (char '=') <+> pretty e1
                 </>
-                text "in" <+> pretty e
+                kw (text "in") <+> pretty e
 
 parenthize :: Expr -> Doc
 parenthize e =
@@ -103,24 +101,24 @@ data Prim1 = Singleton
            deriving (Eq, Show)
 
 instance Pretty Prim1 where
-    pretty Singleton       = text "sng"
-    pretty Only            = text "only"
-    pretty Length          = text "length"
-    pretty Concat          = text "concat"
-    pretty Sum             = text "sum"
-    pretty Avg             = text "avg"
-    pretty Minimum         = text "minimum"
-    pretty Maximum         = text "maximum"
-    pretty Reverse         = text "reverse"
-    pretty And             = text "and"
-    pretty Or              = text "or"
-    pretty Nub             = text "nub"
-    pretty Number          = text "number"
-    pretty Sort            = text "sort"
-    pretty Restrict        = text "restrict"
-    pretty Group           = text "group"
+    pretty Singleton       = combinator $ text "sng"
+    pretty Only            = combinator $ text "only"
+    pretty Length          = combinator $ text "length"
+    pretty Concat          = combinator $ text "concat"
+    pretty Sum             = combinator $ text "sum"
+    pretty Avg             = combinator $ text "avg"
+    pretty Minimum         = combinator $ text "minimum"
+    pretty Maximum         = combinator $ text "maximum"
+    pretty Reverse         = combinator $ text "reverse"
+    pretty And             = combinator $ text "and"
+    pretty Or              = combinator $ text "or"
+    pretty Nub             = combinator $ text "nub"
+    pretty Number          = combinator $ text "number"
+    pretty Sort            = combinator $ text "sort"
+    pretty Restrict        = restrict $ text "restrict"
+    pretty Group           = combinator $ text "group"
     -- tuple access is pretty-printed in a special way
-    pretty TupElem{}       = text $impossible
+    pretty TupElem{}       = $impossible
 
 data Prim2 = Append
            | Zip
@@ -133,11 +131,12 @@ data Prim2 = Append
            deriving (Eq, Show)
 
 instance Pretty Prim2 where
-    pretty Append        = text "append"
-    pretty Zip           = text "zip"
-    pretty CartProduct   = text "⨯"
-    pretty NestProduct   = text "▽"
-    pretty (ThetaJoin p) = text $ printf "⨝_%s" (pp p)
-    pretty (NestJoin p)  = text $ printf "△_%s" (pp p)
-    pretty (SemiJoin p)  = text $ printf "⋉_%s" (pp p)
-    pretty (AntiJoin p)  = text $ printf "▷_%s" (pp p)
+    pretty Append        = combinator $ text "append"
+    pretty Zip           = combinator $ text "zip"
+
+    pretty CartProduct     = join $ text "cartproduct"
+    pretty NestProduct     = join $ text "nestproduct"
+    pretty (ThetaJoin p)   = join $ text $ printf "thetajoin{%s}" (pp p)
+    pretty (NestJoin p)    = join $ text $ printf "nestjoin{%s}" (pp p)
+    pretty (SemiJoin p)    = join $ text $ printf "semijoin{%s}" (pp p)
+    pretty (AntiJoin p)    = join $ text $ printf "antijoin{%s}" (pp p)

@@ -322,11 +322,10 @@ instance Pretty JoinExpr where
         parenthize e1 <> dot <> int (tupleIndex i)
 
 instance Pretty e => Pretty (JoinConjunct e) where
-    pretty (JoinConjunct e1 op e2) = parens $ pretty e1 <+> pretty op <+> pretty e2
+    pretty (JoinConjunct e1 op e2) = pretty e1 <+> pretty op <+> pretty e2
 
 instance Pretty e => Pretty (JoinPredicate e) where
-    pretty (JoinPred ps) = list $ map pretty $ N.toList ps
-
+    pretty (JoinPred ps) = hcat $ punctuate (text " && ") $ map pretty $ N.toList ps
 
 instance Pretty ScalarBinOp where
     pretty (SBNumOp o)    = pretty o

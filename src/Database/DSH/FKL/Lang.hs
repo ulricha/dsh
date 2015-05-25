@@ -117,57 +117,66 @@ superscript 5 = char '⁵'
 superscript 6 = char '⁶'
 superscript n = char '^' <> int n
 
+subscript :: Int -> Doc
+subscript 1 = char '₁'
+subscript 2 = char '₂'
+subscript 3 = char '₃'
+subscript 4 = char '₄'
+subscript 5 = char '₅'
+subscript 6 = char '₆'
+subscript n = char '^' <> int n
+
 instance Pretty Lifted where
-    pretty Lifted    = text "ᴸ"
+    pretty Lifted    = super $ text "ᴸ"
     pretty NotLifted = empty
 
 instance Pretty LiftedN where
     pretty (LiftedN Zero) = empty
-    pretty (LiftedN n)    = superscript (intFromNat n)
+    pretty (LiftedN n)    = super $ superscript (intFromNat n)
 
 instance Pretty Prim1 where
-    pretty Length       = text "length"
-    pretty Concat       = text "concat"
-    pretty Sum          = text "sum"
-    pretty Avg          = text "avg"
-    pretty Minimum      = text "minimum"
-    pretty Maximum      = text "maximum"
-    pretty Reverse      = text "reverse"
-    pretty And          = text "and"
-    pretty Or           = text "or"
-    pretty Nub          = text "nub"
-    pretty Number       = text "number"
-    pretty Sort         = text "sort"
-    pretty Restrict     = text "restrict"
-    pretty Group        = text "group"
-    pretty Singleton    = text "sng"
-    pretty Only         = text "only"
+    pretty Length       = combinator $ text "length"
+    pretty Concat       = combinator $ text "concat"
+    pretty Sum          = combinator $ text "sum"
+    pretty Avg          = combinator $ text "avg"
+    pretty Minimum      = combinator $ text "minimum"
+    pretty Maximum      = combinator $ text "maximum"
+    pretty Reverse      = combinator $ text "reverse"
+    pretty And          = combinator $ text "and"
+    pretty Or           = combinator $ text "or"
+    pretty Nub          = combinator $ text "nub"
+    pretty Number       = combinator $ text "number"
+    pretty Sort         = combinator $ text "sort"
+    pretty Restrict     = combinator $ text "restrict"
+    pretty Group        = combinator $ text "group"
+    pretty Singleton    = combinator $ text "sng"
+    pretty Only         = combinator $ text "only"
     pretty TupElem{}    = $impossible
 
 instance Pretty Prim2 where
-    pretty Dist            = text "dist"
-    pretty Append          = text "append"
-    pretty Zip             = text "zip"
-    pretty CartProduct     = text "⨯"
-    pretty NestProduct     = text "▽"
-    pretty (ThetaJoin p)   = text $ printf "⨝_%s" (pp p)
-    pretty (NestJoin p)    = text $ printf "△_%s" (pp p)
-    pretty (SemiJoin p)    = text $ printf "⋉_%s" (pp p)
-    pretty (AntiJoin p)    = text $ printf "▷_%s" (pp p)
+    pretty Dist            = dist $ text "dist"
+    pretty Append          = combinator $ text "append"
+    pretty Zip             = combinator $ text "zip"
+    pretty CartProduct     = join $ text "cartproduct"
+    pretty NestProduct     = join $ text "nestproduct"
+    pretty (ThetaJoin p)   = join $ text $ printf "thetajoin{%s}" (pp p)
+    pretty (NestJoin p)    = join $ text $ printf "nestjoin{%s}" (pp p)
+    pretty (SemiJoin p)    = join $ text $ printf "semijoin{%s}" (pp p)
+    pretty (AntiJoin p)    = join $ text $ printf "antijoin{%s}" (pp p)
 
 instance Pretty Prim3 where
-    pretty Combine = text "combine"
+    pretty Combine = combinator $ text "combine"
 
 instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
     pretty (MkTuple _ l es) = (tupled $ map pretty es) <> pretty l
 
     pretty (Var _ n) = text n
     pretty (Let _ x e1 e) =
-        align $ text "let" <+> text x {- <> colon <> colon <> pretty (typeOf e1) -} <+> char '=' <+> pretty e1
+        align $ kw (text "let") <+> text x <+> kw (char '=') <+> pretty e1
                 <$>
-                text "in" <+> pretty e
+                kw (text "in") <+> pretty e
 
-    pretty (Table _ n _) = text "table" <> parens (text n)
+    pretty (Table _ n _) = kw (text "table") <> parens (text n)
 
     pretty (PApp1 _ (TupElem n) l e1) =
         parenthize e1 <> dot <> int (tupleIndex n) <> pretty l
@@ -203,20 +212,20 @@ instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
 
 instance Pretty ShapeExt where
     pretty (Forget n _ e) =
-        text "forget"
-        <> (angles $ int $ intFromNat n)
+        forget (text "forget")
+        <> (sub $ subscript $ intFromNat n)
         <+> (parenthize e)
 
     pretty (Imprint n _ e1 e2) =
-        text "imprint"
-        <> (angles $ int $ intFromNat n)
+        forget (text "imprint")
+        <> (sub $ subscript $ intFromNat n)
         <+> (align $ (parenthize e1)
                      </> (parenthize e2))
 
 instance Pretty BroadcastExt where
     pretty (Broadcast n _ e1 e2) =
-        text "broadcast"
-        <> (angles $ int $ intFromNat n)
+        forget (text "broadcast")
+        <> (subscript $ intFromNat n)
         <+> (align $ (parenthize e1)
                      </> (parenthize e2))
 
