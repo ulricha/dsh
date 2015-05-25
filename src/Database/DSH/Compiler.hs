@@ -18,10 +18,16 @@ module Database.DSH.Compiler
     , showLiftedOptQ
     , showFlattenedQ
     , showFlattenedOptQ
+    , showVectorizedQ
+    , showVectorizedOptQ
     ) where
 
 import           Control.Arrow
+import           Control.Monad
 import qualified Data.Foldable                      as F
+import           System.Process
+import           System.Random
+import           Text.Printf
 
 import           Database.DSH.Translate.Frontend2CL
 
@@ -32,9 +38,9 @@ import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Vector
 import           Database.DSH.Execute
+import           Database.DSH.FKL.Rewrite
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.NKL.Rewrite
-import           Database.DSH.FKL.Rewrite
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
@@ -173,3 +179,28 @@ showFlattenedOptQ (Q q) = do
               $ optimizeComprehensions
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
+
+fileId :: IO String
+fileId = sequence $ replicate 8 $ (randomRIO ('a', 'z'))
+
+-- | Show unoptimized vector plan (VL)
+showVectorizedQ :: forall a. QA a => Q a -> IO ()
+showVectorizedQ (Q q) = do
+    let cl = toComprehensions q
+    let vl = compileQ cl
+    h <- fileId
+    let fileName = "q_vl_" ++ h
+    exportPlan fileName vl
+    void $ runCommand $ printf ".cabal-sandbox/bin/vldot -i %s.plan | dot -Tpdf -o %s.pdf" fileName fileName
+    void $ runCommand $ printf "evince %s.pdf" fileName
+
+-- | Show optimized vector plan (VL)
+showVectorizedOptQ :: forall a. QA a => Q a -> IO ()
+showVectorizedOptQ (Q q) = do
+    let cl = toComprehensions q
+    let vl = optimizeVLDefault $ compileQ cl
+    h <- fileId
+    let fileName = "q_vl_" ++ h
+    exportPlan fileName vl
+    void $ runCommand $ printf ".cabal-sandbox/bin/vldot -i %s.plan | dot -Tpdf -o %s.pdf" fileName fileName
+    void $ runCommand $ printf "evince %s.pdf" fileName

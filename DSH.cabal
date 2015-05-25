@@ -76,6 +76,8 @@ Flag debuggraph
 Library
   Extensions:        CPP
   Build-depends:     base                         >= 4.8 && < 5,
+                     random                       >= 1.1,
+                     process                      >= 1.2,
                      template-haskell             >= 2.9,
                      containers                   >= 0.5,
                      mtl                          >= 2.1,
