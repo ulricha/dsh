@@ -81,6 +81,19 @@ data Prim2 = Append
            | Dist
            deriving (Show, Eq)
 
+isJoinOp :: Prim2 -> Bool
+isJoinOp op =
+    case op of
+        CartProduct -> True
+        NestProduct -> True
+        ThetaJoin{} -> True
+        NestJoin{}  -> True
+        SemiJoin{}  -> True
+        AntiJoin{}  -> True
+        Append      -> False
+        Zip         -> False
+        Dist        -> False
+
 data Prim3 = Combine
     deriving (Show, Eq)
 
@@ -184,8 +197,13 @@ instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
     pretty (PApp1 _ f l e1) =
         pretty f <> pretty l <+> parenthize e1
 
-    pretty (PApp2 _ f l e1 e2) =
-        pretty f <> pretty l <+> (align $ (parenthize e1) </> (parenthize e2))
+    pretty (PApp2 _ p2 l e1 e2)
+        | isJoinOp p2 = prettyJoin (pretty p2 <> pretty l)
+                                   (parenthize e1)
+                                   (parenthize e2)
+        | otherwise   = prettyApp2 (pretty p2 <> pretty l)
+                                   (parenthize e1)
+                                   (parenthize e2)
 
     pretty (PApp3 _ f l e1 e2 e3) =
         pretty f <> pretty l
@@ -200,11 +218,15 @@ instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
            </> (nest 2 $ text "then" <+> e2')
            </> (nest 2 $ text "else" <+> e3')
 
-    pretty (BinOp _ o l e1 e2) =
-        align $ parenthize e1 </> pretty o <> pretty l </> parenthize e2
+    pretty (BinOp _ o l e1 e2)
+        | L.isBinInfixOp o = prettyInfixBinOp (pretty o <> pretty l)
+                                              (parenthize e1)
+                                              (parenthize e2)
+        | otherwise        = prettyPrefixBinOp (pretty o <> pretty l)
+                                               (parenthize e1)
+                                               (parenthize e2)
 
-    pretty (UnOp _ o l e) =
-        pretty o <> pretty l <> parens (pretty e)
+    pretty (UnOp _ o l e) = prettyUnOp (pretty o <> pretty l) (pretty e)
 
     pretty (Const _ v) = pretty v
 
@@ -217,17 +239,15 @@ instance Pretty ShapeExt where
         <+> (parenthize e)
 
     pretty (Imprint n _ e1 e2) =
-        forget (text "imprint")
-        <> (sub $ subscript $ intFromNat n)
-        <+> (align $ (parenthize e1)
-                     </> (parenthize e2))
+        prettyApp2 (forget (text "imprint") <> (sub $ subscript $ intFromNat n))
+                   (parenthize e1)
+                   (parenthize e2)
 
 instance Pretty BroadcastExt where
     pretty (Broadcast n _ e1 e2) =
-        forget (text "broadcast")
-        <> (subscript $ intFromNat n)
-        <+> (align $ (parenthize e1)
-                     </> (parenthize e2))
+        prettyApp2 (forget (text "broadcast") <> (subscript $ intFromNat n))
+                   (parenthize e1)
+                   (parenthize e2)
 
 parenthize :: (Pretty l, Pretty e) => ExprTempl l e -> Doc
 parenthize e =

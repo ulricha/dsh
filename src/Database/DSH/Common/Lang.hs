@@ -284,6 +284,15 @@ instance Pretty BinDateOp where
     pretty SubDays  = text "subDays"
     pretty DiffDays = text "diffDays"
 
+isBinInfixOp :: ScalarBinOp -> Bool
+isBinInfixOp op =
+    case op of
+        SBNumOp{}    -> True
+        SBRelOp{}    -> True
+        SBBoolOp{}   -> True
+        SBStringOp{} -> False
+        SBDateOp{}   -> False
+
 instance Pretty UnNumOp where
     pretty Sin  = text "sin"
     pretty Cos  = text "cos"

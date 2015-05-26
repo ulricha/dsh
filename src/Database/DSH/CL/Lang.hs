@@ -20,6 +20,7 @@ import           Data.List.NonEmpty             (NonEmpty ((:|)))
 import qualified Data.Traversable               as T
 
 import           Text.PrettyPrint.ANSI.Leijen   hiding ((<$>))
+
 import           Text.Printf
 
 import           Database.DSH.Common.Impossible
@@ -142,6 +143,18 @@ data Prim2 = Append
            | AntiJoin (L.JoinPredicate L.JoinExpr)
            deriving (Eq, Show)
 
+isJoinOp :: Prim2 -> Bool
+isJoinOp op =
+    case op of
+        CartProduct -> True
+        NestProduct -> True
+        ThetaJoin{} -> True
+        NestJoin{}  -> True
+        SemiJoin{}  -> True
+        AntiJoin{}  -> True
+        Append      -> False
+        Zip         -> False
+
 instance Pretty Prim2 where
   pretty Append        = combinator $ text "append"
   pretty Zip           = combinator $ text "zip"
@@ -186,11 +199,17 @@ instance Pretty Expr where
     pretty (MkTuple _ es)     = tupled $ map pretty es
     pretty (Table _ n _)      = kw (text "table") <> parens (text n)
     pretty (AppE1 _ p1 e)     = pretty p1 <+> (parenthize e)
-    pretty (AppE2 _ p2 e1 e2) = pretty p2
-                                <+>
-                                (align $ (parenthize e1) </> (parenthize e2))
-    pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
-    pretty (UnOp _ o e)       = pretty o <> parens (pretty e)
+    pretty (AppE2 _ p2 e1 e2)
+        | isJoinOp p2 = prettyJoin (pretty p2) (parenthize e1) (parenthize e2)
+        | otherwise   = prettyApp2 (pretty p2) (parenthize e1) (parenthize e2)
+    pretty (BinOp _ o e1 e2)
+        | L.isBinInfixOp o = prettyInfixBinOp (pretty o)
+                                              (parenthize e1)
+                                              (parenthize e2)
+        | otherwise        = prettyPrefixBinOp (pretty o)
+                                               (parenthize e1)
+                                               (parenthize e2)
+    pretty (UnOp _ o e)       = prettyUnOp (pretty o) (pretty e)
     pretty (If _ c t e)       = kw (text "if")
                                 <+> pretty c
                                 <+> kw (text "then")
@@ -201,14 +220,6 @@ instance Pretty Expr where
     pretty (Var _ s)          = text s
     pretty (Comp _ e qs)      = prettyComp (pretty e) (map pretty $ toList qs)
 
-    -- pretty (Comp _ e qs) = encloseSep (comp lbracket) (comp rbracket) empty docs
-    --   where
-    --     docs = (char ' ' <> pretty e <> char ' ') : qsDocs
-    --     qsDocs = case qs of
-    --                  q :* qs' -> (comp (char '|') <+> pretty q)
-    --                              : [ comp (char ',') <+> pretty q' | q' <- toList qs' ]
-
-    --                  S q      -> [ comp (char '|') <+> pretty q]
     pretty (Let _ x e1 e)     =
         align $ kw (text "let") <+> text x <+> kw (char '=') <+> pretty e1
                 </>
