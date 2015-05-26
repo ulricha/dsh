@@ -13,7 +13,7 @@ import           Control.Arrow
 import           Data.List
 import           Data.Monoid
 
-import           Database.DSH.Common.Kure
+
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 
@@ -240,11 +240,13 @@ fklNormOptimizations = repeatR $ anybuR rewrites
                <+ forgetimprintsmallerR
 
 optimizeNormFKL :: FExpr -> FExpr
-optimizeNormFKL expr = debugOpt "FKL" expr expr'
-  where
-    expr' = applyExpr (fklNormOptimizations >>> projectT) expr
+optimizeNormFKL expr =
+    case applyExpr (fklNormOptimizations >>> projectT) expr of
+        Left _      -> expr
+        Right expr' -> expr'
 
 optimizeFKL :: LExpr -> LExpr
-optimizeFKL expr = debugOpt "FKL Intermediate" expr expr'
-  where
-    expr' = applyExpr (fklOptimizations >>> projectT) expr
+optimizeFKL expr =
+    case applyExpr (fklOptimizations >>> projectT) expr of
+        Left _      -> expr
+        Right expr' -> expr'

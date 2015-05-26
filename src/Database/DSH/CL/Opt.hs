@@ -101,8 +101,10 @@ optimizeR = resugarR >+>
             repeatR applyOptimizationsR >+>
             postProcessR
 
+-- | Apply the default set of unnesting and decorrelation rewrites to
+-- a CL query.
 optimizeComprehensions :: Expr -> Expr
-optimizeComprehensions expr = debugOpt "CL" expr optimizedExpr
-  where
-    optimizedExpr = applyExpr (optimizeR >>> projectT) expr
-    -- optimizedExpr = applyExpr projectT expr
+optimizeComprehensions expr =
+    case applyExpr (optimizeR >>> projectT) expr of
+        Left _      -> expr
+        Right expr' -> expr'

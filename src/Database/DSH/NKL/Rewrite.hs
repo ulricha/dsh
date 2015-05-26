@@ -14,7 +14,7 @@ import           Data.List
 import           Data.Monoid
 
 import           Database.DSH.Common.Impossible
-import           Database.DSH.Common.Kure
+
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Common.Type
@@ -253,7 +253,8 @@ nklOptimizations = anybuR $ singletonHeadR
                             <+ mergeRestrictR
 
 optimizeNKL :: Expr -> Expr
-optimizeNKL expr = debugOpt "NKL" expr optimizedExpr
-  where
-    optimizedExpr = applyExpr [] nklOptimizations expr
+optimizeNKL expr =
+    case applyExpr [] nklOptimizations expr of
+        Left _      -> expr
+        Right expr' -> expr'
 

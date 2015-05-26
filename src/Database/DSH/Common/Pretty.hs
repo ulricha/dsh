@@ -19,10 +19,10 @@ join :: Doc -> Doc
 join = green
 
 prettyComp :: Doc -> [Doc] -> Doc
-prettyComp head quals
+prettyComp headExpr quals
     = case quals of
-        []  -> left <+> head <+> right
-        (q:qs) -> align $ cat $ [ left <+> head
+        []  -> left <+> headExpr <+> right
+        (q:qs) -> align $ cat $ [ left <+> headExpr
                                 , comp (char '|') <+> q
                                 ]
                                 ++
