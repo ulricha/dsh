@@ -705,6 +705,9 @@ integerToDecimal (Q i) = Q (AppE IntegerToDecimal i)
 like :: Q Text -> Q Text -> Q Bool
 like (Q t) (Q p) = Q (AppE Like (pairE t p))
 
+notLike :: Q Text -> Q Text -> Q Bool
+notLike t p = not (like t p)
+
 subString :: Integer -> Integer -> Q Text -> Q Text
 subString from to (Q t) = Q (AppE (SubString from to) t)
 
