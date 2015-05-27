@@ -3,7 +3,8 @@ module Database.DSH.Common.Pretty
   , Pretty, pretty
   , combinator, join, comp, super, sub, forget, kw, dist, restrict
   , prettyJoin, prettyComp, prettyApp2, prettyUnOp
-  , prettyInfixBinOp, prettyPrefixBinOp
+  , prettyInfixBinOp, prettyPrefixBinOp, prettyLet, prettyIf
+  , prettyTuple
   ) where
 
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
@@ -16,16 +17,19 @@ pp a = (displayS $ renderPretty 0.9 140 $ pretty a) ""
 -- Highlighting of various syntactical elements
 
 combinator :: Doc -> Doc
-combinator = id
+combinator = dullyellow
 
 kw :: Doc -> Doc
 kw = bold
 
 join :: Doc -> Doc
-join = green
+join = yellow
 
 comp :: Doc -> Doc
 comp = red
+
+tuple :: Doc -> Doc
+tuple = green
 
 super :: Doc -> Doc
 super = red
@@ -37,13 +41,44 @@ forget :: Doc -> Doc
 forget = blue
 
 restrict :: Doc -> Doc
-restrict = yellow
+restrict = magenta
 
 dist :: Doc -> Doc
 dist = cyan
 
 --------------------------------------------------------------------------------
 -- Pretty-printing of various syntactical elements
+
+prettyIf :: Doc -> Doc -> Doc -> Doc
+prettyIf c t e =
+    group $ align $ kw (text "if") <+> c
+                    P.<$> kw (text "then") <+> t
+                    P.<$> kw (text "else") <+> e
+
+prettyLet :: Doc -> Doc -> Doc -> Doc
+prettyLet x e1 e2 =
+    group $ align $ (kw (text "let") <+> x <+> kw (char '=') <+> e1)
+                    P.<$>
+                    kw (text "in") <+> e2
+
+
+prettyTuple :: [Doc] -> Doc
+prettyTuple es =
+    case es of
+        [] -> left <+> right
+        [e] -> left <+> e <+> right
+        (e1:e2:es') ->
+            align $ cat $ [left <+> e1]
+                          ++
+                          (map (tuple comma <+>) $ init (e2 : es'))
+                          ++
+                          [tuple comma <+> last (e2 : es') <> space]
+                          ++
+                          [right]
+
+  where
+    left  = tuple lparen
+    right = tuple rparen
 
 prettyComp :: Doc -> [Doc] -> Doc
 prettyComp headExpr quals
@@ -62,8 +97,8 @@ prettyComp headExpr quals
                              ++
                              [right]
   where
-    left   = red lbracket
-    right  = red rbracket
+    left   = comp lbracket
+    right  = comp rbracket
 
 prettyJoin :: Doc -> Doc -> Doc -> Doc
 prettyJoin op xs ys =

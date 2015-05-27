@@ -164,7 +164,7 @@ instance Pretty Prim1 where
     pretty Nub          = combinator $ text "nub"
     pretty Number       = combinator $ text "number"
     pretty Sort         = combinator $ text "sort"
-    pretty Restrict     = combinator $ text "restrict"
+    pretty Restrict     = restrict $ text "restrict"
     pretty Group        = combinator $ text "group"
     pretty Singleton    = combinator $ text "sng"
     pretty Only         = combinator $ text "only"
@@ -185,16 +185,10 @@ instance Pretty Prim3 where
     pretty Combine = combinator $ text "combine"
 
 instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
-    pretty (MkTuple _ l es) = (tupled $ map pretty es) <> pretty l
-
+    pretty (MkTuple _ l es) = (prettyTuple $ map pretty es) <> pretty l
     pretty (Var _ n) = text n
-    pretty (Let _ x e1 e) =
-        align $ kw (text "let") <+> text x <+> kw (char '=') <+> pretty e1
-                <$>
-                kw (text "in") <+> pretty e
-
+    pretty (Let _ x e1 e) = prettyLet (text x) (pretty e1) (pretty e)
     pretty (Table _ n _) = kw (text "table") <> parens (text n)
-
     pretty (PApp1 _ (TupElem n) l e1) =
         parenthize e1 <> dot <> int (tupleIndex n) <> pretty l
 
@@ -239,17 +233,17 @@ instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
 instance Pretty ShapeExt where
     pretty (Forget n _ e) =
         forget (text "forget")
-        <> (sub $ subscript $ intFromNat n)
+        <> (forget $ subscript $ intFromNat n)
         <+> (parenthize e)
 
     pretty (Imprint n _ e1 e2) =
-        prettyApp2 (forget (text "imprint") <> (sub $ subscript $ intFromNat n))
+        prettyApp2 (forget (text "imprint") <> (forget $ subscript $ intFromNat n))
                    (parenthize e1)
                    (parenthize e2)
 
 instance Pretty BroadcastExt where
     pretty (Broadcast n _ e1 e2) =
-        prettyApp2 (forget (text "broadcast") <> (subscript $ intFromNat n))
+        prettyApp2 (forget (text "broadcast") <> (forget $ subscript $ intFromNat n))
                    (parenthize e1)
                    (parenthize e2)
 

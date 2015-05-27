@@ -48,7 +48,7 @@ instance Typed Expr where
     typeOf (MkTuple t _)      = t
 
 instance Pretty Expr where
-    pretty (MkTuple _ es)      = tupled $ map pretty es
+    pretty (MkTuple _ es)      = prettyTuple $ map pretty es
     pretty (AppE1 _ (TupElem n) e1) =
         parenthize e1 <> dot <> int (tupleIndex n)
     pretty (Table _ n _)       = kw (text "table") <> parens (text n)
@@ -64,20 +64,12 @@ instance Pretty Expr where
         | otherwise        = prettyPrefixBinOp (pretty o)
                                                (parenthize e1)
                                                (parenthize e2)
-    pretty (If _ c t e)        = kw (text "if")
-                                 <+> pretty c
-                                 <+> kw (text "then")
-                                 <+> (parenthize t)
-                                 <+> kw (text "else")
-                                 <+> (parenthize e)
+    pretty (If _ c t e)        = prettyIf (pretty c) (pretty t) (pretty e)
     pretty (Const _ v)         = pretty v
     pretty (Var _ s)           = text s
     pretty (Iterator _ e x xs) =
         prettyComp (pretty e) [text x <+> comp (text "<-") <+> pretty xs]
-    pretty (Let _ x e1 e)      =
-        align $ kw (text "let") <+> text x <+> kw (char '=') <+> pretty e1
-                </>
-                kw (text "in") <+> pretty e
+    pretty (Let _ x e1 e)      = prettyLet (text x) (pretty e1) (pretty e)
 
 parenthize :: Expr -> Doc
 parenthize e =

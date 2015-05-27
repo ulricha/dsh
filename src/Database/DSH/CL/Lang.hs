@@ -196,7 +196,7 @@ data Expr  = Table Type String L.BaseTableSchema
 instance Pretty Expr where
     pretty (AppE1 _ (TupElem n) e1) =
         parenthize e1 <> dot <> int (tupleIndex n)
-    pretty (MkTuple _ es)     = tupled $ map pretty es
+    pretty (MkTuple _ es)     = prettyTuple $ map pretty es
     pretty (Table _ n _)      = kw (text "table") <> parens (text n)
     pretty (AppE1 _ p1 e)     = pretty p1 <+> (parenthize e)
     pretty (AppE2 _ p2 e1 e2)
@@ -210,20 +210,11 @@ instance Pretty Expr where
                                                (parenthize e1)
                                                (parenthize e2)
     pretty (UnOp _ o e)       = prettyUnOp (pretty o) (pretty e)
-    pretty (If _ c t e)       = kw (text "if")
-                                <+> pretty c
-                                <+> kw (text "then")
-                                <+> (parenthize t)
-                                <+> kw (text "else")
-                                <+> (parenthize e)
+    pretty (If _ c t e)       = prettyIf (pretty c) (pretty t) (pretty e)
     pretty (Lit _ v)          = pretty v
     pretty (Var _ s)          = text s
     pretty (Comp _ e qs)      = prettyComp (pretty e) (map pretty $ toList qs)
-
-    pretty (Let _ x e1 e)     =
-        align $ kw (text "let") <+> text x <+> kw (char '=') <+> pretty e1
-                </>
-                kw (text "in") <+> pretty e
+    pretty (Let _ x e1 e)     = prettyLet (text x) (pretty e1) (pretty e)
 
 parenthize :: Expr -> Doc
 parenthize e =
