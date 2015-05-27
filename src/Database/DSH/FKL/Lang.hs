@@ -122,12 +122,15 @@ instance Typed ShapeExt where
 -- Pretty-printing of FKL dialects
 
 superscript :: Int -> Doc
+superscript 0 = char '⁰'
 superscript 1 = char '¹'
 superscript 2 = char '²'
 superscript 3 = char '³'
 superscript 4 = char '⁴'
 superscript 5 = char '⁵'
 superscript 6 = char '⁶'
+superscript 7 = char '⁷'
+superscript 8 = char '⁸'
 superscript n = char '^' <> int n
 
 subscript :: Int -> Doc
@@ -137,14 +140,15 @@ subscript 3 = char '₃'
 subscript 4 = char '₄'
 subscript 5 = char '₅'
 subscript 6 = char '₆'
-subscript n = char '^' <> int n
+subscript 7 = char '₇'
+subscript 8 = char '₈'
+subscript n = char '_' <> int n
 
 instance Pretty Lifted where
-    pretty Lifted    = super $ text "ᴸ"
-    pretty NotLifted = empty
+    pretty Lifted    = super $ text "¹"
+    pretty NotLifted = super $ text "⁰"
 
 instance Pretty LiftedN where
-    pretty (LiftedN Zero) = empty
     pretty (LiftedN n)    = super $ superscript (intFromNat n)
 
 instance Pretty Prim1 where
