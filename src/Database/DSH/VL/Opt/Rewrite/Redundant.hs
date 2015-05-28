@@ -68,7 +68,8 @@ redundantRulesBottomUp = [ sameInputAlign
                          , alignUnboxSngRight
                          , alignUnboxSngLeft
                          , alignCartProdRight
-                         , alignGroupJoin
+                         , alignGroupJoinLeft
+                         , alignGroupJoinRight
                          -- , runningAggWin
                          , inlineWinAggrProject
                          , pullProjectNumber
@@ -78,6 +79,7 @@ redundantRulesBottomUp = [ sameInputAlign
                          , pullProjectUnboxSngRight
                          , pullProjectNestJoinLeft
                          , pullProjectNestJoinRight
+                         , pullProjectGroupJoinLeft
                          , selectCartProd
                          ]
 
@@ -565,18 +567,32 @@ alignWinRightPush q =
                 args'   = (winFun', frameSpec)
             void $ replaceWithNew q $ UnOp (WinFun args') zipNode |])
 
-alignGroupJoin :: VLRule BottomUpProps
-alignGroupJoin q =
+alignGroupJoinRight :: VLRule BottomUpProps
+alignGroupJoinRight q =
   $(dagPatMatch 'q "(qo) Align (gj=(qo1) GroupJoin _ (_))"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "qo")
 
         return $ do
-            logRewrite "Redundant.Align.GroupJoin" q
+            logRewrite "Redundant.Align.GroupJoin.Right" q
             -- In the result, replicate the columns from the outer
             -- vector to keep the schema intact.
             let proj = map Column $ [1..w] ++ [1..w+1]
+            void $ replaceWithNew q $ UnOp (Project proj) $(v "gj") |])
+
+alignGroupJoinLeft :: VLRule BottomUpProps
+alignGroupJoinLeft q =
+  $(dagPatMatch 'q "(gj=(qo1) GroupJoin _ (_)) Align (qo)"
+    [| do
+        predicate $ $(v "qo") == $(v "qo1")
+        w <- vectorWidth <$> vectorTypeProp <$> properties $(v "qo")
+
+        return $ do
+            logRewrite "Redundant.Align.GroupJoin.Left" q
+            -- In the result, replicate the columns from the outer
+            -- vector to keep the schema intact.
+            let proj = map Column $ [1..w+1] ++ [1..w]
             void $ replaceWithNew q $ UnOp (Project proj) $(v "gj") |])
 
 -- | If the right (outer) input of Unbox is a number operator and the
@@ -741,6 +757,25 @@ inlineJoinPredRight env (JoinPred conjs) = JoinPred $ fmap inlineRight conjs
   where
     inlineRight :: JoinConjunct Expr -> JoinConjunct Expr
     inlineRight (JoinConjunct le op re) = JoinConjunct le op (mergeExpr env re)
+
+pullProjectGroupJoinLeft :: VLRule BottomUpProps
+pullProjectGroupJoinLeft q =
+  $(dagPatMatch 'q "(Project proj (q1)) GroupJoin args (q2)"
+    [| do
+        let (p, a) = $(v "args")
+        leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+
+        return $ do
+            logRewrite "Redundant.Project.GroupJoin.Left" q
+            let proj'     = $(v "proj") ++ [Column $ leftWidth + 1]
+                p'        = inlineJoinPredLeft (zip [1..] $(v "proj")) p
+                rightCols = [leftWidth+1 .. leftWidth + rightWidth]
+                env       = zip [1..] ($(v "proj") ++ map Column rightCols)
+                a'        = mapAggrFun (mergeExpr env) a
+
+            joinNode <- insert $ BinOp (GroupJoin (p', a')) $(v "q1") $(v "q2")
+            void $ replaceWithNew q $ UnOp (Project proj') joinNode |])
 
 pullProjectNestJoinLeft :: VLRule BottomUpProps
 pullProjectNestJoinLeft q =
