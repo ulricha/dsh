@@ -289,7 +289,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
       Zip -> do
-          cols <- fromProp ownReqColumns
+          (cols, _, _)        <- fromPropTriple ownReqColumns
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 

@@ -68,7 +68,7 @@ seed (BinOp op _ _) =
         AppRep       -> vPropPairSeed
         UnboxSng  -> vPropPairSeed
         AggrS _      -> vPropSeed
-        Zip          -> vPropSeed
+        Zip          -> vPropTripleSeed
         Align        -> vPropSeed
         CartProduct  -> vPropTripleSeed
         CartProductS -> vPropTripleSeed
