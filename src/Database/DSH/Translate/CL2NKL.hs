@@ -348,18 +348,4 @@ desugarComprehension _ e qs = do
 -- | Express comprehensions through NKL iteration constructs map and
 -- concatMap and filter.
 desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions e =
-#ifdef DEBUGCOMP
-    trace (debugPrint eo) eo
-
-  where
-    eo = runReader (expr e) []
-
-    padSep :: String -> String
-    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
-
-    debugPrint :: NKL.Expr -> String
-    debugPrint e' = padSep "Desugared NKL" ++ pp e' ++ padSep ""
-#else
-    runReader (expr e) []
-#endif
+desugarComprehensions e = runReader (expr e) []
