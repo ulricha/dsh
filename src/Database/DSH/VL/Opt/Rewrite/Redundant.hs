@@ -64,13 +64,15 @@ redundantRulesBottomUp = [ sameInputAlign
                          , zipZipLeft
                          , alignWinLeft
                          , alignWinRight
+                         , zipWinLeft
+                         , zipWinRight
                          , alignWinRightPush
                          , alignUnboxSngRight
                          , alignUnboxSngLeft
                          , alignCartProdRight
                          , alignGroupJoinLeft
                          , alignGroupJoinRight
-                         -- , runningAggWin
+                         , runningAggWin
                          , inlineWinAggrProject
                          , pullProjectNumber
                          , constDist
@@ -524,6 +526,23 @@ alignWinRight q =
          return $ do
              logRewrite "Redundant.Align.Self.Win.Right" q
              -- We get all columns from the left input. The WinAggr
+             -- operator produces the input column followed by the
+             -- window function result.
+             let proj = map Column $ [1 .. w] ++ [1 .. w] ++ [w+1]
+             -- logGeneral ("zipWinRight " ++ show proj)
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qw") |])
+
+zipWinRight :: VLRule BottomUpProps
+zipWinRight q =
+  $(dagPatMatch 'q "R1 ((q1) Zip (qw=WinFun _ (q2)))"
+     [| do
+         predicate $ $(v "q1") == $(v "q2")
+
+         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+         return $ do
+             logRewrite "Redundant.Zip.Self.Win.Right" q
+             -- We get all columns from the left input. The WinAggr
              -- operator produces the input column followed the window
              -- function result.
              let proj = map Column $ [1 .. w] ++ [1 .. w] ++ [w+1]
@@ -540,6 +559,22 @@ alignWinLeft q =
 
          return $ do
              logRewrite "Redundant.Align.Self.Win.Left" q
+             -- We get all input columns plus the window function
+             -- output from the left. From the right we get all input
+             -- columns.
+             let proj = map Column $ [1 .. w] ++ [w+1] ++ [1 .. w]
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qw") |])
+
+zipWinLeft :: VLRule BottomUpProps
+zipWinLeft q =
+  $(dagPatMatch 'q "R1 ((qw=WinFun _ (q1)) Zip (q2))"
+     [| do
+         predicate $ $(v "q1") == $(v "q2")
+
+         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+         return $ do
+             logRewrite "Redundant.Zip.Self.Win.Left" q
              -- We get all input columns plus the window function
              -- output from the left. From the right we get all input
              -- columns.

@@ -116,10 +116,13 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             childReqColumns ∪ VProp cols
 
         WinFun (wfun, _) -> do
-            cs <- (VProp $ Just $ winReqCols wfun)
-                  ∪
-                  childReqColumns
-            cs ∪ ownReqColumns
+            -- Don't require the window function output from the child
+            -- operator.
+            VTDataVec w <- fromProp $ vectorTypeProp childBUProps
+            Just cols   <- fromProp ownReqColumns
+            let cols'     = VProp $ Just $ filter (/= (w + 1)) cols
+            cs <- (VProp $ Just $ winReqCols wfun) ∪ cols'
+            cs ∪ childReqColumns
         UniqueS    -> ownReqColumns ∪ childReqColumns
         Unique    -> ownReqColumns ∪ childReqColumns
 
@@ -138,8 +141,8 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
         -- from the set of required columns
         Number     -> do
             VTDataVec w <- fromProp $ vectorTypeProp childBUProps
-            Just cols     <- fromProp ownReqColumns
-            let cols'     = filter (/= w) cols
+            Just cols   <- fromProp ownReqColumns
+            let cols'     = filter (/= (w + 1)) cols
             VProp (Just cols') ∪ childReqColumns
         NumberS    -> do
             VTDataVec w <- fromProp $ vectorTypeProp childBUProps
