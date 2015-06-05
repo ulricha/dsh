@@ -37,7 +37,11 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectUnboxKey
                  , pullProjectAggrS
                  , scalarConditional
+                 , pushAggrSSelect
+                 , pushAggrSAlign
+                 , pushAggrSDistSng
                  ]
+
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ sameInputAlign
@@ -1083,3 +1087,37 @@ selectCartProd q =
             let joinPred = singlePred $ JoinConjunct (Column lc) op (Column $ rc - wl)
             joinNode <- insert $ BinOp (ThetaJoin joinPred) $(v "q1") $(v "q2")
             void $ replaceWithNew q $ UnOp R1 joinNode |])
+
+--------------------------------------------------------------------------------
+-- Early aggregation of groups
+
+pushAggrSSelect :: VLRule ()
+pushAggrSSelect q =
+  $(dagPatMatch 'q "(R1 (qs1=Select _ (qo))) AggrS af (R1 ((q2=R2 (qs2=Select _ (_))) AppFilter (qi)))"
+    [| do
+        predicate $ $(v "qs1") == $(v "qs2")
+
+        return $ do
+            logRewrite "Redundant.AggrS.Push.Select" q
+            aggNode <- insert $ BinOp (AggrS $(v "af")) $(v "qo") $(v "qi")
+            appNode <- insert $ BinOp AppFilter $(v "q2") aggNode
+            void $ replaceWithNew q $ UnOp R1 appNode |])
+
+--------------------------------------------------------------------------------
+-- Normalization rules for segment aggregation
+
+pushAggrSAlign :: VLRule ()
+pushAggrSAlign q =
+  $(dagPatMatch 'q "((_) Align (q1)) AggrS af (q2)"
+    [| do
+        return $ do
+            logRewrite "Redundant.AggrS.Push.Align" q
+            void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
+
+pushAggrSDistSng :: VLRule ()
+pushAggrSDistSng q =
+  $(dagPatMatch 'q "(R1 ((_) DistSng (q1))) AggrS af (q2)"
+    [| do
+        return $ do
+            logRewrite "Redundant.AggrS.Push.DistSng" q
+            void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
