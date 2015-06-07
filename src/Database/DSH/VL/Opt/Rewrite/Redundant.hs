@@ -38,8 +38,11 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectAggrS
                  , scalarConditional
                  , pushAggrSSelect
+                 , pushUnboxSngSelect
                  , pushAggrSAlign
                  , pushAggrSDistSng
+                 , pushUnboxSngAlign
+                 , pushUnboxSngDistSng
                  ]
 
 
@@ -1103,6 +1106,18 @@ pushAggrSSelect q =
             appNode <- insert $ BinOp AppFilter $(v "q2") aggNode
             void $ replaceWithNew q $ UnOp R1 appNode |])
 
+pushUnboxSngSelect :: VLRule ()
+pushUnboxSngSelect q =
+  $(dagPatMatch 'q "R1 ((R1 (qs1=Select p (qo))) UnboxSng (R1 ((q2=R2 (qs2=Select _ (_))) AppFilter (qi))))"
+    [| do
+        predicate $ $(v "qs1") == $(v "qs2")
+        return $ do
+            logRewrite "Redundant.UnboxSng.Push.Select" q
+            unboxNode  <- insert $ BinOp UnboxSng $(v "qo") $(v "qi")
+            r1Node     <- insert $ UnOp R1 unboxNode
+            selectNode <- insert $ UnOp (Select $(v "p")) r1Node
+            void $ replaceWithNew q $ UnOp R1 selectNode |])
+
 --------------------------------------------------------------------------------
 -- Normalization rules for segment aggregation
 
@@ -1121,3 +1136,24 @@ pushAggrSDistSng q =
         return $ do
             logRewrite "Redundant.AggrS.Push.DistSng" q
             void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
+
+pushUnboxSngAlign :: VLRule ()
+pushUnboxSngAlign q =
+  $(dagPatMatch 'q "R1 (((q1) Align (q2)) UnboxSng (q3))"
+    [| do
+        return $ do
+            logRewrite "Redundant.UnboxSng.Push.Align" q
+            unboxNode <- insert $ BinOp UnboxSng $(v "q2") $(v "q3")
+            r1Node    <- insert $ UnOp R1 unboxNode
+            void $ replaceWithNew q $ BinOp Align $(v "q1") r1Node |])
+
+pushUnboxSngDistSng :: VLRule ()
+pushUnboxSngDistSng q =
+  $(dagPatMatch 'q "R1 ((R1 ((q1) DistSng (q2))) UnboxSng (q3))"
+    [| do
+        return $ do
+            logRewrite "Redundant.UnboxSng.Push.DistSng" q
+            unboxNode <- insert $ BinOp UnboxSng $(v "q2") $(v "q3")
+            r1Node    <- insert $ UnOp R1 unboxNode
+            distNode  <- insert $ BinOp DistSng $(v "q1") r1Node
+            void $ replaceWithNew q $ UnOp R1 distNode |])
