@@ -89,6 +89,7 @@ redundantRulesBottomUp = [ sameInputAlign
                          , pullProjectNestJoinLeft
                          , pullProjectNestJoinRight
                          , pullProjectGroupJoinLeft
+                         -- , pullProjectDistSngRight
                          , selectCartProd
                          ]
 
@@ -927,6 +928,21 @@ pullProjectUnboxSngRight q =
 
            void $ replaceWithNew q $ UnOp (Project proj') r1Node |])
 
+pullProjectDistSngRight :: VLRule BottomUpProps
+pullProjectDistSngRight q =
+  $(dagPatMatch 'q "R1 ((q1) DistSng (Project p (q2)))"
+    [| do
+         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+         return $ do
+           logRewrite "Redundant.Project.DistSng" q
+           let p' = map Column [1..leftWidth]
+                    ++
+                    [ mapExprCols (+ leftWidth) e | e <- $(v "p") ]
+           distNode <- insert $ BinOp DistSng $(v "q1") $(v "q2")
+           r1Node   <- insert $ UnOp R1 distNode
+           void $ replaceWithNew q $ UnOp (Project p') r1Node |])
+
 pullProjectAppRep :: VLRule ()
 pullProjectAppRep q =
   $(dagPatMatch 'q "R1 ((qp) AppRep (Project proj (qv)))"
@@ -1094,6 +1110,8 @@ selectCartProd q =
 --------------------------------------------------------------------------------
 -- Early aggregation of groups
 
+-- | If segments are aggregated after they have been filtered due to an outer
+-- selection, we can aggregate early before filtering the segments.
 pushAggrSSelect :: VLRule ()
 pushAggrSSelect q =
   $(dagPatMatch 'q "(R1 (qs1=Select _ (qo))) AggrS af (R1 ((q2=R2 (qs2=Select _ (_))) AppFilter (qi)))"
@@ -1137,6 +1155,14 @@ pushAggrSDistSng q =
             logRewrite "Redundant.AggrS.Push.DistSng" q
             void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
 
+-- | Apply a singleton unbox operator before an align operator. By unboxing
+-- early, we hope to be able to eliminate unboxing (e.g. by combining it with an
+-- AggrS and Group operator).
+--
+-- Note: We could either push into the left or right align input. For no good
+-- reason, we choose the right side. When we deal with a self-align, this will
+-- not matter. There might however be plans where the left side would make more
+-- sense and we might get stuck.
 pushUnboxSngAlign :: VLRule ()
 pushUnboxSngAlign q =
   $(dagPatMatch 'q "R1 (((q1) Align (q2)) UnboxSng (q3))"
@@ -1147,6 +1173,9 @@ pushUnboxSngAlign q =
             r1Node    <- insert $ UnOp R1 unboxNode
             void $ replaceWithNew q $ BinOp Align $(v "q1") r1Node |])
 
+-- | Unbox singletons early, namely before distributing another singleton.
+--
+-- Note: the same comment as for pushUnboxSngAlign applies.
 pushUnboxSngDistSng :: VLRule ()
 pushUnboxSngDistSng q =
   $(dagPatMatch 'q "R1 ((R1 ((q1) DistSng (q2))) UnboxSng (q3))"

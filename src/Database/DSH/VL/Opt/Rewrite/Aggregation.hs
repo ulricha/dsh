@@ -4,20 +4,22 @@ module Database.DSH.VL.Opt.Rewrite.Aggregation
     ) where
 
 import           Control.Monad
-import qualified Data.List.NonEmpty                         as N
+import           Data.List.NonEmpty                   (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty                   as N
 import           Data.Semigroup
 
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Opt
+import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Opt.Properties.Types
 import           Database.DSH.VL.Opt.Rewrite.Common
-import           Database.DSH.VL.Lang
 
 aggregationRules :: VLRuleSet ()
 aggregationRules = [ inlineAggrSProject
                    , inlineAggrProject
                    , flatGrouping
+                   , flatGrouping2
                    -- , mergeNonEmptyAggrs
                    , mergeGroupAggr
                    , mergeGroupWithGroupAggrLeft
@@ -103,14 +105,11 @@ inlineAggrSProject q =
             logRewrite "Aggregation.Normalize.AggrS.Project" q
             void $ replaceWithNew q $ BinOp (AggrS afun') $(v "qo") $(v "qi") |])
 
--- We rewrite a combination of Group and aggregation operators into a single
--- GroupAggr operator if the following conditions hold:
---
--- 1. The R2 output of Group is only consumed by an AggrS operator
--- 2. The grouping criteria is a simple column projection from the input vector
+-- | We rewrite a combination of Group and aggregation operators into a single
+-- GroupAggr operator.
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "R1 ((R1 (qg)) UnboxSng ((_) AggrS afun (R2 (qg1=Group groupExprs (q1)))))"
+  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng ((_) AggrS afun (R2 (qg1=Group groupExprs (q1)))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -120,7 +119,46 @@ flatGrouping q =
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
           let afuns = $(v "afun") N.:| []
-          void $ replaceWithNew q $ UnOp (GroupAggr ($(v "groupExprs"), afuns)) $(v "q1") |])
+
+          groupAggrNode <- insert $ UnOp (GroupAggr ($(v "groupExprs"), afuns)) $(v "q1")
+          replace q groupAggrNode
+          let proj = map Column [1..length $(v "groupExprs")]
+          void $ replaceWithNew $(v "qr1") $ UnOp (Project proj) groupAggrNode
+        |])
+
+-- | Cleanup rewrite: merge a segment aggregate with a group
+-- operator. In contrast to rewrite 'flatGrouping", unboxing is
+-- performed using a GroupAggr operator that has the same grouping
+-- expressions as the original grouping.
+--
+-- This pattern can occur if R1 outputs of Group are moved to a
+-- GroupAggr and segment aggregate and unboxing operators are pushed
+-- down through segment propagation operators.
+--
+-- Testcase: TPC-H Q11
+flatGrouping2 :: VLRule ()
+flatGrouping2 q =
+  $(dagPatMatch 'q "R1 (qu=(GroupAggr args (q1)) UnboxSng ((_) AggrS afun (R2 (qg1=Group groupExprs (q2)))))"
+    [| do
+
+        -- Ensure that the aggregate results are unboxed using the
+        -- outer vector of the grouping operator.
+        predicate $ $(v "q1") == $(v "q2")
+        let (groupExprs', afun' :| []) = $(v "args")
+        predicate $ groupExprs' == $(v "groupExprs")
+        predicate $ afun' == $(v "afun")
+
+        return $ do
+          logRewrite "Aggregation.Grouping.Aggr" q
+          let afuns = $(v "afun") N.:| []
+          let proj = map Column [1..length groupExprs']
+                     ++
+                     [Column $ length groupExprs' + 1]
+                     ++
+                     [Column $ length groupExprs' + 1]
+
+          groupAggrNode <- insert $ UnOp (GroupAggr ($(v "groupExprs"), afuns)) $(v "q1")
+          void $ replaceWithNew q $ UnOp (Project proj) groupAggrNode |])
 
 mergeGroupAggr :: VLRule ()
 mergeGroupAggr q =
