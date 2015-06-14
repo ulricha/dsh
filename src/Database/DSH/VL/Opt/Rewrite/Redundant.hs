@@ -38,6 +38,7 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectAggrS
                  , scalarConditional
                  , pushAggrSSelect
+                 , pushAggrSThetaJoinRight
                  , pushUnboxSngSelect
                  , pushAggrSAlign
                  , pushAggrSDistSng
@@ -89,8 +90,9 @@ redundantRulesBottomUp = [ sameInputAlign
                          , pullProjectNestJoinLeft
                          , pullProjectNestJoinRight
                          , pullProjectGroupJoinLeft
-                         -- , pullProjectDistSngRight
+                         , pullProjectDistSngRight
                          , selectCartProd
+                         , pushUnboxSngThetaJoinRight
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -1124,6 +1126,23 @@ pushAggrSSelect q =
             appNode <- insert $ BinOp AppFilter $(v "q2") aggNode
             void $ replaceWithNew q $ UnOp R1 appNode |])
 
+-- | Aggregate segments from a right join input before they are replicated as a
+-- consequence of a ThetaJoin operator.
+pushAggrSThetaJoinRight :: VLRule ()
+pushAggrSThetaJoinRight q =
+    $(dagPatMatch 'q "(R1 (qj1)) AggrS args (R1 ((qr3=R3 (qj2=(_) ThetaJoin _ (qo2))) AppRep (qi)))"
+      [| do
+          predicate $ $(v "qj1") == $(v "qj2")
+          return $ do
+              logRewrite "Redundant.AggrS.Push.ThetaJoin.Right" q
+              aggNode <- insert $ BinOp (AggrS $(v "args")) $(v "qo2") $(v "qi")
+              repNode <- insert $ BinOp AppRep $(v "qr3") aggNode
+              void $ replaceWithNew q $ UnOp R1 repNode
+      |])
+
+-- | Unbox singleton segments before they are filtered because of a selection.
+-- This rewrite is valid because we only add columns at the end: column
+-- references in the selection predicate remain valid.
 pushUnboxSngSelect :: VLRule ()
 pushUnboxSngSelect q =
   $(dagPatMatch 'q "R1 ((R1 (qs1=Select p (qo))) UnboxSng (R1 ((q2=R2 (qs2=Select _ (_))) AppFilter (qi))))"
@@ -1135,6 +1154,34 @@ pushUnboxSngSelect q =
             r1Node     <- insert $ UnOp R1 unboxNode
             selectNode <- insert $ UnOp (Select $(v "p")) r1Node
             void $ replaceWithNew q $ UnOp R1 selectNode |])
+
+-- | Unbox singleton segments before a join (right input). This is an
+-- improvement because the replication join is no longer necessary.
+pushUnboxSngThetaJoinRight :: VLRule BottomUpProps
+pushUnboxSngThetaJoinRight q =
+    $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qj1=(qo1) ThetaJoin p (qo2))) UnboxSng (R1 ((R3 (qj2)) AppRep (qi))))"
+      [| do
+          predicate $ $(v "qj1") == $(v "qj2")
+          w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo1")
+          w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo2")
+
+          return $ do
+              logRewrite "Redundant.UnboxSng.Push.ThetaJoin.Right" q
+              -- Insert unboxing in the right input of the join.
+              unboxNode   <- insert $ BinOp UnboxSng $(v "qo2") $(v "qi")
+              r1UnboxNode <- insert $ UnOp R1 unboxNode
+              joinNode    <- insert $ BinOp (ThetaJoin $(v "p")) $(v "qo1") r1UnboxNode
+              r1JoinNode  <- insert $ UnOp R1 joinNode
+              replace q r1JoinNode
+
+              -- Take care not to duplicate the join operator. We rewire all
+              -- original parents to the new join operator and use a projection
+              -- to keep the original schema.
+              joinParents <- filter (/= $(v "qu")) <$> parents $(v "qr1")
+              let proj = map Column [1..w1+w2]
+              projNode <- insert $ UnOp (Project proj) r1JoinNode
+              forM_ joinParents $ \p -> replaceChild p $(v "qr1") projNode
+      |])
 
 --------------------------------------------------------------------------------
 -- Normalization rules for segment aggregation
