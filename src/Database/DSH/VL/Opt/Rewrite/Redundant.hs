@@ -1110,7 +1110,15 @@ selectCartProd q =
             void $ replaceWithNew q $ UnOp R1 joinNode |])
 
 --------------------------------------------------------------------------------
--- Early aggregation of groups
+-- Early aggregation of segments. We try to aggregate segments as early as
+-- possible by pushing down segment aggregation operators through segment
+-- propagation operators. Aggregating early means that the cardinality of inner
+-- vectors is reduced. Ideally, we will be able to merge the AggrS operator with
+-- nesting operators (Group, NestJoin) and thereby avoid the materialization of
+-- inner segments altogether.
+--
+-- Amongst others, these rewrites are important to deal with HAVING-like
+-- patterns.
 
 -- | If segments are aggregated after they have been filtered due to an outer
 -- selection, we can aggregate early before filtering the segments.
