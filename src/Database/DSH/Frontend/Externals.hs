@@ -525,6 +525,13 @@ index as i = only $ map fst $ filter (\xp -> snd xp == i + 1) $ number as
 take :: (QA a) => Q Integer -> Q [a] -> Q [a]
 take i xs = map fst $ filter (\xp -> snd xp <= i) $ number xs
 
+-- | Return the top /k/ elements based on a supplied ordering criterion
+topK :: (QA a, TA b, QA b, Ord b) => Integer -> (Q a -> Q b) -> Q [a] -> Q [a]
+topK k f as = take (toQ k)
+              $ map fst
+              $ sortWith snd
+              $ map (\a -> pair a (f a)) as
+
 drop :: (QA a) => Q Integer -> Q [a] -> Q [a]
 drop i xs = map fst $ filter (\xp -> snd xp > i) $ number xs
 
