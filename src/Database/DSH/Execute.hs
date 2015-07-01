@@ -25,23 +25,7 @@ import           Database.DSH.Execute.TH
 import qualified Database.DSH.Frontend.Internals  as F
 
 ------------------------------------------------------------------------------
--- Different kinds of layouts that contain results in various forms
-
--- Generate the definition for the 'TabTuple' type
-$(mkTabTupleType 16)
-
--- | Row layout with nesting data in the form of raw tabular results
--- FIXME use newtypes to keep key and ref columns apart
-data TabLayout a where
-    TCol   :: F.Type a -> ColName -> TabLayout a
-    TNest  :: (F.Reify a, Backend c)
-           => F.Type [a]
-           -> [BackendRow c]
-           -> [ColName]
-           -> [ColName]
-           -> TabLayout a
-           -> TabLayout [a]
-    TTuple :: TabTuple a -> TabLayout a
+-- Segment Layouts
 
 -- Generate the definition for the 'SegTuple' type
 $(mkSegTupleType 16)
@@ -99,8 +83,8 @@ execQueryBundle conn shape ty =
     case (shape, ty) of
         (VShape q lyt, F.ListT ety) -> do
             tab  <- execFlatQuery conn' q
-            tlyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ety
-            return $ fromVector tab (rvKeyCols q) tlyt
+            slyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ety
+            return $ fromVector tab (rvKeyCols q) slyt
         (SShape q lyt, _) -> do
             tab  <- execFlatQuery conn' q
             tlyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ty
@@ -111,14 +95,14 @@ execQueryBundle conn shape ty =
 execNested :: Backend c
            => c -> ColLayout (BackendCode c)
            -> F.Type a
-           -> IO (TabLayout a)
+           -> IO (SegLayout a)
 execNested conn lyt ty =
     case (lyt, ty) of
-        (CCol i, t)                   -> return $ TCol t i
+        (CCol i, t)                   -> return $ SCol t i
         (CNest q clyt, F.ListT t)     -> do
             tab   <- execFlatQuery conn q
             clyt' <- execNested conn clyt t
-            return $ TNest ty tab (rvKeyCols q) (rvRefCols q) clyt'
+            return $ SNest ty (mkSegMap (rvKeyCols q) (rvRefCols q) tab clyt')
         (CTuple lyts, F.TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
                                          in execTuple lyts tupTy
         (_, _)                        ->
@@ -128,10 +112,9 @@ execNested conn lyt ty =
 -- Construct result value terms from raw tabular results
 
 -- | Construct a list from an outer vector
-fromVector :: (F.Reify a, Row r) => [r] -> [ColName] -> TabLayout a -> F.Exp [a]
-fromVector tab keyCols tlyt =
-    let slyt = segmentLayout tlyt
-    in F.ListE $ D.toList $ foldl' (vecIter keyCols slyt) D.empty tab
+fromVector :: (F.Reify a, Row r) => [r] -> [ColName] -> SegLayout a -> F.Exp [a]
+fromVector tab keyCols slyt =
+    F.ListE $ D.toList $ foldl' (vecIter keyCols slyt) D.empty tab
 
 -- | Construct one element value of the result list from a single row
 -- of the outer vector.
@@ -146,27 +129,14 @@ vecIter keyCols slyt vals row =
     in D.snoc vals val
 
 -- | Construct a single value from an outer vector
-fromPrim :: Row r => [r] -> [ColName] -> TabLayout a -> F.Exp a
-fromPrim tab keyCols tlyt =
-    let slyt = segmentLayout tlyt
-    in case tab of
-           [row] -> constructVal keyCols slyt row
-           _     -> $impossible
+fromPrim :: Row r => [r] -> [ColName] -> SegLayout a -> F.Exp a
+fromPrim tab keyCols slyt =
+    case tab of
+        [row] -> constructVal keyCols slyt row
+        _     -> $impossible
 
 ------------------------------------------------------------------------------
 -- Construct nested result values from segmented vectors
-
--- | Construct values for nested vectors in the layout.
-segmentLayout :: TabLayout a -> SegLayout a
-segmentLayout tlyt =
-    case tlyt of
-        TCol ty i                            -> SCol ty i
-        TNest ty tab keyCols refCols clyt  ->
-            let slyt = segmentLayout clyt
-            in SNest ty (mkSegMap keyCols refCols tab slyt)
-        TTuple tup                           ->
-            let segmentTuple = $(mkSegmentTupleFun 16)
-            in STuple $ segmentTuple tup
 
 data SegAcc a = SegAcc
     { saCurrSeg :: CompositeKey
