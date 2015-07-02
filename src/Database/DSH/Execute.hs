@@ -35,9 +35,9 @@ type SegMap a = M.HashMap CompositeKey (F.Exp a)
 
 -- | Row layout with nesting data in the form of segment maps
 data SegLayout a where
-    SCol   :: F.Type a -> ColName -> SegLayout a
-    SNest  :: F.Reify a => F.Type [a] -> SegMap [a] -> SegLayout [a]
-    STuple :: SegTuple a -> SegLayout a
+    SCol   :: !(F.Type a) -> !ColName -> SegLayout a
+    SNest  :: F.Reify a => !(F.Type [a]) -> !(SegMap [a]) -> SegLayout [a]
+    STuple :: !(SegTuple a) -> SegLayout a
 
 --------------------------------------------------------------------------------
 -- Turn layouts into layouts with explicit column names
@@ -139,9 +139,9 @@ fromPrim tab keyCols slyt =
 -- Construct nested result values from segmented vectors
 
 data SegAcc a = SegAcc
-    { saCurrSeg :: CompositeKey
-    , saSegMap  :: SegMap [a]
-    , saCurrVec :: D.DList (F.Exp a)
+    { saCurrSeg :: !CompositeKey
+    , saSegMap  :: !(SegMap [a])
+    , saCurrVec :: !(D.DList (F.Exp a))
     }
 
 -- | Construct a segment map from a segmented vector
