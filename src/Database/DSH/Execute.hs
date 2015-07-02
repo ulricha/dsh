@@ -78,16 +78,16 @@ execQueryBundle :: Backend c
                 -> Shape (BackendCode c)
                 -> F.Type a
                 -> IO (F.Exp a)
-execQueryBundle conn shape ty =
+execQueryBundle !conn !shape !ty =
     transactionally conn $ \conn' ->
     case (shape, ty) of
         (VShape q lyt, F.ListT ety) -> do
-            tab  <- execFlatQuery conn' q
             slyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ety
+            tab  <- execFlatQuery conn' q
             return $ fromVector tab (rvKeyCols q) slyt
         (SShape q lyt, _) -> do
-            tab  <- execFlatQuery conn' q
             tlyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ty
+            tab  <- execFlatQuery conn' q
             return $ fromPrim tab (rvKeyCols q) tlyt
         _ -> $impossible
 
@@ -96,12 +96,12 @@ execNested :: Backend c
            => c -> ColLayout (BackendCode c)
            -> F.Type a
            -> IO (SegLayout a)
-execNested conn lyt ty =
+execNested !conn lyt ty =
     case (lyt, ty) of
         (CCol i, t)                   -> return $ SCol t i
         (CNest q clyt, F.ListT t)     -> do
-            tab   <- execFlatQuery conn q
             clyt' <- execNested conn clyt t
+            tab   <- execFlatQuery conn q
             return $ SNest ty (mkSegMap (rvKeyCols q) (rvRefCols q) tab clyt')
         (CTuple lyts, F.TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
                                          in execTuple lyts tupTy
