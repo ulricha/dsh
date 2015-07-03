@@ -37,7 +37,7 @@ import           Database.DSH.VL.Lang             (VL)
 --------------------------------------------------------------------------------
 -- Backend-independent composite keys
 
-data KeyVal = KInteger !Integer
+data KeyVal = KInt !Int
             | KByteString !ByteString
             | KDay !C.Day
             deriving (Eq, Generic)
