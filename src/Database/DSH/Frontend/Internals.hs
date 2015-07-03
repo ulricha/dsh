@@ -28,19 +28,19 @@ $(mkTupleAstComponents 16)
 
 data Exp a where
     UnitE       :: Exp ()
-    BoolE       :: Bool    -> Exp Bool
-    CharE       :: Char    -> Exp Char
-    IntegerE    :: Integer -> Exp Integer
-    DoubleE     :: Double  -> Exp Double
-    TextE       :: Text    -> Exp Text
-    DecimalE    :: Decimal -> Exp Decimal
-    DayE        :: Day     -> Exp Day
-    ListE       :: (Reify a)           => [Exp a] -> Exp [a]
+    BoolE       :: !Bool    -> Exp Bool
+    CharE       :: !Char    -> Exp Char
+    IntegerE    :: !Integer -> Exp Integer
+    DoubleE     :: !Double  -> Exp Double
+    TextE       :: !Text    -> Exp Text
+    DecimalE    :: !Decimal -> Exp Decimal
+    DayE        :: !Day     -> Exp Day
+    ListE       :: (Reify a)           => !([Exp a]) -> Exp [a]
     AppE        :: (Reify a, Reify b)  => Fun a b -> Exp a -> Exp b
     LamE        :: (Reify a, Reify b)  => (Exp a -> Exp b) -> Exp (a -> b)
     VarE        :: (Reify a)           => Integer -> Exp a
     TableE      :: (Reify a)           => Table -> Exp [a]
-    TupleConstE :: TupleConst a -> Exp a
+    TupleConstE :: !(TupleConst a) -> Exp a
 
 data Type a where
     UnitT     :: Type ()

@@ -410,7 +410,7 @@ mkTupleCons tupTyName conName elemTyCons width = do
         constraints      = tupConstraint : reifyConstraints
 
     let -- '(Exp/Type t1) ... (Exp/Type t<n>)'
-        elemTys = [ (NotStrict, elemTyCons (VarT t))
+        elemTys = [ (IsStrict, elemTyCons (VarT t))
                   | t <- tupElemTyNames
                   ]
 

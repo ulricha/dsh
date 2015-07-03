@@ -124,9 +124,9 @@ mkTupleLytCons tupTyName lytTyCons conName width = do
         constraints      = tupConstraint : reifyConstraints
 
     let -- 'Type a'
-        dshTypeTy  = (NotStrict, AppT (ConT ''DSH.Type) (VarT tupTyName))
+        dshTypeTy  = (IsStrict, AppT (ConT ''DSH.Type) (VarT tupTyName))
         -- 'TabLayout t1, TabLayout t<n>
-        elemLytTys = [ (NotStrict, lytTyCons (VarT t)) -- AppT (ConT $ mkName "TabLayout") (VarT t))
+        elemLytTys = [ (IsStrict, lytTyCons (VarT t)) -- AppT (ConT $ mkName "TabLayout") (VarT t))
                      | t <- tupElemTyNames
                      ]
         argTys     = dshTypeTy : elemLytTys
