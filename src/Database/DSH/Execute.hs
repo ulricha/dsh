@@ -29,7 +29,189 @@ import qualified Database.DSH.Frontend.Internals  as F
 -- Segment Layouts
 
 -- Generate the definition for the 'SegTuple' type
-$(mkSegTupleType 16)
+-- $(mkSegTupleType 16)
+
+data SegTuple a where
+    STuple2 :: (F.Reify a, F.Reify b)
+            => F.Type (a, b)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegTuple (a, b)
+    STuple3 :: (F.Reify a, F.Reify b, F.Reify c)
+            => F.Type (a, b, c)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegTuple (a, b, c)
+    STuple4 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d)
+            => F.Type (a, b, c, d)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegTuple (a, b, c, d)
+    STuple5 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e)
+            => F.Type (a, b, c, d, e)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegTuple (a, b, c, d, e)
+    STuple6 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e, F.Reify f)
+            => F.Type (a, b, c, d, e, f)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegLayout f
+            -> SegTuple (a, b, c, d, e, f)
+    STuple7 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e, F.Reify f, F.Reify g)
+            => F.Type (a, b, c, d, e, f, g)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegLayout f
+            -> SegLayout g
+            -> SegTuple (a, b, c, d, e, f, g)
+    STuple8 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e, F.Reify f, F.Reify g, F.Reify h)
+            => F.Type (a, b, c, d, e, f, g, h)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegLayout f
+            -> SegLayout g
+            -> SegLayout h
+            -> SegTuple (a, b, c, d, e, f, g, h)
+    STuple9 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e, F.Reify f, F.Reify g, F.Reify h, F.Reify i)
+            => F.Type (a, b, c, d, e, f, g, h, i)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegLayout f
+            -> SegLayout g
+            -> SegLayout h
+            -> SegLayout i
+            -> SegTuple (a, b, c, d, e, f, g, h, i)
+    STuple10 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e, F.Reify f, F.Reify g, F.Reify h, F.Reify i, F.Reify j)
+            => F.Type (a, b, c, d, e, f, g, h, i, j)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegLayout f
+            -> SegLayout g
+            -> SegLayout h
+            -> SegLayout i
+            -> SegLayout j
+            -> SegTuple (a, b, c, d, e, f, g, h, i, j)
+    STuple11 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e, F.Reify f, F.Reify g, F.Reify h, F.Reify i, F.Reify j, F.Reify k)
+            => F.Type (a, b, c, d, e, f, g, h, i, j, k)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegLayout f
+            -> SegLayout g
+            -> SegLayout h
+            -> SegLayout i
+            -> SegLayout j
+            -> SegLayout k
+            -> SegTuple (a, b, c, d, e, f, g, h, i, j, k)
+    STuple12 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e, F.Reify f, F.Reify g, F.Reify h, F.Reify i, F.Reify j, F.Reify k, F.Reify l)
+            => F.Type (a, b, c, d, e, f, g, h, i, j, k, l)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegLayout f
+            -> SegLayout g
+            -> SegLayout h
+            -> SegLayout i
+            -> SegLayout j
+            -> SegLayout k
+            -> SegLayout l
+            -> SegTuple (a, b, c, d, e, f, g, h, i, j, k, l)
+    STuple13 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e, F.Reify f, F.Reify g, F.Reify h, F.Reify i, F.Reify j, F.Reify k, F.Reify l, F.Reify m)
+            => F.Type (a, b, c, d, e, f, g, h, i, j, k, l, m)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegLayout f
+            -> SegLayout g
+            -> SegLayout h
+            -> SegLayout i
+            -> SegLayout j
+            -> SegLayout k
+            -> SegLayout l
+            -> SegLayout m
+            -> SegTuple (a, b, c, d, e, f, g, h, i, j, k, l, m)
+    STuple14 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e, F.Reify f, F.Reify g, F.Reify h, F.Reify i, F.Reify j, F.Reify k, F.Reify l, F.Reify m, F.Reify n)
+            => F.Type (a, b, c, d, e, f, g, h, i, j, k, l, m, n)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegLayout f
+            -> SegLayout g
+            -> SegLayout h
+            -> SegLayout i
+            -> SegLayout j
+            -> SegLayout k
+            -> SegLayout l
+            -> SegLayout m
+            -> SegLayout n
+            -> SegTuple (a, b, c, d, e, f, g, h, i, j, k, l, m, n)
+    STuple15 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e, F.Reify f, F.Reify g, F.Reify h, F.Reify i, F.Reify j, F.Reify k, F.Reify l, F.Reify m, F.Reify n, F.Reify o)
+            => F.Type (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegLayout f
+            -> SegLayout g
+            -> SegLayout h
+            -> SegLayout i
+            -> SegLayout j
+            -> SegLayout k
+            -> SegLayout l
+            -> SegLayout m
+            -> SegLayout n
+            -> SegLayout o
+            -> SegTuple (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
+    STuple16 :: (F.Reify a, F.Reify b, F.Reify c, F.Reify d, F.Reify e, F.Reify f, F.Reify g, F.Reify h, F.Reify i, F.Reify j, F.Reify k, F.Reify l, F.Reify m, F.Reify n, F.Reify o, F.Reify p)
+            => F.Type (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
+            -> SegLayout a
+            -> SegLayout b
+            -> SegLayout c
+            -> SegLayout d
+            -> SegLayout e
+            -> SegLayout f
+            -> SegLayout g
+            -> SegLayout h
+            -> SegLayout i
+            -> SegLayout j
+            -> SegLayout k
+            -> SegLayout l
+            -> SegLayout m
+            -> SegLayout n
+            -> SegLayout o
+            -> SegLayout p
+            -> SegTuple (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
 
 -- | A map from segment descriptor to list value expressions
 type SegMap a = M.HashMap CompositeKey (F.Exp a)
