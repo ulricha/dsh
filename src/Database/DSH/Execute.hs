@@ -198,14 +198,14 @@ constructVal !keyCols !lyt !row =
         SNest _ segMap    -> case M.lookup (mkCKey row keyCols) segMap of
                                   Just !v -> v
                                   Nothing -> F.ListE []
-        SCol F.DoubleT c  -> doubleVal (col c row)
-        SCol F.IntegerT c -> integerVal (col c row)
-        SCol F.BoolT c    -> boolVal (col c row)
-        SCol F.CharT c    -> charVal (col c row)
-        SCol F.TextT c    -> textVal (col c row)
-        SCol F.UnitT c    -> unitVal (col c row)
-        SCol F.DayT c     -> dayVal (col c row)
-        SCol F.DecimalT c -> decimalVal (col c row)
+        SCol F.DoubleT c  -> doubleVal $! (col c row)
+        SCol F.IntegerT c -> integerVal $! col c row
+        SCol F.BoolT c    -> boolVal $! col c row
+        SCol F.CharT c    -> charVal $! col c row
+        SCol F.TextT c    -> textVal $! col c row
+        SCol F.UnitT c    -> unitVal $! col c row
+        SCol F.DayT c     -> dayVal $! col c row
+        SCol F.DecimalT c -> decimalVal $! col c row
         SCol _       _    -> $impossible
 
 constructTuple :: Row r => [ColName] -> SegTuple a -> r -> F.Exp a
