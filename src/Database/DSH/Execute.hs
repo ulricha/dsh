@@ -89,7 +89,7 @@ execQueryBundle !conn !shape !ty =
         (SShape q lyt, _) -> do
             tlyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ty
             tab  <- execFlatQuery conn' q
-            return $ fromPrim tab (rvKeyCols q) tlyt
+            return (fromPrim tab (rvKeyCols q) tlyt)
         _ -> $impossible
 
 -- | Traverse the layout and execute all subqueries for nested vectors
@@ -103,7 +103,7 @@ execNested !conn lyt ty =
         (CNest q clyt, F.ListT t)     -> do
             clyt' <- execNested conn clyt t
             tab   <- execFlatQuery conn q
-            return $ SNest ty (mkSegMap (rvKeyCols q) (rvRefCols q) tab clyt')
+            return (SNest ty (mkSegMap (rvKeyCols q) (rvRefCols q) tab clyt'))
         (CTuple lyts, F.TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
                                          in execTuple lyts tupTy
         (_, _)                        ->
@@ -114,8 +114,8 @@ execNested !conn lyt ty =
 
 -- | Construct a list from an outer vector
 fromVector :: (F.Reify a, Row r) => [r] -> [ColName] -> SegLayout a -> F.Exp [a]
-fromVector tab keyCols slyt =
-    F.ListE $ D.toList $ foldl' (vecIter keyCols slyt) D.empty tab
+fromVector !tab !keyCols !slyt =
+    F.ListE (D.toList $! foldl' (vecIter keyCols slyt) D.empty tab)
 
 -- | Construct one element value of the result list from a single row
 -- of the outer vector.
@@ -125,16 +125,16 @@ vecIter :: Row r
         -> D.DList (F.Exp a)
         -> r
         -> D.DList (F.Exp a)
-vecIter keyCols slyt vals row =
-    let val = constructVal keyCols slyt row
+vecIter !keyCols !slyt !vals !row =
+    let !val = constructVal keyCols slyt row
     in D.snoc vals val
 
 -- | Construct a single value from an outer vector
 fromPrim :: Row r => [r] -> [ColName] -> SegLayout a -> F.Exp a
 fromPrim tab keyCols slyt =
     case tab of
-        [row] -> constructVal keyCols slyt row
-        _     -> $impossible
+        [!row] -> constructVal keyCols slyt row
+        _      -> $impossible
 
 ------------------------------------------------------------------------------
 -- Construct nested result values from segmented vectors
@@ -152,7 +152,7 @@ mkSegMap :: (F.Reify a, Row r)
          -> [r]
          -> SegLayout a
          -> SegMap [a]
-mkSegMap keyCols refCols tab slyt =
+mkSegMap !keyCols !refCols !tab !slyt =
     let -- FIXME using the empty list as the starting key is not exactly nice
         !initialAcc = SegAcc { saCurrSeg = (CompositeKey [])
                              , saSegMap  = M.empty
