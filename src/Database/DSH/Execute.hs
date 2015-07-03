@@ -9,8 +9,8 @@ module Database.DSH.Execute
     ( execQueryBundle
     ) where
 
+import qualified Data.Sequence as S
 import           Control.Monad.State
-import qualified Data.DList                       as D
 import qualified Data.HashMap.Strict              as M
 import           Data.List
 import qualified Data.Vector                      as V
@@ -85,11 +85,11 @@ execQueryBundle !conn !shape !ty =
         (VShape q lyt, F.ListT ety) -> do
             slyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ety
             tab  <- execFlatQuery conn' q
-            return $ fromVector tab (rvKeyCols q) slyt
+            return $! F.ListE (foldl' (vecIter (rvKeyCols q) slyt) S.empty tab)
         (SShape q lyt, _) -> do
             tlyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ty
             tab  <- execFlatQuery conn' q
-            return (fromPrim tab (rvKeyCols q) tlyt)
+            return $! fromPrim tab (rvKeyCols q) tlyt
         _ -> $impossible
 
 -- | Traverse the layout and execute all subqueries for nested vectors
@@ -112,22 +112,17 @@ execNested !conn lyt ty =
 ------------------------------------------------------------------------------
 -- Construct result value terms from raw tabular results
 
--- | Construct a list from an outer vector
-fromVector :: (F.Reify a, Row r) => [r] -> [ColName] -> SegLayout a -> F.Exp [a]
-fromVector !tab !keyCols !slyt =
-    F.ListE (D.toList $! foldl' (vecIter keyCols slyt) D.empty tab)
-
 -- | Construct one element value of the result list from a single row
 -- of the outer vector.
 vecIter :: Row r
         => [ColName]
         -> SegLayout a
-        -> D.DList (F.Exp a)
+        -> S.Seq (F.Exp a)
         -> r
-        -> D.DList (F.Exp a)
+        -> S.Seq (F.Exp a)
 vecIter !keyCols !slyt !vals !row =
     let !val = constructVal keyCols slyt row
-    in D.snoc vals val
+    in vals S.|> val
 
 -- | Construct a single value from an outer vector
 fromPrim :: Row r => [r] -> [ColName] -> SegLayout a -> F.Exp a
@@ -142,7 +137,7 @@ fromPrim tab keyCols slyt =
 data SegAcc a = SegAcc
     { saCurrSeg :: !CompositeKey
     , saSegMap  :: !(SegMap [a])
-    , saCurrVec :: !(D.DList (F.Exp a))
+    , saCurrVec :: !(S.Seq (F.Exp a))
     }
 
 -- | Construct a segment map from a segmented vector
@@ -156,11 +151,11 @@ mkSegMap !keyCols !refCols !tab !slyt =
     let -- FIXME using the empty list as the starting key is not exactly nice
         !initialAcc = SegAcc { saCurrSeg = (CompositeKey [])
                              , saSegMap  = M.empty
-                             , saCurrVec = D.empty
+                             , saCurrVec = S.empty
                              }
         !finalAcc = foldl' (segIter keyCols refCols slyt) initialAcc tab
     in M.insert (saCurrSeg finalAcc)
-                (F.ListE $ D.toList $ saCurrVec finalAcc)
+                (F.ListE $ saCurrVec finalAcc)
                 (saSegMap finalAcc)
 
 -- | Fold iterator that constructs a map from segment descriptor to
@@ -176,12 +171,12 @@ segIter !keyCols !refCols !lyt !acc !row =
     let !val = constructVal keyCols lyt row
         !ref = mkCKey row refCols
     in if ref == saCurrSeg acc
-       then acc { saCurrVec = D.snoc (saCurrVec acc) val }
+       then acc { saCurrVec = (saCurrVec acc) S.|> val }
        else acc { saCurrSeg = ref
                 , saSegMap  = M.insert (saCurrSeg acc)
-                                       (F.ListE $ D.toList $ saCurrVec acc)
+                                       (F.ListE $ saCurrVec acc)
                                        (saSegMap acc)
-                , saCurrVec = D.singleton val
+                , saCurrVec = S.singleton val
                 }
 
 ------------------------------------------------------------------------------
@@ -194,10 +189,10 @@ mkCKey !r !cs = CompositeKey $! map (keyVal . flip col r) cs
 constructVal :: Row r => [ColName] -> SegLayout a -> r -> F.Exp a
 constructVal !keyCols !lyt !row =
     case lyt of
-        STuple stup       -> constructTuple keyCols stup row
-        SNest _ segMap    -> case M.lookup (mkCKey row keyCols) segMap of
+        STuple !stup      -> constructTuple keyCols stup row
+        SNest _ !segMap   -> case M.lookup (mkCKey row keyCols) segMap of
                                   Just !v -> v
-                                  Nothing -> F.ListE []
+                                  Nothing -> F.ListE S.empty
         SCol F.DoubleT c  -> doubleVal $! (col c row)
         SCol F.IntegerT c -> integerVal $! col c row
         SCol F.BoolT c    -> boolVal $! col c row

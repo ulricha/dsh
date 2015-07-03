@@ -14,6 +14,8 @@ import           Data.List.NonEmpty               (NonEmpty((:|)))
 import qualified Data.List.NonEmpty               as N
 import qualified Data.Text                        as T
 import           Text.Printf
+import qualified Data.Sequence as S
+import           GHC.Exts
 
 import qualified Database.DSH.CL.Lang             as CL
 import qualified Database.DSH.CL.Primitives       as CP
@@ -76,7 +78,7 @@ translate (VarE i) = do
     return $ CP.var (translateType ty) (prefixVar i)
 translate (ListE es) = do
     let ty = reify (undefined :: a)
-    CP.list (translateType ty) <$> mapM translate es
+    CP.list (translateType ty) <$> (mapM translate $ toList es)
 -- We expect the query language to be first order. Lambdas must only
 -- occur as an argument to higher-order built-in combinators (map,
 -- concatMap, sortWith, ...). If lambdas occur in other places that

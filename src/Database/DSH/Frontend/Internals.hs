@@ -9,6 +9,7 @@
 
 module Database.DSH.Frontend.Internals where
 
+import qualified Data.Sequence as S
 import           Data.Decimal
 import           Data.List.NonEmpty               (NonEmpty)
 import           Data.Text                        (Text)
@@ -35,7 +36,7 @@ data Exp a where
     TextE       :: !Text    -> Exp Text
     DecimalE    :: !Decimal -> Exp Decimal
     DayE        :: !Day     -> Exp Day
-    ListE       :: (Reify a)           => !([Exp a]) -> Exp [a]
+    ListE       :: (Reify a)           => !(S.Seq (Exp a)) -> Exp [a]
     AppE        :: (Reify a, Reify b)  => Fun a b -> Exp a -> Exp b
     LamE        :: (Reify a, Reify b)  => (Exp a -> Exp b) -> Exp (a -> b)
     VarE        :: (Reify a)           => Integer -> Exp a

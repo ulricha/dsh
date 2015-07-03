@@ -21,6 +21,8 @@ import           Data.String
 import           Data.Text                        (Text)
 import qualified Data.Text                        as T
 import           Data.Time.Calendar               (Day)
+import qualified Data.Sequence                    as S
+import           GHC.Exts(fromList, toList)
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Frontend.Builtins
@@ -80,24 +82,29 @@ instance QA Day where
 
 instance (QA a) => QA [a] where
     type Rep [a] = [Rep a]
-    toExp as = ListE (P.map toExp as)
-    frExp (ListE as) = P.map frExp as
+    toExp as = ListE (P.fmap toExp $ fromList as)
+    frExp (ListE as) = toList $ P.fmap frExp as
     frExp _ = $impossible
 
 instance (QA a) => QA (Maybe a) where
     type Rep (Maybe a) = [Rep a]
-    toExp Nothing = ListE []
-    toExp (Just a) = ListE [toExp a]
-    frExp (ListE []) = Nothing
-    frExp (ListE (a : _)) = Just (frExp a)
+    toExp Nothing = ListE S.empty
+    toExp (Just a) = ListE (S.singleton $ toExp a)
+    frExp (ListE s) =
+        case S.viewl s of
+            S.EmptyL -> Nothing
+            a S.:< _ -> Just (frExp a)
     frExp _ = $impossible
 
 instance (QA a,QA b) => QA (Either a b) where
     type Rep (Either a b) = ([Rep a],[Rep b])
-    toExp (Left a) = pairE (ListE [toExp a]) (ListE [])
-    toExp (Right b) = pairE (ListE []) (ListE [toExp b])
-    frExp (TupleConstE (Tuple2E (ListE (a : _)) _)) = Left (frExp a)
-    frExp (TupleConstE (Tuple2E _ (ListE (a : _)))) = Right (frExp a)
+    toExp (Left a) = pairE (ListE (S.singleton $ toExp a)) (ListE S.empty)
+    toExp (Right b) = pairE (ListE S.empty) (ListE $ S.singleton $ toExp b)
+    frExp (TupleConstE (Tuple2E (ListE s1) (ListE s2))) =
+        case (S.viewl s1, S.viewl s2) of
+            (a S.:< _, _) -> Left (frExp a)
+            (_, a S.:< _) -> Right (frExp a)
+            (_, _)        -> $impossible
     frExp _ = $impossible
 
 -- Elim instances
@@ -485,7 +492,7 @@ partitionEithers es = pair (lefts es) (rights es)
 -- * List Construction
 
 nil :: (QA a) => Q [a]
-nil = Q (ListE [])
+nil = Q (ListE S.empty)
 
 cons :: (QA a) => Q a -> Q [a] -> Q [a]
 cons (Q a) (Q as) = Q (AppE Cons (pairE a as))

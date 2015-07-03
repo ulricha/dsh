@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric    #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE BangPatterns     #-}
 
 -- | This module provides an abstraction over flat relational backends
 -- with respect to code generation and query execution.
