@@ -37,9 +37,9 @@ import           Database.DSH.VL.Lang             (VL)
 --------------------------------------------------------------------------------
 -- Backend-independent composite keys
 
-data KeyVal = KInt !Int
-            | KByteString !ByteString
-            | KDay !C.Day
+data KeyVal = KInt        {-# UNPACK #-} !Int
+            | KByteString {-# UNPACK #-} !ByteString
+            | KDay                       !C.Day
             deriving (Eq, Generic)
 
 newtype CompositeKey = CompositeKey { unCKey :: [KeyVal] }
