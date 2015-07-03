@@ -3,6 +3,7 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE BangPatterns        #-}
 
 module Database.DSH.Execute
     ( execQueryBundle
@@ -10,7 +11,7 @@ module Database.DSH.Execute
 
 import           Control.Monad.State
 import qualified Data.DList                       as D
-import qualified Data.HashMap.Lazy                as M
+import qualified Data.HashMap.Strict              as M
 import           Data.List
 import qualified Data.Vector                      as V
 import           Text.Printf
@@ -153,11 +154,11 @@ mkSegMap :: (F.Reify a, Row r)
          -> SegMap [a]
 mkSegMap keyCols refCols tab slyt =
     let -- FIXME using the empty list as the starting key is not exactly nice
-        initialAcc = SegAcc { saCurrSeg = (CompositeKey [])
-                            , saSegMap  = M.empty
-                            , saCurrVec = D.empty
-                            }
-        finalAcc = foldl' (segIter keyCols refCols slyt) initialAcc tab
+        !initialAcc = SegAcc { saCurrSeg = (CompositeKey [])
+                             , saSegMap  = M.empty
+                             , saCurrVec = D.empty
+                             }
+        !finalAcc = foldl' (segIter keyCols refCols slyt) initialAcc tab
     in M.insert (saCurrSeg finalAcc)
                 (F.ListE $ D.toList $ saCurrVec finalAcc)
                 (saSegMap finalAcc)
@@ -171,15 +172,15 @@ segIter :: (F.Reify a, Row r)
         -> SegAcc a
         -> r
         -> SegAcc a
-segIter keyCols refCols lyt acc row =
-    let val = constructVal keyCols lyt row
-        ref = mkCKey row refCols
+segIter !keyCols !refCols !lyt !acc !row =
+    let !val = constructVal keyCols lyt row
+        !ref = mkCKey row refCols
     in if ref == saCurrSeg acc
        then acc { saCurrVec = D.snoc (saCurrVec acc) val }
        else acc { saCurrSeg = ref
                 , saSegMap  = M.insert (saCurrSeg acc)
-                                     (F.ListE $ D.toList $ saCurrVec acc)
-                                     (saSegMap acc)
+                                       (F.ListE $ D.toList $ saCurrVec acc)
+                                       (saSegMap acc)
                 , saCurrVec = D.singleton val
                 }
 
