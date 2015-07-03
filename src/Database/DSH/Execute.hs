@@ -188,16 +188,15 @@ segIter !keyCols !refCols !lyt !acc !row =
 -- Construct values from table rows
 
 mkCKey :: Row r => r -> [ColName] -> CompositeKey
-mkCKey r cs = CompositeKey $ map (keyVal . flip col r) cs
+mkCKey !r !cs = CompositeKey $! map (keyVal . flip col r) cs
 
 -- | Construct a value from a vector row according to the given layout
 constructVal :: Row r => [ColName] -> SegLayout a -> r -> F.Exp a
-constructVal keyCols lyt row =
+constructVal !keyCols !lyt !row =
     case lyt of
-        STuple stup       -> let constructTuple = $(mkConstructTuple 16)
-                             in constructTuple keyCols stup row
+        STuple stup       -> constructTuple keyCols stup row
         SNest _ segMap    -> case M.lookup (mkCKey row keyCols) segMap of
-                                  Just v  -> v
+                                  Just !v  -> v
                                   Nothing -> F.ListE []
         SCol F.DoubleT c  -> doubleVal (col c row)
         SCol F.IntegerT c -> integerVal (col c row)
@@ -208,5 +207,159 @@ constructVal keyCols lyt row =
         SCol F.DayT c     -> dayVal (col c row)
         SCol F.DecimalT c -> decimalVal (col c row)
         SCol _       _    -> $impossible
+
+constructTuple :: Row r => [ColName] -> SegTuple a -> r -> F.Exp a
+constructTuple kc lyt r =
+    case lyt of
+        STuple2 _ sl1 sl2 ->
+            F.TupleConstE (F.Tuple2E (constructVal kc sl1 r)
+                                     (constructVal kc sl2 r))
+        STuple3 _ sl1 sl2 sl3 ->
+            F.TupleConstE (F.Tuple3E (constructVal kc sl1 r)
+                                     (constructVal kc sl2 r)
+                                     (constructVal kc sl3 r))
+        STuple4 _ sl1 sl2 sl3 sl4 ->
+            F.TupleConstE (F.Tuple4E (constructVal kc sl1 r)
+                                     (constructVal kc sl2 r)
+                                     (constructVal kc sl3 r)
+                                     (constructVal kc sl4 r))
+        STuple5 _ sl1 sl2 sl3 sl4 sl5 ->
+            F.TupleConstE (F.Tuple5E (constructVal kc sl1 r)
+                                     (constructVal kc sl2 r)
+                                     (constructVal kc sl3 r)
+                                     (constructVal kc sl4 r)
+                                     (constructVal kc sl5 r))
+        STuple6 _ sl1 sl2 sl3 sl4 sl5 sl6 ->
+            F.TupleConstE (F.Tuple6E (constructVal kc sl1 r)
+                                     (constructVal kc sl2 r)
+                                     (constructVal kc sl3 r)
+                                     (constructVal kc sl4 r)
+                                     (constructVal kc sl5 r)
+                                     (constructVal kc sl6 r))
+        STuple7 _ sl1 sl2 sl3 sl4 sl5 sl6 sl7 ->
+            F.TupleConstE (F.Tuple7E (constructVal kc sl1 r)
+                                     (constructVal kc sl2 r)
+                                     (constructVal kc sl3 r)
+                                     (constructVal kc sl4 r)
+                                     (constructVal kc sl5 r)
+                                     (constructVal kc sl6 r)
+                                     (constructVal kc sl7 r))
+        STuple8 _ sl1 sl2 sl3 sl4 sl5 sl6 sl7 sl8 ->
+            F.TupleConstE (F.Tuple8E (constructVal kc sl1 r)
+                                     (constructVal kc sl2 r)
+                                     (constructVal kc sl3 r)
+                                     (constructVal kc sl4 r)
+                                     (constructVal kc sl5 r)
+                                     (constructVal kc sl6 r)
+                                     (constructVal kc sl7 r)
+                                     (constructVal kc sl8 r))
+        STuple9 _ sl1 sl2 sl3 sl4 sl5 sl6 sl7 sl8 sl9 ->
+            F.TupleConstE (F.Tuple9E (constructVal kc sl1 r)
+                                     (constructVal kc sl2 r)
+                                     (constructVal kc sl3 r)
+                                     (constructVal kc sl4 r)
+                                     (constructVal kc sl5 r)
+                                     (constructVal kc sl6 r)
+                                     (constructVal kc sl7 r)
+                                     (constructVal kc sl8 r)
+                                     (constructVal kc sl9 r))
+        STuple10 _ sl1 sl2 sl3 sl4 sl5 sl6 sl7 sl8 sl9 sl10 ->
+            F.TupleConstE (F.Tuple10E (constructVal kc sl1 r)
+                                      (constructVal kc sl2 r)
+                                      (constructVal kc sl3 r)
+                                      (constructVal kc sl4 r)
+                                      (constructVal kc sl5 r)
+                                      (constructVal kc sl6 r)
+                                      (constructVal kc sl7 r)
+                                      (constructVal kc sl8 r)
+                                      (constructVal kc sl9 r)
+                                      (constructVal kc sl10 r))
+        STuple11 _ sl1 sl2 sl3 sl4 sl5 sl6 sl7 sl8 sl9 sl10 sl11 ->
+            F.TupleConstE (F.Tuple11E (constructVal kc sl1 r)
+                                      (constructVal kc sl2 r)
+                                      (constructVal kc sl3 r)
+                                      (constructVal kc sl4 r)
+                                      (constructVal kc sl5 r)
+                                      (constructVal kc sl6 r)
+                                      (constructVal kc sl7 r)
+                                      (constructVal kc sl8 r)
+                                      (constructVal kc sl9 r)
+                                      (constructVal kc sl10 r)
+                                      (constructVal kc sl11 r))
+        STuple12 _ sl1 sl2 sl3 sl4 sl5 sl6 sl7 sl8 sl9 sl10 sl11 sl12 ->
+            F.TupleConstE (F.Tuple12E (constructVal kc sl1 r)
+                                      (constructVal kc sl2 r)
+                                      (constructVal kc sl3 r)
+                                      (constructVal kc sl4 r)
+                                      (constructVal kc sl5 r)
+                                      (constructVal kc sl6 r)
+                                      (constructVal kc sl7 r)
+                                      (constructVal kc sl8 r)
+                                      (constructVal kc sl9 r)
+                                      (constructVal kc sl10 r)
+                                      (constructVal kc sl11 r)
+                                      (constructVal kc sl12 r))
+        STuple13 _ sl1 sl2 sl3 sl4 sl5 sl6 sl7 sl8 sl9 sl10 sl11 sl12 sl13 ->
+            F.TupleConstE (F.Tuple13E (constructVal kc sl1 r)
+                                      (constructVal kc sl2 r)
+                                      (constructVal kc sl3 r)
+                                      (constructVal kc sl4 r)
+                                      (constructVal kc sl5 r)
+                                      (constructVal kc sl6 r)
+                                      (constructVal kc sl7 r)
+                                      (constructVal kc sl8 r)
+                                      (constructVal kc sl9 r)
+                                      (constructVal kc sl10 r)
+                                      (constructVal kc sl11 r)
+                                      (constructVal kc sl12 r)
+                                      (constructVal kc sl13 r))
+        STuple14 _ sl1 sl2 sl3 sl4 sl5 sl6 sl7 sl8 sl9 sl10 sl11 sl12 sl13 sl14 ->
+            F.TupleConstE (F.Tuple14E (constructVal kc sl1 r)
+                                      (constructVal kc sl2 r)
+                                      (constructVal kc sl3 r)
+                                      (constructVal kc sl4 r)
+                                      (constructVal kc sl5 r)
+                                      (constructVal kc sl6 r)
+                                      (constructVal kc sl7 r)
+                                      (constructVal kc sl8 r)
+                                      (constructVal kc sl9 r)
+                                      (constructVal kc sl10 r)
+                                      (constructVal kc sl11 r)
+                                      (constructVal kc sl12 r)
+                                      (constructVal kc sl13 r)
+                                      (constructVal kc sl14 r))
+        STuple15 _ sl1 sl2 sl3 sl4 sl5 sl6 sl7 sl8 sl9 sl10 sl11 sl12 sl13 sl14 sl15 ->
+            F.TupleConstE (F.Tuple15E (constructVal kc sl1 r)
+                                      (constructVal kc sl2 r)
+                                      (constructVal kc sl3 r)
+                                      (constructVal kc sl4 r)
+                                      (constructVal kc sl5 r)
+                                      (constructVal kc sl6 r)
+                                      (constructVal kc sl7 r)
+                                      (constructVal kc sl8 r)
+                                      (constructVal kc sl9 r)
+                                      (constructVal kc sl10 r)
+                                      (constructVal kc sl11 r)
+                                      (constructVal kc sl12 r)
+                                      (constructVal kc sl13 r)
+                                      (constructVal kc sl14 r)
+                                      (constructVal kc sl15 r))
+        STuple16 _ sl1 sl2 sl3 sl4 sl5 sl6 sl7 sl8 sl9 sl10 sl11 sl12 sl13 sl14 sl15 sl16 ->
+            F.TupleConstE (F.Tuple16E (constructVal kc sl1 r)
+                                      (constructVal kc sl2 r)
+                                      (constructVal kc sl3 r)
+                                      (constructVal kc sl4 r)
+                                      (constructVal kc sl5 r)
+                                      (constructVal kc sl6 r)
+                                      (constructVal kc sl7 r)
+                                      (constructVal kc sl8 r)
+                                      (constructVal kc sl9 r)
+                                      (constructVal kc sl10 r)
+                                      (constructVal kc sl11 r)
+                                      (constructVal kc sl12 r)
+                                      (constructVal kc sl13 r)
+                                      (constructVal kc sl14 r)
+                                      (constructVal kc sl15 r)
+                                      (constructVal kc sl16 r))
 
 --------------------------------------------------------------------------------

@@ -4,7 +4,6 @@ module Database.DSH.Execute.TH
     ( mkExecTuple
     , mkTabTupleType
     , mkSegTupleType
-    , mkConstructTuple
     ) where
 
 import           Language.Haskell.TH
@@ -187,36 +186,3 @@ mkSegTupleType maxWidth = mkTupleLyt segTupleTyName segLayoutTyCons segTupleCons
 
     segTupleTyName :: Name
     segTupleTyName = mkName "SegTuple"
-
---------------------------------------------------------------------------------
--- Generate the constructor function from a segmap tuple layout to a
--- tuple value
-
-mkConstructTupleMatch :: Name -> Name -> Int -> Q Match
-mkConstructTupleMatch keysName rowName width = do
-    lytNames <- mapM (\i -> newName $ printf "slyt%d" i) [1..width]
-
-    let tuplePat = ConP (segTupleConsName width) (WildP : map VarP lytNames)
-
-    let constructFun    = VarE $ mkName "constructVal"
-        constructArgs l = [VarE keysName, VarE l, VarE rowName ]
-        resultElemExps  = [ foldl' AppE constructFun (constructArgs l)
-                          | l <- lytNames
-                          ]
-        tupleConstE     = ConE $ innerConst "F" width
-        resultValExp    = AppE (ConE $ mkName "F.TupleConstE")
-                               (foldl' AppE tupleConstE resultElemExps)
-
-    return $ Match tuplePat (NormalB resultValExp) []
-
-mkConstructTuple :: Int -> Q Exp
-mkConstructTuple maxWidth = do
-    keysName      <- newName "keyCols"
-    lytName       <- newName "lyt"
-    rowName       <- newName "row"
-
-    tupMatches    <- mapM (mkConstructTupleMatch keysName rowName)
-                          [2..maxWidth]
-    let lamBody = CaseE (TupE [VarE lytName]) tupMatches
-
-    return $ LamE [VarP keysName, VarP lytName, VarP rowName] lamBody
