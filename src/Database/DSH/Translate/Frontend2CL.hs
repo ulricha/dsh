@@ -14,7 +14,7 @@ import           Data.List.NonEmpty               (NonEmpty((:|)))
 import qualified Data.List.NonEmpty               as N
 import qualified Data.Text                        as T
 import           Text.Printf
-import qualified Data.Sequence as S
+
 import           GHC.Exts
 
 import qualified Database.DSH.CL.Lang             as CL

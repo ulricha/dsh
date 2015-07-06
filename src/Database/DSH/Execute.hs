@@ -1,19 +1,19 @@
+{-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE ExplicitForAll      #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
-{-# LANGUAGE BangPatterns        #-}
 
 module Database.DSH.Execute
     ( execQueryBundle
     ) where
 
-import qualified Data.Sequence as S
 import           Control.Monad.State
-import qualified Data.HashMap.Strict              as M
+import qualified Data.HashMap.Strict             as M
 import           Data.List
-import qualified Data.Vector                      as V
+import qualified Data.Sequence                   as S
+import qualified Data.Vector                     as V
 import           Text.Printf
 
 import           Database.DSH.Common.Pretty
@@ -23,7 +23,7 @@ import           Database.DSH.Common.Vector
 import           Database.DSH.Backend
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Execute.TH
-import qualified Database.DSH.Frontend.Internals  as F
+import qualified Database.DSH.Frontend.Internals as F
 
 ------------------------------------------------------------------------------
 -- Segment Layouts
@@ -149,7 +149,7 @@ mkSegMap :: (F.Reify a, Row r)
          -> SegMap [a]
 mkSegMap !keyCols !refCols !tab !slyt =
     let -- FIXME using the empty list as the starting key is not exactly nice
-        !initialAcc = SegAcc { saCurrSeg = (CompositeKey [])
+        !initialAcc = SegAcc { saCurrSeg = CompositeKey []
                              , saSegMap  = M.empty
                              , saCurrVec = S.empty
                              }
@@ -171,7 +171,7 @@ segIter !keyCols !refCols !lyt !acc !row =
     let !val = constructVal keyCols lyt row
         !ref = mkCKey row refCols
     in if ref == saCurrSeg acc
-       then acc { saCurrVec = (saCurrVec acc) S.|> val }
+       then acc { saCurrVec = saCurrVec acc S.|> val }
        else acc { saCurrSeg = ref
                 , saSegMap  = M.insert (saCurrSeg acc)
                                        (F.ListE $ saCurrVec acc)
@@ -193,7 +193,7 @@ constructVal !keyCols !lyt !row =
         SNest _ !segMap   -> case M.lookup (mkCKey row keyCols) segMap of
                                   Just !v -> v
                                   Nothing -> F.ListE S.empty
-        SCol F.DoubleT c  -> doubleVal $! (col c row)
+        SCol F.DoubleT c  -> doubleVal $! col c row
         SCol F.IntegerT c -> integerVal $! col c row
         SCol F.BoolT c    -> boolVal $! col c row
         SCol F.CharT c    -> charVal $! col c row
@@ -356,5 +356,6 @@ constructTuple !kc !lyt !r =
                                       (constructVal kc sl14 r)
                                       (constructVal kc sl15 r)
                                       (constructVal kc sl16 r))
+
 
 --------------------------------------------------------------------------------
