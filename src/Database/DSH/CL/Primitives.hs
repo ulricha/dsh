@@ -9,7 +9,6 @@ import qualified Prelude                    as P
 import           Data.Decimal
 import qualified Data.List                  as List
 import qualified Data.Text                  as T
-import qualified Data.Time.Calendar         as C
 import           Text.Printf
 
 import           Database.DSH.CL.Lang
@@ -220,7 +219,7 @@ double d = Lit PDoubleT (L.ScalarV (L.DoubleV d))
 decimal :: Decimal -> Expr
 decimal d = Lit PDecimalT (L.ScalarV (L.DecimalV d))
 
-day :: C.Day -> Expr
+day :: L.Date -> Expr
 day d = Lit PDateT (L.ScalarV (L.DateV d))
 
 nil :: Type -> Expr

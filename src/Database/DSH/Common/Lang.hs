@@ -38,18 +38,20 @@ instance ToJSON Decimal where
 instance FromJSON Decimal where
     parseJSON s = read <$> parseJSON s
 
-instance FromJSON C.Day where
-    parseJSON o = (\(y, m, d) -> C.fromGregorian y m d) <$> parseJSON o
+instance FromJSON Date where
+    parseJSON o = Date <$> (\(y, m, d) -> C.fromGregorian y m d) <$> parseJSON o
 
-instance ToJSON C.Day where
-    toJSON = toJSON . C.toGregorian
+instance ToJSON Date where
+    toJSON = toJSON . C.toGregorian . unDate
+
+newtype Date = Date { unDate :: C.Day } deriving (Eq, Ord, Show)
 
 data ScalarVal = IntV      Int
                | BoolV     Bool
                | StringV   T.Text
                | DoubleV   Double
                | DecimalV  Decimal
-               | DateV     C.Day
+               | DateV     Date
                | UnitV
                deriving (Eq, Ord, Show)
 
@@ -254,7 +256,7 @@ instance Pretty ScalarVal where
     pretty (DoubleV d)   = double d
     pretty (DecimalV d)  = text $ show d
     pretty UnitV         = text "()"
-    pretty (DateV d)     = text $ C.showGregorian d
+    pretty (DateV d)     = text $ C.showGregorian $ unDate d
 
 instance Pretty BinRelOp where
     pretty Eq  = text "=="

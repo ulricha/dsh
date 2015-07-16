@@ -72,7 +72,7 @@ translate (IntegerE i) = return $ CP.int (fromInteger i)
 translate (DoubleE d) = return $ CP.double d
 translate (TextE t) = return $ CP.string t
 translate (DecimalE d) = return $ CP.decimal d
-translate (DayE d) = return $ CP.day d
+translate (DayE d) = return $ CP.day $ L.Date d
 translate (VarE i) = do
     let ty = reify (undefined :: a)
     return $ CP.var (translateType ty) (prefixVar i)
