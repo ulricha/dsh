@@ -218,6 +218,7 @@ executable vldot
 
                       algebra-dag          >= 0.1
     GHC-Options: -Wall -fno-warn-orphans
+    other-extensions: TemplateHaskell
 
 source-repository head
     type:     git
