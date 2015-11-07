@@ -217,6 +217,14 @@ executable vldot
                       vector              >= 0.10,
 
                       algebra-dag          >= 0.1
+
+    other-modules:    Database.DSH.Common.Impossible
+                      Database.DSH.Common.Lang
+                      Database.DSH.Common.Nat
+                      Database.DSH.Common.Pretty
+                      Database.DSH.Common.Type
+                      Database.DSH.VL.Lang
+                      Database.DSH.VL.Render.Dot
     GHC-Options: -Wall -fno-warn-orphans
     other-extensions: TemplateHaskell
 
