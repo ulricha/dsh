@@ -37,7 +37,7 @@ runningAggWin q =
   $(dagPatMatch 'q "R1 ((qo) UnboxSng ((_) AggrS afun (R1 ((qn=Number (q1)) NestJoin p (Number (q2))))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
-        predicate $ $(v "qo") == $(v "qn")
+        predicate $ $(v "qo") == $(v "q1")
 
         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
