@@ -199,8 +199,7 @@ showVectorizedQ (Q q) = do
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
-    void $ runCommand $ printf ".cabal-sandbox/bin/vldot -i %s.plan | dot -Tpdf -o %s.pdf" fileName fileName
-    void $ runCommand $ printf "evince %s.pdf 2>/dev/null" fileName
+    void $ runCommand $ printf "stack exec vldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
 
 -- | Show optimized vector plan (VL)
 showVectorizedOptQ :: forall a. QA a => Q a -> IO ()
@@ -210,6 +209,4 @@ showVectorizedOptQ (Q q) = do
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
-    void $ runCommand $ printf ".cabal-sandbox/bin/vldot -i %s.plan | dot -Tpdf -o %s.pdf" fileName fileName
-    void $ runCommand $ printf "evince %s.pdf 2>/dev/null" fileName
-
+    void $ runCommand $ printf "stack exec vldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
