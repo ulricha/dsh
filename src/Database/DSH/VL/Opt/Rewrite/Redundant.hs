@@ -36,6 +36,7 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectAppSort
                  , pullProjectUnboxKey
                  , pullProjectAggrS
+                 , pullProjectSort
                  , scalarConditional
                  , pushAggrSSelect
                  , pushAggrSThetaJoinRight
@@ -874,6 +875,18 @@ pullProjectNumber q =
              let proj' = $(v "proj") ++ [Column $ w + 1]
              numberNode <- insert $ UnOp Number $(v "q1")
              void $ replaceWithNew q $ UnOp (Project proj') numberNode |])
+
+pullProjectSort :: VLRule ()
+pullProjectSort q =
+  $(dagPatMatch 'q "R1 (Sort ses (Project ps (q)))"
+    [| do
+          return $ do
+              logRewrite "Redundant.Project.Sort" q
+              let env = zip [1..] $(v "ps")
+              let ses' = map (mergeExpr env) $(v "ses")
+              sortNode <- insert $ UnOp (Sort ses') $(v "q")
+              r1Node   <- insert (UnOp R1 sortNode)
+              void $ replaceWithNew q $ UnOp (Project $(v "ps")) r1Node |])
 
 -- Motivation: In order to eliminate or pull up sorting operations in
 -- VL rewrites or subsequent stages, payload columns which might
