@@ -99,7 +99,7 @@ Library
                      vector                       >= 0.10,
                      hashable                     >= 1.2,
                      unordered-containers         >= 0.2,
-
+                     megaparsec                   >= 4.2,
                      algebra-dag                  >= 0.1.1
 
   Hs-source-dirs:    src
@@ -140,6 +140,7 @@ Library
                      Database.DSH.Common.TH
 
                      Database.DSH.CL.Lang
+                     Database.DSH.CL.Parser
                      Database.DSH.CL.Kure
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
