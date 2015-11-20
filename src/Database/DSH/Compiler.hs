@@ -5,8 +5,9 @@
 
 -- | Compilation, execution and introspection of queries
 module Database.DSH.Compiler
-    ( -- * Executing queries
+    ( -- * Compiling and executing queries
       runQ
+    , compileOptQ
       -- * Debugging and benchmarking queries
     , debugQ
     , codeQ
@@ -50,13 +51,18 @@ import           Database.DSH.VL.Opt.OptimizeVL
 
 --------------------------------------------------------------------------------
 
--- | The backend-independent part of the compiler.
+-- | The frontend- and backend-independent part of the compiler.
 compileQ :: CL.Expr -> QueryPlan VL.VL VLDVec
 compileQ = optimizeComprehensions >>>
            desugarComprehensions  >>>
            optimizeNKL            >>>
            flatTransform          >>>
            specializeVectorOps
+
+-- | The frontend- and backend-independent part of the compiler. Compile a
+-- comprehension expression into optimized vector plans.
+compileOptQ :: CL.Expr -> QueryPlan VL.VL VLDVec
+compileOptQ = compileQ >>> optimizeVLDefault
 
 -- | Compile a query and execute it on a given backend connection.
 runQ :: forall a c.
