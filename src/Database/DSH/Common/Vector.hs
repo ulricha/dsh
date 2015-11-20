@@ -32,8 +32,9 @@ type ColName = String
 --------------------------------------------------------------------------------
 -- Abstractions over data vectors
 
--- | Concrete encodings of data vectors explicitly represent ordering
--- and segment information in relational columns.
+-- | Concrete encodings of data vectors explicitly encode ordering
+-- and segment information in named columns.
+-- FIXME change name. Vector encodings do not need to be relational.
 class RelationalVector v where
     rvKeyCols :: v -> [ColName]
     rvRefCols :: v -> [ColName]
