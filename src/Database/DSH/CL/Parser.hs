@@ -290,6 +290,6 @@ typedExpr =     try (tableRef <*> typeAnnotation)
             <|> try (letExpr <*> typeAnnotation)
 
 parseCL :: String -> Either String Expr
-parseCL inp = case runParser undefined "" inp of
+parseCL inp = case runParser typedExpr "" inp of
     Left err -> Left $ show err
     Right e  -> Right e

@@ -116,7 +116,9 @@ Library
                      Database.DSH.Compiler
                      Database.DSH.Backend
                      Database.DSH.Tests
+                     Database.DSH.CL.Parser
                      Database.DSH.VL
+                     Database.DSH.CL
                      Database.DSH.Common.QueryPlan
                      Database.DSH.Common.Opt
                      Database.DSH.Common.Type
@@ -140,7 +142,6 @@ Library
                      Database.DSH.Common.TH
 
                      Database.DSH.CL.Lang
-                     Database.DSH.CL.Parser
                      Database.DSH.CL.Kure
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
