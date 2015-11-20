@@ -4,10 +4,10 @@
 -- t ::= [t] | (t, ..., t) | Int | Double | ...
 --
 -- e ::= table(n)::t
---     | (f1 e)::t
---     | (f2 e e)::t
---     | (op1 e)::t
---     | (e op2 e)::t
+--     | (prim1 e)::t
+--     | (prim2 e e)::t
+--     | (prefixOp e)::t
+--     | (e infixOp e)::t
 --     | (if e then e else e)::t
 --     | l::t
 --     | x::t
@@ -18,7 +18,9 @@
 -- qs ::= x <- e, qs | e, qs | x <- e | e
 -- @
 
-module Database.DSH.CL.Parser where
+module Database.DSH.CL.Parser
+    ( parseCL
+    ) where
 
 import           Control.Applicative
 import           Control.Monad
@@ -102,16 +104,17 @@ nonEmpty p = brackets $ do
     xs <- p `sepBy` comma
     return $ x :| xs
 
+tuple :: CLParser a -> CLParser [a]
+tuple p = parens (p `sepBy1` comma)
+
 kwConst :: String -> a -> CLParser a
 kwConst s c = kw s *> pure c
-
-
 
 --------------------------------------------------------------------------------
 -- Types
 
 baseType :: CLParser ScalarType
-baseType = try (kw "Int" *> pure T.IntT)
+baseType =     try (kw "Int" *> pure T.IntT)
            <|> try (kw "Bool" *> pure T.BoolT)
            <|> try (kw "Double" *> pure T.DoubleT)
            <|> try (kw "()" *> pure T.UnitT)
@@ -121,7 +124,7 @@ baseType = try (kw "Int" *> pure T.IntT)
 typeExpr :: CLParser T.Type
 typeExpr = T.ListT <$> brackets typeExpr
            <|> try (T.ScalarT <$> baseType)
-           <|> T.TupleT <$> parens (typeExpr `sepBy1` comma)
+           <|> T.TupleT <$> tuple typeExpr
 
 typeAnnotation :: CLParser Type
 typeAnnotation = colon >> colon >> typeExpr
@@ -189,7 +192,9 @@ baseLit =     try (L.DoubleV <$> doubleLit)
           <|> try (unitLit *> pure L.UnitV)
 
 literal :: CLParser L.Val
-literal = L.ScalarV <$> baseLit
+literal =     try (L.ScalarV <$> baseLit)
+          <|> try (L.ListV <$> list literal)
+          <|> try (L.TupleV <$> tuple literal)
 
 --------------------------------------------------------------------------------
 -- Infix operators
