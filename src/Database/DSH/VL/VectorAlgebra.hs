@@ -94,7 +94,6 @@ class VectorAlgebra a where
     -- the aggregation results.
     vecGroupAggr :: [Expr] -> N.NonEmpty AggrFun -> DVec a -> Build a (DVec a)
 
-
     -- | Construct a new vector as the result of a list of scalar
     -- expressions per result column.
     vecProject :: [Expr] -> DVec a -> Build a (DVec a)

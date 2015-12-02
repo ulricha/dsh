@@ -227,8 +227,7 @@ vlUnExpr o (VLDVec c) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec
 vlBinExpr :: L.ScalarBinOp -> VLDVec -> VLDVec -> Build VL VLDVec
 vlBinExpr o (VLDVec c1) (VLDVec c2) = do
     z <- insert $ BinOp Align c1 c2
-    r <- dvec $ insert $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
-    return r
+    dvec $ insert $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
 
 vlSelect :: Expr -> VLDVec -> Build VL (VLDVec, VLFVec)
 vlSelect p (VLDVec c) = pairVec (UnOp (Select p) c) dvec fvec
@@ -279,29 +278,28 @@ vlNestJoinS joinPred (VLDVec c1) (VLDVec c2) =
     joinPred' = toVLJoinPred joinPred
 
 vlNestProductS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
-vlNestProductS (VLDVec c1) (VLDVec c2) = do
-    tripleVec (BinOp NestProductS c1 c2) dvec rvec rvec
+vlNestProductS (VLDVec c1) (VLDVec c2) = tripleVec (BinOp NestProductS c1 c2) dvec rvec rvec
 
 vlSemiJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
-vlSemiJoin joinPred (VLDVec c1) (VLDVec c2) = do
+vlSemiJoin joinPred (VLDVec c1) (VLDVec c2) =
     pairVec (BinOp (SemiJoin joinPred') c1 c2) dvec fvec
   where
     joinPred' = toVLJoinPred joinPred
 
 vlSemiJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
-vlSemiJoinS joinPred (VLDVec c1) (VLDVec c2) = do
+vlSemiJoinS joinPred (VLDVec c1) (VLDVec c2) =
     pairVec (BinOp (SemiJoinS joinPred') c1 c2) dvec fvec
   where
     joinPred' = toVLJoinPred joinPred
 
 vlAntiJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
-vlAntiJoin joinPred (VLDVec c1) (VLDVec c2) = do
+vlAntiJoin joinPred (VLDVec c1) (VLDVec c2) =
     pairVec (BinOp (AntiJoin joinPred') c1 c2) dvec fvec
   where
     joinPred' = toVLJoinPred joinPred
 
 vlAntiJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
-vlAntiJoinS joinPred (VLDVec c1) (VLDVec c2) = do
+vlAntiJoinS joinPred (VLDVec c1) (VLDVec c2) =
     pairVec (BinOp (AntiJoinS joinPred') c1 c2) dvec fvec
   where
     joinPred' = toVLJoinPred joinPred

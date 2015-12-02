@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Database.DSH.VL.Render.Dot(renderVLDot) where
 
 import Prelude hiding ((<$>))
@@ -18,16 +16,16 @@ import           Database.DSH.Common.Type
 import           Database.DSH.VL.Lang
 
 nodeToDoc :: AlgNode -> Doc
-nodeToDoc n = (text "id:") <+> (int n)
+nodeToDoc n = text "id:" <+> int n
 
 tagsToDoc :: [Tag] -> Doc
 tagsToDoc ts = vcat $ map text ts
 
 labelToDoc :: AlgNode -> String -> Doc -> [Tag] -> Doc
-labelToDoc n s as ts = (nodeToDoc n) <$> ((text s) <> (parens as)) <$> (tagsToDoc $ nub ts)
+labelToDoc n s as ts = nodeToDoc n <$> (text s <> parens as) <$> tagsToDoc (nub ts)
 
 lookupTags :: AlgNode -> NodeMap [Tag] -> [Tag]
-lookupTags n m = Map.findWithDefault [] n m
+lookupTags = Map.findWithDefault []
 
 renderFun :: Doc -> [Doc] -> Doc
 renderFun name args = name <> parens (hsep $ punctuate comma args)
@@ -80,7 +78,7 @@ renderProj d e = d <> colon <> renderExpr e
 
 renderJoinConjunct :: JoinConjunct Expr -> Doc
 renderJoinConjunct (JoinConjunct e1 o e2) =
-    parenthize1 e1 <+> text (pp o) <+> (parenthize1 e2)
+    parenthize1 e1 <+> text (pp o) <+> parenthize1 e2
 
 renderJoinPred :: JoinPredicate Expr -> Doc
 renderJoinPred (JoinPred conjs) = brackets
@@ -89,8 +87,8 @@ renderJoinPred (JoinPred conjs) = brackets
                                   $ map renderJoinConjunct $ N.toList conjs
 
 renderExpr :: Expr -> Doc
-renderExpr (BinApp op e1 e2) = (parenthize1 e1) <+> (text $ pp op) <+> (parenthize1 e2)
-renderExpr (UnApp op e)      = (text $ pp op) <+> (parens $ renderExpr e)
+renderExpr (BinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
+renderExpr (UnApp op e)      = text (pp op) <+> parens (renderExpr e)
 renderExpr (Constant val)    = pretty val
 renderExpr (Column c)        = text "col" <> int c
 renderExpr (If c t e)        = text "if"
@@ -101,11 +99,11 @@ renderExpr (If c t e)        = text "if"
                                  <+> renderExpr e
 
 parenthize1 :: Expr -> Doc
-parenthize1 e@(Constant _)   = renderExpr e
-parenthize1 e@(Column _)     = renderExpr e
-parenthize1 e@(BinApp _ _ _) = parens $ renderExpr e
-parenthize1 e@(UnApp _ _)    = parens $ renderExpr e
-parenthize1 e@(If _ _ _)     = renderExpr e
+parenthize1 e@(Constant _) = renderExpr e
+parenthize1 e@(Column _)   = renderExpr e
+parenthize1 e@BinApp{}     = parens $ renderExpr e
+parenthize1 e@UnApp{}      = parens $ renderExpr e
+parenthize1 e@If{}         = renderExpr e
 
 -- | Create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc

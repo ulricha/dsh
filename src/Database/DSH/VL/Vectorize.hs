@@ -5,8 +5,6 @@
 -- using VL operators.
 module Database.DSH.VL.Vectorize where
 
-import           Debug.Trace
-
 import           Control.Applicative
 import           Control.Monad
 import qualified Data.List                      as List
@@ -173,7 +171,7 @@ restrict (VShape dv (LTuple [l, LCol])) = do
     -- Filter any inner vectors
     l'        <- filterLayout fv l
     return $ VShape dv'' l'
-restrict e1 = trace (show e1) $ $impossible
+restrict _ = $impossible
 
 combine ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 combine (VShape dvb LCol) (VShape dv1 lyt1) (VShape dv2 lyt2) = do
@@ -182,7 +180,7 @@ combine (VShape dvb LCol) (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     lyt2'          <- rekeyOuter kv2 lyt2
     lyt'           <- appendLayout lyt1' lyt2'
     return $ VShape dv lyt'
-combine l1 l2 l3 = trace (show l1 ++ " " ++ show l2 ++ " " ++ show l3) $ $impossible
+combine _ _ _ = $impossible
 
 -- | Distribute a single value in vector 'dv2' over an arbitrary
 -- (inner) vector.
@@ -303,7 +301,7 @@ restrictL :: Shape VLDVec -> Build VL (Shape VLDVec)
 restrictL (VShape qo (LNest qi lyt)) = do
     VShape qi' lyt' <- restrict (VShape qi lyt)
     return $ VShape qo (LNest qi' lyt')
-restrictL l1 = trace (show l1) $ $impossible
+restrictL _ = $impossible
 
 combineL :: Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 combineL (VShape qo (LNest qb LCol))
@@ -441,7 +439,7 @@ lengthL (VShape q (LNest qi _)) = do
     ls  <- vlAggrS AggrCount q qi
     lsu <- fst <$> vlUnboxSng q ls
     return $ VShape lsu LCol
-lengthL s = trace (show s) $ $impossible
+lengthL _ = $impossible
 
 outer ::  Shape VLDVec -> Build VL VLDVec
 outer (SShape _ _)        = $impossible
@@ -474,7 +472,7 @@ tupElemL i (VShape q (LTuple lyts)) = do
     let (lyt', cols) = projectColumns i lyts
     proj <- vlProject (map Column cols) q
     return $ VShape proj lyt'
-tupElemL i s = trace (show i ++ " " ++ show s) $impossible
+tupElemL _ _ = $impossible
 
 projectColumns :: TupleIndex -> [Layout VLDVec] -> (Layout VLDVec, [DBCol])
 projectColumns i lyts =
@@ -649,7 +647,7 @@ forget _           _                        = $impossible
 extractInnerVec :: Nat -> Layout VLDVec -> Shape VLDVec
 extractInnerVec (Succ Zero) (LNest _ (LNest q lyt)) = VShape q lyt
 extractInnerVec (Succ n)    (LNest _ lyt)           = extractInnerVec n lyt
-extractInnerVec n           l                       = trace (show n ++ " " ++ show l) $impossible
+extractInnerVec _           _                       = $impossible
 
 -- | Prepend the 'n' outer layers of nesting from the first input to
 -- the second input (Prins/Palmer: 'insert').
