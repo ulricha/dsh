@@ -1,5 +1,5 @@
-{-# LANGUAGE TemplateHaskell  #-}
 {-# LANGUAGE ParallelListComp #-}
+{-# LANGUAGE TemplateHaskell  #-}
 
 -- | Vectorising constructor functions that implement FKL primitives
 -- using VL operators.
@@ -8,21 +8,22 @@ module Database.DSH.VL.Vectorize where
 import           Debug.Trace
 
 import           Control.Applicative
-import qualified Data.List                     as List
-import qualified Data.List.NonEmpty            as N
-import           Prelude                       hiding (reverse, zip)
-import qualified Prelude                       as P
+import           Control.Monad
+import qualified Data.List                      as List
+import qualified Data.List.NonEmpty             as N
+import           Prelude                        hiding (reverse, zip)
+import qualified Prelude                        as P
 
 import           Database.Algebra.Dag.Build
 
-import qualified Database.DSH.Common.Lang      as L
+import           Database.DSH.Common.Impossible
+import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
-import           Database.DSH.Common.Impossible
-import           Database.DSH.VL.Lang          (AggrFun (..), Expr (..), VL ())
-import           Database.DSH.VL.Primitives
 import           Database.DSH.Common.Vector
+import           Database.DSH.VL.Lang           (AggrFun (..), Expr (..), VL ())
+import           Database.DSH.VL.Primitives
 
 --------------------------------------------------------------------------------
 -- Construction of not-lifted primitives
@@ -94,7 +95,7 @@ nub _ = $impossible
 
 number ::  Shape VLDVec -> Build VL (Shape VLDVec)
 number (VShape q lyt) =
-    VShape <$> vlNumber q <*> (pure $ LTuple [lyt, LCol])
+    VShape <$> vlNumber q <*> pure (LTuple [lyt, LCol])
 number _ = $impossible
 
 append ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -334,7 +335,7 @@ nestProductL (VShape dvo1 (LNest dvi1 lyt1)) (VShape _dvo2 (LNest dvi2 lyt2)) = 
     lyt1'           <- repLayout rv1 lyt1
     lyt2'           <- repLayout rv2 lyt2
     let lyt  = LTuple [lyt1', lyt2']
-    return $ VShape dvo1 (LNest dvi1 (LTuple [lyt1, (LNest dvi lyt)]))
+    return $ VShape dvo1 (LNest dvi1 (LTuple [lyt1, LNest dvi lyt]))
 nestProductL _ _ = $impossible
 
 thetaJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -382,12 +383,11 @@ nubL _ = $impossible
 numberL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 numberL (VShape d (LNest q lyt)) =
     VShape d <$> (LNest <$> vlNumberS q
-                        <*> (pure $ LTuple [lyt, LCol]))
+                        <*> pure (LTuple [lyt, LCol]))
 numberL _ = $impossible
 
 appendL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-appendL (VShape d lyt1) (VShape _ lyt2) = do
-    VShape d <$> appendLayout lyt1 lyt2
+appendL (VShape d lyt1) (VShape _ lyt2) = VShape d <$> appendLayout lyt1 lyt2
 appendL _ _ = $impossible
 
 reverseL ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -524,7 +524,7 @@ mkLiteral t@(ListT _) (L.ListV es) = do
 mkLiteral t e           = do
     -- There is only one element in the outermost vector
     ((tabTys, [tabCols]), layout, _) <- toPlan (mkDescriptor [1]) (ListT t) 1 [e]
-    litNode <- vlLit L.NonEmpty (P.reverse tabTys) [(P.reverse tabCols)]
+    litNode <- vlLit L.NonEmpty (P.reverse tabTys) [P.reverse tabCols]
     return $ SShape litNode layout
 
 type Table = ([Type], [[L.ScalarVal]])
@@ -562,7 +562,7 @@ toPlan (tabTys, tabCols) (ListT t) nextCol es =
 
 toPlan (tabTys, tabCols) t c v =
     let (hd, v') = mkColumn t v
-    in return $ ((hd:tabTys, zipWith (:) v' tabCols), LCol, c + 1)
+    in return ((hd:tabTys, zipWith (:) v' tabCols), LCol, c + 1)
 
 -- | Construct the literal table for a list of tuples.
 mkTupleTable :: Table                         -- ^ The literal table so far.
@@ -574,8 +574,8 @@ mkTupleTable :: Table                         -- ^ The literal table so far.
 mkTupleTable tab nextCol lyts (colVals : colsVals) (t : ts) = do
     (tab', lyt, nextCol') <- toPlan tab (ListT t) nextCol colVals
     mkTupleTable tab' nextCol' (lyt : lyts) colsVals ts
-mkTupleTable tab nextCol lyts []                   []       = do
-    return $ (tab, LTuple $ P.reverse lyts, nextCol)
+mkTupleTable tab nextCol lyts []                   []       =
+    return (tab, LTuple $ P.reverse lyts, nextCol)
 mkTupleTable _   _       _    _                    _        = $impossible
 
 literal :: Type -> L.ScalarVal -> Build VL VLDVec
@@ -685,16 +685,16 @@ appLayout v appVec (LTuple ls) =
     LTuple <$> mapM (appLayout v appVec) ls
 
 filterLayout :: VLFVec -> Layout VLDVec -> Build VL (Layout VLDVec)
-filterLayout v l = appLayout v vlAppFilter l
+filterLayout v = appLayout v vlAppFilter
 
 repLayout :: VLRVec -> Layout VLDVec -> Build VL (Layout VLDVec)
-repLayout v l = appLayout v vlAppRep l
+repLayout v = appLayout v vlAppRep
 
 sortLayout :: VLSVec -> Layout VLDVec -> Build VL (Layout VLDVec)
-sortLayout v l = appLayout v vlAppSort l
+sortLayout v = appLayout v vlAppSort
 
 rekeyLayout :: VLKVec -> Layout VLDVec -> Build VL (Layout VLDVec)
-rekeyLayout v l = appLayout v vlAppKey l
+rekeyLayout v = appLayout v vlAppKey
 
 -- | Apply a rekeying vector to the outermost nested vectors in the
 -- layout.
@@ -718,5 +718,5 @@ appendLayout (LNest dv1 lyt1) (LNest dv2 lyt2) = do
     lyt'        <- appendLayout lyt1' lyt2'
     return $ LNest dv12 lyt'
 appendLayout (LTuple lyts1) (LTuple lyts2) =
-    LTuple <$> (sequence $ zipWith appendLayout lyts1 lyts2)
+    LTuple <$> zipWithM appendLayout lyts1 lyts2
 appendLayout _ _ = $impossible
