@@ -18,6 +18,7 @@ module Database.DSH.Frontend.TH
 import           Control.Monad
 import           Data.Char
 import           Data.List
+import           Data.Maybe
 
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
@@ -61,8 +62,8 @@ deriveQA name = do
 
 deriveTyConQA :: Name -> [TyVarBndr] -> [Con] -> Q [Dec]
 deriveTyConQA name tyVarBndrs cons = do
-  let context       = map (\tv -> nameTyApp ''DSH.QA (VarT (tyVarBndrToName tv)))
-                          tyVarBndrs
+  roles <- reifyRoles name
+  let context = getContext ''DSH.QA roles tyVarBndrs
   let typ           = foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs)
   let instanceHead  = AppT (ConT ''DSH.QA) typ
   let repDec        = deriveRep typ cons
@@ -207,8 +208,8 @@ deriveTA name = do
 
 deriveTyConTA :: Name -> [TyVarBndr] -> [Con] -> Q [Dec]
 deriveTyConTA name tyVarBndrs _cons = do
-  let context       = map (\tv -> nameTyApp ''DSH.BasicType (VarT (tyVarBndrToName tv)))
-                          tyVarBndrs
+  roles <- reifyRoles name
+  let context       = getContext ''DSH.BasicType roles tyVarBndrs
   let typ           = foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs)
   let instanceHead  = AppT (ConT ''DSH.TA) typ
   return [InstanceD context instanceHead []]
@@ -229,8 +230,8 @@ deriveView name = do
 
 deriveTyConView :: Name -> [TyVarBndr] -> Con -> Q [Dec]
 deriveTyConView name tyVarBndrs con = do
-  let context = map (\tv -> nameTyApp ''DSH.QA (VarT (tyVarBndrToName tv)))
-                    tyVarBndrs
+  roles <- reifyRoles name
+  let context = getContext ''DSH.QA roles tyVarBndrs
   let typ1 = AppT (ConT ''DSH.Q)
                   (foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs))
   let instanceHead = AppT (ConT ''DSH.View) typ1
@@ -252,9 +253,10 @@ deriveToView n = do
   let ep = VarP en
   let pat1 = ConP 'DSH.Q [ep]
 
-  tupElems <- mapM (\i -> [| DSH.Q $ $(mkTupElemTerm n i (VarE en)) |]) [1..n]
+  body1 <- if n == 1
+    then [| DSH.Q $ $(return $ VarE en) |]
+    else TupE <$> mapM (\i -> [| DSH.Q $ $(mkTupElemTerm n i (VarE en)) |]) [1..n]
 
-  let body1 = TupE $ tupElems
   let clause1 = Clause [pat1] (NormalB body1) []
   return (FunD 'DSH.view [clause1])
 
@@ -274,12 +276,11 @@ deriveElim name = do
 
 deriveTyConElim :: Name -> [TyVarBndr] -> [Con] -> Q [Dec]
 deriveTyConElim name tyVarBndrs cons = do
+  roles <- reifyRoles name
   resultTyName <- newName "r"
   let resTy = VarT resultTyName
   let ty = foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs)
-  let context = nameTyApp ''DSH.QA (resTy) :
-                map (\tv -> nameTyApp ''DSH.QA (VarT (tyVarBndrToName tv)))
-                    tyVarBndrs
+  let context = nameTyApp ''DSH.QA (resTy) : getContext ''DSH.QA roles tyVarBndrs
   let instanceHead = AppT (AppT (ConT ''DSH.Elim) ty) resTy
   let eliminatorDec = deriveEliminator ty resTy cons
   elimDec <- deriveElimFun cons
@@ -467,19 +468,25 @@ generateTableSelectors :: Name -> Q [Dec]
 generateTableSelectors name = do
   info <- reify name
   case info of
-    TyConI (DataD _ typName [] [RecC _ fields] _) ->
-        concat <$> mapM instSelectors fields
-      where fieldNames    = map (\(f, _, _) -> f) fields
-            instSelectors = generateTableSelector typName fieldNames
+    TyConI (DataD typCxt typName typVars [RecC _ fields] _) -> go typCxt typName typVars fields
+    TyConI (NewtypeD typCxt typName typVars (RecC _ fields) _) -> go typCxt typName typVars fields
     _ -> fail errMsgBaseRecCons
+ where
+  go typCxt typName typVars fields = concat <$> mapM instSelectors fields
+   where
+    fieldNames    = map (\(f, _, _) -> f) fields
+    instSelectors = generateTableSelector typCxt typName typVars fieldNames
 
-generateTableSelector :: Name -> [Name] -> VarStrictType -> Q [Dec]
-generateTableSelector typeName allFieldNames (fieldName, _strict, typ) = do
+generateTableSelector :: Cxt -> Name -> [TyVarBndr] -> [Name] -> VarStrictType -> Q [Dec]
+generateTableSelector typeCxt typeName typeVars allFieldNames (fieldName, _strict, typ) = do
   let selName = case fieldName of
                   Name (OccName n) _ -> mkName $ n ++ "Q"
 
-  let selType = AppT (AppT ArrowT (AppT (ConT ''DSH.Q) (ConT typeName)))
-                     (AppT (ConT ''DSH.Q) typ)
+  let nameWithVars = foldl AppT (ConT typeName) $ map (VarT . tyVarBndrToName) typeVars
+
+  let selType = ForallT typeVars typeCxt
+                  (AppT (AppT ArrowT (AppT (ConT ''DSH.Q) nameWithVars))
+                    (AppT (ConT ''DSH.Q) typ))
       sigDec  = SigD selName selType
 
   fieldVarName <- newName "x"
@@ -551,6 +558,12 @@ countConstructors name = do
     TyConI (DataD    _ _ _ cons _)  -> return (length cons)
     TyConI (NewtypeD {})            -> return 1
     _ -> fail errMsgExoticType
+
+getContext :: Name -> [Role] -> [TyVarBndr] -> [Type]
+getContext klass roles tyVarBndrs = flip mapMaybe (zip roles tyVarBndrs) $
+  \(role, tv) -> case role of
+    PhantomR -> Nothing
+    _ -> Just (nameTyApp klass (VarT (tyVarBndrToName tv)))
 
 -- Error messages
 
