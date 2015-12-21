@@ -1,10 +1,10 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TemplateHaskell       #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE ViewPatterns          #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 -- | Tests on individual query combinators.
 module Database.DSH.Tests.CombinatorTests
@@ -373,8 +373,8 @@ prop_bool = makePropEq id id
 prop_integer :: Backend c => Integer -> c -> Property
 prop_integer = makePropEq id id
 
-prop_double :: Backend c => Double -> c -> Property
-prop_double = makePropDouble id id
+prop_double :: Backend c => Fixed Double -> c -> Property
+prop_double d = makePropDouble id id (getFixed d)
 
 prop_char :: Backend c => Char -> c -> Property
 prop_char c conn = c /= '\0' ==> makePropEq id id c conn
@@ -548,11 +548,11 @@ prop_min_integer = makePropEq (uncurryQ Q.min) (uncurry min)
 prop_max_integer :: Backend c => (Integer,Integer) -> c -> Property
 prop_max_integer = makePropEq (uncurryQ Q.max) (uncurry max)
 
-prop_min_double :: Backend c => (Double,Double) -> c -> Property
-prop_min_double = makePropDouble (uncurryQ Q.min) (uncurry min)
+prop_min_double :: Backend c => (Fixed Double, Fixed Double) -> c -> Property
+prop_min_double (d1, d2) = makePropDouble (uncurryQ Q.min) (uncurry min) (getFixed d1, getFixed d2)
 
-prop_max_double :: Backend c => (Double,Double) -> c -> Property
-prop_max_double = makePropDouble (uncurryQ Q.max) (uncurry max)
+prop_max_double :: Backend c => (Fixed Double, Fixed Double) -> c -> Property
+prop_max_double (d1, d2) = makePropDouble (uncurryQ Q.max) (uncurry max) (getFixed d1, getFixed d2)
 
 -- * Maybe
 
@@ -927,9 +927,9 @@ prop_sum_integer = makePropEq Q.sum sum
 prop_map_sum :: Backend c => [[Integer]] -> c -> Property
 prop_map_sum = makePropEq (Q.map Q.sum) (map sum)
 
-prop_map_avg :: Backend c => [NonEmptyList Double] -> c -> Property
-prop_map_avg is conn =
-    makePropDoubles (Q.map Q.avg) (map avgDouble) (map getNonEmpty is) conn
+prop_map_avg :: Backend c => [NonEmptyList (Fixed Double)] -> c -> Property
+prop_map_avg is =
+    makePropDoubles (Q.map Q.avg) (map avgDouble) (map (map getFixed . getNonEmpty) is)
 
 prop_map_map_sum :: Backend c => [[[Integer]]] -> c -> Property
 prop_map_map_sum = makePropEq (Q.map (Q.map Q.sum)) (map (map sum))
@@ -941,14 +941,14 @@ prop_map_map_sum = makePropEq (Q.map (Q.map Q.sum)) (map (map sum))
 --                (map (map getNonEmpty) is)
 --                conn
 
-prop_sum_double :: Backend c => [Double] -> c -> Property
-prop_sum_double = makePropDouble Q.sum sum
+prop_sum_double :: Backend c => [Fixed Double] -> c -> Property
+prop_sum_double d = makePropDouble Q.sum sum (map getFixed d)
 
 avgDouble :: [Double] -> Double
 avgDouble ds = sum ds / (fromIntegral $ length ds)
 
-prop_avg_double :: Backend c => NonEmptyList Double -> c -> Property
-prop_avg_double ds conn = makePropDouble Q.avg avgDouble (getNonEmpty ds) conn
+prop_avg_double :: Backend c => NonEmptyList (Fixed Double) -> c -> Property
+prop_avg_double ds conn = makePropDouble Q.avg avgDouble (map getFixed $ getNonEmpty ds) conn
 
 prop_concat :: Backend c => [[Integer]] -> c -> Property
 prop_concat = makePropEq Q.concat concat
@@ -1018,20 +1018,20 @@ prop_zip = makePropEq (uncurryQ Q.zip) (uncurry zip)
 prop_zip_nested :: Backend c => ([Integer], [(Integer, [Integer])]) -> c -> Property
 prop_zip_nested = makePropEq (uncurryQ Q.zip) (uncurry zip)
 
-prop_zip_tuple1 :: Backend c => ([Integer], [(Text, Double)]) -> c -> Property
+prop_zip_tuple1 :: Backend c => ([Integer], [(Text, Fixed Double)]) -> c -> Property
 prop_zip_tuple1 (xs, tds) =
     makePropEq (uncurryQ Q.zip) (uncurry zip) (xs, tds')
   where
-    tds' = map (\(t, d) -> (filterNullChar t, d)) tds
+    tds' = map (\(t, d) -> (filterNullChar t, getFixed d)) tds
 
 prop_zip_tuple2 :: Backend c
-                => ([(Integer, Integer)], [(Text, Double)])
+                => ([(Integer, Integer)], [(Text, Fixed Double)])
                 -> c
                 -> Property
 prop_zip_tuple2 (xs, tds) =
     makePropEq (uncurryQ Q.zip) (uncurry zip) (xs, tds')
   where
-    tds' = map (\(t, d) -> (filterNullChar t, d)) tds
+    tds' = map (\(t, d) -> (filterNullChar t, getFixed d)) tds
 
 prop_map_zip :: Backend c => ([Integer], [[Integer]]) -> c -> Property
 prop_map_zip = makePropEq (\z -> Q.map (Q.zip $ Q.fst z) $ Q.snd z) (\(x, y) -> map (zip x) y)
@@ -1109,25 +1109,26 @@ prop_tup4_tup3 = makePropEq (\q -> case Q.view q of (a, b, _, d) -> Q.tup3 a b d
 prop_add_integer :: Backend c => (Integer,Integer) -> c -> Property
 prop_add_integer = makePropEq (uncurryQ (+)) (uncurry (+))
 
-prop_add_double :: Backend c => (Double,Double) -> c -> Property
-prop_add_double = makePropDouble (uncurryQ (+)) (uncurry (+))
+prop_add_double :: Backend c => (Fixed Double, Fixed Double) -> c -> Property
+prop_add_double (d1, d2) = makePropDouble (uncurryQ (+)) (uncurry (+)) (getFixed d1, getFixed d2)
 
 prop_mul_integer :: Backend c => (Integer,Integer) -> c -> Property
 prop_mul_integer = makePropEq (uncurryQ (*)) (uncurry (*))
 
-prop_mul_double :: Backend c => (Double,Double) -> c -> Property
-prop_mul_double = makePropDouble (uncurryQ (*)) (uncurry (*))
+prop_mul_double :: Backend c => (Fixed Double, Fixed Double) -> c -> Property
+prop_mul_double (d1, d2) = makePropDouble (uncurryQ (*)) (uncurry (*)) (getFixed d1, getFixed d2)
 
-prop_div_double :: Backend c => (Double,NonZero Double) -> c -> Property
-prop_div_double (x,NonZero y) conn =
+prop_div_double :: Backend c => (Fixed Double, Fixed (NonZero Double)) -> c -> Property
+prop_div_double (Fixed x, Fixed (NonZero y)) conn =
     makePropDouble (uncurryQ (/)) (uncurry (/)) (x,y) conn
 
 prop_integer_to_double :: Backend c => Integer -> c -> Property
 prop_integer_to_double = makePropDouble Q.integerToDouble fromInteger
 
-prop_integer_to_double_arith :: Backend c => (Integer, Double) -> c -> Property
-prop_integer_to_double_arith = makePropDouble (\x -> (Q.integerToDouble (Q.fst x)) + (Q.snd x))
-                                              (\(i, d) -> fromInteger i + d)
+prop_integer_to_double_arith :: Backend c => (Integer, Fixed Double) -> c -> Property
+prop_integer_to_double_arith (i, d) = makePropDouble (\x -> (Q.integerToDouble (Q.fst x)) + (Q.snd x))
+                                                     (\(ni, nd) -> fromInteger ni + ndd)
+                                                     (i, getFixed d)
 
 prop_map_integer_to_double :: Backend c => [Integer] -> c -> Property
 prop_map_integer_to_double = makePropDoubles (Q.map Q.integerToDouble) (map fromInteger)
@@ -1135,50 +1136,50 @@ prop_map_integer_to_double = makePropDoubles (Q.map Q.integerToDouble) (map from
 prop_abs_integer :: Backend c => Integer -> c -> Property
 prop_abs_integer = makePropEq Q.abs abs
 
-prop_abs_double :: Backend c => Double -> c -> Property
-prop_abs_double = makePropDouble Q.abs abs
+prop_abs_double :: Backend c => Fixed Double -> c -> Property
+prop_abs_double d = makePropDouble Q.abs abs (getFixed d)
 
 prop_signum_integer :: Backend c => Integer -> c -> Property
 prop_signum_integer = makePropEq Q.signum signum
 
-prop_signum_double :: Backend c => Double -> c -> Property
-prop_signum_double = makePropDouble Q.signum signum
+prop_signum_double :: Backend c => Fixed Double -> c -> Property
+prop_signum_double d = makePropDouble Q.signum signum (getFixed d)
 
 prop_negate_integer :: Backend c => Integer -> c -> Property
 prop_negate_integer = makePropEq Q.negate negate
 
-prop_negate_double :: Backend c => Double -> c -> Property
-prop_negate_double = makePropDouble Q.negate negate
+prop_negate_double :: Backend c => Fixed Double -> c -> Property
+prop_negate_double d = makePropDouble Q.negate negate (getFixed d)
 
-prop_trig_sin :: Backend c => Double -> c -> Property
-prop_trig_sin = makePropDouble Q.sin sin
+prop_trig_sin :: Backend c => Fixed Double -> c -> Property
+prop_trig_sin d = makePropDouble Q.sin sin (getFixed d)
 
-prop_trig_cos :: Backend c => Double -> c -> Property
-prop_trig_cos = makePropDouble Q.cos cos
+prop_trig_cos :: Backend c => Fixed Double -> c -> Property
+prop_trig_cos d = makePropDouble Q.cos cos (getFixed d)
 
-prop_trig_tan :: Backend c => Double -> c -> Property
-prop_trig_tan = makePropDouble Q.tan tan
+prop_trig_tan :: Backend c => Fixed Double -> c -> Property
+prop_trig_tan d = makePropDouble Q.tan tan (getFixed d)
 
-prop_exp :: Backend c => Double -> c -> Property
-prop_exp = makePropDouble Q.exp exp
+prop_exp :: Backend c => Fixed Double -> c -> Property
+prop_exp d = makePropDouble Q.exp exp (getFixed d)
 
-prop_log :: Backend c => Positive Double -> c -> Property
-prop_log (Positive d) conn = makePropDouble Q.log log d conn
+prop_log :: Backend c => Fixed (Positive Double) -> c -> Property
+prop_log d = makePropDouble Q.log log (getPositive $ getFixed d)
 
-prop_sqrt :: Backend c => Positive Double -> c -> Property
-prop_sqrt (Positive d) conn = makePropDouble Q.sqrt sqrt d conn
+prop_sqrt :: Backend c => Fixed (Positive Double) -> c -> Property
+prop_sqrt d = makePropDouble Q.sqrt sqrt (getPositive $ getFixed d)
 
-arc :: Double -> Bool
+arc :: (Ord a, Num a) => a -> Bool
 arc d = d >= -1 && d <= 1
 
-prop_trig_asin :: Backend c => Double -> c -> Property
-prop_trig_asin d conn = arc d ==>  makePropDouble Q.asin asin d conn
+prop_trig_asin :: Backend c => Fixed Double -> c -> Property
+prop_trig_asin d conn = arc d ==>  makePropDouble Q.asin asin (getFixed d) conn
 
-prop_trig_acos :: Backend c => Double -> c -> Property
-prop_trig_acos d conn = arc d ==> makePropDouble Q.acos acos d conn
+prop_trig_acos :: Backend c => Fixed Double -> c -> Property
+prop_trig_acos d conn = arc d ==> makePropDouble Q.acos acos (getFixed d) conn
 
-prop_trig_atan :: Backend c => Double -> c -> Property
-prop_trig_atan = makePropDouble Q.atan atan
+prop_trig_atan :: Backend c => Fixed Double -> c -> Property
+prop_trig_atan d = makePropDouble Q.atan atan (getFixed d)
 
 prop_number :: Backend c => [Integer] -> c -> Property
 prop_number = makePropEq (Q.map Q.snd . Q.number) (\xs -> map snd $ zip xs [1..])
@@ -1188,38 +1189,37 @@ prop_map_number = makePropEq (Q.map (Q.map Q.snd . Q.number))
                             (map (\xs -> map snd $ zip xs [1..]))
 
 
-prop_map_trig_sin :: Backend c => [Double] -> c -> Property
-prop_map_trig_sin = makePropDoubles (Q.map Q.sin) (map sin)
+prop_map_trig_sin :: Backend c => [Fixed Double] -> c -> Property
+prop_map_trig_sin ds = makePropDoubles (Q.map Q.sin) (map sin) (map getFixed ds)
 
-prop_map_trig_cos :: Backend c => [Double] -> c -> Property
-prop_map_trig_cos = makePropDoubles (Q.map Q.cos) (map cos)
+prop_map_trig_cos :: Backend c => [Fixed Double] -> c -> Property
+prop_map_trig_cos ds = makePropDoubles (Q.map Q.cos) (map cos) (map getFixed ds)
 
-prop_map_trig_tan :: Backend c => [Double] -> c -> Property
-prop_map_trig_tan = makePropDoubles (Q.map Q.tan) (map tan)
+prop_map_trig_tan :: Backend c => [Fixed Double] -> c -> Property
+prop_map_trig_tan ds = makePropDoubles (Q.map Q.tan) (map tan) (map getFixed ds)
 
-prop_map_trig_asin :: Backend c => [Double] -> c -> Property
+prop_map_trig_asin :: Backend c => [Fixed Double] -> c -> Property
 prop_map_trig_asin ds conn = all arc ds
                              ==>
-                             makePropDoubles (Q.map Q.asin) (map asin) ds conn
+                             makePropDoubles (Q.map Q.asin) (map asin) (map getFixed ds) conn
 
-prop_map_trig_acos :: Backend c => [Double] -> c -> Property
+prop_map_trig_acos :: Backend c => [Fixed Double] -> c -> Property
 prop_map_trig_acos ds conn = all arc ds
                              ==>
-                             makePropDoubles (Q.map Q.acos) (map acos) ds conn
+                             makePropDoubles (Q.map Q.acos) (map acos) (map getFixed ds) conn
 
-prop_map_trig_atan :: Backend c => [Double] -> c -> Property
-prop_map_trig_atan = makePropDoubles (Q.map Q.atan) (map atan)
+prop_map_trig_atan :: Backend c => [Fixed Double] -> c -> Property
+prop_map_trig_atan ds = makePropDoubles (Q.map Q.atan) (map atan) (map getFixed ds)
 
-prop_map_exp :: Backend c => [Double] -> c -> Property
-prop_map_exp = makePropDoubles (Q.map Q.exp) (map exp)
+prop_map_exp :: Backend c => [Fixed Double] -> c -> Property
+prop_map_exp ds = makePropDoubles (Q.map Q.exp) (map exp) (map getFixed ds)
 
-prop_map_log :: Backend c => [Positive Double] -> c -> Property
-prop_map_log ds conn = noShrinking $
-    makePropDoubles (Q.map Q.log) (map log) (map getPositive ds) conn
+prop_map_log :: Backend c => [Fixed (Positive Double)] -> c -> Property
+prop_map_log ds conn = makePropDoubles (Q.map Q.log) (map log) (map (getPositive . getFixed) ds) conn
 
-prop_map_sqrt :: Backend c => [Positive Double] -> c -> Property
+prop_map_sqrt :: Backend c => [Fixed (Positive Double)] -> c -> Property
 prop_map_sqrt ds conn =
-    makePropDoubles (Q.map Q.sqrt) (map sqrt) (map getPositive ds) conn
+    makePropDoubles (Q.map Q.sqrt) (map sqrt) (map (getPositive . getFixed) ds) conn
 
 hnegative_sum :: Backend c => c -> Assertion
 hnegative_sum conn = makeEqAssertion "hnegative_sum" (Q.sum (Q.toQ xs)) (sum xs) conn
