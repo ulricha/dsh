@@ -24,19 +24,19 @@ runTests args conn tests = defaultMainWithArgs (map (\t -> t conn) tests) args
 -- | All available tests in one package.
 defaultTests :: Backend c => [c -> Test]
 defaultTests =
-    [ tests_types
-    , tests_tuples
+    [ typeTests
+    , tupleTests
     , tests_join_hunit
     , tests_nest_head_hunit
     , tests_nest_guard_hunit
-    , tests_combinators_hunit
+    , hunitCombinatorTests
     , tests_comprehensions
     , tests_lifted_joins
-    , tests_boolean
-    , tests_numerics
-    , tests_maybe
-    , tests_either
-    , tests_lists
-    , tests_lifted
+    , booleanTests
+    , numericTests
+    , maybeTests
+    , eitherTests
+    , listTests
+    , liftedTests
     , tests_laws
     ]

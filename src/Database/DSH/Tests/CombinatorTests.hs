@@ -2,21 +2,20 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE ViewPatterns               #-}
 
 -- | Tests on individual query combinators.
 module Database.DSH.Tests.CombinatorTests
-    ( tests_types
-    , tests_boolean
-    , tests_tuples
-    , tests_numerics
-    , tests_maybe
-    , tests_either
-    , tests_lists
-    , tests_lifted
-    , tests_combinators_hunit
+    ( typeTests
+    , booleanTests
+    , tupleTests
+    , numericTests
+    , maybeTests
+    , eitherTests
+    , listTests
+    , liftedTests
+    , hunitCombinatorTests
     ) where
 
 
@@ -89,8 +88,8 @@ Q.deriveDSH ''D6
 
 -}
 
-tests_types :: Backend c => c -> Test
-tests_types conn = testGroup "Supported Types"
+typeTests :: Backend c => c -> Test
+typeTests conn = testGroup "Supported Types"
   [ testPropertyConn conn "()"                        prop_unit
   , testPropertyConn conn "Bool"                      prop_bool
   , testPropertyConn conn "Char"                      prop_char
@@ -121,8 +120,8 @@ tests_types conn = testGroup "Supported Types"
 -}
   ]
 
-tests_boolean :: Backend c => c -> Test
-tests_boolean conn = testGroup "Equality, Boolean Logic and Ordering"
+booleanTests :: Backend c => c -> Test
+booleanTests conn = testGroup "Equality, Boolean Logic and Ordering"
     [ testPropertyConn conn "&&"                              prop_infix_and
     , testPropertyConn conn "||"                              prop_infix_or
     , testPropertyConn conn "not"                             prop_not
@@ -141,8 +140,8 @@ tests_boolean conn = testGroup "Equality, Boolean Logic and Ordering"
     , testPropertyConn conn "max_double"                      prop_max_double
     ]
 
-tests_tuples :: Backend c => c -> Test
-tests_tuples conn = testGroup "Tuples"
+tupleTests :: Backend c => c -> Test
+tupleTests conn = testGroup "Tuples"
     [ testPropertyConn conn "fst"          prop_fst
     , testPropertyConn conn "snd"          prop_snd
     , testPropertyConn conn "fst ([], [])" prop_fst_nested
@@ -156,8 +155,8 @@ tests_tuples conn = testGroup "Tuples"
     , testPropertyConn conn "tup4_tup3"    prop_tup4_tup3
     ]
 
-tests_numerics :: Backend c => c -> Test
-tests_numerics conn = testGroup "Numerics"
+numericTests :: Backend c => c -> Test
+numericTests conn = testGroup "Numerics"
     [ testPropertyConn conn "add_integer"         prop_add_integer
     , testPropertyConn conn "add_double"          prop_add_double
     , testPropertyConn conn "mul_integer"         prop_mul_integer
@@ -182,8 +181,8 @@ tests_numerics conn = testGroup "Numerics"
     , testPropertyConn conn "exp"                 prop_exp
     ]
 
-tests_maybe :: Backend c => c -> Test
-tests_maybe conn = testGroup "Maybe"
+maybeTests :: Backend c => c -> Test
+maybeTests conn = testGroup "Maybe"
     [ testPropertyConn conn "maybe"       prop_maybe
     , testPropertyConn conn "just"        prop_just
     , testPropertyConn conn "isJust"      prop_isJust
@@ -196,8 +195,8 @@ tests_maybe conn = testGroup "Maybe"
     , testPropertyConn conn "mapMaybe"    prop_mapMaybe
     ]
 
-tests_either :: Backend c => c -> Test
-tests_either conn = testGroup "Either"
+eitherTests :: Backend c => c -> Test
+eitherTests conn = testGroup "Either"
     [ testPropertyConn conn "left"             prop_left
     , testPropertyConn conn "right"            prop_right
     , testPropertyConn conn "isLeft"           prop_isLeft
@@ -208,8 +207,8 @@ tests_either conn = testGroup "Either"
     , testPropertyConn conn "partitionEithers" prop_partitionEithers
     ]
 
-tests_lists :: Backend c => c -> Test
-tests_lists conn = testGroup "Lists"
+listTests :: Backend c => c -> Test
+listTests conn = testGroup "Lists"
     [ testPropertyConn conn "singleton" prop_singleton
     , testPropertyConn conn "head"                         prop_head
     , testPropertyConn conn "tail"                         prop_tail
@@ -274,8 +273,8 @@ tests_lists conn = testGroup "Lists"
     , testPropertyConn conn "number"                       prop_number
     ]
 
-tests_lifted :: Backend c => c -> Test
-tests_lifted conn = testGroup "Lifted operations"
+liftedTests :: Backend c => c -> Test
+liftedTests conn = testGroup "Lifted operations"
     [ testPropertyConn conn "Lifted &&"                             prop_infix_map_and
     , testPropertyConn conn "Lifted ||"                             prop_infix_map_or
     , testPropertyConn conn "Lifted not"                            prop_map_not
@@ -356,8 +355,8 @@ tests_lifted conn = testGroup "Lifted operations"
     , testPropertyConn conn "map sqrt"                              prop_map_sqrt
     ]
 
-tests_combinators_hunit :: Backend c => c -> Test
-tests_combinators_hunit conn = testGroup "HUnit combinators"
+hunitCombinatorTests :: Backend c => c -> Test
+hunitCombinatorTests conn = testGroup "HUnit combinators"
     [ testCase "hnegative_sum"     (hnegative_sum conn)
     , testCase "hnegative_map_sum" (hnegative_map_sum conn)
     ]
@@ -380,13 +379,13 @@ prop_char :: Backend c => Char -> c -> Property
 prop_char c conn = c /= '\0' ==> makePropEq id id c conn
 
 prop_text :: Backend c => Text -> c -> Property
-prop_text t conn = makePropEq id id (filterNullChar t) conn
+prop_text t = makePropEq id id (filterNullChar t)
 
 prop_day :: Backend c => C.Day -> c -> Property
-prop_day d conn = makePropEq id id d conn
+prop_day = makePropEq id id
 
 prop_decimal :: Backend c => (Positive Word8, Integer) -> c -> Property
-prop_decimal (p, m) conn = makePropEq id id (D.Decimal (getPositive p) m) conn
+prop_decimal (p, m) = makePropEq id id (D.Decimal (getPositive p) m)
 
 prop_list_integer_1 :: Backend c => [Integer] -> c -> Property
 prop_list_integer_1 = makePropEq id id
@@ -512,8 +511,8 @@ prop_map_cond_tuples = makePropEq (Q.map (\b -> Q.cond b
                                             else (1, 11)))
 
 prop_concatmapcond :: Backend c => [Integer] -> c -> Property
-prop_concatmapcond l1 conn =
-    makePropEq q n l1 conn
+prop_concatmapcond l1 =
+    makePropEq q n l1
         where q l = Q.concatMap (\x -> Q.cond ((Q.>) x (Q.toQ 0)) (x Q.<| el) el) l
               n l = concatMap (\x -> if x > 0 then [x] else []) l
               el = Q.toQ []
@@ -1119,15 +1118,15 @@ prop_mul_double :: Backend c => (Fixed Double, Fixed Double) -> c -> Property
 prop_mul_double (d1, d2) = makePropDouble (uncurryQ (*)) (uncurry (*)) (getFixed d1, getFixed d2)
 
 prop_div_double :: Backend c => (Fixed Double, Fixed (NonZero Double)) -> c -> Property
-prop_div_double (Fixed x, Fixed (NonZero y)) conn =
-    makePropDouble (uncurryQ (/)) (uncurry (/)) (x,y) conn
+prop_div_double (Fixed x, Fixed (NonZero y)) =
+    makePropDouble (uncurryQ (/)) (uncurry (/)) (x,y)
 
 prop_integer_to_double :: Backend c => Integer -> c -> Property
 prop_integer_to_double = makePropDouble Q.integerToDouble fromInteger
 
 prop_integer_to_double_arith :: Backend c => (Integer, Fixed Double) -> c -> Property
 prop_integer_to_double_arith (i, d) = makePropDouble (\x -> (Q.integerToDouble (Q.fst x)) + (Q.snd x))
-                                                     (\(ni, nd) -> fromInteger ni + ndd)
+                                                     (\(ni, nd) -> fromInteger ni + nd)
                                                      (i, getFixed d)
 
 prop_map_integer_to_double :: Backend c => [Integer] -> c -> Property
@@ -1215,23 +1214,22 @@ prop_map_exp :: Backend c => [Fixed Double] -> c -> Property
 prop_map_exp ds = makePropDoubles (Q.map Q.exp) (map exp) (map getFixed ds)
 
 prop_map_log :: Backend c => [Fixed (Positive Double)] -> c -> Property
-prop_map_log ds conn = makePropDoubles (Q.map Q.log) (map log) (map (getPositive . getFixed) ds) conn
+prop_map_log ds = makePropDoubles (Q.map Q.log) (map log) (map (getPositive . getFixed) ds)
 
 prop_map_sqrt :: Backend c => [Fixed (Positive Double)] -> c -> Property
-prop_map_sqrt ds conn =
-    makePropDoubles (Q.map Q.sqrt) (map sqrt) (map (getPositive . getFixed) ds) conn
+prop_map_sqrt ds =
+    makePropDoubles (Q.map Q.sqrt) (map sqrt) (map (getPositive . getFixed) ds)
 
 hnegative_sum :: Backend c => c -> Assertion
-hnegative_sum conn = makeEqAssertion "hnegative_sum" (Q.sum (Q.toQ xs)) (sum xs) conn
+hnegative_sum = makeEqAssertion "hnegative_sum" (Q.sum (Q.toQ xs)) (sum xs)
   where
     xs :: [Integer]
     xs = [-1, -4, -5, 2]
 
 hnegative_map_sum :: Backend c => c -> Assertion
-hnegative_map_sum conn = makeEqAssertion "hnegative_map_sum"
-                                         (Q.map Q.sum (Q.toQ xss))
-                                         (map sum xss)
-                                         conn
+hnegative_map_sum = makeEqAssertion "hnegative_map_sum"
+                                    (Q.map Q.sum (Q.toQ xss))
+                                    (map sum xss)
   where
     xss :: [[Integer]]
     xss = [[10, 20, 30], [-10, -20, -30], [], [0]]
