@@ -7,6 +7,7 @@ module Database.DSH.Frontend.TupleTypes
       mkQAInstances
     , mkTAInstances
     , mkTupleConstructors
+    , mkTupleAccessors
     , mkTupElemType
     , mkTupElemCompile
     , mkReifyInstances
@@ -270,6 +271,45 @@ mkTupleConstructors :: Int -> Q [Dec]
 mkTupleConstructors maxWidth = return $ concatMap mkTupleConstructor [2..maxWidth]
 
 --------------------------------------------------------------------------------
+-- Tuple accessors
+
+mkTupleAccessor :: Int -> Int -> Q [Dec]
+mkTupleAccessor width idx = do
+    -- Construct the function type
+    fieldTyName       <- newName "a"
+    otherFieldTyNames <- mapM (\i -> newName $ printf "b%d" i) [1..width-1]
+    let elemTyNames = take (idx - 1) otherFieldTyNames
+                      ++ [fieldTyName]
+                      ++ drop (idx - 1) otherFieldTyNames
+        elemTyVars = map VarT elemTyNames
+        qaCxt   = map (\tyName -> nameTyApp (mkName "QA") (VarT tyName)) elemTyNames
+        tupTy   = AppT (ConT qName) $ foldl' AppT (TupleT width) elemTyVars
+        fieldTy = AppT (ConT qName) (VarT fieldTyName)
+        arrowTy = mkArrowTy tupTy fieldTy
+        funTy   = ForallT (map PlainTV elemTyNames) qaCxt arrowTy
+        funSig  = SigD (tupAccFunName width idx) funTy
+
+    -- Construct the function equation
+    exprName <- newName "e"
+    funBody <- appE (conE qName) $ mkTupElemTerm width idx (VarE exprName)
+    let qPat = ConP qName [VarP exprName]
+        funDef = FunD (tupAccFunName width idx) [Clause [qPat] (NormalB funBody) []]
+
+    return [funSig, funDef]
+
+-- | Construct field accessor functions for tuple types.
+--
+-- @
+-- tup<n>_<i> :: (QA t1, ..., QA t_n) => Q (t_1, ..., t_n) -> Q t_i
+-- tup<n>_<i> (Q e) = Q (AppE (TupElem Tup<n>_<i>) e)
+-- @
+mkTupleAccessors :: Int -> Q [Dec]
+mkTupleAccessors maxWidth = concat <$> sequence [ mkTupleAccessor width idx
+                                                | width <- [2..maxWidth]
+                                                , idx   <- [1..width]
+                                                ]
+
+--------------------------------------------------------------------------------
 -- Translation function for tuple constructors in terms
 
 {-
@@ -485,6 +525,11 @@ innerConst m  width = mkName $ printf "%s.Tuple%dE" m width
 -- and element index.
 tupAccName :: Int -> Int -> Name
 tupAccName width elemIdx = mkName $ printf "Tup%d_%d" width elemIdx
+
+-- | The name of a tuple access function for a given tuple width and element
+-- index.
+tupAccFunName :: Int -> Int -> Name
+tupAccFunName width elemIdx = mkName $ printf "tup%d_%d" width elemIdx
 
 -- | The name of the tuple type constructor for a given tuple width.
 tupTyConstName :: String -> Int -> Name

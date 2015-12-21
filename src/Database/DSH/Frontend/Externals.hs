@@ -777,12 +777,13 @@ infixr 3  &&
 infixr 2  ||
 infix  0  ?
 
--- * Generate instances and constructor functions for tuple types
+-- * Generate instances, constructor functions and accessor functions for tuple types
 
 mkQAInstances       16
 mkTAInstances       16
 mkViewInstances     16
 mkTupleConstructors 16
+mkTupleAccessors    16
 
 -- * Missing functions
 
