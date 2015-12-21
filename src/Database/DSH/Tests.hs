@@ -18,13 +18,8 @@ import           Database.DSH.Tests.ComprehensionTests
 import           Database.DSH.Tests.LawTests
 
 -- | Convenience function for running tests
-runTests :: Backend c => c -> [c -> Test] -> IO ()
-runTests conn tests = do
-    args <- getArgs
-    let args' = if or $ map (L.isPrefixOf "-s") args
-                then args
-                else "-s5":args
-    defaultMainWithArgs (map (\t -> t conn) tests) args'
+runTests :: Backend c => [String] -> c -> [c -> Test] -> IO ()
+runTests args conn tests = defaultMainWithArgs (map (\t -> t conn) tests) args
 
 -- | All available tests in one package.
 defaultTests :: Backend c => [c -> Test]
