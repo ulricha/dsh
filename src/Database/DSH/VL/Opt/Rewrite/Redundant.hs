@@ -838,7 +838,7 @@ pullProjectGroupJoinRight q =
                 leftCols  = [1..leftWidth]
                 -- Shift column names in the projection expressions to account
                 -- for the name shift due to the join.
-                proj'     = map (mapExprCols (+ leftWidth)) $(v "proj")
+                proj'     = map (shiftExprCols leftWidth) $(v "proj")
                 env       = zip [1..] (map Column leftCols ++ proj')
                 a'        = mapAggrFun (mergeExpr env) a
 

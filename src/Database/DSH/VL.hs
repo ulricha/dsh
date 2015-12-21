@@ -6,6 +6,5 @@ module Database.DSH.VL
 
 import           Database.DSH.Translate.VL2Algebra (VecBuild, runVecBuild, vl2Algebra)
 import           Database.DSH.VL.Lang              (VL, AggrFun (..), DBCol,
-                                                    Expr (..), FrameSpec (..),
-                                                    WinFun (..), shiftExprCols)
+                                                    Expr (..), FrameSpec (..), WinFun (..))
 import           Database.DSH.VL.VectorAlgebra

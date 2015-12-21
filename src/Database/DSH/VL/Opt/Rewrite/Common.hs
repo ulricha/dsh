@@ -112,3 +112,7 @@ mapExprCols _ (Constant val)    = Constant val
 mapExprCols f (If c t e)        = If (mapExprCols f c)
                                      (mapExprCols f t)
                                      (mapExprCols f e)
+
+-- | Helper function: Shift all column indexes in an expression by a certain offset.
+shiftExprCols :: Int -> Expr -> Expr
+shiftExprCols o = mapExprCols (+ o)

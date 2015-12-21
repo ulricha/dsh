@@ -28,16 +28,6 @@ data Expr = BinApp L.ScalarBinOp Expr Expr
 
 $(deriveJSON defaultOptions ''Expr)
 
--- | Helper function: Shift all column indexes in an expression by a certain offset.
-shiftExprCols :: Int -> Expr -> Expr
-shiftExprCols o (BinApp op e1 e2) = BinApp op (shiftExprCols o e1) (shiftExprCols o e2)
-shiftExprCols o (UnApp op e)      = UnApp op (shiftExprCols o e)
-shiftExprCols o (Column c)        = Column $ c + o
-shiftExprCols _ (Constant v)      = Constant v
-shiftExprCols o (If c t e)        = If (shiftExprCols o c)
-                                       (shiftExprCols o t)
-                                       (shiftExprCols o e)
-
 data AggrFun = AggrSum ScalarType Expr
              | AggrMin Expr
              | AggrMax Expr
@@ -60,7 +50,6 @@ data WinFun = WinSum Expr
             deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''WinFun)
-
 
 -- | Specification of a window for the window aggregate operator.
 data FrameSpec = -- | All elements up to and including the current
