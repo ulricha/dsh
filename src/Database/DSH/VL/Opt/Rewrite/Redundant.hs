@@ -831,13 +831,15 @@ pullProjectGroupJoinRight q =
     [| do
         let (p, a) = $(v "args")
         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-        rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
 
         return $ do
             logRewrite "Redundant.Project.GroupJoin.Right" q
             let p'        = inlineJoinPredRight (zip [1..] $(v "proj")) p
                 leftCols  = [1..leftWidth]
-                env       = zip [1..] (map Column leftCols ++ $(v "proj"))
+                -- Shift column names in the projection expressions to account
+                -- for the name shift due to the join.
+                proj'     = map (mapExprCols (+ leftWidth)) $(v "proj")
+                env       = zip [1..] (map Column leftCols ++ proj')
                 a'        = mapAggrFun (mergeExpr env) a
 
             void $ replaceWithNew q $ BinOp (GroupJoin (p', a')) $(v "q1") $(v "q2") |])
