@@ -345,19 +345,13 @@ thetaJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2))
 thetaJoinL _ _ _ = $impossible
 
 -- △^L :: [[a]] -> [[b]] -> [[(a, [(a, b)])]]
-
--- For the unlifted nestjoin, we could segment the left (outer) input
--- and then use the regular thetajoin implementation. This trick does
--- not work here, as the lifted thetajoin joins on the
--- descriptors. Therefore, we have to 'segment' **after** the join,
--- i.e. use the left input positions as descriptors
 nestJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do
     (dv, rv1, rv2) <- vlNestJoinS joinPred dvi1 dvi2
     lyt1'          <- repLayout rv1 lyt1
     lyt2'          <- repLayout rv2 lyt2
     let lyt  = LTuple [lyt1', lyt2']
-    return $ VShape dvo1 (LNest dvo1 (LTuple [lyt1, LNest dv lyt]))
+    return $ VShape dvo1 (LNest dvi1 (LTuple [lyt1, LNest dv lyt]))
 nestJoinL _ _ _ = $impossible
 
 semiJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
