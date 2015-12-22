@@ -361,7 +361,7 @@ distTests conn = testGroup "Value replication"
     [ testPropertyConn conn "dist scalar" prop_dist_scalar
     , testPropertyConn conn "dist list1" prop_dist_list1
     , testPropertyConn conn "dist list2" prop_dist_list2
-    , testPropertyConn conn "dist lift" prop_dist_lift
+    , testCase "dist lift" (test_dist_lift conn)
     ]
 
 hunitCombinatorTests :: Backend c => c -> Test
@@ -1244,9 +1244,13 @@ prop_dist_list2 = makePropEq (\p -> Q.map (\i -> Q.take i (Q.fst p)) (Q.snd p))
 -- Testcase for lifted disting. This is a first-order version of the running
 -- example in Lippmeier et al's paper "Work-Efficient Higher Order
 -- Vectorisation" (ICFP 2012).
-prop_dist_lift :: Backend c => ([[Char]], [[Integer]]) -> c -> Property
-prop_dist_lift = makePropEq (\p -> Q.zipWith (\xs is -> Q.map (\i -> xs Q.!! i) is) (Q.fst p) (Q.snd p))
-                            (\p -> zipWith (\xs is -> map (\i -> xs !! (fromIntegral i)) is) (fst p) (snd p))
+test_dist_lift :: Backend c => c -> Assertion
+test_dist_lift = makeEqAssertion "dist lift"
+                                 (Q.zipWith (\xs is -> Q.map (\i -> xs Q.!! i) is) (Q.toQ xss) (Q.toQ iss))
+                                 (zipWith (\xs is -> map (\i -> xs !! fromIntegral i) is) xss iss)
+  where
+    xss = [['a', 'b'], ['c', 'd', 'e'], ['f', 'g'], ['h']]
+    iss = [[1,0,1], [2], [1,0], [0]] :: [[Integer]]
 
 hnegative_sum :: Backend c => c -> Assertion
 hnegative_sum = makeEqAssertion "hnegative_sum" (Q.sum (Q.toQ xs)) (sum xs)
