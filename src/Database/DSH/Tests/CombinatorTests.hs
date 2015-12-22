@@ -1021,7 +1021,7 @@ prop_zip_tuple1 :: Backend c => ([Integer], [(Text, Integer)]) -> c -> Property
 prop_zip_tuple1 (xs, tds) =
     makePropEq (uncurryQ Q.zip) (uncurry zip) (xs, tds')
   where
-    tds' = map (\(t, d) -> (filterNullChar t, getFixed d)) tds
+    tds' = map (\(t, d) -> (filterNullChar t, d)) tds
 
 prop_zip_tuple2 :: Backend c
                 => ([(Integer, Integer)], [(Text, Integer)])
@@ -1030,7 +1030,7 @@ prop_zip_tuple2 :: Backend c
 prop_zip_tuple2 (xs, tds) =
     makePropEq (uncurryQ Q.zip) (uncurry zip) (xs, tds')
   where
-    tds' = map (\(t, d) -> (filterNullChar t, getFixed d)) tds
+    tds' = map (\(t, d) -> (filterNullChar t, d)) tds
 
 prop_map_zip :: Backend c => ([Integer], [[Integer]]) -> c -> Property
 prop_map_zip = makePropEq (\z -> Q.map (Q.zip $ Q.fst z) $ Q.snd z) (\(x, y) -> map (zip x) y)
