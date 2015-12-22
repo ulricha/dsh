@@ -1017,14 +1017,14 @@ prop_zip = makePropEq (uncurryQ Q.zip) (uncurry zip)
 prop_zip_nested :: Backend c => ([Integer], [(Integer, [Integer])]) -> c -> Property
 prop_zip_nested = makePropEq (uncurryQ Q.zip) (uncurry zip)
 
-prop_zip_tuple1 :: Backend c => ([Integer], [(Text, Fixed Double)]) -> c -> Property
+prop_zip_tuple1 :: Backend c => ([Integer], [(Text, Integer)]) -> c -> Property
 prop_zip_tuple1 (xs, tds) =
     makePropEq (uncurryQ Q.zip) (uncurry zip) (xs, tds')
   where
     tds' = map (\(t, d) -> (filterNullChar t, getFixed d)) tds
 
 prop_zip_tuple2 :: Backend c
-                => ([(Integer, Integer)], [(Text, Fixed Double)])
+                => ([(Integer, Integer)], [(Text, Integer)])
                 -> c
                 -> Property
 prop_zip_tuple2 (xs, tds) =
