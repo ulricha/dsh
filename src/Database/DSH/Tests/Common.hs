@@ -46,6 +46,9 @@ filterNullChar = T.filter (/= '\0')
 eps :: Double
 eps = 1.0E-3
 
+close :: Double -> Double -> Bool
+close a b = abs (a - b) < eps
+
 -- | A simple property that should hold for a DSH query: Given any
 -- input, its result should be the same as the corresponding native
 -- Haskell code. 'The same' is defined by a predicate.
@@ -68,7 +71,7 @@ makePropEq :: (Eq b, Q.QA a, Q.QA b, Show a, Show b, Backend c)
            -> a
            -> c
            -> Property
-makePropEq f1 f2 arg conn = makeProp (==) f1 f2 arg conn
+makePropEq = makeProp (==)
 
 -- | Compare the double query result and native result.
 makePropDouble :: (Q.QA a, Show a, Backend c)
@@ -77,9 +80,7 @@ makePropDouble :: (Q.QA a, Show a, Backend c)
                -> a
                -> c
                -> Property
-makePropDouble f1 f2 arg conn = makeProp delta f1 f2 arg conn
-  where
-    delta a b = abs (a - b) < eps
+makePropDouble = makeProp close
 
 makePropDoubles :: (Q.QA a, Show a, Backend c)
                 => (Q.Q a -> Q.Q [Double])
@@ -87,10 +88,9 @@ makePropDoubles :: (Q.QA a, Show a, Backend c)
                 -> a
                 -> c
                 -> Property
-makePropDoubles f1 f2 arg conn = makeProp deltaList f1 f2 arg conn
+makePropDoubles = makeProp deltaList
   where
-    delta a b       = abs (a - b) < eps
-    deltaList as bs = and $ zipWith delta as bs
+    deltaList as bs = and $ zipWith close as bs
 
 -- | Equality HUnit assertion
 makeEqAssertion :: (Show a, Eq a, Q.QA a, Backend c)
