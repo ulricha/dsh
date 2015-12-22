@@ -7,9 +7,6 @@ module Database.DSH.Tests
     , module Database.DSH.Tests.CombinatorTests
     ) where
 
-import qualified Data.List                             as L
-import           System.Environment
-
 import           Test.Framework
 
 import           Database.DSH.Backend
@@ -38,5 +35,6 @@ defaultTests =
     , eitherTests
     , listTests
     , liftedTests
+    , distTests
     , tests_laws
     ]

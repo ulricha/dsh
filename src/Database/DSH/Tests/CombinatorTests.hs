@@ -15,6 +15,7 @@ module Database.DSH.Tests.CombinatorTests
     , eitherTests
     , listTests
     , liftedTests
+    , distTests
     , hunitCombinatorTests
     ) where
 
@@ -353,6 +354,14 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "map log"                               prop_map_log
     , testPropertyConn conn "map exp"                               prop_map_exp
     , testPropertyConn conn "map sqrt"                              prop_map_sqrt
+    ]
+
+distTests :: Backend c => c -> Test
+distTests conn = testGroup "Value replication"
+    [ testPropertyConn conn "dist scalar" prop_dist_scalar
+    , testPropertyConn conn "dist list1" prop_dist_list1
+    , testPropertyConn conn "dist list2" prop_dist_list2
+    , testPropertyConn conn "dist lift" prop_dist_lift
     ]
 
 hunitCombinatorTests :: Backend c => c -> Test
@@ -1219,6 +1228,25 @@ prop_map_log ds = makePropDoubles (Q.map Q.log) (map log) (map (getPositive . ge
 prop_map_sqrt :: Backend c => [Fixed (Positive Double)] -> c -> Property
 prop_map_sqrt ds =
     makePropDoubles (Q.map Q.sqrt) (map sqrt) (map (getPositive . getFixed) ds)
+
+prop_dist_scalar :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_dist_scalar = makePropEq (\p -> Q.map (\i -> Q.sum (Q.fst p) + i) (Q.snd p))
+                              (\p -> map (\i -> sum (fst p) + i) (snd p))
+
+prop_dist_list1 :: Backend c => ([Integer], [[Integer]]) -> c -> Property
+prop_dist_list1 = makePropEq (\p -> Q.map (\xs -> (Q.fst p) Q.++ xs) (Q.snd p))
+                             (\p -> map (\xs -> (fst p) ++ xs) (snd p))
+
+prop_dist_list2 :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_dist_list2 = makePropEq (\p -> Q.map (\i -> Q.take i (Q.fst p)) (Q.snd p))
+                             (\p -> map (\i -> take (fromIntegral i) (fst p)) (snd p))
+
+-- Testcase for lifted disting. This is a first-order version of the running
+-- example in Lippmeier et al's paper "Work-Efficient Higher Order
+-- Vectorisation" (ICFP 2012).
+prop_dist_lift :: Backend c => ([[Char]], [[Integer]]) -> c -> Property
+prop_dist_lift = makePropEq (\p -> Q.zipWith (\xs is -> Q.map (\i -> xs Q.!! i) is) (Q.fst p) (Q.snd p))
+                            (\p -> zipWith (\xs is -> map (\i -> xs !! (fromIntegral i)) is) (fst p) (snd p))
 
 hnegative_sum :: Backend c => c -> Assertion
 hnegative_sum = makeEqAssertion "hnegative_sum" (Q.sum (Q.toQ xs)) (sum xs)
