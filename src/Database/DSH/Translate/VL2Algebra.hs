@@ -286,9 +286,7 @@ translateUnOp unop c = case unop of
     V.UnboxKey         -> fromKVec <$> vecUnboxKey (toDVec c)
     V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
     V.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
-    V.Segment          -> do
-        (d1, d2) <- vecSegment (toDVec c)
-        return $ RLPair (fromDVec d1) (fromDVec d2)
+    V.Segment          -> fromDVec <$> vecSegment (toDVec c)
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
         return $ RLPair (fromDVec d) (fromFVec r)

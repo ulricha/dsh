@@ -55,7 +55,7 @@ class VectorAlgebra a where
     -- | From a vector with only one segment, create a segmented
     -- version in which every value in the original segment inhabits
     -- its own segment.
-    vecSegment :: DVec a -> Build a (DVec a, DVec a)
+    vecSegment :: DVec a -> Build a (DVec a)
 
     vecAggr :: AggrFun -> DVec a -> Build a (DVec a)
     vecAggrS :: AggrFun -> DVec a -> DVec a -> Build a (DVec a)
