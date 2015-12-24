@@ -154,11 +154,13 @@ tupleTests conn = testGroup "Tuples"
     , testPropertyConn conn "tup4_4"       prop_tup4_4
     , testPropertyConn conn "tup3_nested"  prop_tup3_nested
     , testPropertyConn conn "tup4_tup3"    prop_tup4_tup3
+    , testPropertyConn conn "agg tuple"    prop_agg_tuple
     ]
 
 numericTests :: Backend c => c -> Test
 numericTests conn = testGroup "Numerics"
     [ testPropertyConn conn "add_integer"         prop_add_integer
+    , testPropertyConn conn "add_integer_sums"    prop_add_integer_sums
     , testPropertyConn conn "add_double"          prop_add_double
     , testPropertyConn conn "mul_integer"         prop_mul_integer
     , testPropertyConn conn "mul_double"          prop_mul_double
@@ -1112,10 +1114,21 @@ prop_tup4_tup3 :: Backend c => (Integer, Integer, Integer, Integer) -> c -> Prop
 prop_tup4_tup3 = makePropEq (\q -> case Q.view q of (a, b, _, d) -> Q.tup3 a b d)
                           (\(a, b, _, d) -> (a, b, d))
 
+prop_agg_tuple :: Backend c => NonEmptyList Integer -> c -> Property
+prop_agg_tuple nxs = makePropEq (\is -> Q.tup3 (Q.sum is) (Q.maximum is) (Q.minimum is))
+                                (\is -> (sum is, maximum is, minimum is))
+                                xs
+  where
+    xs = getNonEmpty nxs
+
 -- * Numerics
 
 prop_add_integer :: Backend c => (Integer,Integer) -> c -> Property
 prop_add_integer = makePropEq (uncurryQ (+)) (uncurry (+))
+
+prop_add_integer_sums :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_add_integer_sums = makePropEq (\p -> Q.sum (Q.fst p) + Q.sum (Q.snd p))
+                                   (\p -> sum (fst p) + sum (snd p))
 
 prop_add_double :: Backend c => (Fixed Double, Fixed Double) -> c -> Property
 prop_add_double (d1, d2) = makePropDouble (uncurryQ (+)) (uncurry (+)) (getFixed d1, getFixed d2)
