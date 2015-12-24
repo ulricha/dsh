@@ -192,7 +192,7 @@ distSingleton dv1 lyt1 dv2 = do
     let leftWidth  = columnsInLayout lyt1
         proj       = map Column [1..leftWidth]
 
-    (dv, rv) <- dv1 `vlDistSng` dv2
+    (dv, rv) <- dv1 `vlReplicateScalar` dv2
     dv'      <- vlProject proj dv
 
     lyt'     <- repLayout rv lyt1
@@ -448,7 +448,7 @@ aggrL _ _ = $impossible
 
 distL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 distL (VShape dv1 lyt1) (VShape dvo2 (LNest dvi2 lyt2)) = do
-    (dv, rv)        <- vlDistLift dv1 dvi2
+    (dv, rv)        <- vlReplicateNest dv1 dvi2
     lyt1'           <- repLayout rv lyt1
     let lyt = LTuple [lyt1', lyt2]
     VShape dv' lytf <- tupElemL First $ VShape dv lyt

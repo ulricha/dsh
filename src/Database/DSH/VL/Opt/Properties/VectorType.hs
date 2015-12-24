@@ -99,11 +99,11 @@ inferVectorTypeBinOp s1 s2 op =
   case op of
     AggrS _ -> return $ VProp $ VTDataVec 1
 
-    DistLift -> do
+    ReplicateNest -> do
         VTDataVec w1 <- unpack s1
         VTDataVec w2 <- unpack s2
         return $ VPropPair (VTDataVec $ w1 + w2) VTNA
-    DistSng -> do
+    ReplicateScalar -> do
         VTDataVec w1 <- unpack s1
         VTDataVec w2 <- unpack s2
         return $ VPropPair (VTDataVec $ w1 + w2) VTNA

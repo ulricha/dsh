@@ -100,8 +100,8 @@ data UnOp = UnboxKey
 
 $(deriveJSON defaultOptions ''UnOp)
 
-data BinOp = DistLift
-           | DistSng
+data BinOp = ReplicateNest
+           | ReplicateScalar
 
            | AppKey
            | AppSort

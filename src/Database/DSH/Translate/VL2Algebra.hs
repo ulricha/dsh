@@ -176,11 +176,11 @@ translateBinOp :: VectorAlgebra a
                -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
                -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateBinOp b c1 c2 = case b of
-    V.DistLift -> do
-        (v, p) <- vecDistLift (toDVec c1) (toDVec c2)
+    V.ReplicateNest -> do
+        (v, p) <- vecReplicateNest (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec p)
-    V.DistSng -> do
-        (v, p) <- vecDistSng (toDVec c1) (toDVec c2)
+    V.ReplicateScalar -> do
+        (v, p) <- vecReplicateScalar (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec p)
 
     V.AppKey -> do

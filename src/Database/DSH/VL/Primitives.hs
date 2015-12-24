@@ -178,11 +178,11 @@ vlUnboxKey (VLDVec c) = vec (UnOp UnboxKey c) kvec
 vlNestProduct :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlNestProduct (VLDVec c1) (VLDVec c2) = tripleVec (BinOp NestProduct c1 c2) dvec rvec rvec
 
-vlDistLift :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
-vlDistLift (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistLift c1 c2) dvec rvec
+vlReplicateNest :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
+vlReplicateNest (VLDVec c1) (VLDVec c2) = pairVec (BinOp ReplicateNest c1 c2) dvec rvec
 
-vlDistSng :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
-vlDistSng (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistSng c1 c2) dvec rvec
+vlReplicateScalar :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
+vlReplicateScalar (VLDVec c1) (VLDVec c2) = pairVec (BinOp ReplicateScalar c1 c2) dvec rvec
 
 vlUnboxSng :: VLDVec -> VLDVec -> Build VL (VLDVec, VLKVec)
 vlUnboxSng (VLDVec c1) (VLDVec c2) = pairVec (BinOp UnboxSng c1 c2) dvec kvec

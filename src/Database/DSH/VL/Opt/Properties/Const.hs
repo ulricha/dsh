@@ -215,12 +215,12 @@ inferConstVecBinOp c1 c2 op =
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
     AggrS _ -> return $ VProp $ ConstVec [NonConstPL]
 
-    DistLift -> do
+    ReplicateNest -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       return $ VPropPair (ConstVec (cols1 ++ cols2)) CNA
 
-    DistSng -> do
+    ReplicateScalar -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       return $ VPropPair (ConstVec (cols1 ++ cols2)) CNA

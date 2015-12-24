@@ -58,8 +58,8 @@ inferCardOneBinOp c1 c2 op =
   case op of
     AggrS _ -> return $ VProp False
     NestProduct -> return $ VPropTriple False False False
-    DistLift -> return $ VPropPair False False
-    DistSng -> unp c2 >>= (\uc -> return $ VPropPair uc uc)
+    ReplicateNest -> return $ VPropPair False False
+    ReplicateScalar -> unp c2 >>= (\uc -> return $ VPropPair uc uc)
     AppKey -> return $ VPropPair False False
     AppSort -> return $ VPropPair False False
     AppFilter -> return $ VPropPair False False

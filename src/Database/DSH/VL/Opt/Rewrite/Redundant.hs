@@ -42,9 +42,9 @@ redundantRules = [ pullProjectAppKey
                  , pushAggrSThetaJoinRight
                  , pushUnboxSngSelect
                  , pushAggrSAlign
-                 , pushAggrSDistSng
+                 , pushAggrSReplicateScalar
                  , pushUnboxSngAlign
-                 , pushUnboxSngDistSng
+                 , pushUnboxSngReplicateScalar
                  ]
 
 
@@ -93,13 +93,13 @@ redundantRulesBottomUp = [ sameInputAlign
                          , pullProjectNestJoinRight
                          , pullProjectGroupJoinLeft
                          , pullProjectGroupJoinRight
-                         , pullProjectDistSngRight
+                         , pullProjectReplicateScalarRight
                          , selectCartProd
                          , pushUnboxSngThetaJoinRight
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
-redundantRulesAllProps = [ unreferencedDistLift
+redundantRulesAllProps = [ unreferencedReplicateNest
                          , notReqNumber
                          , unboxNumber
                          ]
@@ -116,24 +116,24 @@ unwrapConstVal  NonConstPL   = fail "not a constant"
 -- right input.
 constDist :: VLRule BottomUpProps
 constDist q =
-  $(dagPatMatch 'q "R1 ((q1) [DistLift | DistSng] (q2))"
+  $(dagPatMatch 'q "R1 ((q1) [ReplicateNest | ReplicateScalar] (q2))"
     [| do
          VProp (ConstVec constCols) <- constProp <$> properties $(v "q1")
          VProp (VTDataVec w)        <- vectorTypeProp <$> properties $(v "q2")
          constVals                  <- mapM unwrapConstVal constCols
 
          return $ do
-              logRewrite "Redundant.Const.DistLift" q
+              logRewrite "Redundant.Const.ReplicateNest" q
               let proj = map Constant constVals ++ map Column [1..w]
               void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
 
 -- | If a vector is distributed over an inner vector in a segmented
 -- way, check if the vector's columns are actually referenced/required
--- downstream. If not, we can remove the DistLift altogether, as the
--- shape of the inner vector is not changed by DistLift.
-unreferencedDistLift :: VLRule Properties
-unreferencedDistLift q =
-  $(dagPatMatch 'q  "R1 ((q1) DistLift (q2))"
+-- downstream. If not, we can remove the ReplicateNest altogether, as the
+-- shape of the inner vector is not changed by ReplicateNest.
+unreferencedReplicateNest :: VLRule Properties
+unreferencedReplicateNest q =
+  $(dagPatMatch 'q  "R1 ((q1) ReplicateNest (q2))"
     [| do
         VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties q
         VProp (VTDataVec w1) <- vectorTypeProp <$> bu <$> properties $(v "q1")
@@ -143,7 +143,7 @@ unreferencedDistLift q =
         predicate $ all (> w1) reqCols
 
         return $ do
-          logRewrite "Redundant.Unreferenced.DistLift" q
+          logRewrite "Redundant.Unreferenced.ReplicateNest" q
 
           -- FIXME HACKHACKHACK
           let padProj = [ Constant $ IntV 0xdeadbeef | _ <- [1..w1] ]
@@ -152,11 +152,11 @@ unreferencedDistLift q =
 
           void $ replaceWithNew q $ UnOp (Project padProj) $(v "q2") |])
 
--- | Remove a DistLift if the outer vector is aligned with a
+-- | Remove a ReplicateNest if the outer vector is aligned with a
 -- NestProduct that uses the same outer vector.
 distLiftNestProduct :: VLRule BottomUpProps
 distLiftNestProduct q =
-  $(dagPatMatch 'q "R1 ((qo) DistLift (R1 ((qo1) NestProduct (qi))))"
+  $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestProduct (qi))))"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
 
@@ -164,18 +164,18 @@ distLiftNestProduct q =
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
 
         return $ do
-            logRewrite "Redundant.DistLift.NestProduct" q
+            logRewrite "Redundant.ReplicateNest.NestProduct" q
             -- Preserve the original schema
             let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
             prodNode <- insert $ BinOp NestProduct $(v "qo") $(v "qi")
             r1Node   <- insert $ UnOp R1 prodNode
             void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
--- | Remove a DistLift if the outer vector is aligned with a
+-- | Remove a ReplicateNest if the outer vector is aligned with a
 -- NestJoin that uses the same outer vector.
 distLiftNestJoin :: VLRule BottomUpProps
 distLiftNestJoin q =
-  $(dagPatMatch 'q "R1 ((qo) DistLift (R1 ((qo1) NestJoin p (qi))))"
+  $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestJoin p (qi))))"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
 
@@ -183,7 +183,7 @@ distLiftNestJoin q =
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
 
         return $ do
-            logRewrite "Redundant.DistLift.NestJoin" q
+            logRewrite "Redundant.ReplicateNest.NestJoin" q
             -- Preserve the original schema
             let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
             prodNode <- insert $ BinOp (NestJoin $(v "p")) $(v "qo") $(v "qi")
@@ -192,80 +192,80 @@ distLiftNestJoin q =
 
 distLiftProjectLeft :: VLRule BottomUpProps
 distLiftProjectLeft q =
-  $(dagPatMatch 'q "R1 ((Project ps1 (q1)) DistLift (q2))"
+  $(dagPatMatch 'q "R1 ((Project ps1 (q1)) ReplicateNest (q2))"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
 
         return $ do
-          logRewrite "Redundant.DistLift.Project.Left" q
+          logRewrite "Redundant.ReplicateNest.Project.Left" q
           -- Take the projection expressions from the left and the
           -- shifted columns from the right.
           let proj = $(v "ps1") ++ [ Column $ c + w1 | c <- [1 .. w2]]
-          distNode <- insert $ BinOp DistLift $(v "q1") $(v "q2")
+          distNode <- insert $ BinOp ReplicateNest $(v "q1") $(v "q2")
           r1Node   <- insert $ UnOp R1 distNode
           void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
 distLiftProjectRight :: VLRule BottomUpProps
 distLiftProjectRight q =
-  $(dagPatMatch 'q "R1 ((q1) DistLift (Project p2 (q2)))"
+  $(dagPatMatch 'q "R1 ((q1) ReplicateNest (Project p2 (q2)))"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
-          logRewrite "Redundant.DistLift.Project.Right" q
+          logRewrite "Redundant.ReplicateNest.Project.Right" q
           -- Take the columns from the left and the expressions from
           -- the right projection. Since expressions are applied after
           -- the zip, their column references have to be shifted.
           let proj = [Column c | c <- [1..w1]] ++ [ mapExprCols (+ w1) e | e <- $(v "p2") ]
-          distNode <- insert $ BinOp DistLift $(v "q1") $(v "q2")
+          distNode <- insert $ BinOp ReplicateNest $(v "q1") $(v "q2")
           r1Node   <- insert $ UnOp R1 distNode
           void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
 -- If the same outer vector is propagated twice to an inner vector,
--- one DistLift can be removed. Reasoning: DistLift does not change
+-- one ReplicateNest can be removed. Reasoning: ReplicateNest does not change
 -- the shape of the inner vector.
 distLiftStacked :: VLRule BottomUpProps
 distLiftStacked q =
-  $(dagPatMatch 'q "R1 ((q1) DistLift (r1=R1 ((q11) DistLift (q2))))"
+  $(dagPatMatch 'q "R1 ((q1) ReplicateNest (r1=R1 ((q11) ReplicateNest (q2))))"
      [| do
          predicate $ $(v "q1") == $(v "q11")
          w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
          w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
 
          return $ do
-             logRewrite "Redundant.DistLift.Stacked" q
+             logRewrite "Redundant.ReplicateNest.Stacked" q
              let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
              void $ replaceWithNew q $ UnOp (Project proj) $(v "r1") |])
 
--- | Pull a selection through a DistLift. The reasoning for
+-- | Pull a selection through a ReplicateNest. The reasoning for
 -- correctness is simple: It does not matter wether an element of an
--- inner segment is removed before or after DistLift (on relational
--- level, DistLift maps to join which commutes with selection). The
+-- inner segment is removed before or after ReplicateNest (on relational
+-- level, ReplicateNest maps to join which commutes with selection). The
 -- "use case" for this rewrite is not well thought-through yet: We
--- want to push down DistLift to eliminate it or merge it with other
--- operators (e.g. DistLift.Stacked). The usual wisdom would suggest
+-- want to push down ReplicateNest to eliminate it or merge it with other
+-- operators (e.g. ReplicateNest.Stacked). The usual wisdom would suggest
 -- to push selections down, though.
 distLiftSelect :: VLRule BottomUpProps
 distLiftSelect q =
-  $(dagPatMatch 'q "R1 ((q1) DistLift (R1 (Select p (q2))))"
+  $(dagPatMatch 'q "R1 ((q1) ReplicateNest (R1 (Select p (q2))))"
      [| do
          w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
          return $ do
-             logRewrite "Redundant.DistLift.Select" q
+             logRewrite "Redundant.ReplicateNest.Select" q
              let p' = shiftExprCols w1 $(v "p")
-             distNode <- insert $ BinOp DistLift $(v "q1") $(v "q2")
+             distNode <- insert $ BinOp ReplicateNest $(v "q1") $(v "q2")
              distR1   <- insert $ UnOp R1 distNode
              selNode  <- insert $ UnOp (Select p') distR1
              void $ replaceWithNew q $ UnOp R1 selNode |])
 
--- | When a DistLift result is aligned with the right (inner) DistLift
--- input, we can eliminate the Align. Reasoning: DistLift does not
+-- | When a ReplicateNest result is aligned with the right (inner) ReplicateNest
+-- input, we can eliminate the Align. Reasoning: ReplicateNest does not
 -- change the shape of the vector, only adds columns from its right
 -- input.
 alignedDistRight :: VLRule BottomUpProps
 alignedDistRight q =
-  $(dagPatMatch 'q "(q21) Align (qr1=R1 ((q1) [DistLift | DistSng] (q22)))"
+  $(dagPatMatch 'q "(q21) Align (qr1=R1 ((q1) [ReplicateNest | ReplicateScalar] (q22)))"
     [| do
         predicate $ $(v "q21") == $(v "q22")
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
@@ -281,13 +281,13 @@ alignedDistRight q =
                        [w1+1..w1+w2]
             void $ replaceWithNew q $ UnOp (Project proj) $(v "qr1") |])
 
--- | When a DistLift result is aligned with the right (inner) DistLift
--- input, we can eliminate the Align. Reasoning: DistLift does not
+-- | When a ReplicateNest result is aligned with the right (inner) ReplicateNest
+-- input, we can eliminate the Align. Reasoning: ReplicateNest does not
 -- change the shape of the vector, only adds columns from its right
 -- input.
 alignedDistLeft :: VLRule BottomUpProps
 alignedDistLeft q =
-  $(dagPatMatch 'q "(qr1=R1 ((q1) [DistLift | DistSng] (q21))) Align (q22)"
+  $(dagPatMatch 'q "(qr1=R1 ((q1) [ReplicateNest | ReplicateScalar] (q21))) Align (q22)"
     [| do
         predicate $ $(v "q21") == $(v "q22")
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
@@ -964,18 +964,18 @@ pullProjectUnboxSngRight q =
 
            void $ replaceWithNew q $ UnOp (Project proj') r1Node |])
 
-pullProjectDistSngRight :: VLRule BottomUpProps
-pullProjectDistSngRight q =
-  $(dagPatMatch 'q "R1 ((q1) DistSng (Project p (q2)))"
+pullProjectReplicateScalarRight :: VLRule BottomUpProps
+pullProjectReplicateScalarRight q =
+  $(dagPatMatch 'q "R1 ((q1) ReplicateScalar (Project p (q2)))"
     [| do
          leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
          return $ do
-           logRewrite "Redundant.Project.DistSng" q
+           logRewrite "Redundant.Project.ReplicateScalar" q
            let p' = map Column [1..leftWidth]
                     ++
                     [ mapExprCols (+ leftWidth) e | e <- $(v "p") ]
-           distNode <- insert $ BinOp DistSng $(v "q1") $(v "q2")
+           distNode <- insert $ BinOp ReplicateScalar $(v "q1") $(v "q2")
            r1Node   <- insert $ UnOp R1 distNode
            void $ replaceWithNew q $ UnOp (Project p') r1Node |])
 
@@ -1236,12 +1236,12 @@ pushAggrSAlign q =
             logRewrite "Redundant.AggrS.Push.Align" q
             void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
 
-pushAggrSDistSng :: VLRule ()
-pushAggrSDistSng q =
-  $(dagPatMatch 'q "(R1 ((_) DistSng (q1))) AggrS af (q2)"
+pushAggrSReplicateScalar :: VLRule ()
+pushAggrSReplicateScalar q =
+  $(dagPatMatch 'q "(R1 ((_) ReplicateScalar (q1))) AggrS af (q2)"
     [| do
         return $ do
-            logRewrite "Redundant.AggrS.Push.DistSng" q
+            logRewrite "Redundant.AggrS.Push.ReplicateScalar" q
             void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
 
 -- | Apply a singleton unbox operator before an align operator. By unboxing
@@ -1265,13 +1265,13 @@ pushUnboxSngAlign q =
 -- | Unbox singletons early, namely before distributing another singleton.
 --
 -- Note: the same comment as for pushUnboxSngAlign applies.
-pushUnboxSngDistSng :: VLRule ()
-pushUnboxSngDistSng q =
-  $(dagPatMatch 'q "R1 ((R1 ((q1) DistSng (q2))) UnboxSng (q3))"
+pushUnboxSngReplicateScalar :: VLRule ()
+pushUnboxSngReplicateScalar q =
+  $(dagPatMatch 'q "R1 ((R1 ((q1) ReplicateScalar (q2))) UnboxSng (q3))"
     [| do
         return $ do
-            logRewrite "Redundant.UnboxSng.Push.DistSng" q
+            logRewrite "Redundant.UnboxSng.Push.ReplicateScalar" q
             unboxNode <- insert $ BinOp UnboxSng $(v "q2") $(v "q3")
             r1Node    <- insert $ UnOp R1 unboxNode
-            distNode  <- insert $ BinOp DistSng $(v "q1") r1Node
+            distNode  <- insert $ BinOp ReplicateScalar $(v "q1") r1Node
             void $ replaceWithNew q $ UnOp R1 distNode |])

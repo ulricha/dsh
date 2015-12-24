@@ -244,12 +244,12 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
                        childReqColumns2
           return (fromLeft, fromRight)
 
-      DistLift -> do
+      ReplicateNest -> do
           cols <- fst <$> fromPropPair ownReqColumns
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
-      DistSng -> do
+      ReplicateScalar -> do
           cols <- fst <$> fromPropPair ownReqColumns
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
