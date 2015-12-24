@@ -1,5 +1,4 @@
 -- FIXME complete rules
-{-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.VL.Opt.Properties.Card where
 

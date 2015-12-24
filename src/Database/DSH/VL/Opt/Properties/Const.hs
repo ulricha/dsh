@@ -23,7 +23,11 @@ unp = unpack "Properties.Const"
 
 fromDBV :: ConstVec -> Either String [ConstPayload]
 fromDBV (ConstVec pl) = Right pl
-fromDBV CNA           = Left $ "Properties.Const.fromDBV"
+fromDBV CNA           = Left "Properties.Const.fromDBV"
+
+sameConst :: ConstPayload -> ConstPayload -> ConstPayload
+sameConst (ConstPL v1) (ConstPL v2) | v1 == v2 = ConstPL v1
+sameConst _            _                       = NonConstPL
 
 --------------------------------------------------------------------------------
 -- Evaluation of constant expressions
@@ -118,7 +122,7 @@ inferConstVecNullOp op =
                                       $ N.toList
                                       $ tableCols schema
 
-inferConstVecUnOp :: (VectorProp ConstVec) -> UnOp -> Either String (VectorProp ConstVec)
+inferConstVecUnOp :: VectorProp ConstVec -> UnOp -> Either String (VectorProp ConstVec)
 inferConstVecUnOp c op =
   case op of
     Nest -> do
@@ -132,8 +136,7 @@ inferConstVecUnOp c op =
     UniqueS -> return c
     Unique -> return c
 
-    Aggr _ -> do
-      return $ VProp $ ConstVec [NonConstPL]
+    Aggr _ -> return $ VProp $ ConstVec [NonConstPL]
 
     UnboxKey -> return $ VProp CNA
 
@@ -159,7 +162,7 @@ inferConstVecUnOp c op =
       return $ VPropPair (ConstVec cols) CNA
 
     GroupAggr (g, as) -> do
-      let pl = [ NonConstPL | _ <- [1 .. (length g) + (N.length as)] ]
+      let pl = [ NonConstPL | _ <- [1 .. length g + N.length as] ]
       return $ VProp $ ConstVec pl
 
     Number -> do
@@ -205,13 +208,12 @@ inferConstVecUnOp c op =
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.Const: not a triple"
 
-inferConstVecBinOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> BinOp -> Either String (VectorProp ConstVec)
+inferConstVecBinOp :: VectorProp ConstVec -> VectorProp ConstVec -> BinOp -> Either String (VectorProp ConstVec)
 inferConstVecBinOp c1 c2 op =
   case op of
     -- FIXME use cardinality property to infer the length if possible
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
-    AggrS _ -> do
-      return $ VProp $ ConstVec [NonConstPL]
+    AggrS _ -> return $ VProp $ ConstVec [NonConstPL]
 
     DistLift -> do
       cols1 <- unp c1 >>= fromDBV
@@ -248,10 +250,7 @@ inferConstVecBinOp c1 c2 op =
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
 
-      let constCols = map sameConst $ zip cols1 cols2
-
-          sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
-          sameConst (_, _)                                  = NonConstPL
+      let constCols = zipWith sameConst cols1 cols2
 
       return $ VPropTriple (ConstVec constCols) CNA CNA
 
@@ -259,10 +258,7 @@ inferConstVecBinOp c1 c2 op =
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
 
-      let constCols = map sameConst $ zip cols1 cols2
-
-          sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
-          sameConst (_, _)                                  = NonConstPL
+      let constCols = zipWith sameConst cols1 cols2
 
       return $ VPropTriple (ConstVec constCols) CNA CNA
 
@@ -366,10 +362,5 @@ inferConstVecTerOp _c1 c2 c3 op =
       cols2  <- unp c2 >>= fromDBV
       cols3  <- unp c3 >>= fromDBV
 
-      let constCols = map sameConst $ zip cols2 cols3
-
-          sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
-          sameConst (_, _)                                  = NonConstPL
-
+      let constCols = zipWith sameConst cols2 cols3
       return $ VPropTriple (ConstVec constCols) CNA CNA
-
