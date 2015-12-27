@@ -43,7 +43,7 @@ zip _ _ = $impossible
 
 cartProduct :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 cartProduct (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, rv1, rv2) <- vlCartProduct dv1 dv2
+    (dv, rv1, rv2) <- vlCartProductS dv1 dv2
     lyt1'          <- repLayout rv1 lyt1
     lyt2'          <- repLayout rv2 lyt2
     return $ VShape dv $ LTuple [lyt1', lyt2']
@@ -51,7 +51,7 @@ cartProduct _ _ = $impossible
 
 nestProduct :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestProduct (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-  (dvi, rv1, rv2) <- vlNestProduct dv1 dv2
+  (dvi, rv1, rv2) <- vlNestProductS dv1 dv2
   lyt1'           <- repLayout rv1 lyt1
   lyt2'           <- repLayout rv2 lyt2
   return $ VShape dv1 (LTuple [lyt1, LNest dvi (LTuple [lyt1', lyt2'])])
@@ -59,7 +59,7 @@ nestProduct _ _ = $impossible
 
 thetaJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 thetaJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, rv1, rv2) <- vlThetaJoin joinPred dv1 dv2
+    (dv, rv1, rv2) <- vlThetaJoinS joinPred dv1 dv2
     lyt1'          <- repLayout rv1 lyt1
     lyt2'          <- repLayout rv2 lyt2
     return $ VShape dv $ LTuple [lyt1', lyt2']
@@ -67,7 +67,7 @@ thetaJoin _ _ _ = $impossible
 
 nestJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, rv1, rv2) <- vlNestJoin joinPred dv1 dv2
+    (dv, rv1, rv2) <- vlNestJoinS joinPred dv1 dv2
     lyt1'          <- repLayout rv1 lyt1
     lyt2'          <- repLayout rv2 lyt2
     return $ VShape dv1 (LTuple [lyt1, LNest dv (LTuple [lyt1', lyt2'])])
@@ -75,14 +75,14 @@ nestJoin _ _ _ = $impossible
 
 semiJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 semiJoin joinPred (VShape dv1 lyt1) (VShape dv2 _) = do
-    (dv, fv) <- vlSemiJoin joinPred dv1 dv2
+    (dv, fv) <- vlSemiJoinS joinPred dv1 dv2
     lyt1'    <- filterLayout fv lyt1
     return $ VShape dv lyt1'
 semiJoin _ _ _ = $impossible
 
 antiJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 antiJoin joinPred (VShape dv1 lyt1) (VShape dv2 _) = do
-    (dv, fv) <- vlAntiJoin joinPred dv1 dv2
+    (dv, fv) <- vlAntiJoinS joinPred dv1 dv2
     lyt1'    <- filterLayout fv lyt1
     return $ VShape dv lyt1'
 antiJoin _ _ _ = $impossible
