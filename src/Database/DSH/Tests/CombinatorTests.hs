@@ -333,6 +333,7 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "map filter > 42 (,[])"                 prop_map_filter_gt_nested
     , testPropertyConn conn "map append"                            prop_map_append
     , testPropertyConn conn "map index"                             prop_map_index
+    , testPropertyConn conn "map index2"                            prop_map_index2
     , testPropertyConn conn "map index [[]]"                        prop_map_index_nest
     , testPropertyConn conn "map init"                              prop_map_init
     , testPropertyConn conn "map last"                              prop_map_last
@@ -700,6 +701,15 @@ prop_index_nest (l, NonNegative i) conn =
                (\(a,b) -> a !! fromIntegral b)
                (l, i)
                conn
+
+prop_map_index2 :: Backend c => (NonEmptyList Integer, [NonNegative Integer]) -> c -> Property
+prop_map_index2 (nl, is) =
+    makePropEq (\z -> Q.map (\i -> (Q.fst z) Q.!! i) (Q.snd z))
+               (\z -> map (\i -> (fst z) !! i) (map fromIntegral $ snd z))
+               (l, is')
+  where
+    l   = getNonEmpty nl
+    is' = map (`mod` fromIntegral (length l)) $ map getNonNegative is
 
 prop_map_index :: Backend c => ([Integer], [NonNegative Integer])  -> c -> Property
 prop_map_index (l, is) conn =
