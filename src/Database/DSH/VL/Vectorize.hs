@@ -28,14 +28,14 @@ import           Database.DSH.VL.Primitives
 
 binOp :: L.ScalarBinOp -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 binOp o (SShape dv1 _) (SShape dv2 _) = do
-    (dv, _, _) <- vlCartProduct dv1 dv2
+    (dv, _, _) <- vlCartProductS dv1 dv2
     dv'        <- vlProject [BinApp o (Column 1) (Column 2)] dv
     return $ SShape dv' LCol
 binOp _ _ _ = $impossible
 
 zip ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 zip (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, fv1, fv2) <- vlZip dv1 dv2
+    (dv, fv1, fv2) <- vlZipS dv1 dv2
     lyt1'          <- rekeyOuter fv1 lyt1
     lyt2'          <- rekeyOuter fv2 lyt2
     return $ VShape dv $ LTuple [lyt1', lyt2']
@@ -93,7 +93,7 @@ nub _ = $impossible
 
 number ::  Shape VLDVec -> Build VL (Shape VLDVec)
 number (VShape q lyt) =
-    VShape <$> vlNumber q <*> pure (LTuple [lyt, LCol])
+    VShape <$> vlNumberS q <*> pure (LTuple [lyt, LCol])
 number _ = $impossible
 
 append ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -110,7 +110,7 @@ append _ _ = $impossible
 
 reverse ::  Shape VLDVec -> Build VL (Shape VLDVec)
 reverse (VShape dv lyt) = do
-    (dv', sv) <- vlReverse dv
+    (dv', sv) <- vlReverseS dv
     lyt'      <- sortLayout sv lyt
     return (VShape dv' lyt')
 reverse _ = $impossible
@@ -123,7 +123,7 @@ sort (VShape dv (LTuple [xl, sl])) = do
         sortExprs = map Column [leftWidth+1..leftWidth+rightWidth]
 
     -- Sort by all sorting columns from the right tuple component
-    (dv', sv) <- vlSort sortExprs dv
+    (dv', sv) <- vlSortS sortExprs dv
 
     -- After sorting, discard the sorting criteria columns
     dv''      <- vlProject (map Column [1..leftWidth]) dv'
