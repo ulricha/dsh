@@ -88,7 +88,7 @@ antiJoin joinPred (VShape dv1 lyt1) (VShape dv2 _) = do
 antiJoin _ _ _ = $impossible
 
 nub ::  Shape VLDVec -> Build VL (Shape VLDVec)
-nub (VShape dv lyt) = VShape <$> vlUnique dv <*> pure lyt
+nub (VShape dv lyt) = VShape <$> vlUniqueS dv <*> pure lyt
 nub _ = $impossible
 
 number ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -96,6 +96,7 @@ number (VShape q lyt) =
     VShape <$> vlNumberS q <*> pure (LTuple [lyt, LCol])
 number _ = $impossible
 
+-- FIXME use AppendS
 append ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 append (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     -- Append the current vectors
@@ -139,7 +140,7 @@ group (VShape dv (LTuple [lyt1, lyt2])) = do
 
         groupExprs = map Column [leftWidth+1..leftWidth+rightWidth]
 
-    (dvo, dvi, sv) <- vlGroup groupExprs dv
+    (dvo, dvi, sv) <- vlGroupS groupExprs dv
 
     -- Discard the grouping columns in the inner vector
     dvi'           <- vlProject (map Column [1..leftWidth]) dvi
@@ -281,15 +282,15 @@ concat :: Shape VLDVec -> Build VL (Shape VLDVec)
 concat (VShape _ (LNest q lyt)) = return $ VShape q lyt
 concat _e                       = $impossible
 
+--------------------------------------------------------------------------------
+-- Construction of lifted primitives
+
 onlyL :: Shape VLDVec -> Build VL (Shape VLDVec)
 onlyL (VShape dvo (LNest dvi lyt)) = do
     (dv, kv) <- vlUnboxSng dvo dvi
     lyt'     <- rekeyOuter kv lyt
     return $ VShape dv lyt'
 onlyL _                           = $impossible
-
---------------------------------------------------------------------------------
--- Construction of lifted primitives
 
 binOpL :: L.ScalarBinOp -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 binOpL o (VShape dv1 _) (VShape dv2 _) = do
