@@ -1192,7 +1192,7 @@ prop_trig_tan :: Backend c => Fixed Double -> c -> Property
 prop_trig_tan d = makePropDouble Q.tan tan (getFixed d)
 
 prop_exp :: Backend c => Fixed Double -> c -> Property
-prop_exp d = makePropDouble Q.exp exp (getFixed d)
+prop_exp d conn = d <= 10 ==> makePropDouble Q.exp exp (getFixed d) conn
 
 prop_log :: Backend c => Fixed (Positive Double) -> c -> Property
 prop_log d = makePropDouble Q.log log (getPositive $ getFixed d)
@@ -1243,7 +1243,8 @@ prop_map_trig_atan :: Backend c => [Fixed Double] -> c -> Property
 prop_map_trig_atan ds = makePropDoubles (Q.map Q.atan) (map atan) (map getFixed ds)
 
 prop_map_exp :: Backend c => [Fixed Double] -> c -> Property
-prop_map_exp ds = makePropDoubles (Q.map Q.exp) (map exp) (map getFixed ds)
+prop_map_exp ds conn =
+    all (< 10) ds ==> makePropDoubles (Q.map Q.exp) (map exp) (map getFixed ds) conn
 
 prop_map_log :: Backend c => [Fixed (Positive Double)] -> c -> Property
 prop_map_log ds = makePropDoubles (Q.map Q.log) (map log) (map (getPositive . getFixed) ds)
