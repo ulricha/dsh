@@ -104,11 +104,11 @@ inlineAggrSProject q =
             logRewrite "Aggregation.Normalize.AggrS.Project" q
             void $ replaceWithNew q $ BinOp (AggrS afun') $(v "qo") $(v "qi") |])
 
--- | We rewrite a combination of Group and aggregation operators into a single
+-- | We rewrite a combination of GroupS and aggregation operators into a single
 -- GroupAggr operator.
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng ((_) AggrS afun (R2 (qg1=Group groupExprs (q1)))))"
+  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng ((_) AggrS afun (R2 (qg1=GroupS groupExprs (q1)))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -139,7 +139,7 @@ flatGrouping q =
 -- Testcase: TPC-H Q11, Q15
 mergeGroupAggrAggrS :: VLRule ()
 mergeGroupAggrAggrS q =
-  $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) AggrS afun (R2 (qg1=Group groupExprs (q2)))))"
+  $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) AggrS afun (R2 (qg1=GroupS groupExprs (q2)))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         let (groupExprs', afuns) = $(v "args")
@@ -201,7 +201,7 @@ mergeGroupAggr q =
 -- only the grouping expressions are duplicated.
 mergeGroupWithGroupAggrLeft :: VLRule ()
 mergeGroupWithGroupAggrLeft q =
-  $(dagPatMatch 'q "(R1 (Group ges (q1))) Align (GroupAggr args (q2))"
+  $(dagPatMatch 'q "(R1 (GroupS ges (q1))) Align (GroupAggr args (q2))"
     [| do
         let (ges', afuns) = $(v "args")
 
@@ -230,7 +230,7 @@ mergeGroupWithGroupAggrLeft q =
 -- 'Aggregation.Normalize.MergeGroup.Left'.
 mergeGroupWithGroupAggrRight :: VLRule ()
 mergeGroupWithGroupAggrRight q =
-  $(dagPatMatch 'q "(GroupAggr args (q1)) Align (R1 (Group ges (q2)))"
+  $(dagPatMatch 'q "(GroupAggr args (q1)) Align (R1 (GroupS ges (q2)))"
     [| do
         let (ges', afuns) = $(v "args")
 

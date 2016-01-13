@@ -83,15 +83,12 @@ class VectorAlgebra a where
     -- | Per-segment grouping of a vector
     vecGroupS :: [Expr] -> DVec a -> Build a (DVec a, DVec a, SVec a)
 
-    -- | The VL aggregation operator groups the input vector by the
-    -- given columns and then performs the list of aggregations
-    -- described by the second argument. The result is a flat vector,
-    -- since all groups are reduced via aggregation. The operator
-    -- operates segmented, i.e. always groups by descr first. This
-    -- operator must be used with care: It does not determine the
-    -- complete set of descr value to check for empty inner lists.
-    -- The output payload columns are the grouping columns followed by
-    -- the aggregation results.
+    -- | The VL aggregation operator groups every segment of the input vector by the
+    -- given columns and then performs the list of aggregations described by the
+    -- second argument. The result vector has the same segment structure as the
+    -- input vector since all segments are grouped individually. The output
+    -- payload columns are the grouping columns followed by the aggregation
+    -- results.
     vecGroupAggr :: [Expr] -> N.NonEmpty AggrFun -> DVec a -> Build a (DVec a)
 
     -- | Construct a new vector as the result of a list of scalar
