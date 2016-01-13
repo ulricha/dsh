@@ -183,6 +183,7 @@ numericTests conn = testGroup "Numerics"
     , testPropertyConn conn "sqrt"                prop_sqrt
     , testPropertyConn conn "log"                 prop_log
     , testPropertyConn conn "exp"                 prop_exp
+    , testPropertyConn conn "rem"                 prop_rem
     ]
 
 maybeTests :: Backend c => c -> Test
@@ -242,9 +243,22 @@ listTests conn = testGroup "Lists"
     , testPropertyConn conn "groupWithKey"                 prop_groupWithKey
     , testPropertyConn conn "groupWith length"             prop_groupWith_length
     , testPropertyConn conn "groupWithKey length"          prop_groupWithKey_length
+    , testPropertyConn conn "groupWith length nested"      prop_groupWith_length_nest
+    , testPropertyConn conn "groupWithKey length nested"   prop_groupWithKey_length_nest
+    , testPropertyConn conn "groupagg sum"                 prop_groupagg_sum
+    , testPropertyConn conn "groupagg (sum, length)"       prop_groupagg_sum_length
+    , testPropertyConn conn "groupagg key  (sum, length)"  prop_groupaggkey_sum_length
+    , testPropertyConn conn "groupagg (sum, length, max)"  prop_groupagg_sum_length_max
+    , testPropertyConn conn "groupagg key sum"             prop_groupaggkey_sum
+    , testPropertyConn conn "groupagg sum exp"             prop_groupagg_sum_exp
+    , testPropertyConn conn "groupagg length"              prop_groupagg_length
+    , testPropertyConn conn "groupagg minimum"             prop_groupagg_minimum
+    , testPropertyConn conn "groupagg maximum"             prop_groupagg_maximum
+    , testPropertyConn conn "groupagg avg"                 prop_groupagg_avg
     , testPropertyConn conn "sortWith"                     prop_sortWith
     , testPropertyConn conn "sortWith [(,)]"               prop_sortWith_pair
     , testPropertyConn conn "sortWith [(,[])]"             prop_sortWith_nest
+    , testPropertyConn conn "Sortwith length nested"       prop_sortWith_length_nest
     , testPropertyConn conn "and"                          prop_and
     , testPropertyConn conn "or"                           prop_or
     , testPropertyConn conn "any_zero"                     prop_any_zero
@@ -296,12 +310,21 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "Lifted fst"                            prop_map_fst
     , testPropertyConn conn "Lifted snd"                            prop_map_snd
     , testPropertyConn conn "Lifted the"                            prop_map_the
-    --, testPropertyConn conn "Lifed and"                           prop_map_and
     , testPropertyConn conn "map (map (*2))"                        prop_map_map_mul
     , testPropertyConn conn "map (map (map (*2)))"                  prop_map_map_map_mul
     , testPropertyConn conn "map (\\x -> map (\\y -> x + y) ..) .." prop_map_map_add
-    , testPropertyConn conn "Lifted groupWith"                      prop_map_groupWith
-    , testPropertyConn conn "Lifted groupWithKey"                   prop_map_groupWithKey
+    , testPropertyConn conn "map groupWith"                         prop_map_groupWith
+    , testPropertyConn conn "map groupWith rem 10"                  prop_map_groupWith_rem
+    , testPropertyConn conn "map groupWithKey"                      prop_map_groupWithKey
+    , testPropertyConn conn "map groupagg (sum, length)"            prop_groupagg_sum_length
+    , testPropertyConn conn "map groupagg key  (sum, length)"       prop_groupaggkey_sum_length
+    , testPropertyConn conn "map groupagg (sum, length, max)"       prop_groupagg_sum_length_max
+    , testPropertyConn conn "map groupagg sum"                      prop_map_groupagg_sum
+    , testPropertyConn conn "map groupagg key sum"                  prop_map_groupaggkey_sum
+    , testPropertyConn conn "map groupagg sum exp"                  prop_map_groupagg_sum_exp
+    , testPropertyConn conn "map groupagg length"                   prop_map_groupagg_length
+    , testPropertyConn conn "map groupagg minimum"                  prop_map_groupagg_minimum
+    , testPropertyConn conn "map groupagg maximum"                  prop_map_groupagg_maximum
     , testPropertyConn conn "Lifted sortWith"                       prop_map_sortWith
     , testPropertyConn conn "Lifted sortWith [(,)]"                 prop_map_sortWith_pair
     , testPropertyConn conn "Lifted sortWith [(,[])]"               prop_map_sortWith_nest
@@ -309,8 +332,6 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "Lifted groupWithKey length"            prop_map_groupWithKey_length
     , testPropertyConn conn "Lifted length"                         prop_map_length
     , testPropertyConn conn "Lifted length on [[(a,b)]]"            prop_map_length_tuple
-    , testPropertyConn conn "Sortwith length nested"                prop_sortWith_length_nest
-    , testPropertyConn conn "GroupWithKey length nested"            prop_groupWithKey_length_nest
     , testPropertyConn conn "Lift minimum"                          prop_map_minimum
     , testPropertyConn conn "map (map minimum)"                     prop_map_map_minimum
     , testPropertyConn conn "Lift maximum"                          prop_map_maximum
@@ -358,6 +379,7 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "map log"                               prop_map_log
     , testPropertyConn conn "map exp"                               prop_map_exp
     , testPropertyConn conn "map sqrt"                              prop_map_sqrt
+    , testPropertyConn conn "map rem"                               prop_map_rem
     ]
 
 distTests :: Backend c => c -> Test
@@ -805,6 +827,10 @@ groupWithKey p as = map (\g -> (the $ map p g, g)) $ groupWith p as
 prop_groupWithKey :: Backend c => [Integer] -> c -> Property
 prop_groupWithKey = makePropEq (Q.groupWithKey id) (groupWithKey id)
 
+prop_map_groupWith_rem :: Backend c => [[Integer]] -> c -> Property
+prop_map_groupWith_rem = makePropEq (Q.map (Q.groupWith (`Q.rem` 10)))
+                                    (map (groupWith (`rem` 10)))
+
 prop_map_groupWith :: Backend c => [[Integer]] -> c -> Property
 prop_map_groupWith = makePropEq (Q.map (Q.groupWith id)) (map (groupWith id))
 
@@ -816,6 +842,49 @@ prop_groupWith_length = makePropEq (Q.groupWith Q.length) (groupWith length)
 
 prop_groupWithKey_length :: Backend c => [[Integer]] -> c -> Property
 prop_groupWithKey_length = makePropEq (Q.groupWithKey Q.length) (groupWithKey (fromIntegral . length))
+
+prop_groupagg_sum :: Backend c => [Integer] -> c -> Property
+prop_groupagg_sum = makePropEq (Q.map Q.sum . Q.groupWith (`Q.rem` 10))
+                               (map sum . groupWith (`rem` 10))
+
+prop_groupaggkey_sum :: Backend c => [Integer] -> c -> Property
+prop_groupaggkey_sum = makePropEq (Q.map (\(Q.view -> (k, g)) -> Q.pair k (Q.sum g)) . Q.groupWithKey (`Q.rem` 10))
+                                  (map (\(k, g) -> (k, sum g)) . groupWithKey (`rem` 10))
+
+prop_groupagg_sum_exp :: Backend c => [Integer] -> c -> Property
+prop_groupagg_sum_exp = makePropEq (Q.map Q.sum . Q.map (Q.map (* 3)) . Q.groupWith (`Q.rem` 10))
+                                   (map sum . map (map (* 3)) . groupWith (`rem` 10))
+
+prop_groupagg_length :: Backend c => [Integer] -> c -> Property
+prop_groupagg_length = makePropEq (Q.map Q.length . Q.groupWith (`Q.rem` 10))
+                                  (map (fromIntegral . length) . groupWith (`rem` 10))
+
+prop_groupagg_minimum :: Backend c => NonEmptyList Integer -> c -> Property
+prop_groupagg_minimum is = makePropEq (Q.map Q.minimum . Q.groupWith (`Q.rem` 10))
+                                      (map minimum . groupWith (`rem` 10))
+                                      (getNonEmpty is)
+
+prop_groupagg_maximum :: Backend c => NonEmptyList Integer -> c -> Property
+prop_groupagg_maximum is = makePropEq (Q.map Q.maximum . Q.groupWith (`Q.rem` 10))
+                                      (map maximum . groupWith (`rem` 10))
+                                      (getNonEmpty is)
+
+prop_groupagg_avg :: Backend c => NonEmptyList Double -> c -> Property
+prop_groupagg_avg is = makePropDoubles (Q.map Q.avg . Q.groupWith (Q.> 0))
+                                       (map avgDouble . groupWith (> 0))
+                                       (getNonEmpty is)
+
+prop_groupagg_sum_length :: Backend c => [Integer] -> c -> Property
+prop_groupagg_sum_length = makePropEq (Q.map (\g -> Q.tup2 (Q.sum g) (Q.length g)) . Q.groupWith (`Q.rem` 10))
+                                      (map (\g -> (sum g, fromIntegral $ length g)) . groupWith (`rem` 10))
+
+prop_groupaggkey_sum_length :: Backend c => [Integer] -> c -> Property
+prop_groupaggkey_sum_length = makePropEq (Q.map (\(Q.view -> (k, g)) -> Q.tup3 k (Q.sum g) (Q.length g)) . Q.groupWithKey (`Q.rem` 10))
+                                         (map (\(k, g) -> (k, sum g, fromIntegral $ length g)) . groupWithKey (`rem` 10))
+
+prop_groupagg_sum_length_max :: Backend c => [Integer] -> c -> Property
+prop_groupagg_sum_length_max = makePropEq (Q.map (\g -> Q.tup3 (Q.sum g) (Q.length g) (Q.maximum g)) . Q.groupWith (`Q.rem` 10))
+                                          (map (\g -> (sum g, fromIntegral $ length g, maximum g)) . groupWith (`rem` 10))
 
 prop_sortWith  :: Backend c => [Integer] -> c -> Property
 prop_sortWith = makePropEq (Q.sortWith id) (sortWith id)
@@ -838,20 +907,60 @@ prop_map_sortWith_nest = makePropEq (Q.map (Q.sortWith Q.fst)) (map (sortWith fs
 prop_map_sortWith_length :: Backend c => [[[Integer]]] -> c -> Property
 prop_map_sortWith_length = makePropEq (Q.map (Q.sortWith Q.length)) (map (sortWith length))
 
--- prop_map_groupWith_length :: Backend c => [[[Integer]]] -> c -> Property
--- prop_map_groupWith_length = makePropEq (Q.map (Q.groupWith Q.length)) (map (groupWith length))
+prop_map_groupWith_length :: Backend c => [[[Integer]]] -> c -> Property
+prop_map_groupWith_length = makePropEq (Q.map (Q.groupWith Q.length)) (map (groupWith length))
 
 prop_map_groupWithKey_length :: Backend c => [[[Integer]]] -> c -> Property
-prop_map_groupWithKey_length = makePropEq (Q.map (Q.groupWithKey Q.length)) (map (groupWithKey (fromIntegral . length)))
+prop_map_groupWithKey_length = makePropEq (Q.map (Q.groupWithKey Q.length))
+                                          (map (groupWithKey (fromIntegral . length)))
+
+prop_map_groupagg_sum :: Backend c => [[Integer]] -> c -> Property
+prop_map_groupagg_sum = makePropEq (Q.map (Q.map Q.sum) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                   (map (map sum) . map (groupWith (`rem` 10)))
+
+prop_map_groupaggkey_sum :: Backend c => [[Integer]] -> c -> Property
+prop_map_groupaggkey_sum = makePropEq (Q.map (Q.map (\(Q.view -> (k, g)) -> Q.pair k (Q.sum g))) . Q.map (Q.groupWithKey (`Q.rem` 10)))
+                                      (map (map (\(k, g) -> (k, sum g))) . map (groupWithKey (`rem` 10)))
+
+prop_map_groupagg_sum_exp :: Backend c => [[Integer]] -> c -> Property
+prop_map_groupagg_sum_exp = makePropEq (Q.map (Q.map Q.sum) . Q.map (Q.map (Q.map (* 3))) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                       (map (map sum) . map (map (map (* 3))) . map (groupWith (`rem` 10)))
+
+prop_map_groupagg_length :: Backend c => [[Integer]] -> c -> Property
+prop_map_groupagg_length = makePropEq (Q.map (Q.map Q.length) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                      (map (map (fromIntegral . length)) . map (groupWith (`rem` 10)))
+
+prop_map_groupagg_minimum :: Backend c => [NonEmptyList Integer] -> c -> Property
+prop_map_groupagg_minimum is = makePropEq (Q.map (Q.map Q.minimum) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                          (map (map minimum) . map (groupWith (`rem` 10)))
+                                          (map getNonEmpty is)
+
+prop_map_groupagg_maximum :: Backend c => [NonEmptyList Integer] -> c -> Property
+prop_map_groupagg_maximum is = makePropEq (Q.map (Q.map Q.maximum) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                          (map (map maximum) . map (groupWith (`rem` 10)))
+                                          (map getNonEmpty is)
+
+prop_mapgroupagg_sum_length :: Backend c => [[Integer]] -> c -> Property
+prop_mapgroupagg_sum_length = makePropEq (Q.map (Q.map (\g -> Q.tup2 (Q.sum g) (Q.length g))) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                         (map (map (\g -> (sum g, fromIntegral $ length g))) . map (groupWith (`rem` 10)))
+
+prop_mapgroupaggkey_sum_length :: Backend c => [[Integer]] -> c -> Property
+prop_mapgroupaggkey_sum_length = makePropEq (Q.map (Q.map (\(Q.view -> (k, g)) -> Q.tup3 k (Q.sum g) (Q.length g))) . Q.map (Q.groupWithKey (`Q.rem` 10)))
+                                            (map (map (\(k, g) -> (k, sum g, fromIntegral $ length g))) . map (groupWithKey (`rem` 10)))
+
+prop_mapgroupagg_sum_length_max :: Backend c => [[Integer]] -> c -> Property
+prop_mapgroupagg_sum_length_max = makePropEq (Q.map (Q.map (\g -> Q.tup3 (Q.sum g) (Q.length g) (Q.maximum g))) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                             (map (map (\g -> (sum g, fromIntegral $ length g, maximum g))) . map (groupWith (`rem` 10)))
 
 prop_sortWith_length_nest  :: Backend c => [[[Integer]]] -> c -> Property
 prop_sortWith_length_nest = makePropEq (Q.sortWith Q.length) (sortWith length)
 
--- prop_groupWith_length_nest :: Backend c => [[[Integer]]] -> c -> Property
--- prop_groupWith_length_nest = makePropEq (Q.groupWith Q.length) (groupWith length)
+prop_groupWith_length_nest :: Backend c => [[[Integer]]] -> c -> Property
+prop_groupWith_length_nest = makePropEq (Q.groupWith Q.length) (groupWith length)
 
 prop_groupWithKey_length_nest :: Backend c => [[[Integer]]] -> c -> Property
-prop_groupWithKey_length_nest = makePropEq (Q.groupWithKey Q.length) (groupWithKey (fromIntegral . length))
+prop_groupWithKey_length_nest = makePropEq (Q.groupWithKey Q.length)
+                                           (groupWithKey (fromIntegral . length))
 
 prop_null :: Backend c => [Integer] -> c -> Property
 prop_null = makePropEq Q.null null
@@ -1193,7 +1302,10 @@ prop_trig_tan :: Backend c => Fixed Double -> c -> Property
 prop_trig_tan d = makePropDouble Q.tan tan (getFixed d)
 
 prop_exp :: Backend c => Fixed Double -> c -> Property
-prop_exp d conn = d <= 10 ==> makePropDouble Q.exp exp (getFixed d) conn
+prop_exp d conn = d >= (-5) && d <= 5 ==> makePropDouble Q.exp exp (getFixed d) conn
+
+prop_rem :: Backend c => Fixed Integer -> c -> Property
+prop_rem d = makePropEq (`Q.rem` 10) (`rem` 10) (getFixed d)
 
 prop_log :: Backend c => Fixed (Positive Double) -> c -> Property
 prop_log d = makePropDouble Q.log log (getPositive $ getFixed d)
@@ -1245,7 +1357,10 @@ prop_map_trig_atan ds = makePropDoubles (Q.map Q.atan) (map atan) (map getFixed 
 
 prop_map_exp :: Backend c => [Fixed Double] -> c -> Property
 prop_map_exp ds conn =
-    all (< 10) ds ==> makePropDoubles (Q.map Q.exp) (map exp) (map getFixed ds) conn
+    all (\d -> d >= (-5) && d <= 5) ds ==> makePropDoubles (Q.map Q.exp) (map exp) (map getFixed ds) conn
+
+prop_map_rem :: Backend c => [Fixed Integer] -> c -> Property
+prop_map_rem d = makePropEq (Q.map (`Q.rem` 10)) (map (`rem` 10)) (map getFixed d)
 
 prop_map_log :: Backend c => [Fixed (Positive Double)] -> c -> Property
 prop_map_log ds = makePropDoubles (Q.map Q.log) (map log) (map (getPositive . getFixed) ds)
