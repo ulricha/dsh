@@ -246,6 +246,9 @@ listTests conn = testGroup "Lists"
     , testPropertyConn conn "groupWith length nested"      prop_groupWith_length_nest
     , testPropertyConn conn "groupWithKey length nested"   prop_groupWithKey_length_nest
     , testPropertyConn conn "groupagg sum"                 prop_groupagg_sum
+    , testPropertyConn conn "groupagg (sum, length)"       prop_groupagg_sum_length
+    , testPropertyConn conn "groupagg key  (sum, length)"  prop_groupaggkey_sum_length
+    , testPropertyConn conn "groupagg (sum, length, max)"  prop_groupagg_sum_length_max
     , testPropertyConn conn "groupagg key sum"             prop_groupaggkey_sum
     , testPropertyConn conn "groupagg sum exp"             prop_groupagg_sum_exp
     , testPropertyConn conn "groupagg length"              prop_groupagg_length
@@ -310,9 +313,15 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "map (map (*2))"                        prop_map_map_mul
     , testPropertyConn conn "map (map (map (*2)))"                  prop_map_map_map_mul
     , testPropertyConn conn "map (\\x -> map (\\y -> x + y) ..) .." prop_map_map_add
-    , testPropertyConn conn "Lifted groupWith"                      prop_map_groupWith
-    , testPropertyConn conn "Lifted groupWith rem 10"               prop_map_groupWith_rem
-    , testPropertyConn conn "Lifted groupWithKey"                   prop_map_groupWithKey
+    , testPropertyConn conn "map groupWith"                         prop_map_groupWith
+    , testPropertyConn conn "map groupWith rem 10"                  prop_map_groupWith_rem
+    , testPropertyConn conn "map groupWithKey"                      prop_map_groupWithKey
+    , testPropertyConn conn "map groupagg sum"                      prop_map_groupagg_sum
+    , testPropertyConn conn "map groupagg key sum"                  prop_map_groupaggkey_sum
+    , testPropertyConn conn "map groupagg sum exp"                  prop_map_groupagg_sum_exp
+    , testPropertyConn conn "map groupagg length"                   prop_map_groupagg_length
+    , testPropertyConn conn "map groupagg minimum"                  prop_map_groupagg_minimum
+    , testPropertyConn conn "map groupagg maximum"                  prop_map_groupagg_maximum
     , testPropertyConn conn "Lifted sortWith"                       prop_map_sortWith
     , testPropertyConn conn "Lifted sortWith [(,)]"                 prop_map_sortWith_pair
     , testPropertyConn conn "Lifted sortWith [(,[])]"               prop_map_sortWith_nest
@@ -861,6 +870,18 @@ prop_groupagg_avg is = makePropDoubles (Q.map Q.avg . Q.groupWith (Q.> 0))
                                        (map avgDouble . groupWith (> 0))
                                        (getNonEmpty is)
 
+prop_groupagg_sum_length :: Backend c => [Integer] -> c -> Property
+prop_groupagg_sum_length = makePropEq (Q.map (\g -> Q.tup2 (Q.sum g) (Q.length g)) . Q.groupWith (`Q.rem` 10))
+                                      (map (\g -> (sum g, fromIntegral $ length g)) . groupWith (`rem` 10))
+
+prop_groupaggkey_sum_length :: Backend c => [Integer] -> c -> Property
+prop_groupaggkey_sum_length = makePropEq (Q.map (\(Q.view -> (k, g)) -> Q.tup3 k (Q.sum g) (Q.length g)) . Q.groupWithKey (`Q.rem` 10))
+                                         (map (\(k, g) -> (k, sum g, fromIntegral $ length g)) . groupWithKey (`rem` 10))
+
+prop_groupagg_sum_length_max :: Backend c => [Integer] -> c -> Property
+prop_groupagg_sum_length_max = makePropEq (Q.map (\g -> Q.tup3 (Q.sum g) (Q.length g) (Q.maximum g)) . Q.groupWith (`Q.rem` 10))
+                                          (map (\g -> (sum g, fromIntegral $ length g, maximum g)) . groupWith (`rem` 10))
+
 prop_sortWith  :: Backend c => [Integer] -> c -> Property
 prop_sortWith = makePropEq (Q.sortWith id) (sortWith id)
 
@@ -888,6 +909,32 @@ prop_map_groupWith_length = makePropEq (Q.map (Q.groupWith Q.length)) (map (grou
 prop_map_groupWithKey_length :: Backend c => [[[Integer]]] -> c -> Property
 prop_map_groupWithKey_length = makePropEq (Q.map (Q.groupWithKey Q.length))
                                           (map (groupWithKey (fromIntegral . length)))
+
+prop_map_groupagg_sum :: Backend c => [[Integer]] -> c -> Property
+prop_map_groupagg_sum = makePropEq (Q.map (Q.map Q.sum) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                   (map (map sum) . map (groupWith (`rem` 10)))
+
+prop_map_groupaggkey_sum :: Backend c => [[Integer]] -> c -> Property
+prop_map_groupaggkey_sum = makePropEq (Q.map (Q.map (\(Q.view -> (k, g)) -> Q.pair k (Q.sum g))) . Q.map (Q.groupWithKey (`Q.rem` 10)))
+                                      (map (map (\(k, g) -> (k, sum g))) . map (groupWithKey (`rem` 10)))
+
+prop_map_groupagg_sum_exp :: Backend c => [[Integer]] -> c -> Property
+prop_map_groupagg_sum_exp = makePropEq (Q.map (Q.map Q.sum) . Q.map (Q.map (Q.map (* 3))) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                       (map (map sum) . map (map (map (* 3))) . map (groupWith (`rem` 10)))
+
+prop_map_groupagg_length :: Backend c => [[Integer]] -> c -> Property
+prop_map_groupagg_length = makePropEq (Q.map (Q.map Q.length) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                      (map (map (fromIntegral . length)) . map (groupWith (`rem` 10)))
+
+prop_map_groupagg_minimum :: Backend c => [NonEmptyList Integer] -> c -> Property
+prop_map_groupagg_minimum is = makePropEq (Q.map (Q.map Q.minimum) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                          (map (map minimum) . map (groupWith (`rem` 10)))
+                                          (map getNonEmpty is)
+
+prop_map_groupagg_maximum :: Backend c => [NonEmptyList Integer] -> c -> Property
+prop_map_groupagg_maximum is = makePropEq (Q.map (Q.map Q.maximum) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                          (map (map maximum) . map (groupWith (`rem` 10)))
+                                          (map getNonEmpty is)
 
 prop_sortWith_length_nest  :: Backend c => [[[Integer]]] -> c -> Property
 prop_sortWith_length_nest = makePropEq (Q.sortWith Q.length) (sortWith length)
