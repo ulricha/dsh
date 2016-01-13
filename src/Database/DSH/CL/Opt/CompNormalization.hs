@@ -97,7 +97,7 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
     -- Try to match the pattern at the end of the qualifier list
     normQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
     normQualsEndR = do
-        q1 :* (S q2) <- idR
+        q1 :* S q2 <- idR
         (x, e)       <- liftstateT $ constT (return q2) >>> qualT
         constT $ modify (>>> substR x e)
         return (S q1)
@@ -134,14 +134,14 @@ m_norm_3R = do
     normQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
     normQualsEndR = do
         (S q) <- idR
-        (x, h', qs'') <- liftstateT $ (constT $ return q) >>> qualT
+        (x, h', qs'') <- liftstateT $ constT (return q) >>> qualT
         constT $ modify (>>> substR x h')
         return qs''
 
     normQualsR :: Rewrite CompCtx TuplifyM (NL Qual)
     normQualsR = do
         q :* qs <- idR
-        (x, h', qs'') <- liftstateT $ (constT $ return q) >>> qualT
+        (x, h', qs'') <- liftstateT $ constT (return q) >>> qualT
         qs' <- liftstateT $ constT (return $ inject qs) >>> substR x h' >>> projectT
         constT $ modify (>>> substR x h')
         return $ appendNL qs'' qs'
@@ -163,9 +163,9 @@ qualsguardpushfrontR :: RewriteC (NL Qual)
 qualsguardpushfrontR = do
     qs     <- idR
     -- Separate generators from guards
-    ((g : gs), guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
+    (g : gs, guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
 
-    let gens = fmap (uncurry BindQ) $ fromListSafe g gs
+    let gens = uncurry BindQ <$> fromListSafe g gs
     env <- S.fromList <$> M.keys <$> cl_bindings <$> contextT
     let qs' = foldl (\quals guard -> insertGuard guard env quals) gens guards
     guardM $ qs /= qs'
@@ -183,7 +183,7 @@ guardpushfrontR = do
 qualsguardpushbackR :: RewriteC (NL Qual)
 qualsguardpushbackR = innermostR $ readerT $ \quals -> case quals of
     GuardQ p :* BindQ x xs :* qs -> return $ BindQ x xs :* GuardQ p :* qs
-    GuardQ p :* (S (BindQ x xs)) -> return $ BindQ x xs :* (S (GuardQ p))
+    GuardQ p :* S (BindQ x xs)   -> return $ BindQ x xs :* S (GuardQ p)
     _                            -> fail "no pushable guard"
 
 
@@ -204,7 +204,7 @@ invariantguardR :: RewriteC CL
 invariantguardR =
     tryR guardpushfrontR
     >>>
-    (promoteR $ readerT $ \expr -> case expr of
+    promoteR (readerT $ \expr -> case expr of
         Comp t h (GuardQ g :* qs) -> return $ inject $ P.if_ g (Comp t h qs) (P.nil t)
         Comp t h (S (GuardQ p))   -> return $ inject $ P.if_ p (P.sng h) (P.nil t)
         _                         -> fail "no match")

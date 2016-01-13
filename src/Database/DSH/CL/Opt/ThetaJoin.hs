@@ -1,7 +1,5 @@
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell     #-}
 
 -- | Introduce simple theta joins.
 module Database.DSH.CL.Opt.ThetaJoin
@@ -32,7 +30,7 @@ mkthetajoinT joinPred x y xs ys = do
     guardM $ x `notElem` freeVars ys
 
     -- The predicate must be a join predicate
-    joinConjunct <- constT (return joinPred) >>> (liftstateT $ splitJoinPredT x y)
+    joinConjunct <- constT (return joinPred) >>> liftstateT (splitJoinPredT x y)
 
     -- Conditions for the rewrite are fulfilled.
     let xst          = typeOf xs
@@ -55,7 +53,7 @@ thetajoinQualR = do
     -- Next, we apply the tuplifyHeadR rewrite to the tail, i.e. to all following
     -- qualifiers
     -- FIXME why is extractT required here?
-    qs' <- catchesT [ liftstateT $ (constT $ return qs) >>> (extractR tuplifyHeadR)
+    qs' <- catchesM [ liftstateT $ constT (return qs) >>> extractR tuplifyHeadR
                     , constT $ return qs
                     ]
 
@@ -68,7 +66,7 @@ thetajoinQualR = do
 thetajoinQualEndR :: Rewrite CompCtx TuplifyM (NL Qual)
 thetajoinQualEndR = do
     -- We need two generators followed by a predicate
-    BindQ x xs :* BindQ y ys :* (S (GuardQ p)) <- promoteT idR
+    BindQ x xs :* BindQ y ys :* S (GuardQ p) <- promoteT idR
 
     (tuplifyHeadR, q') <- mkthetajoinT p x y xs ys
 
@@ -84,8 +82,8 @@ thetajoinR :: [Expr] -> [Expr] -> TransformC CL (CL, [Expr], [Expr])
 thetajoinR currentGuards testedGuards = do
     Comp t _ _          <- promoteT idR
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR thetajoinQualsR >>> projectT)
-    e'                  <- (tryR $ childT CompHead tuplifyHeadR) >>> projectT
+    e'                  <- tryR (childT CompHead tuplifyHeadR) >>> projectT
     -- FIXME should propably wrap tuplifyHeadR in tryR
     currentGuards'      <- constT (return currentGuards) >>> mapT (extractR tuplifyHeadR)
     testedGuards'       <- constT (return testedGuards) >>> mapT (extractR tuplifyHeadR)
-    return $ (inject $ Comp t e' qs', currentGuards', testedGuards')
+    return (inject $ Comp t e' qs', currentGuards', testedGuards')
