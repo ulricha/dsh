@@ -316,6 +316,9 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "map groupWith"                         prop_map_groupWith
     , testPropertyConn conn "map groupWith rem 10"                  prop_map_groupWith_rem
     , testPropertyConn conn "map groupWithKey"                      prop_map_groupWithKey
+    , testPropertyConn conn "map groupagg (sum, length)"            prop_groupagg_sum_length
+    , testPropertyConn conn "map groupagg key  (sum, length)"       prop_groupaggkey_sum_length
+    , testPropertyConn conn "map groupagg (sum, length, max)"       prop_groupagg_sum_length_max
     , testPropertyConn conn "map groupagg sum"                      prop_map_groupagg_sum
     , testPropertyConn conn "map groupagg key sum"                  prop_map_groupaggkey_sum
     , testPropertyConn conn "map groupagg sum exp"                  prop_map_groupagg_sum_exp
@@ -935,6 +938,18 @@ prop_map_groupagg_maximum :: Backend c => [NonEmptyList Integer] -> c -> Propert
 prop_map_groupagg_maximum is = makePropEq (Q.map (Q.map Q.maximum) . Q.map (Q.groupWith (`Q.rem` 10)))
                                           (map (map maximum) . map (groupWith (`rem` 10)))
                                           (map getNonEmpty is)
+
+prop_mapgroupagg_sum_length :: Backend c => [[Integer]] -> c -> Property
+prop_mapgroupagg_sum_length = makePropEq (Q.map (Q.map (\g -> Q.tup2 (Q.sum g) (Q.length g))) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                         (map (map (\g -> (sum g, fromIntegral $ length g))) . map (groupWith (`rem` 10)))
+
+prop_mapgroupaggkey_sum_length :: Backend c => [[Integer]] -> c -> Property
+prop_mapgroupaggkey_sum_length = makePropEq (Q.map (Q.map (\(Q.view -> (k, g)) -> Q.tup3 k (Q.sum g) (Q.length g))) . Q.map (Q.groupWithKey (`Q.rem` 10)))
+                                            (map (map (\(k, g) -> (k, sum g, fromIntegral $ length g))) . map (groupWithKey (`rem` 10)))
+
+prop_mapgroupagg_sum_length_max :: Backend c => [[Integer]] -> c -> Property
+prop_mapgroupagg_sum_length_max = makePropEq (Q.map (Q.map (\g -> Q.tup3 (Q.sum g) (Q.length g) (Q.maximum g))) . Q.map (Q.groupWith (`Q.rem` 10)))
+                                             (map (map (\g -> (sum g, fromIntegral $ length g, maximum g))) . map (groupWith (`rem` 10)))
 
 prop_sortWith_length_nest  :: Backend c => [[[Integer]]] -> c -> Property
 prop_sortWith_length_nest = makePropEq (Q.sortWith Q.length) (sortWith length)
