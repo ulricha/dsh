@@ -307,7 +307,6 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "Lifted fst"                            prop_map_fst
     , testPropertyConn conn "Lifted snd"                            prop_map_snd
     , testPropertyConn conn "Lifted the"                            prop_map_the
-    --, testPropertyConn conn "Lifed and"                           prop_map_and
     , testPropertyConn conn "map (map (*2))"                        prop_map_map_mul
     , testPropertyConn conn "map (map (map (*2)))"                  prop_map_map_map_mul
     , testPropertyConn conn "map (\\x -> map (\\y -> x + y) ..) .." prop_map_map_add
