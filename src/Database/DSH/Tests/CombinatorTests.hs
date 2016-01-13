@@ -379,6 +379,7 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "map log"                               prop_map_log
     , testPropertyConn conn "map exp"                               prop_map_exp
     , testPropertyConn conn "map sqrt"                              prop_map_sqrt
+    , testPropertyConn conn "map rem"                               prop_map_rem
     ]
 
 distTests :: Backend c => c -> Test
@@ -1301,7 +1302,7 @@ prop_trig_tan :: Backend c => Fixed Double -> c -> Property
 prop_trig_tan d = makePropDouble Q.tan tan (getFixed d)
 
 prop_exp :: Backend c => Fixed Double -> c -> Property
-prop_exp d conn = d <= 10 ==> makePropDouble Q.exp exp (getFixed d) conn
+prop_exp d conn = d >= (-5) && d <= 5 ==> makePropDouble Q.exp exp (getFixed d) conn
 
 prop_rem :: Backend c => Fixed Integer -> c -> Property
 prop_rem d = makePropEq (`Q.rem` 10) (`rem` 10) (getFixed d)
@@ -1356,7 +1357,10 @@ prop_map_trig_atan ds = makePropDoubles (Q.map Q.atan) (map atan) (map getFixed 
 
 prop_map_exp :: Backend c => [Fixed Double] -> c -> Property
 prop_map_exp ds conn =
-    all (< 10) ds ==> makePropDoubles (Q.map Q.exp) (map exp) (map getFixed ds) conn
+    all (\d -> d >= (-5) && d <= 5) ds ==> makePropDoubles (Q.map Q.exp) (map exp) (map getFixed ds) conn
+
+prop_map_rem :: Backend c => [Fixed Integer] -> c -> Property
+prop_map_rem d = makePropEq (Q.map (`Q.rem` 10)) (map (`rem` 10)) (map getFixed d)
 
 prop_map_log :: Backend c => [Fixed (Positive Double)] -> c -> Property
 prop_map_log ds = makePropDoubles (Q.map Q.log) (map log) (map (getPositive . getFixed) ds)
