@@ -293,6 +293,7 @@ typedExpr =     try (tableRef <*> typeAnnotation)
             <|> try (comprehension <*> typeAnnotation)
             <|> try (tupleExpr <*> typeAnnotation)
             <|> try (letExpr <*> typeAnnotation)
+            <|> try (parens typedExpr)
 
 parseCL :: String -> Either String Expr
 parseCL inp = case parseMaybe typedExpr inp of
