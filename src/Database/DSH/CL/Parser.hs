@@ -55,9 +55,6 @@ parens = between (symbol "(") (symbol ")")
 brackets :: CLParser a -> CLParser a
 brackets = between (symbol "[") (symbol "]")
 
-braces :: CLParser a -> CLParser a
-braces = between (symbol "{") (symbol "}")
-
 colon :: CLParser ()
 colon = void $ symbol ":"
 
@@ -98,11 +95,7 @@ list :: CLParser a -> CLParser [a]
 list p = brackets (p `sepBy` comma)
 
 nonEmpty :: CLParser a -> CLParser (N.NonEmpty a)
-nonEmpty p = brackets $ do
-    x <- p
-    void $ comma
-    xs <- p `sepBy` comma
-    return $ x :| xs
+nonEmpty p = brackets $ (:|) <$> p <*> ((comma *> p `sepBy` comma) <|> pure [])
 
 tuple :: CLParser a -> CLParser [a]
 tuple p = parens (p `sepBy1` comma)
@@ -126,8 +119,8 @@ typeExpr = T.ListT <$> brackets typeExpr
            <|> try (T.ScalarT <$> baseType)
            <|> T.TupleT <$> tuple typeExpr
 
-typeAnnotation :: CLParser Type
-typeAnnotation = colon >> colon >> typeExpr
+typeAnnotation :: CLParser a -> CLParser a
+typeAnnotation p = colon >> colon >> p
 
 --------------------------------------------------------------------------------
 -- Table references
@@ -136,7 +129,7 @@ colName :: CLParser L.ColName
 colName = L.ColName <$> ident
 
 tableCols :: CLParser (N.NonEmpty L.Column)
-tableCols = nonEmpty $ (,) <$> colName <*> baseType
+tableCols = nonEmpty $ (,) <$> colName <*> typeAnnotation baseType
 
 tableKeys :: CLParser (N.NonEmpty L.Key)
 tableKeys = nonEmpty $ L.Key <$> nonEmpty colName
@@ -144,6 +137,7 @@ tableKeys = nonEmpty $ L.Key <$> nonEmpty colName
 baseTableSchema :: CLParser L.BaseTableSchema
 baseTableSchema = do
     cols      <- tableCols
+    void comma
     keys      <- tableKeys
     return $ L.BaseTableSchema cols keys L.PossiblyEmpty
 
@@ -188,7 +182,7 @@ baseLit :: CLParser L.ScalarVal
 baseLit =     try (L.DoubleV <$> doubleLit)
           <|> try (L.IntV <$> integerLit)
           <|> try (L.BoolV <$> boolLit)
-          <|> try (L.StringV <$> T.pack <$> stringLit)
+          <|> try (L.StringV . T.pack <$> stringLit)
           <|> try (unitLit *> pure L.UnitV)
 
 literal :: CLParser L.Val
@@ -277,22 +271,22 @@ letExpr = do
     return $ \ty -> Let ty x boundExpr inExpr
 
 tupleExpr :: CLParser (Type -> Expr)
-tupleExpr = (\es ty -> MkTuple ty es) <$> (parens $ typedExpr `sepBy1` comma)
+tupleExpr = flip MkTuple <$> parens (typedExpr `sepBy1` comma)
 
 annotatedExpr :: CLParser Expr
 annotatedExpr = do
     exprConst <- parens expr
-    ty        <- typeAnnotation
+    ty        <- typeAnnotation typeExpr
     return $ exprConst ty
 
 typedExpr :: CLParser Expr
-typedExpr =     try (tableRef <*> typeAnnotation)
+typedExpr =     try (tableRef <*> typeAnnotation typeExpr)
             <|> try annotatedExpr
-            <|> try ((\e t -> Lit t e) <$> literal <*> typeAnnotation)
-            <|> try ((\n t -> Var t n) <$> ident <*> typeAnnotation)
-            <|> try (comprehension <*> typeAnnotation)
-            <|> try (tupleExpr <*> typeAnnotation)
-            <|> try (letExpr <*> typeAnnotation)
+            <|> try (flip Lit <$> literal <*> typeAnnotation typeExpr)
+            <|> try (flip Var <$> ident <*> typeAnnotation typeExpr)
+            <|> try (comprehension <*> typeAnnotation typeExpr)
+            <|> try (tupleExpr <*> typeAnnotation typeExpr)
+            <|> try (letExpr <*> typeAnnotation typeExpr)
             <|> try (parens typedExpr)
 
 parseCL :: String -> Either String Expr
