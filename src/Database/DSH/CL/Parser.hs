@@ -295,6 +295,6 @@ typedExpr =     try (tableRef <*> typeAnnotation)
             <|> try (letExpr <*> typeAnnotation)
 
 parseCL :: String -> Either String Expr
-parseCL inp = case runParser typedExpr "" inp of
-    Left err -> Left $ show err
-    Right e  -> Right e
+parseCL inp = case parseMaybe typedExpr inp of
+    Nothing -> Left "parse error"
+    Just e  -> Right e
