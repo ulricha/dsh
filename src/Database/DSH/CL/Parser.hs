@@ -42,6 +42,7 @@
 
 module Database.DSH.CL.Parser
     ( parseCL
+    , typedExpr
     ) where
 
 import           Control.Applicative
@@ -135,9 +136,10 @@ baseType =     try (kw "Int" *> pure T.IntT)
            <|> try (kw "()" *> pure T.UnitT)
            <|> try (kw "Decimal" *> pure T.DecimalT)
            <|> try (kw "Date" *> pure T.DateT)
+           <|> try (kw "String" *> pure T.StringT)
 
 typeExpr :: CLParser T.Type
-typeExpr = T.ListT <$> brackets typeExpr
+typeExpr =     T.ListT <$> brackets typeExpr
            <|> try (T.ScalarT <$> baseType)
            <|> T.TupleT <$> tuple typeExpr
 
