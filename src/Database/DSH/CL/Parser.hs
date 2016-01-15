@@ -22,6 +22,7 @@
 --     | [ e | qs ]::t
 --     | (e, ..., e)::t
 --     | (let x = e in e)::t
+--     | e.n::t
 --
 -- Comprehension qualifiers:
 --
@@ -88,7 +89,7 @@ comma :: CLParser ()
 comma = void $ symbol ","
 
 ident :: CLParser String
-ident = lexeme (some alphaNumChar)
+ident = lexeme ((:) <$> lowerChar <*> some alphaNumChar)
 
 kw :: String -> CLParser ()
 kw s = void $ lexeme (string s)
