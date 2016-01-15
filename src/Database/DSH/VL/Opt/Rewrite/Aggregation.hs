@@ -259,7 +259,7 @@ mergeGroupWithGroupAggrRight q =
 -- into one groupjoin operator.
 groupJoin :: VLRule ()
 groupJoin q =
-  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((qo1) AggrS a (R1 ((qo2) NestJoin p (qi)))))"
+  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((qo1) AggrS a (R1 ((qo2) NestJoinS p (qi)))))"
     [| do
         predicate $ $(v "qo1") == $(v "qo")
         predicate $ $(v "qo2") == $(v "qo")
