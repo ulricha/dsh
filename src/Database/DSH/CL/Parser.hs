@@ -175,11 +175,11 @@ prim1 =     try (kw "singleton" *> pure Singleton)
         <|> try (kw "sort" *> pure Sort)
         <|> try (kw "group" *> pure Group)
 
-prim2 :: CLParser Prim2
-prim2 =     try (kw "append" *> pure Append)
-        <|> try (kw "zip" *> pure Zip)
-
-
+prim2 :: CLParser (Expr -> Expr -> Type -> Expr)
+prim2 =     try (kw "append"   *> pure (\e1 e2 t -> AppE2 t Append e1 e2))
+        <|> try (kw "zip"      *> pure (\e1 e2 t -> AppE2 t Zip e1 e2))
+        <|> try (kw "diffDays" *> pure (\e1 e2 t -> BinOp t (L.SBDateOp L.DiffDays) e1 e2))
+        <|> try (kw "addDays"  *> pure (\e1 e2 t -> BinOp t (L.SBDateOp L.AddDays) e1 e2))
 
 --------------------------------------------------------------------------------
 -- Literals
@@ -232,7 +232,7 @@ app1 :: CLParser (Type -> Expr)
 app1 = (\p e t -> AppE1 t p e) <$> prim1 <*> (sep *> typedExpr)
 
 app2 :: CLParser (Type -> Expr)
-app2 = (\p e1 e2 t -> AppE2 t p e1 e2) <$> prim2 <*> (sep *> typedExpr) <*> (sep *> typedExpr)
+app2 = prim2 <*> (sep *> typedExpr) <*> (sep *> typedExpr)
 
 infixApp :: CLParser (Type -> Expr)
 infixApp = (\e1 op e2 t -> BinOp t op e1 e2) <$> typedExpr <*> infixOp <*> typedExpr
