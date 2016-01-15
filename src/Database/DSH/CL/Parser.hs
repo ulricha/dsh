@@ -1,21 +1,43 @@
 -- | A parser for comprehension language (CL) expressions.
 --
 -- @
--- t ::= [t] | (t, ..., t) | Int | Double | ...
+-- Types:
 --
--- e ::= table(n)::t
+-- t ::= [t] | (t, ..., t) | bt
+--
+-- Base types:
+--
+-- bt ::= Int | Double | Decimal | String | Char | Bool | ()
+--
+-- Expressions:
+--
+-- e ::= table(n, s, k)::t
 --     | (prim1 e)::t
 --     | (prim2 e e)::t
 --     | (prefixOp e)::t
 --     | (e infixOp e)::t
 --     | (if e then e else e)::t
 --     | l::t
---     | x::t
+--     | n::t
 --     | [ e | qs ]::t
 --     | (e, ..., e)::t
 --     | (let x = e in e)::t
 --
+-- Comprehension qualifiers:
+--
 -- qs ::= x <- e, qs | e, qs | x <- e | e
+--
+-- Schema:
+--
+-- s ::= [ n::bt, ... ]
+--
+-- Keys:
+--
+-- k ::= [ [n, ...], ...]
+--
+-- Identifiers:
+--
+-- n ::= [a-zA-Z0-9]+
 -- @
 
 module Database.DSH.CL.Parser
