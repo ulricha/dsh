@@ -21,8 +21,9 @@
 --     | n::t
 --     | [ e | qs ]::t
 --     | (e, ..., e)::t
+--     | e.[1-9][0-9]*::t
 --     | (let x = e in e)::t
---     | e.n::t
+--     | (e).n::t
 --
 -- Comprehension qualifiers:
 --
@@ -57,6 +58,7 @@ import qualified Text.Megaparsec.Lexer    as Lex
 
 import           Database.DSH.CL.Lang
 import qualified Database.DSH.Common.Lang as L
+import qualified Database.DSH.Common.Nat  as N
 import qualified Database.DSH.Common.Type as T
 
 type CLParser a = Parsec String a
@@ -89,7 +91,7 @@ comma :: CLParser ()
 comma = void $ symbol ","
 
 ident :: CLParser String
-ident = lexeme ((:) <$> lowerChar <*> some alphaNumChar)
+ident = lexeme ((:) <$> lowerChar <*> many alphaNumChar)
 
 kw :: String -> CLParser ()
 kw s = void $ lexeme (string s)
@@ -270,7 +272,7 @@ ifExpr = do
     return $ \ty -> If ty condExpr thenExpr elseExpr
 
 expr :: CLParser (Type -> Expr)
-expr = try app1 <|> try app2 <|> try infixApp <|> try prefixApp <|> try ifExpr
+expr = try app1 <|> try app2 <|> try infixApp <|> try prefixApp <|> try ifExpr <|> try letExpr
 
 qualifier :: CLParser Qual
 qualifier = try (BindQ <$> ident <*> (symbol "<-" *> typedExpr))
@@ -304,6 +306,12 @@ annotatedExpr = do
     ty        <- typeAnnotation typeExpr
     return $ exprConst ty
 
+tupElemExpr:: CLParser (Type -> Expr)
+tupElemExpr =
+    (\e i t -> AppE1 t (TupElem i) e)
+        <$> (parens typedExpr <* char '.')
+        <*> (N.intIndex <$> integerLit)
+
 typedExpr :: CLParser Expr
 typedExpr =     try (tableRef <*> typeAnnotation typeExpr)
             <|> try annotatedExpr
@@ -311,7 +319,7 @@ typedExpr =     try (tableRef <*> typeAnnotation typeExpr)
             <|> try (flip Var <$> ident <*> typeAnnotation typeExpr)
             <|> try (comprehension <*> typeAnnotation typeExpr)
             <|> try (tupleExpr <*> typeAnnotation typeExpr)
-            <|> try (letExpr <*> typeAnnotation typeExpr)
+            <|> try (tupElemExpr <*> typeAnnotation typeExpr)
             <|> try (parens typedExpr)
 
 parseCL :: String -> Either String Expr
