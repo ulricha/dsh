@@ -1,6 +1,8 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Database.DSH.Common.Nat where
 
-import Control.Exception
+import Database.DSH.Common.Impossible
 
 -- | Natural numbers that encode lifting levels
 data Nat = Zero | Succ Nat deriving (Show, Eq)
@@ -27,7 +29,7 @@ tupleIndex First    = 1
 tupleIndex (Next f) = 1 + tupleIndex f
 
 intIndex :: Int -> TupleIndex
-intIndex i = assert (i >= 1) $
-    if i > 1
-    then Next $ (intIndex $ i - 1)
-    else First
+intIndex i
+    | i < 1     = $impossible
+    | i > 1     = Next $ (intIndex $ i - 1)
+    | otherwise = First
