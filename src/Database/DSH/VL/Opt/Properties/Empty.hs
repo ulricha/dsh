@@ -37,9 +37,7 @@ inferEmptyUnOp e op =
     ReverseS         -> let ue = unp e in liftM2 VPropPair ue ue
     Project _        -> Right e
     Select _         -> let ue = unp e in liftM2 VPropPair ue ue
-    Sort _           -> let ue = unp e in liftM2 VPropPair ue ue
     SortS _          -> let ue = unp e in liftM2 VPropPair ue ue
-    Group _          -> let ue = unp e in liftM3 VPropTriple ue ue ue
     GroupS _         -> let ue = unp e in liftM3 VPropTriple ue ue ue
 
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?

@@ -288,15 +288,9 @@ translateUnOp unop c = case unop of
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
         return $ RLPair (fromDVec d) (fromFVec r)
-    V.Sort es         -> do
-        (d, p) <- vecSort es (toDVec c)
-        return $ RLPair (fromDVec d) (fromSVec p)
     V.SortS es         -> do
         (d, p) <- vecSortS es (toDVec c)
         return $ RLPair (fromDVec d) (fromSVec p)
-    V.Group es -> do
-        (qo, qi, p) <- vecGroup es (toDVec c)
-        return $ RTriple (fromDVec qo) (fromDVec qi) (fromSVec p)
     V.GroupS es -> do
         (qo, qi, p) <- vecGroupS es (toDVec c)
         return $ RTriple (fromDVec qo) (fromDVec qi) (fromSVec p)

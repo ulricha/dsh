@@ -164,19 +164,9 @@ inferConstVecUnOp c op =
       cols <- unp c >>= fromDBV
       return $ VProp $ ConstVec (cols ++ [NonConstPL])
 
-    Sort _ -> do
-      cs <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec cs) CNA
-
     SortS _ -> do
       cs <- unp c >>= fromDBV
       return $ VPropPair (ConstVec cs) CNA
-
-    Group es -> do
-      cs <- unp c >>= fromDBV
-      return $ VPropTriple (ConstVec (map (const NonConstPL) es))
-                           (ConstVec (map (const NonConstPL) cs))
-                           CNA
 
     GroupS es -> do
       cs <- unp c >>= fromDBV

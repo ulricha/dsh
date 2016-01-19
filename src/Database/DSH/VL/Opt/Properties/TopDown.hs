@@ -40,9 +40,7 @@ seed (UnOp op _)   =
         UnboxKey           -> vPropSeed
         Segment            -> vPropSeed
         Select     _       -> vPropPairSeed
-        Sort _             -> vPropPairSeed
         SortS _            -> vPropPairSeed
-        Group _            -> vPropTripleSeed
         GroupS _           -> vPropTripleSeed
         Project      _     -> vPropSeed
         Aggr _             -> vPropSeed

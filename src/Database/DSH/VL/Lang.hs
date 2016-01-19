@@ -88,9 +88,7 @@ data UnOp = UnboxKey
           | NumberS
           | UniqueS
           | ReverseS
-          | Sort [Expr]
           | SortS [Expr]
-          | Group [Expr]
           | GroupS [Expr]
           | WinFun (WinFun, FrameSpec)
     deriving (Eq, Ord, Show)

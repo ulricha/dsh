@@ -60,14 +60,8 @@ class VectorAlgebra a where
     -- | Filter a vector by applying a scalar boolean predicate.
     vecSelect:: Expr -> DVec a -> Build a (DVec a, FVec a)
 
-    -- | Sort a vector
-    vecSort :: [Expr] -> DVec a -> Build a (DVec a, SVec a)
-
     -- | Per-segment sorting of a vector.
     vecSortS :: [Expr] -> DVec a -> Build a (DVec a, SVec a)
-
-    -- | Regular grouping of a vector
-    vecGroup :: [Expr] -> DVec a -> Build a (DVec a, DVec a, SVec a)
 
     -- | Per-segment grouping of a vector
     vecGroupS :: [Expr] -> DVec a -> Build a (DVec a, DVec a, SVec a)

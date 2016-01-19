@@ -28,9 +28,7 @@ inferCardOneUnOp c op =
     Project _  -> Right c
     ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)
     Select _ -> Right $ VPropPair False False
-    Sort _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     SortS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    Group _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
     GroupS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
     R1 ->
       case c of

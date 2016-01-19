@@ -59,15 +59,8 @@ inferVectorTypeUnOp s op =
     Project valProjs -> Right $ VProp $ VTDataVec $ length valProjs
 
     Select _ -> VPropPair <$> unpack s <*> (Right VTNA)
-    Sort _   -> liftM2 VPropPair (unpack s) (Right VTNA)
     SortS _  -> liftM2 VPropPair (unpack s) (Right VTNA)
 
-    Group es ->
-      case s of
-        VProp t@(VTDataVec _) ->
-          Right $ VPropTriple (VTDataVec $ length es) t VTNA
-        _                                                    ->
-          Left "Input of Group is not a value vector"
     GroupS es ->
       case s of
         VProp t@(VTDataVec _) ->

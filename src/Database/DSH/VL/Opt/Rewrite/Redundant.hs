@@ -899,13 +899,13 @@ pullProjectNumber q =
 
 pullProjectSort :: VLRule ()
 pullProjectSort q =
-  $(dagPatMatch 'q "R1 (Sort ses (Project ps (q)))"
+  $(dagPatMatch 'q "R1 (SortS ses (Project ps (q)))"
     [| do
           return $ do
               logRewrite "Redundant.Project.Sort" q
               let env = zip [1..] $(v "ps")
               let ses' = map (mergeExpr env) $(v "ses")
-              sortNode <- insert $ UnOp (Sort ses') $(v "q")
+              sortNode <- insert $ UnOp (SortS ses') $(v "q")
               r1Node   <- insert (UnOp R1 sortNode)
               void $ replaceWithNew q $ UnOp (Project $(v "ps")) r1Node |])
 
