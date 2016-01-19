@@ -30,12 +30,10 @@ inferEmptyUnOp e op =
   case op of
     Nest             -> VPropPair False <$> unp e
     WinFun _         -> Right e
-    Unique           -> Right e
     UniqueS          -> Right e
     Aggr _           -> Right $ VProp False
     UnboxKey         -> Right e
     Segment          -> Right e
-    Reverse          -> let ue = unp e in liftM2 VPropPair ue ue
     ReverseS         -> let ue = unp e in liftM2 VPropPair ue ue
     Project _        -> Right e
     Select _         -> let ue = unp e in liftM2 VPropPair ue ue
@@ -46,7 +44,6 @@ inferEmptyUnOp e op =
 
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr (_, _) -> Right $ VProp False
-    Number           -> Right e
     NumberS          -> Right e
 
     R1 ->

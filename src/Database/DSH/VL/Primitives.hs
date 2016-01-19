@@ -142,14 +142,8 @@ joinExpr expr = offsetExpr $ aux expr
 ----------------------------------------------------------------------------------
 -- DAG constructor functions for VL operators
 
-vlUnique :: VLDVec -> Build VL VLDVec
-vlUnique (VLDVec c) = vec (UnOp Unique c) dvec
-
 vlUniqueS :: VLDVec -> Build VL VLDVec
 vlUniqueS (VLDVec c) = vec (UnOp UniqueS c) dvec
-
-vlNumber :: VLDVec -> Build VL VLDVec
-vlNumber (VLDVec c) = vec (UnOp Number c) dvec
 
 vlNumberS :: VLDVec -> Build VL VLDVec
 vlNumberS (VLDVec c) = vec (UnOp NumberS c) dvec
@@ -303,9 +297,6 @@ vlAntiJoinS joinPred (VLDVec c1) (VLDVec c2) =
     pairVec (BinOp (AntiJoinS joinPred') c1 c2) dvec fvec
   where
     joinPred' = toVLJoinPred joinPred
-
-vlReverse :: VLDVec -> Build VL (VLDVec, VLSVec)
-vlReverse (VLDVec c) = pairVec (UnOp Reverse c) dvec svec
 
 vlReverseS :: VLDVec -> Build VL (VLDVec, VLSVec)
 vlReverseS (VLDVec c) = pairVec (UnOp ReverseS c) dvec svec

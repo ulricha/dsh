@@ -36,12 +36,10 @@ inferVectorTypeUnOp s op =
     WinFun _ -> do
         VTDataVec w <- unpack s
         return $ VProp $ VTDataVec $ w + 1
-    Unique -> VProp <$> unpack s
     UniqueS -> VProp <$> unpack s
     Aggr _ -> Right $ VProp $ VTDataVec 1
     UnboxKey -> Right $ VProp $ VTNA
     Segment -> VProp <$> unpack s
-    Reverse -> liftM2 VPropPair (unpack s) (Right VTNA)
     ReverseS -> liftM2 VPropPair (unpack s) (Right VTNA)
     R1 ->
       case s of
@@ -77,9 +75,6 @@ inferVectorTypeUnOp s op =
         _                                                    ->
           Left "Input of GroupS is not a value vector"
     GroupAggr (g, as) -> Right $ VProp $ VTDataVec (length g + N.length as)
-    Number -> do
-        VTDataVec w <- unpack s
-        return $ VProp $ VTDataVec (w + 1)
     NumberS -> do
         VTDataVec w <- unpack s
         return $ VProp $ VTDataVec (w + 1)

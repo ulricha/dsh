@@ -35,11 +35,9 @@ seed (UnOp op _)   =
     case op of
         Nest               -> vPropPairSeed
         WinFun _           -> vPropSeed
-        Reverse            -> vPropPairSeed
         ReverseS           -> vPropPairSeed
         UniqueS            -> vPropSeed
         UnboxKey           -> vPropSeed
-        Unique             -> vPropSeed
         Segment            -> vPropSeed
         Select     _       -> vPropPairSeed
         Sort _             -> vPropPairSeed
@@ -52,7 +50,6 @@ seed (UnOp op _)   =
         R1                 -> vPropSeed
         R2                 -> vPropSeed
         R3                 -> vPropSeed
-        Number             -> vPropSeed
         NumberS            -> vPropSeed
 
 seed (BinOp op _ _) =

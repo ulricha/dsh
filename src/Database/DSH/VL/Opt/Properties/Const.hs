@@ -134,7 +134,6 @@ inferConstVecUnOp c op =
       return $ VProp $ ConstVec (cols ++ [NonConstPL])
 
     UniqueS -> return c
-    Unique -> return c
 
     Aggr _ -> return $ VProp $ ConstVec [NonConstPL]
 
@@ -143,10 +142,6 @@ inferConstVecUnOp c op =
     Segment -> do
       constCols <- unp c >>= fromDBV
       return $ VProp $ ConstVec constCols
-
-    Reverse -> do
-      cs <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec cs) CNA
 
     ReverseS -> do
       cs <- unp c >>= fromDBV
@@ -164,10 +159,6 @@ inferConstVecUnOp c op =
     GroupAggr (g, as) -> do
       let pl = [ NonConstPL | _ <- [1 .. length g + N.length as] ]
       return $ VProp $ ConstVec pl
-
-    Number -> do
-      cols <- unp c >>= fromDBV
-      return $ VProp $ ConstVec (cols ++ [NonConstPL])
 
     NumberS -> do
       cols <- unp c >>= fromDBV

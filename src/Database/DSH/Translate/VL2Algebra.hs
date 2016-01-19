@@ -279,9 +279,7 @@ translateUnOp :: VectorAlgebra a
               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
               -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateUnOp unop c = case unop of
-    V.Unique           -> fromDVec <$> vecUnique (toDVec c)
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
-    V.Number           -> fromDVec <$> vecNumber (toDVec c)
     V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)
     V.UnboxKey         -> fromKVec <$> vecUnboxKey (toDVec c)
     V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
@@ -303,9 +301,6 @@ translateUnOp unop c = case unop of
         (qo, qi, p) <- vecGroupS es (toDVec c)
         return $ RTriple (fromDVec qo) (fromDVec qi) (fromSVec p)
     V.Project cols -> fromDVec <$> vecProject cols (toDVec c)
-    V.Reverse      -> do
-        (d, p) <- vecReverse (toDVec c)
-        return $ RLPair (fromDVec d) (fromSVec p)
     V.ReverseS      -> do
         (d, p) <- vecReverseS (toDVec c)
         return $ RLPair (fromDVec d) (fromSVec p)

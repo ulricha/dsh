@@ -85,11 +85,8 @@ data UnOp = UnboxKey
 
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
           | Aggr AggrFun
-          | Number
           | NumberS
-          | Unique
           | UniqueS
-          | Reverse
           | ReverseS
           | Sort [Expr]
           | SortS [Expr]

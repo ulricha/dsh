@@ -19,7 +19,6 @@ inferCardOneNullOp op =
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferCardOneUnOp c op =
   case op of
-    Unique -> Right c
     UniqueS -> Right c
     Aggr _ -> Right $ VProp True
     WinFun _ -> Right c
@@ -27,7 +26,6 @@ inferCardOneUnOp c op =
     Segment -> Right c
     Nest -> unp c >>= (\uc -> return $ VPropPair True uc)
     Project _  -> Right c
-    Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)
     Select _ -> Right $ VPropPair False False
     Sort _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
@@ -50,7 +48,6 @@ inferCardOneUnOp c op =
         _                 -> Left "Properties.Card: not a triple"
     GroupAggr ([], _) -> Right $ VProp True
     GroupAggr (_, _)  -> Right c
-    Number -> Right c
     NumberS -> Right c
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)

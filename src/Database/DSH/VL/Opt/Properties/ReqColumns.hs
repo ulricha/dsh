@@ -124,7 +124,6 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             cs <- (VProp $ Just $ winReqCols wfun) ∪ cols'
             cs ∪ childReqColumns
         UniqueS    -> ownReqColumns ∪ childReqColumns
-        Unique    -> ownReqColumns ∪ childReqColumns
 
         Aggr aggrFun -> (VProp $ Just $ aggrReqCols aggrFun)
                         ∪
@@ -139,20 +138,12 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
         -- Numbering operators add one column at the end. We have to
         -- determine the column index of the new column and remove it
         -- from the set of required columns
-        Number     -> do
-            VTDataVec w <- fromProp $ vectorTypeProp childBUProps
-            Just cols   <- fromProp ownReqColumns
-            let cols'     = filter (/= (w + 1)) cols
-            VProp (Just cols') ∪ childReqColumns
         NumberS    -> do
             VTDataVec w <- fromProp $ vectorTypeProp childBUProps
             (Just cols)   <- fromProp ownReqColumns
             let cols'     = filter (/= w) cols
             VProp (Just cols') ∪ childReqColumns
 
-        Reverse    -> do
-            cols <- fst <$> fromPropPair ownReqColumns
-            VProp cols ∪ childReqColumns
         ReverseS   -> do
             cols <- fst <$> fromPropPair ownReqColumns
             VProp cols ∪ childReqColumns

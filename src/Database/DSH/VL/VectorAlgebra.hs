@@ -34,16 +34,8 @@ class VectorAlgebra a where
     -- | A reference to a database-resident table.
     vecTableRef :: String -> BaseTableSchema -> Build a (DVec a)
 
-    -- | Eliminate duplicates
-    vecUnique :: DVec a -> Build a (DVec a)
-
     -- | Perform duplicate elimination per segment.
     vecUniqueS :: DVec a -> Build a (DVec a)
-
-    -- | /Materialize/ vector positions. The operator adds an item
-    -- column that contains the dense positions of the vector's
-    -- elements.
-    vecNumber :: DVec a -> Build a (DVec a)
 
     -- | /Materialize/ vector positions per segment. The operator adds
     -- an item column that contains the dense positions of the
@@ -61,9 +53,6 @@ class VectorAlgebra a where
     vecAggrS :: AggrFun -> DVec a -> DVec a -> Build a (DVec a)
 
     vecWinFun :: WinFun -> FrameSpec -> DVec a -> Build a (DVec a)
-
-    -- | Reverse a vector.
-    vecReverse :: DVec a -> Build a (DVec a, SVec a)
 
     -- | Reverse each segment of a vector individually.
     vecReverseS :: DVec a -> Build a (DVec a, SVec a)

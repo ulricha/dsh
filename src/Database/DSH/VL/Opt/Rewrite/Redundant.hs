@@ -81,8 +81,8 @@ redundantRulesBottomUp = [ sameInputAlign
                          , alignCartProdRight
                          , alignGroupJoinLeft
                          , alignGroupJoinRight
-                         , runningAggWinBounded
-                         , runningAggWinUnbounded
+                         -- , runningAggWinBounded
+                         -- , runningAggWinUnbounded
                          , inlineWinAggrProject
                          , pullProjectNumber
                          , constDist
@@ -643,9 +643,9 @@ alignGroupJoinLeft q =
             let proj = map Column $ [1..w+1] ++ [1..w]
             void $ replaceWithNew q $ UnOp (Project proj) $(v "gj") |])
 
--- | If the right (outer) input of Unbox is a number operator and the
+-- | If the right (outer) input of Unbox is a NumberS operator and the
 -- number output is not required, eliminate it from the outer
--- input. This is correct because Number does not change the vertical
+-- input. This is correct because NumberS does not change the vertical
 -- shape of the vector.
 --
 -- The motivation is to eliminate zip operators that align with the
@@ -659,7 +659,7 @@ alignGroupJoinLeft q =
 -- the vertical shape.
 unboxNumber :: VLRule Properties
 unboxNumber q =
-  $(dagPatMatch 'q "R1 ((Number (qo)) UnboxSng (qi))"
+  $(dagPatMatch 'q "R1 ((NumberS (qo)) UnboxSng (qi))"
     [| do
         VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties q
         VProp (VTDataVec wo) <- vectorTypeProp <$> bu <$> properties $(v "qo")
@@ -672,8 +672,8 @@ unboxNumber q =
             -- place of the number column to avoid destroying column
             -- indexes.
             let proj = map Column [1..wo]
-                     ++ [Constant $ IntV 0xdeadbeef]
-                     ++ map Column [wo+1..wi+wo]
+                       ++ [Constant $ IntV 0xdeadbeef]
+                       ++ map Column [wo+1..wi+wo]
             unboxNode <- insert $ BinOp UnboxSng $(v "qo") $(v "qi")
             r1Node    <- insert $ UnOp R1 unboxNode
             void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
@@ -884,7 +884,7 @@ pullProjectNestJoinRight q =
 
 pullProjectNumber :: VLRule BottomUpProps
 pullProjectNumber q =
-  $(dagPatMatch 'q "Number (Project proj (q1))"
+  $(dagPatMatch 'q "NumberS (Project proj (q1))"
     [| do
          w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
@@ -894,7 +894,7 @@ pullProjectNumber q =
              -- We have to preserve the numbering column in the
              -- pulled-up projection.
              let proj' = $(v "proj") ++ [Column $ w + 1]
-             numberNode <- insert $ UnOp Number $(v "q1")
+             numberNode <- insert $ UnOp NumberS $(v "q1")
              void $ replaceWithNew q $ UnOp (Project proj') numberNode |])
 
 pullProjectSort :: VLRule ()
@@ -1105,7 +1105,7 @@ shiftJoinPredCols leftOffset rightOffset (JoinConjunct leftExpr op rightExpr) =
 
 notReqNumber :: VLRule Properties
 notReqNumber q =
-  $(dagPatMatch 'q "Number (q1)"
+  $(dagPatMatch 'q "NumberS (q1)"
     [| do
         w <- vectorWidth <$> vectorTypeProp <$> bu <$> properties $(v "q1")
         VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties $(v "q")
