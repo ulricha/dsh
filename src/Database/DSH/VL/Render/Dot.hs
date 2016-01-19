@@ -140,7 +140,6 @@ opDotLabel tm i (UnOp (Aggr a) _) = labelToDoc i "Aggr" (renderAggrFun a) (looku
 opDotLabel tm i (BinOp (AggrS a) _ _) = labelToDoc i "AggrS" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (SortS cols) _) = labelToDoc i "SortS" (bracketList renderExpr cols) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupS cols) _) = labelToDoc i "GroupS" (bracketList renderExpr cols) (lookupTags i tm)
-opDotLabel tm i (BinOp NestProduct _ _) = labelToDoc i "NestProduct" empty (lookupTags i tm)
 opDotLabel tm i (BinOp ReplicateNest _ _) = labelToDoc i "ReplicateNest" empty (lookupTags i tm)
 opDotLabel tm i (BinOp ReplicateScalar _ _) = labelToDoc i "ReplicateScalar" empty (lookupTags i tm)
 opDotLabel tm i (BinOp UnboxSng _ _) = labelToDoc i "UnboxSng" empty (lookupTags i tm)
@@ -153,11 +152,8 @@ opDotLabel tm i (BinOp AppendS _ _) = labelToDoc i "AppendS" empty (lookupTags i
 opDotLabel tm i (BinOp Zip _ _) = labelToDoc i "Zip" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Align _ _) = labelToDoc i "Align" empty (lookupTags i tm)
 opDotLabel tm i (BinOp ZipS _ _) = labelToDoc i "ZipS" empty (lookupTags i tm)
-opDotLabel tm i (BinOp CartProduct _ _) = labelToDoc i "CartProduct" empty (lookupTags i tm)
 opDotLabel tm i (BinOp CartProductS _ _) = labelToDoc i "CartProductS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp NestProductS _ _) = labelToDoc i "NestProductS" empty (lookupTags i tm)
-opDotLabel tm i (BinOp (NestJoin p) _ _) =
-  labelToDoc i "NestJoin" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (ThetaJoinS p) _ _) =
   labelToDoc i "ThetaJoinS" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (NestJoinS p) _ _) =
@@ -171,11 +167,8 @@ opDotLabel tm i (BinOp (GroupJoin (p, a)) _ _) =
 opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "Combine" empty (lookupTags i tm)
 
 opDotColor :: VL -> DotColor
-opDotColor (BinOp NestProduct _ _)     = DCRed
-opDotColor (BinOp CartProduct _ _)     = DCRed
 opDotColor (BinOp CartProductS _ _)    = DCRed
 opDotColor (BinOp NestProductS _ _)    = DCRed
-opDotColor (BinOp (NestJoin _) _ _)    = DCGreen
 opDotColor (BinOp (ThetaJoinS _) _ _)  = DCGreen
 opDotColor (BinOp (NestJoinS _) _ _)   = DCGreen
 opDotColor (BinOp (SemiJoinS _) _ _)   = DCGreen

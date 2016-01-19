@@ -117,12 +117,8 @@ class VectorAlgebra a where
     -- yss@.
     vecZipS :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
-    vecCartProduct :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecCartProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-    vecNestProduct :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecNestProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-
-    vecNestJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecThetaJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecNestJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecSemiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)

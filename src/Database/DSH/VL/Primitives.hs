@@ -163,9 +163,6 @@ vlAggrS aFun (VLDVec c1) (VLDVec c2) = vec (BinOp (AggrS aFun) c1 c2) dvec
 vlUnboxKey :: VLDVec -> Build VL VLKVec
 vlUnboxKey (VLDVec c) = vec (UnOp UnboxKey c) kvec
 
-vlNestProduct :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
-vlNestProduct (VLDVec c1) (VLDVec c2) = tripleVec (BinOp NestProduct c1 c2) dvec rvec rvec
-
 vlReplicateNest :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
 vlReplicateNest (VLDVec c1) (VLDVec c2) = pairVec (BinOp ReplicateNest c1 c2) dvec rvec
 
@@ -236,19 +233,9 @@ vlZipS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLKVec, VLKVec)
 vlZipS (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp ZipS c1 c2) dvec kvec kvec
 
-vlCartProduct :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
-vlCartProduct (VLDVec c1) (VLDVec c2) =
-    tripleVec (BinOp CartProduct c1 c2) dvec rvec rvec
-
 vlCartProductS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlCartProductS (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp CartProductS c1 c2) dvec rvec rvec
-
-vlNestJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
-vlNestJoin joinPred (VLDVec c1) (VLDVec c2) =
-    tripleVec (BinOp (NestJoin joinPred') c1 c2) dvec rvec rvec
-  where
-    joinPred' = toVLJoinPred joinPred
 
 vlThetaJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlThetaJoinS joinPred (VLDVec c1) (VLDVec c2) =

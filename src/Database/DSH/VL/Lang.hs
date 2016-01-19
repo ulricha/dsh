@@ -112,16 +112,13 @@ data BinOp = ReplicateNest
            | AppendS
            | Zip
            | ZipS
-           | CartProduct
            | CartProductS
+           | NestProductS
            | ThetaJoinS (L.JoinPredicate Expr)
            | SemiJoinS (L.JoinPredicate Expr)
            | AntiJoinS (L.JoinPredicate Expr)
-           | NestJoin (L.JoinPredicate Expr)
            | NestJoinS (L.JoinPredicate Expr)
            | GroupJoin (L.JoinPredicate Expr, AggrFun)
-           | NestProduct
-           | NestProductS
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''BinOp)

@@ -200,17 +200,13 @@ distSingleton dv1 lyt1 dv2 = do
     return $ VShape dv' lyt'
 
 dist ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
--- Distributing a single value is implemented using a cartesian
--- product. After the product, we discard columns from the vector that
--- we distributed over. Vectors are swapped because CartProduct uses
--- the descriptor of its left input and that is what we want.
 dist (SShape dv lyt) (VShape dv1 _)    = distSingleton dv lyt dv1
 dist (VShape dv lyt) (VShape dvo lyto) = do
     let leftWidth  = columnsInLayout lyto
         rightWidth = columnsInLayout lyt
         innerProj  = map Column [leftWidth+1..leftWidth+rightWidth]
 
-    (prodVec, _, rv) <- vlNestProduct dvo dv
+    (prodVec, _, rv) <- vlNestProductS dvo dv
     innerVec         <- vlProject innerProj prodVec
 
     -- The outer vector does not have columns, it only describes the
@@ -616,14 +612,14 @@ boxVectors (VShape q1 lyt1 : [])     = do
     return (dvo, [LNest dvi lyt1])
 boxVectors (SShape dv1 lyt1 : shapes) = do
     (dv, lyts)      <- boxVectors shapes
-    (dv', rv1, rv2) <- vlCartProduct dv1 dv
+    (dv', rv1, rv2) <- vlCartProductS dv1 dv
     lyt1'           <- repLayout rv1 lyt1
     lyts'           <- mapM (repLayout rv2) lyts
     return (dv', lyt1' : lyts')
 boxVectors (VShape dv1 lyt1 : shapes) = do
     (dv, lyts)      <- boxVectors shapes
     (dvo, dvi)      <- vlNest dv1
-    (dv', rv1, rv2) <- vlCartProduct dvo dv
+    (dv', rv1, rv2) <- vlCartProductS dvo dv
     lyt1'           <- repLayout rv1 (LNest dvi lyt1)
     lyts'           <- mapM (repLayout rv2) lyts
     return (dv', lyt1' : lyts')

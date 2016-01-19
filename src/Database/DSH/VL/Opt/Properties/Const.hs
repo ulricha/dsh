@@ -265,12 +265,6 @@ inferConstVecBinOp c1 c2 op =
       let cols = cols1 ++ cols2
       return $ VPropTriple (ConstVec cols) CNA CNA
 
-    CartProduct -> do
-      cols1 <- unp c1 >>= fromDBV
-      cols2 <- unp c2 >>= fromDBV
-      let constCols = cols1 ++ cols2
-      return $ VPropTriple (ConstVec constCols) CNA CNA
-
     CartProductS -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
@@ -283,22 +277,10 @@ inferConstVecBinOp c1 c2 op =
       let constCols = cols1 ++ cols2
       return $ VPropTriple (ConstVec constCols) CNA CNA
 
-    NestJoin _ -> do
-      cols1 <- unp c1 >>= fromDBV
-      cols2 <- unp c2 >>= fromDBV
-      let constCols = cols1 ++ cols2
-      return $ VPropTriple (ConstVec constCols) CNA CNA
-
     GroupJoin _ -> do
       cols1 <- unp c1 >>= fromDBV
       let constCols = cols1 ++ [NonConstPL]
       return $ VProp (ConstVec constCols)
-
-    NestProduct -> do
-      cols1 <- unp c1 >>= fromDBV
-      cols2 <- unp c2 >>= fromDBV
-      let constCols = cols1 ++ cols2
-      return $ VPropTriple (ConstVec constCols) CNA CNA
 
     ThetaJoinS _ -> do
       cols1 <- unp c1 >>= fromDBV

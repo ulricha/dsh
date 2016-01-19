@@ -179,6 +179,7 @@ Library
 
                      Database.DSH.VL.Opt.Properties.BottomUp
                      Database.DSH.VL.Opt.Properties.Card
+                     Database.DSH.VL.Opt.Properties.Segments
                      Database.DSH.VL.Opt.Properties.Common
                      Database.DSH.VL.Opt.Properties.Const
                      Database.DSH.VL.Opt.Properties.Empty

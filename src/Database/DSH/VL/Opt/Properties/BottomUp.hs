@@ -13,6 +13,7 @@ import Database.DSH.VL.Opt.Properties.Const
 import Database.DSH.VL.Opt.Properties.Empty
 import Database.DSH.VL.Opt.Properties.Types
 import Database.DSH.VL.Opt.Properties.VectorType
+import Database.DSH.VL.Opt.Properties.Segments
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
 inferWorker :: NodeMap VL -> VL -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
@@ -45,10 +46,13 @@ inferNullOp op = do
   opConst    <- inferConstVecNullOp op
   opType     <- inferVectorTypeNullOp op
   opCard     <- inferCardOneNullOp op
-  return $ BUProps { emptyProp = opEmpty
-                   , constProp = opConst
-                   , card1Prop = opCard
-                   , vectorTypeProp = opType }
+  opSeg      <- inferSegmentsNullOp op
+  return BUProps { emptyProp      = opEmpty
+                 , constProp      = opConst
+                 , card1Prop      = opCard
+                 , vectorTypeProp = opType
+                 , segProp        = opSeg
+                 }
 
 inferUnOp :: UnOp -> BottomUpProps -> Either String BottomUpProps
 inferUnOp op cProps = do
@@ -56,10 +60,13 @@ inferUnOp op cProps = do
   opType     <- inferVectorTypeUnOp (vectorTypeProp cProps) op
   opConst    <- inferConstVecUnOp (constProp cProps) op
   opCard     <- inferCardOneUnOp (card1Prop cProps) op
-  return $ BUProps { emptyProp = opEmpty
-                   , constProp = opConst
-                   , card1Prop = opCard
-                   , vectorTypeProp = opType }
+  opSeg      <- inferSegmentsUnOp (segProp cProps) op
+  return BUProps { emptyProp      = opEmpty
+                 , constProp      = opConst
+                 , card1Prop      = opCard
+                 , vectorTypeProp = opType
+                 , segProp        = opSeg
+                 }
 
 inferBinOp :: BinOp -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
 inferBinOp op c1Props c2Props = do
@@ -67,10 +74,13 @@ inferBinOp op c1Props c2Props = do
   opType     <- inferVectorTypeBinOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) op
   opConst    <- inferConstVecBinOp (constProp c1Props) (constProp c2Props) op
   opCard     <- inferCardOneBinOp (card1Prop c1Props) (card1Prop c2Props) op
-  return $ BUProps { emptyProp = opEmpty
-                   , constProp = opConst
-                   , card1Prop = opCard
-                   , vectorTypeProp = opType }
+  opSeg      <- inferSegmentsBinOp (segProp c1Props) (segProp c2Props) op
+  return BUProps { emptyProp      = opEmpty
+                 , constProp      = opConst
+                 , card1Prop      = opCard
+                 , vectorTypeProp = opType
+                 , segProp        = opSeg
+                 }
 
 inferTerOp :: TerOp
            -> BottomUpProps
@@ -82,10 +92,13 @@ inferTerOp op c1Props c2Props c3Props = do
   opType     <- inferVectorTypeTerOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) (vectorTypeProp c3Props) op
   opConst    <- inferConstVecTerOp (constProp c1Props) (constProp c2Props) (constProp c3Props) op
   opCard     <- inferCardOneTerOp (card1Prop c1Props) (card1Prop c2Props) (card1Prop c3Props) op
-  return $ BUProps { emptyProp = opEmpty
-                   , constProp = opConst
-                   , card1Prop = opCard
-                   , vectorTypeProp = opType }
+  opSeg      <- inferSegmentsTerOp (segProp c1Props) (segProp c2Props) (segProp c3Props) op
+  return BUProps { emptyProp      = opEmpty
+                 , constProp      = opConst
+                 , card1Prop      = opCard
+                 , vectorTypeProp = opType
+                 , segProp        = opSeg
+                 }
 
 inferBottomUpProperties :: AlgebraDag VL -> NodeMap BottomUpProps
-inferBottomUpProperties dag = inferBottomUpGeneral inferWorker dag
+inferBottomUpProperties = inferBottomUpGeneral inferWorker

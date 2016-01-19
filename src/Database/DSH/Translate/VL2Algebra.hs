@@ -224,24 +224,12 @@ translateBinOp b c1 c2 = case b of
         (v, r1 ,r2) <- vecZipS (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
 
-    V.CartProduct -> do
-        (v, p1, p2) <- vecCartProduct (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
-
     V.CartProductS -> do
         (v, p1, p2) <- vecCartProductS (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.NestProductS -> do
         (v, p1, p2) <- vecNestProductS (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
-
-    V.NestProduct -> do
-        (v, p1, p2) <- vecNestProduct (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
-
-    V.NestJoin p -> do
-        (v, p1, p2) <- vecNestJoin p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.ThetaJoinS p -> do

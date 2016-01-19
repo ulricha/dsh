@@ -66,10 +66,7 @@ seed (BinOp op _ _) =
         AggrS _      -> vPropSeed
         Zip          -> vPropTripleSeed
         Align        -> vPropSeed
-        CartProduct  -> vPropTripleSeed
         CartProductS -> vPropTripleSeed
-        NestJoin _   -> vPropTripleSeed
-        NestProduct  -> vPropTripleSeed
         ThetaJoinS _ -> vPropTripleSeed
         SemiJoinS _  -> vPropPairSeed
         AntiJoinS _  -> vPropPairSeed

@@ -53,7 +53,6 @@ inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either Strin
 inferCardOneBinOp c1 c2 op =
   case op of
     AggrS _ -> return $ VProp False
-    NestProduct -> return $ VPropTriple False False False
     ReplicateNest -> return $ VPropPair False False
     ReplicateScalar -> unp c2 >>= (\uc -> return $ VPropPair uc uc)
     AppKey -> return $ VPropPair False False
@@ -66,10 +65,8 @@ inferCardOneBinOp c1 c2 op =
     AppendS -> Right $ VPropTriple False False False
     Zip ->  (||) <$> unp c1 <*> unp c2 >>= \p -> return $ VPropTriple p p p
     Align -> VProp <$> ((||) <$> unp c1 <*> unp c2)
-    CartProduct -> return $ VPropTriple False False False
     CartProductS -> return $ VPropTriple False False False
     NestProductS -> return $ VPropTriple False False False
-    NestJoin _ -> return $ VPropTriple False False False
     ThetaJoinS _ -> return $ VPropTriple False False False
     NestJoinS _ -> return $ VPropTriple False False False
     GroupJoin _ -> return $ VProp False

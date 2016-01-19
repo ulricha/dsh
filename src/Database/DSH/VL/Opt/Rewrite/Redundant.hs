@@ -154,11 +154,17 @@ unreferencedReplicateNest q =
 
 -- | Remove a ReplicateNest if the outer vector is aligned with a
 -- NestProduct that uses the same outer vector.
+-- FIXME try to generalize to NestProductS
 distLiftNestProduct :: VLRule BottomUpProps
 distLiftNestProduct q =
-  $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestProduct (qi))))"
+  $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestProductS (qi))))"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
+
+        -- Only allow the rewrite if both product inputs are flat (i.e. unit
+        -- segment). This is equivalent to the old flat NestProduct rewrite.
+        VProp UnitSeg <- segProp <$> properties $(v "qo1")
+        VProp UnitSeg <- segProp <$> properties $(v "qi")
 
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
@@ -167,17 +173,23 @@ distLiftNestProduct q =
             logRewrite "Redundant.ReplicateNest.NestProduct" q
             -- Preserve the original schema
             let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
-            prodNode <- insert $ BinOp NestProduct $(v "qo") $(v "qi")
+            prodNode <- insert $ BinOp NestProductS $(v "qo") $(v "qi")
             r1Node   <- insert $ UnOp R1 prodNode
             void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
 -- | Remove a ReplicateNest if the outer vector is aligned with a
 -- NestJoin that uses the same outer vector.
+-- FIXME try to generalize to NestJoinS
 distLiftNestJoin :: VLRule BottomUpProps
 distLiftNestJoin q =
-  $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestJoin p (qi))))"
+  $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestJoinS p (qi))))"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
+
+        -- Only allow the rewrite if both product inputs are flat (i.e. unit
+        -- segment). This is equivalent to the old flat NestProduct rewrite.
+        VProp UnitSeg <- segProp <$> properties $(v "qo1")
+        VProp UnitSeg <- segProp <$> properties $(v "qi")
 
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
@@ -186,7 +198,7 @@ distLiftNestJoin q =
             logRewrite "Redundant.ReplicateNest.NestJoin" q
             -- Preserve the original schema
             let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
-            prodNode <- insert $ BinOp (NestJoin $(v "p")) $(v "qo") $(v "qi")
+            prodNode <- insert $ BinOp (NestJoinS $(v "p")) $(v "qo") $(v "qi")
             r1Node   <- insert $ UnOp R1 prodNode
             void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
@@ -751,13 +763,13 @@ alignUnboxSngLeft q =
 -- input) must be aligned as well.
 alignCartProdRight :: VLRule BottomUpProps
 alignCartProdRight q =
-  $(dagPatMatch 'q "(q11) Align (R1 ((q12) CartProduct (q2)))"
+  $(dagPatMatch 'q "(q11) Align (R1 ((q12) CartProductS (q2)))"
     [| do
         VProp True <- card1Prop <$> properties $(v "q2")
         return $ do
             logRewrite "Redundant.Align.CartProduct.Card1.Right" q
             alignNode <- insert $ BinOp Align $(v "q11") $(v "q12")
-            prodNode  <- insert $ BinOp CartProduct alignNode $(v "q2")
+            prodNode  <- insert $ BinOp CartProductS alignNode $(v "q2")
             void $ replaceWithNew q $ UnOp R1 prodNode |])
 
 --------------------------------------------------------------------------------
@@ -846,7 +858,7 @@ pullProjectGroupJoinRight q =
 
 pullProjectNestJoinLeft :: VLRule BottomUpProps
 pullProjectNestJoinLeft q =
-  $(dagPatMatch 'q "R1 ((Project proj (q1)) NestJoin p (q2))"
+  $(dagPatMatch 'q "R1 ((Project proj (q1)) NestJoinS p (q2))"
     [| do
         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
         rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
@@ -856,7 +868,7 @@ pullProjectNestJoinLeft q =
             let proj' = $(v "proj") ++ map Column [leftWidth + 1 .. leftWidth + rightWidth]
                 p'    = inlineJoinPredLeft (zip [1..] $(v "proj")) $(v "p")
 
-            joinNode <- insert $ BinOp (NestJoin p') $(v "q1") $(v "q2")
+            joinNode <- insert $ BinOp (NestJoinS p') $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 joinNode
             void $ replaceWithNew q $ UnOp (Project proj') r1Node
 
@@ -865,7 +877,7 @@ pullProjectNestJoinLeft q =
 
 pullProjectNestJoinRight :: VLRule BottomUpProps
 pullProjectNestJoinRight q =
-  $(dagPatMatch 'q "R1 ((q1) NestJoin p (Project proj (q2)))"
+  $(dagPatMatch 'q "R1 ((q1) NestJoinS p (Project proj (q2)))"
     [| do
         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
@@ -874,7 +886,7 @@ pullProjectNestJoinRight q =
             let proj' = map Column [1..leftWidth] ++ map (shiftExprCols leftWidth) $(v "proj")
                 p'    = inlineJoinPredRight (zip [1..] $(v "proj")) $(v "p")
 
-            joinNode <- insert $ BinOp (NestJoin p') $(v "q1") $(v "q2")
+            joinNode <- insert $ BinOp (NestJoinS p') $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 joinNode
             void $ replaceWithNew q $ UnOp (Project proj') r1Node
 
@@ -1064,15 +1076,23 @@ pullProjectAggrS q =
 -- tuples in 'ys', but only with those that survive the (outer) join with 'xs'.
 -- As usual, a proper join tree should give the engine the freedom to re-arrange
 -- the joins and drive them in a pipelined manner.
+-- FIXME Generalize to NestJoinS
 nestJoinChain :: VLRule BottomUpProps
 nestJoinChain q =
-  $(dagPatMatch 'q "R1 ((R3 (lj=(xs) NestJoin _ (ys))) AppRep (R1 ((ys1) NestJoin p (zs))))"
+  $(dagPatMatch 'q "R1 ((R3 (lj=(xs) NestJoinS _ (ys))) AppRep (R1 ((ys1) NestJoinS p (zs))))"
    [| do
+       predicate $ $(v "ys") == $(v "ys1")
+
+       -- Only allow the rewrite if all join inputs are flat (i.e. unit
+       -- segment). This is equivalent to the old flat NestJoin rewrite.
+       VProp UnitSeg <- segProp <$> properties $(v "xs")
+       VProp UnitSeg <- segProp <$> properties $(v "ys")
+       VProp UnitSeg <- segProp <$> properties $(v "zs")
+
        xsWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "xs")
        ysWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "ys")
        zsWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "zs")
 
-       predicate $ $(v "ys") == $(v "ys1")
        return $ do
          logRewrite "Redundant.Prop.NestJoinChain" q
 
@@ -1088,7 +1108,7 @@ nestJoinChain q =
          -- The R1 node on the left nest join might already exist, but
          -- we simply rely on hash consing.
          leftJoinR1  <- insert $ UnOp R1 $(v "lj")
-         rightJoin   <- insert $ BinOp (NestJoin p') leftJoinR1 $(v "zs")
+         rightJoin   <- insert $ BinOp (NestJoinS p') leftJoinR1 $(v "zs")
          rightJoinR1 <- insert $ UnOp R1 rightJoin
 
          -- Because the original produced only the columns of ys and

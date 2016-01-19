@@ -129,12 +129,9 @@ inferVectorTypeBinOp s1 s2 op =
             _                                            ->
                 Left "Inputs of PairL are not VTDataVecs"
     ZipS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ZipL"
-    CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "CartProduct"
     CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "CartProductS"
     NestProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestProductS"
     UnboxSng -> reqValVectors s1 s2 (\w1 w2 -> VPropPair (VTDataVec $ w1 + w2) VTNA) "UnboxSng"
-    NestJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestJoin"
-    NestProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestProduct"
     ThetaJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ThetaJoinS"
     NestJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestJoinS"
     GroupJoin _ -> do
