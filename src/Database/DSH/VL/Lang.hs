@@ -74,6 +74,7 @@ $(deriveJSON defaultOptions ''NullOp)
 
 data UnOp = UnboxKey
           | Segment
+          | Unsegment
           | Nest
 
           | R1

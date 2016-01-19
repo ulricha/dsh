@@ -49,6 +49,10 @@ class VectorAlgebra a where
     -- its own segment.
     vecSegment :: DVec a -> Build a (DVec a)
 
+    -- | Turn a vector with multiple vectors into a vector with only the unit
+    -- segment.
+    vecUnsegment :: DVec a -> Build a (DVec a)
+
     vecAggr :: AggrFun -> DVec a -> Build a (DVec a)
     vecAggrS :: AggrFun -> DVec a -> DVec a -> Build a (DVec a)
 

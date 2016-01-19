@@ -285,6 +285,7 @@ translateUnOp unop c = case unop of
     V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
     V.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
     V.Segment          -> fromDVec <$> vecSegment (toDVec c)
+    V.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
         return $ RLPair (fromDVec d) (fromFVec r)

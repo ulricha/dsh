@@ -135,6 +135,10 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             cols <- fromProp ownReqColumns
             VProp cols ∪ childReqColumns
 
+        Unsegment    -> do
+            cols <- fromProp ownReqColumns
+            VProp cols ∪ childReqColumns
+
         -- Numbering operators add one column at the end. We have to
         -- determine the column index of the new column and remove it
         -- from the set of required columns

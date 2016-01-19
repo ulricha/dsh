@@ -224,7 +224,7 @@ dist (VShape dv lyt) (VShape dvo lyto) = do
 dist _ _ = $impossible
 
 only :: Shape VLDVec -> Build VL (Shape VLDVec)
-only (VShape _ (LNest qi lyti)) = return $ VShape qi lyti
+only (VShape _ (LNest qi lyti)) = VShape <$> vlUnsegment qi <*> pure lyti
 only (VShape q lyt)             = return $ SShape q lyt
 only _                          = $impossible
 
@@ -279,7 +279,7 @@ tupElem i (SShape q (LTuple lyts)) =
 tupElem _ _ = $impossible
 
 concat :: Shape VLDVec -> Build VL (Shape VLDVec)
-concat (VShape _ (LNest q lyt)) = return $ VShape q lyt
+concat (VShape _ (LNest q lyt)) = VShape <$> vlUnsegment q <*> pure lyt
 concat _e                       = $impossible
 
 --------------------------------------------------------------------------------
