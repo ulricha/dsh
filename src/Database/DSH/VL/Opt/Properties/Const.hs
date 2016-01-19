@@ -300,14 +300,6 @@ inferConstVecBinOp c1 c2 op =
       let constCols = cols1 ++ cols2
       return $ VPropTriple (ConstVec constCols) CNA CNA
 
-    ThetaJoin _ -> do
-      cols1 <- unp c1 >>= fromDBV
-      cols2 <- unp c2 >>= fromDBV
-
-      let constCols = cols1 ++ cols2
-
-      return $ VPropTriple (ConstVec constCols) CNA CNA
-
     ThetaJoinS _ -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
@@ -320,15 +312,7 @@ inferConstVecBinOp c1 c2 op =
       let constCols = cols1 ++ cols2
       return $ VPropTriple (ConstVec constCols) CNA CNA
 
-    SemiJoin _ -> do
-      cols1 <- unp c1 >>= fromDBV
-      return $ VPropPair (ConstVec cols1) CNA
-
     SemiJoinS _ -> do
-      cols1 <- unp c1 >>= fromDBV
-      return $ VPropPair (ConstVec cols1) CNA
-
-    AntiJoin _ -> do
       cols1 <- unp c1 >>= fromDBV
       return $ VPropPair (ConstVec cols1) CNA
 

@@ -244,12 +244,6 @@ vlCartProductS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlCartProductS (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp CartProductS c1 c2) dvec rvec rvec
 
-vlThetaJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
-vlThetaJoin joinPred (VLDVec c1) (VLDVec c2) =
-    tripleVec (BinOp (ThetaJoin joinPred') c1 c2) dvec rvec rvec
-  where
-    joinPred' = toVLJoinPred joinPred
-
 vlNestJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlNestJoin joinPred (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp (NestJoin joinPred') c1 c2) dvec rvec rvec
@@ -271,21 +265,9 @@ vlNestJoinS joinPred (VLDVec c1) (VLDVec c2) =
 vlNestProductS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlNestProductS (VLDVec c1) (VLDVec c2) = tripleVec (BinOp NestProductS c1 c2) dvec rvec rvec
 
-vlSemiJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
-vlSemiJoin joinPred (VLDVec c1) (VLDVec c2) =
-    pairVec (BinOp (SemiJoin joinPred') c1 c2) dvec fvec
-  where
-    joinPred' = toVLJoinPred joinPred
-
 vlSemiJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
 vlSemiJoinS joinPred (VLDVec c1) (VLDVec c2) =
     pairVec (BinOp (SemiJoinS joinPred') c1 c2) dvec fvec
-  where
-    joinPred' = toVLJoinPred joinPred
-
-vlAntiJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
-vlAntiJoin joinPred (VLDVec c1) (VLDVec c2) =
-    pairVec (BinOp (AntiJoin joinPred') c1 c2) dvec fvec
   where
     joinPred' = toVLJoinPred joinPred
 

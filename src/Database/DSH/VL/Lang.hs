@@ -114,11 +114,8 @@ data BinOp = ReplicateNest
            | ZipS
            | CartProduct
            | CartProductS
-           | ThetaJoin (L.JoinPredicate Expr)
            | ThetaJoinS (L.JoinPredicate Expr)
-           | SemiJoin (L.JoinPredicate Expr)
            | SemiJoinS (L.JoinPredicate Expr)
-           | AntiJoin (L.JoinPredicate Expr)
            | AntiJoinS (L.JoinPredicate Expr)
            | NestJoin (L.JoinPredicate Expr)
            | NestJoinS (L.JoinPredicate Expr)

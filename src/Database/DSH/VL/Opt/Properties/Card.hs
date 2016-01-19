@@ -69,14 +69,11 @@ inferCardOneBinOp c1 c2 op =
     CartProduct -> return $ VPropTriple False False False
     CartProductS -> return $ VPropTriple False False False
     NestProductS -> return $ VPropTriple False False False
-    ThetaJoin _ -> return $ VPropTriple False False False
     NestJoin _ -> return $ VPropTriple False False False
     ThetaJoinS _ -> return $ VPropTriple False False False
     NestJoinS _ -> return $ VPropTriple False False False
     GroupJoin _ -> return $ VProp False
-    SemiJoin _ -> return $ VPropPair False False
     SemiJoinS _ -> return $ VPropPair False False
-    AntiJoin _ -> return $ VPropPair False False
     AntiJoinS _ -> return $ VPropPair False False
     ZipS -> do
       c <- (||) <$> unp c1 <*> unp c2

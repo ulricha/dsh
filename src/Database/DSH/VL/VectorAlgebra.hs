@@ -122,17 +122,11 @@ class VectorAlgebra a where
     vecNestProduct :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecNestProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
 
-    vecThetaJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecNestJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecThetaJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecNestJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-
-    vecGroupJoin :: JoinPredicate Expr -> AggrFun -> DVec a -> DVec a -> Build a (DVec a)
-
-    vecSemiJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
     vecSemiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
-
-    vecAntiJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
     vecAntiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
+    vecGroupJoin :: JoinPredicate Expr -> AggrFun -> DVec a -> DVec a -> Build a (DVec a)
 
     vecCombine :: DVec a -> DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)

@@ -294,13 +294,6 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols1
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
-      ThetaJoin p -> do
-          (cols1, _, _)               <- fromPropTriple ownReqColumns
-          (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
-          leftReqCols'                <- (VProp $ Just $ reqLeftPredCols p) ∪ leftReqCols
-          rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
-          (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
-
       UnboxSng -> do
           cols1                       <- fst <$> fromPropPair ownReqColumns
           (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
@@ -357,23 +350,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
 
       -- For a semijoin, we only require the columns used in the join argument
       -- from the right input.
-      SemiJoin p -> do
-          cols1     <- fst <$> fromPropPair ownReqColumns
-          fromLeft  <- ((VProp $ Just $ reqLeftPredCols p) ∪ VProp cols1) >>= (∪ childReqColumns1)
-          fromRight <- (VProp $ Just $ reqRightPredCols p) ∪ childReqColumns2
-          return (fromLeft, fromRight)
-
-      -- For a semijoin, we only require the columns used in the join argument
-      -- from the right input.
       SemiJoinS p -> do
-          cols1     <- fst <$> fromPropPair ownReqColumns
-          fromLeft  <- ((VProp $ Just $ reqLeftPredCols p) ∪ VProp cols1) >>= (∪ childReqColumns1)
-          fromRight <- (VProp $ Just $ reqRightPredCols p) ∪ childReqColumns2
-          return (fromLeft, fromRight)
-
-      -- For a antijoin, we only require the columns used in the join argument
-      -- from the right input.
-      AntiJoin p -> do
           cols1     <- fst <$> fromPropPair ownReqColumns
           fromLeft  <- ((VProp $ Just $ reqLeftPredCols p) ∪ VProp cols1) >>= (∪ childReqColumns1)
           fromRight <- (VProp $ Just $ reqRightPredCols p) ∪ childReqColumns2

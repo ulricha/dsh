@@ -68,13 +68,10 @@ seed (BinOp op _ _) =
         Align        -> vPropSeed
         CartProduct  -> vPropTripleSeed
         CartProductS -> vPropTripleSeed
-        ThetaJoin _  -> vPropTripleSeed
         NestJoin _   -> vPropTripleSeed
         NestProduct  -> vPropTripleSeed
         ThetaJoinS _ -> vPropTripleSeed
-        SemiJoin _   -> vPropPairSeed
         SemiJoinS _  -> vPropPairSeed
-        AntiJoin _   -> vPropPairSeed
         AntiJoinS _  -> vPropPairSeed
         NestJoinS _  -> vPropTripleSeed
         GroupJoin _  -> vPropSeed

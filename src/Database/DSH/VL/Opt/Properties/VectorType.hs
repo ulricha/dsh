@@ -132,7 +132,6 @@ inferVectorTypeBinOp s1 s2 op =
     CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "CartProduct"
     CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "CartProductS"
     NestProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestProductS"
-    ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ThetaJoin"
     UnboxSng -> reqValVectors s1 s2 (\w1 w2 -> VPropPair (VTDataVec $ w1 + w2) VTNA) "UnboxSng"
     NestJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestJoin"
     NestProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestProduct"
@@ -141,9 +140,7 @@ inferVectorTypeBinOp s1 s2 op =
     GroupJoin _ -> do
         VTDataVec w <- unpack s1
         return $ VProp $ VTDataVec $ w + 1
-    SemiJoin _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
     SemiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
-    AntiJoin _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
     AntiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
 
 inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)

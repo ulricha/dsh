@@ -1127,7 +1127,7 @@ notReqNumber q =
 -- product operators' inputs into a join.
 selectCartProd :: VLRule BottomUpProps
 selectCartProd q =
-  $(dagPatMatch 'q "R1 (Select p (R1 ((q1) CartProduct (q2))))"
+  $(dagPatMatch 'q "R1 (Select p (R1 ((q1) CartProductS (q2))))"
     [| do
         wl <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
         BinApp (SBRelOp op) (Column lc) (Column rc)  <- return $(v "p")
@@ -1140,7 +1140,7 @@ selectCartProd q =
         return $ do
             logRewrite "Redundant.Relational.Join" q
             let joinPred = singlePred $ JoinConjunct (Column lc) op (Column $ rc - wl)
-            joinNode <- insert $ BinOp (ThetaJoin joinPred) $(v "q1") $(v "q2")
+            joinNode <- insert $ BinOp (ThetaJoinS joinPred) $(v "q1") $(v "q2")
             void $ replaceWithNew q $ UnOp R1 joinNode |])
 
 --------------------------------------------------------------------------------
@@ -1172,7 +1172,7 @@ pushAggrSSelect q =
 -- consequence of a ThetaJoin operator.
 pushAggrSThetaJoinRight :: VLRule ()
 pushAggrSThetaJoinRight q =
-    $(dagPatMatch 'q "(R1 (qj1)) AggrS args (R1 ((qr3=R3 (qj2=(_) ThetaJoin _ (qo2))) AppRep (qi)))"
+    $(dagPatMatch 'q "(R1 (qj1)) AggrS args (R1 ((qr3=R3 (qj2=(_) ThetaJoinS _ (qo2))) AppRep (qi)))"
       [| do
           predicate $ $(v "qj1") == $(v "qj2")
           return $ do
@@ -1201,7 +1201,7 @@ pushUnboxSngSelect q =
 -- improvement because the replication join is no longer necessary.
 pushUnboxSngThetaJoinRight :: VLRule BottomUpProps
 pushUnboxSngThetaJoinRight q =
-    $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qj1=(qo1) ThetaJoin p (qo2))) UnboxSng (R1 ((R3 (qj2)) AppRep (qi))))"
+    $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qj1=(qo1) ThetaJoinS p (qo2))) UnboxSng (R1 ((R3 (qj2)) AppRep (qi))))"
       [| do
           predicate $ $(v "qj1") == $(v "qj2")
           w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo1")
@@ -1212,7 +1212,7 @@ pushUnboxSngThetaJoinRight q =
               -- Insert unboxing in the right input of the join.
               unboxNode   <- insert $ BinOp UnboxSng $(v "qo2") $(v "qi")
               r1UnboxNode <- insert $ UnOp R1 unboxNode
-              joinNode    <- insert $ BinOp (ThetaJoin $(v "p")) $(v "qo1") r1UnboxNode
+              joinNode    <- insert $ BinOp (ThetaJoinS $(v "p")) $(v "qo1") r1UnboxNode
               r1JoinNode  <- insert $ UnOp R1 joinNode
               replace q r1JoinNode
 

@@ -156,20 +156,14 @@ opDotLabel tm i (BinOp ZipS _ _) = labelToDoc i "ZipS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp CartProduct _ _) = labelToDoc i "CartProduct" empty (lookupTags i tm)
 opDotLabel tm i (BinOp CartProductS _ _) = labelToDoc i "CartProductS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp NestProductS _ _) = labelToDoc i "NestProductS" empty (lookupTags i tm)
-opDotLabel tm i (BinOp (ThetaJoin p) _ _) =
-  labelToDoc i "ThetaJoin" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (NestJoin p) _ _) =
   labelToDoc i "NestJoin" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (ThetaJoinS p) _ _) =
   labelToDoc i "ThetaJoinS" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (NestJoinS p) _ _) =
   labelToDoc i "NestJoinS" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (SemiJoin p) _ _) =
-  labelToDoc i "SemiJoin" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (SemiJoinS p) _ _) =
   labelToDoc i "SemiJoinS" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (AntiJoin p) _ _) =
-  labelToDoc i "AntiJoin" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (AntiJoinS p) _ _) =
   labelToDoc i "AntiJoinS" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (GroupJoin (p, a)) _ _) =
@@ -181,13 +175,10 @@ opDotColor (BinOp NestProduct _ _)     = DCRed
 opDotColor (BinOp CartProduct _ _)     = DCRed
 opDotColor (BinOp CartProductS _ _)    = DCRed
 opDotColor (BinOp NestProductS _ _)    = DCRed
-opDotColor (BinOp (ThetaJoin _) _ _)   = DCGreen
 opDotColor (BinOp (NestJoin _) _ _)    = DCGreen
 opDotColor (BinOp (ThetaJoinS _) _ _)  = DCGreen
 opDotColor (BinOp (NestJoinS _) _ _)   = DCGreen
-opDotColor (BinOp (SemiJoin _) _ _)    = DCGreen
 opDotColor (BinOp (SemiJoinS _) _ _)   = DCGreen
-opDotColor (BinOp (AntiJoin _) _ _)    = DCGreen
 opDotColor (BinOp (AntiJoinS _) _ _)   = DCGreen
 opDotColor (BinOp (GroupJoin _) _ _)   = DCGreen
 opDotColor (BinOp Zip _ _)             = DCYelloGreen
