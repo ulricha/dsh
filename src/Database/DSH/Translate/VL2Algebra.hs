@@ -296,5 +296,5 @@ translateUnOp unop c = case unop of
 translateNullary :: VectorAlgebra a
                  => V.NullOp
                  -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
-translateNullary (V.Lit (_, tys, vals))    = fromDVec <$> vecLit tys vals
-translateNullary (V.TableRef (n, schema))  = fromDVec <$> vecTableRef n schema
+translateNullary (V.Lit (tys, vals))      = fromDVec <$> vecLit tys vals
+translateNullary (V.TableRef (n, schema)) = fromDVec <$> vecTableRef n schema

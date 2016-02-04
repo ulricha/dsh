@@ -110,7 +110,7 @@ opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc
 opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "WinAggr"
     (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
     (lookupTags i tm)
-opDotLabel tm i (NullaryOp (Lit (_, tys, vals))) = labelToDoc i "LIT"
+opDotLabel tm i (NullaryOp (Lit (tys, vals))) = labelToDoc i "LIT"
         (bracketList renderColumnType tys <> comma
         <$> renderData vals) (lookupTags i tm)
 opDotLabel tm i (NullaryOp (TableRef (n, schema))) =

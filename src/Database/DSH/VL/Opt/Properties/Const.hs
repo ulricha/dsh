@@ -105,7 +105,7 @@ inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
   case op of
     -- do not include the first two columns in the payload columns because they represent descr and pos.
-    Lit (_, colTypes, rows)      ->
+    Lit (colTypes, rows)      ->
       if null rows
       then return $ VProp $ ConstVec $ map (const NonConstPL) colTypes
       else return $ VProp $ ConstVec constCols

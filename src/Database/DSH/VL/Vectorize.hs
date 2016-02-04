@@ -505,16 +505,13 @@ mkLiteral ::  Type -> L.Val -> Build VL (Shape VLDVec)
 -- Translate an outer list
 mkLiteral t@(ListT _) (L.ListV es) = do
     ((tabTys, tabCols), lyt, _) <- toPlan (mkDescriptor [P.length es]) t 1 es
-    let emptinessFlag = case es of
-          []    -> L.PossiblyEmpty
-          _ : _ -> L.NonEmpty
-    litNode <- vlLit emptinessFlag (P.reverse tabTys) $ map P.reverse tabCols
+    litNode <- vlLit (P.reverse tabTys) $ map P.reverse tabCols
     return $ VShape litNode lyt
 -- Translate a non-list value, i.e. scalar or tuple
 mkLiteral t e           = do
     -- There is only one element in the outermost vector
     ((tabTys, [tabCols]), layout, _) <- toPlan (mkDescriptor [1]) (ListT t) 1 [e]
-    litNode <- vlLit L.NonEmpty (P.reverse tabTys) [P.reverse tabCols]
+    litNode <- vlLit (P.reverse tabTys) [P.reverse tabCols]
     return $ SShape litNode layout
 
 type Table = ([Type], [[L.ScalarVal]])
@@ -536,7 +533,7 @@ toPlan (tabTys, tabCols) (ListT t) nextCol es =
                 d  = mkDescriptor $ map P.length vs
             -- Add the inner list elements to the vector
             ((innerTabTys, innerTabCols), lyt, _) <- toPlan d t 1 (P.concat vs)
-            n <- vlLit L.PossiblyEmpty (P.reverse innerTabTys) (map P.reverse innerTabCols)
+            n <- vlLit (P.reverse innerTabTys) (map P.reverse innerTabCols)
             return ((tabTys, tabCols), LNest n lyt, nextCol)
 
         TupleT elemTys -> do
@@ -569,7 +566,7 @@ mkTupleTable tab nextCol lyts []                   []       =
 mkTupleTable _   _       _    _                    _        = $impossible
 
 literal :: Type -> L.ScalarVal -> Build VL VLDVec
-literal t v = vlLit L.NonEmpty [t] [[L.IntV 1, L.IntV 1, v]]
+literal t v = vlLit [t] [[L.IntV 1, L.IntV 1, v]]
 
 listElems :: L.Val -> [L.Val]
 listElems (L.ListV es) = es

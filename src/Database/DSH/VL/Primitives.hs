@@ -203,8 +203,8 @@ vlCombine :: VLDVec -> VLDVec -> VLDVec -> Build VL (VLDVec, VLKVec, VLKVec)
 vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) =
     tripleVec (TerOp Combine c1 c2 c3) dvec kvec kvec
 
-vlLit :: L.Emptiness -> [Ty.Type] -> [[L.ScalarVal]] -> Build VL VLDVec
-vlLit em tys vals = vec (NullaryOp $ Lit (em, map typeToScalarType tys, vals)) dvec
+vlLit :: [Ty.Type] -> [[L.ScalarVal]] -> Build VL VLDVec
+vlLit tys vals = vec (NullaryOp $ Lit (map typeToScalarType tys, vals)) dvec
 
 vlTableRef :: String -> L.BaseTableSchema -> Build VL VLDVec
 vlTableRef n schema = vec (NullaryOp $ TableRef (n, schema)) dvec

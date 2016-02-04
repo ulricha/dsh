@@ -21,10 +21,10 @@ inferSegmentsNullOp :: NullOp -> Either String (VectorProp Segments)
 inferSegmentsNullOp op =
   case op of
     -- Check wether all rows are in the unit segment
-    Lit (_, _, rows) -> pure $ VProp $ if all (== IntV 1) $ head $ transpose rows
-                                       then UnitSeg
-                                       else Segd
-    TableRef _       -> pure $ VProp UnitSeg
+    Lit (_, rows) -> pure $ VProp $ if all (== IntV 1) $ head $ transpose rows
+                                    then UnitSeg
+                                    else Segd
+    TableRef _    -> pure $ VProp UnitSeg
 
 flatInputs :: Segments -> Segments -> Either String Segments
 flatInputs UnitSeg UnitSeg = pure UnitSeg
