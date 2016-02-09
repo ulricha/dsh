@@ -29,7 +29,7 @@ class VectorAlgebra a where
     vecNest :: DVec a -> Build a (DVec a, DVec a)
 
     -- | A vector representing a literal list.
-    vecLit :: [ScalarType] -> [[ScalarVal]] -> Build a (DVec a)
+    vecLit :: [ScalarType] -> SegFrame -> Segments -> Build a (DVec a)
 
     -- | A reference to a database-resident table.
     vecTableRef :: String -> BaseTableSchema -> Build a (DVec a)

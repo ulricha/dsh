@@ -59,7 +59,7 @@ renderColumnType = text . show
 
 renderData :: [[ScalarVal]] -> Doc
 renderData [] = brackets empty
-renderData xs = (flip (<>) semi . sep . punctuate semi . map renderRow) xs
+renderData xs = flip (<>) semi $ sep $ punctuate semi $ map renderRow xs
 
 renderRow :: [ScalarVal] -> Doc
 renderRow = hcat . punctuate comma . map pretty
@@ -105,14 +105,25 @@ parenthize1 e@BinApp{}     = parens $ renderExpr e
 parenthize1 e@UnApp{}      = parens $ renderExpr e
 parenthize1 e@If{}         = renderExpr e
 
+renderSegments :: Segments -> Doc
+renderSegments (UnitSeg cols) = renderColumns cols
+renderSegments (Segs segs)    = vcat $ map renderSegment segs
+
+renderSegment :: Segment -> Doc
+renderSegment s = brackets $ renderColumns $ segCols s
+
+renderColumns :: [Column] -> Doc
+renderColumns cols = renderData $ transpose cols
+
 -- | Create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc
 opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "WinAggr"
     (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
     (lookupTags i tm)
-opDotLabel tm i (NullaryOp (Lit (tys, vals))) = labelToDoc i "LIT"
+opDotLabel tm i (NullaryOp (Lit (tys, frame, segs))) = labelToDoc i "LIT"
         (bracketList renderColumnType tys <> comma
-        <$> renderData vals) (lookupTags i tm)
+        <$> text "frame: " <> int (frameLen frame) <> comma
+        <$> renderSegments segs) (lookupTags i tm)
 opDotLabel tm i (NullaryOp (TableRef (n, schema))) =
     labelToDoc i "TableScan"
                  (text n <> text "\n"

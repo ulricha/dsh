@@ -64,9 +64,25 @@ $(deriveJSON defaultOptions ''FrameSpec)
 
 --------------------------------------------------------------------------------
 -- Vector Language operators. Documentation can be found in module
--- VectorPrimitives.
+-- VectorAlgebra.
 
-data NullOp = Lit ([ScalarType], [[L.ScalarVal]])
+type Column = [L.ScalarVal]
+
+newtype Segment = Seg { segCols :: [Column] } deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''Segment)
+
+newtype SegFrame = SegFrame { frameLen :: Int } deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''SegFrame)
+
+data Segments = UnitSeg [Column]
+              | Segs [Segment]
+              deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''Segments)
+
+data NullOp = Lit ([ScalarType], SegFrame, Segments)
             | TableRef (String, L.BaseTableSchema)
             deriving (Eq, Ord, Show)
 

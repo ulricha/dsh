@@ -47,7 +47,7 @@ fkl2VL expr =
             local (bind n e1') $ fkl2VL e
         Table _ n schema -> do
             lift $ V.dbTable n schema
-        Const t v -> lift $ V.mkLiteral t v
+        Const t v -> lift $ V.shredLiteral t v
         BinOp _ o NotLifted e1 e2    -> do
             s1 <- fkl2VL e1
             s2 <- fkl2VL e2

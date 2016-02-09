@@ -32,14 +32,14 @@ data ConstVec = ConstVec [ConstPayload]
               | CNA
               deriving (Show)
 
-data Segments = UnitSeg | Segd | NA deriving (Show)
+data SegP = UnitSegP | SegdP | SegNAP deriving (Show)
 
 data BottomUpProps = BUProps
     { emptyProp      :: VectorProp Bool
     , constProp      :: VectorProp ConstVec
     , card1Prop      :: VectorProp Bool
     , vectorTypeProp :: VectorProp VectorType
-    , segProp        :: VectorProp Segments
+    , segProp        :: VectorProp SegP
     } deriving (Show)
 
 type ReqCols = Maybe [DBCol]

@@ -17,37 +17,38 @@ import Database.DSH.VL.Opt.Properties.Common
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Segments"
 
-inferSegmentsNullOp :: NullOp -> Either String (VectorProp Segments)
+inferSegmentsNullOp :: NullOp -> Either String (VectorProp SegP)
 inferSegmentsNullOp op =
   case op of
     -- Check wether all rows are in the unit segment
-    Lit (_, rows) -> pure $ VProp $ if all (== IntV 1) $ head $ transpose rows
-                                    then UnitSeg
-                                    else Segd
-    TableRef _    -> pure $ VProp UnitSeg
+    Lit (_, _, seg) ->
+        case seg of
+            UnitSeg _ -> pure $ VProp UnitSegP
+            Segs _    -> pure $ VProp SegdP
+    TableRef _    -> pure $ VProp UnitSegP
 
-flatInputs :: Segments -> Segments -> Either String Segments
-flatInputs UnitSeg UnitSeg = pure UnitSeg
-flatInputs Segd    Segd    = pure Segd
-flatInputs NA      _       = throwError "Properties.Segments: unexpected NA input"
-flatInputs _       NA      = throwError "Properties.Segments: unexpected NA input"
+flatInputs :: SegP -> SegP -> Either String SegP
+flatInputs UnitSegP UnitSegP = pure UnitSegP
+flatInputs SegdP    SegdP    = pure SegdP
+flatInputs SegNAP      _       = throwError "Properties.Segments: unexpected SegNAP input"
+flatInputs _       SegNAP      = throwError "Properties.Segments: unexpected SegNAP input"
 flatInputs _       _       = throwError "Properties.Segments: inconsistent inputs"
 
-inferSegmentsUnOp :: VectorProp Segments -> UnOp -> Either String (VectorProp Segments)
+inferSegmentsUnOp :: VectorProp SegP -> UnOp -> Either String (VectorProp SegP)
 inferSegmentsUnOp c op =
   case op of
     UniqueS     -> pure c
-    Aggr _      -> pure $ VProp UnitSeg
+    Aggr _      -> pure $ VProp UnitSegP
     WinFun _    -> pure c
     UnboxKey    -> pure c
-    Segment     -> pure $ VProp Segd
-    Unsegment   -> pure $ VProp UnitSeg
-    Nest        -> pure $ VPropPair UnitSeg Segd
+    Segment     -> pure $ VProp SegdP
+    Unsegment   -> pure $ VProp UnitSegP
+    Nest        -> pure $ VPropPair UnitSegP SegdP
     Project _   -> pure c
-    ReverseS    -> [ VPropPair f NA | f <- unp c ]
-    Select _    -> [ VPropPair f NA | f <- unp c ]
-    SortS _     -> [ VPropPair f NA | f <- unp c ]
-    GroupS _    -> [ VPropTriple f Segd NA | f <- unp c ]
+    ReverseS    -> [ VPropPair f SegNAP | f <- unp c ]
+    Select _    -> [ VPropPair f SegNAP | f <- unp c ]
+    SortS _     -> [ VPropPair f SegNAP | f <- unp c ]
+    GroupS _    -> [ VPropTriple f SegdP SegNAP | f <- unp c ]
     GroupAggr _ -> pure c
     NumberS     -> pure c
     R1          ->
@@ -65,31 +66,31 @@ inferSegmentsUnOp c op =
         VPropTriple _ _ b -> pure $ VProp b
         _                 -> throwError "Properties.Card: not a triple"
 
-inferSegmentsBinOp :: VectorProp Segments -> VectorProp Segments -> BinOp -> Either String (VectorProp Segments)
+inferSegmentsBinOp :: VectorProp SegP -> VectorProp SegP -> BinOp -> Either String (VectorProp SegP)
 inferSegmentsBinOp c1 c2 op =
   case op of
-    AggrS _         -> pure $ VProp Segd
-    ReplicateNest   -> pure $ VPropPair Segd NA
-    ReplicateScalar -> [ VPropPair f NA | f <- unp c2 ]
-    AppKey          -> pure $ VPropPair Segd NA
-    AppSort         -> pure $ VPropPair Segd NA
-    AppFilter       -> pure $ VPropPair Segd NA
-    AppRep          -> pure $ VPropPair Segd NA
-    UnboxSng        -> [ VPropPair f NA | f <- unp c2 ]
-    Append          -> pure $ VPropTriple UnitSeg NA NA
-    AppendS         -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure NA <*> pure NA | f1 <- unp c1, f2 <- unp c2 ]
+    AggrS _         -> pure $ VProp SegdP
+    ReplicateNest   -> pure $ VPropPair SegdP SegNAP
+    ReplicateScalar -> [ VPropPair f SegNAP | f <- unp c2 ]
+    AppKey          -> pure $ VPropPair SegdP SegNAP
+    AppSort         -> pure $ VPropPair SegdP SegNAP
+    AppFilter       -> pure $ VPropPair SegdP SegNAP
+    AppRep          -> pure $ VPropPair SegdP SegNAP
+    UnboxSng        -> [ VPropPair f SegNAP | f <- unp c2 ]
+    Append          -> pure $ VPropTriple UnitSegP SegNAP SegNAP
+    AppendS         -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
     Align           -> join [ VProp <$> flatInputs f1 f2 | f1 <- unp c1, f2 <- unp c2 ]
-    CartProductS    -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure NA <*> pure NA | f1 <- unp c1, f2 <- unp c2 ]
-    NestProductS    -> pure $ VPropTriple Segd NA NA
-    ThetaJoinS _    -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure NA <*> pure NA | f1 <- unp c1, f2 <- unp c2 ]
-    NestJoinS _     -> pure $ VPropTriple Segd NA NA
+    CartProductS    -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
+    NestProductS    -> pure $ VPropTriple SegdP SegNAP SegNAP
+    ThetaJoinS _    -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
+    NestJoinS _     -> pure $ VPropTriple SegdP SegNAP SegNAP
     GroupJoin _     -> join [ VProp <$> flatInputs f1 f2 | f1 <- unp c1, f2 <- unp c2 ]
-    SemiJoinS _     -> join [ VPropPair <$> flatInputs f1 f2 <*> pure NA | f1 <- unp c1, f2 <- unp c2 ]
-    AntiJoinS _     -> join [ VPropPair <$> flatInputs f1 f2 <*> pure NA | f1 <- unp c1, f2 <- unp c2 ]
-    Zip             -> pure $ VPropTriple UnitSeg NA NA
-    ZipS            -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure NA <*> pure NA | f1 <- unp c1, f2 <- unp c2 ]
+    SemiJoinS _     -> join [ VPropPair <$> flatInputs f1 f2 <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
+    AntiJoinS _     -> join [ VPropPair <$> flatInputs f1 f2 <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
+    Zip             -> pure $ VPropTriple UnitSegP SegNAP SegNAP
+    ZipS            -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
 
-inferSegmentsTerOp :: VectorProp Segments -> VectorProp Segments -> VectorProp Segments -> TerOp -> Either String (VectorProp Segments)
+inferSegmentsTerOp :: VectorProp SegP -> VectorProp SegP -> VectorProp SegP -> TerOp -> Either String (VectorProp SegP)
 inferSegmentsTerOp _ _ _ op =
   case op of
-    Combine -> pure $ VPropTriple Segd NA NA
+    Combine -> pure $ VPropTriple SegdP SegNAP SegNAP

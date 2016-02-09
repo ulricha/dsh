@@ -135,7 +135,7 @@ typeAnnotation = colon >> colon >> typeExpr
 colName :: CLParser L.ColName
 colName = L.ColName <$> ident
 
-tableCols :: CLParser (N.NonEmpty L.Column)
+tableCols :: CLParser (N.NonEmpty L.ColumnInfo)
 tableCols = nonEmpty $ (,) <$> colName <*> baseType
 
 tableKeys :: CLParser (N.NonEmpty L.Key)

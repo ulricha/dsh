@@ -99,17 +99,23 @@ constExpr constCols expr =
             _           -> mzero
 
 --------------------------------------------------------------------------------
--- Stuff
+
+vectorCols :: Segments -> [Column]
+vectorCols (UnitSeg cols) = cols
+vectorCols (Segs segs)    = flattenSegments segs
+
+flattenSegments :: [Segment] -> [Column]
+flattenSegments (seg:segs) = go (replicate (length $ segCols seg) []) (seg:segs)
+  where
+    go cols (s:ss) = go (zipWith (++) cols (segCols s)) ss
+    go cols []     = cols
+flattenSegments []         = $impossible
 
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
   case op of
-    -- do not include the first two columns in the payload columns because they represent descr and pos.
-    Lit (colTypes, rows)      ->
-      if null rows
-      then return $ VProp $ ConstVec $ map (const NonConstPL) colTypes
-      else return $ VProp $ ConstVec constCols
-        where constCols       = map toConstPayload $ drop 2 $ transpose rows
+    Lit (_, _, segs)      -> return $ VProp $ ConstVec constCols
+        where constCols       = map toConstPayload $ vectorCols segs
 
               toConstPayload col@(c : _) = if all (c ==) col
                                            then ConstPL c

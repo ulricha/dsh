@@ -21,6 +21,7 @@ import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Vector
 import           Database.DSH.VL.Lang           (AggrFun (..), Expr (..), VL ())
+import qualified Database.DSH.VL.Lang           as VL
 import           Database.DSH.VL.Primitives
 
 --------------------------------------------------------------------------------
@@ -489,7 +490,7 @@ singletonL _ = $impossible
 -- Construction of base tables and literal tables
 
 -- | Create a VL reference to a base table.
-dbTable ::  String -> L.BaseTableSchema -> Build VL (Shape VLDVec)
+dbTable :: String -> L.BaseTableSchema -> Build VL (Shape VLDVec)
 dbTable n schema = do
     tab <- vlTableRef n schema
     -- Single-column tables are represented by a flat list and map to
@@ -500,100 +501,81 @@ dbTable n schema = do
                   cs        -> LTuple $ map (const LCol) $ N.toList cs
     return $ VShape tab lyt
 
--- | Create a VL representation of a literal value.
-mkLiteral ::  Type -> L.Val -> Build VL (Shape VLDVec)
--- Translate an outer list
-mkLiteral t@(ListT _) (L.ListV es) = do
-    ((tabTys, tabCols), lyt, _) <- toPlan (mkDescriptor [P.length es]) t 1 es
-    litNode <- vlLit (P.reverse tabTys) $ map P.reverse tabCols
+--------------------------------------------------------------------------------
+-- Shredding literal values
+
+scalarVal :: L.Val -> L.ScalarVal
+scalarVal (L.ScalarV v) = v
+scalarVal _             = $impossible
+
+fromList :: L.Val -> [L.Val]
+fromList (L.ListV es) = es
+fromList _            = $impossible
+
+fromTuple :: L.Val -> [L.Val]
+fromTuple (L.TupleV es) = es
+fromTuple _             = $impossible
+
+-- | Turn list elements into vector columns and encode inner lists in separate
+-- vectors.
+-- 
+-- 'toColumns' receives the element type of the list and all element values of
+-- the list.
+toColumns :: Type -> [L.Val] -> Build VL ([ScalarType], [VL.Column], Layout VLDVec)
+toColumns (ListT t) ls    = do
+    (v, lyt) <- toVector t ls
+    return ([], [], LNest v lyt)
+toColumns (TupleT tys) ts = do
+    let tupleComponents = List.transpose $ map fromTuple ts
+    (colTys, cols, lyts) <- unzip3 <$> zipWithM toColumns tys tupleComponents
+    return (List.concat colTys, List.concat cols, LTuple lyts)
+toColumns (ScalarT t) vs  = return ([t], [map scalarVal vs], LCol)
+
+-- | Divide columns into segments according to the length of the original inner
+-- lists.
+chopSegments :: [Int] -> [VL.Column] -> [VL.Segment]
+chopSegments (l:ls) cols =
+    let (seg, cols') = unzip $ map (splitAt l) cols
+    in VL.Seg seg : chopSegments ls cols'
+chopSegments []     _    = []
+
+-- | Encode all inner list values for a list type constructor in a vector.
+--
+-- 'toVector' receives the element type of the inner lists and all inner list
+-- values.
+toVector :: Type -> [L.Val] -> Build VL (VLDVec, Layout VLDVec)
+toVector t ls = do
+    -- Concatenate the elements of all inner lists
+    let innerLists = map fromList ls
+        allElems   = List.concat innerLists
+        innerLens  = map length innerLists
+    (tys, cols, lyt) <- toColumns t allElems
+    let segs = chopSegments innerLens cols
+    litNode <- vlLit (tys, VL.SegFrame $ length allElems, VL.Segs segs)
+    return (litNode, lyt)
+
+-- | Shred a literal value into flat vectors.
+shredLiteral ::  Type -> L.Val -> Build VL (Shape VLDVec)
+shredLiteral (ScalarT t) v = do
+    (_, cols, _) <- toColumns (ScalarT t) [v]
+    litNode <- vlLit ([t], VL.SegFrame 1, VL.UnitSeg cols)
+    return $ SShape litNode LCol
+shredLiteral (TupleT t)  v  = do
+    (tys, cols, lyt) <- toColumns (TupleT t) [v]
+    litNode <- vlLit (tys, VL.SegFrame 1, VL.UnitSeg cols)
+    return $ SShape litNode lyt
+shredLiteral (ListT t) (L.ListV es) = do
+    (tys, cols, lyt) <- toColumns t es
+    litNode <- vlLit (tys, VL.SegFrame $ length es, VL.UnitSeg cols)
     return $ VShape litNode lyt
--- Translate a non-list value, i.e. scalar or tuple
-mkLiteral t e           = do
-    -- There is only one element in the outermost vector
-    ((tabTys, [tabCols]), layout, _) <- toPlan (mkDescriptor [1]) (ListT t) 1 [e]
-    litNode <- vlLit (P.reverse tabTys) [P.reverse tabCols]
-    return $ SShape litNode layout
-
-type Table = ([Type], [[L.ScalarVal]])
-
--- | Add values to a vector. If necessary (i.e. inner lists are
--- encountered), create new inner vectors. 'toPlan' receives a
--- descriptor that has enough space for all elements of the list that
--- are currently encoded.
-
--- FIXME Check if inner list literals are nonempty and flag VL
--- literals appropriately.
-toPlan ::  Table -> Type -> Int -> [L.Val] -> Build VL (Table, Layout VLDVec, Int)
-toPlan (tabTys, tabCols) (ListT t) nextCol es =
-    -- Inspect the element type of the list to be encoded
-    case t of
-        ListT _ -> do
-            let vs = map listElems es
-                -- Create a vector with one entry for each element of an inner list
-                d  = mkDescriptor $ map P.length vs
-            -- Add the inner list elements to the vector
-            ((innerTabTys, innerTabCols), lyt, _) <- toPlan d t 1 (P.concat vs)
-            n <- vlLit (P.reverse innerTabTys) (map P.reverse innerTabCols)
-            return ((tabTys, tabCols), LNest n lyt, nextCol)
-
-        TupleT elemTys -> do
-            -- We add tuple elements column-wise. If the list to be
-            -- encoded is empty, create an empty list for each column.
-            let colsVals = case es of
-                               [] -> map (const []) elemTys
-                               _  -> List.transpose $ map tupleElems es
-            mkTupleTable (tabTys, tabCols) nextCol [] colsVals elemTys
-
-        _ -> let (hd, vs) = mkColumn t es
-             in return ((hd:tabTys, zipWith (:) vs tabCols), LCol, nextCol + 1)
-
-toPlan (tabTys, tabCols) t c v =
-    let (hd, v') = mkColumn t v
-    in return ((hd:tabTys, zipWith (:) v' tabCols), LCol, c + 1)
-
--- | Construct the literal table for a list of tuples.
-mkTupleTable :: Table                         -- ^ The literal table so far.
-   -> Int                                     -- ^ The next available column offset
-   -> [Layout VLDVec]                         -- ^ The layouts of the tuple elements constructed so far
-   -> [[L.Val]]                               -- ^ Values for the tuple elements
-   -> [Type]                                  -- ^ Types for the tuple elements
-   -> Build VL (Table, Layout VLDVec, Int)
-mkTupleTable tab nextCol lyts (colVals : colsVals) (t : ts) = do
-    (tab', lyt, nextCol') <- toPlan tab (ListT t) nextCol colVals
-    mkTupleTable tab' nextCol' (lyt : lyts) colsVals ts
-mkTupleTable tab nextCol lyts []                   []       =
-    return (tab, LTuple $ P.reverse lyts, nextCol)
-mkTupleTable _   _       _    _                    _        = $impossible
-
-literal :: Type -> L.ScalarVal -> Build VL VLDVec
-literal t v = vlLit [t] [[L.IntV 1, L.IntV 1, v]]
-
-listElems :: L.Val -> [L.Val]
-listElems (L.ListV es) = es
-listElems _            = $impossible
-
-tupleElems :: L.Val -> [L.Val]
-tupleElems (L.TupleV es) = es
-tupleElems _             = $impossible
-
-mkColumn :: Type -> [L.Val] -> (Type, [L.ScalarVal])
-mkColumn t vs = (t, [pVal v | v <- vs])
-
-mkDescriptor :: [Int] -> Table
-mkDescriptor lengths =
-    let header = []
-        body   = [ [L.IntV $ fromInteger p, L.IntV $ fromInteger d]
-                 | d <- P.concat [ replicate l p | p <- [1..] | l <- lengths ]
-                 | p <- [1..]
-                 ]
-    in (header, body)
+shredLiteral _ _ = $impossible
 
 --------------------------------------------------------------------------------
 -- Helper functions for zipping/tuple construction
 
 -- | Simply align a list of shapes and collect their layouts.
 alignVectors :: [Shape VLDVec] -> Build VL (VLDVec, [Layout VLDVec])
-alignVectors (VShape q1 lyt1 : [])     = return (q1, [lyt1])
+alignVectors [VShape q1 lyt1]          = return (q1, [lyt1])
 alignVectors (VShape q1 lyt1 : shapes) = do
     (q, lyts) <- alignVectors shapes
     qz' <- vlAlign q1 q
@@ -603,8 +585,8 @@ alignVectors _ = $impossible
 -- | Align a list of shapes and nest vectors if necessary. This helper
 -- function covers tuple construction in the unlifted case.
 boxVectors :: [Shape VLDVec] -> Build VL (VLDVec, [Layout VLDVec])
-boxVectors (SShape q1 lyt1 : [])     = return (q1, [lyt1])
-boxVectors (VShape q1 lyt1 : [])     = do
+boxVectors [SShape q1 lyt1]           = return (q1, [lyt1])
+boxVectors [VShape q1 lyt1]           = do
     (dvo, dvi) <- vlNest q1
     return (dvo, [LNest dvi lyt1])
 boxVectors (SShape dv1 lyt1 : shapes) = do

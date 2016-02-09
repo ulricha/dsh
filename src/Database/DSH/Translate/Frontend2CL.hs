@@ -102,7 +102,7 @@ schema tableName cols ty hints =
                       , L.tableNonEmpty = ne $ nonEmptyHint hints
                       }
   where
-    colTys :: NonEmpty L.Column
+    colTys :: NonEmpty L.ColumnInfo
     colTys = case Ty.elemT ty of
         Ty.TupleT ts@(_:_) | length ts == N.length cols ->
             case mapM Ty.scalarType ts of

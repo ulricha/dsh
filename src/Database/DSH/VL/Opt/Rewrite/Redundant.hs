@@ -163,8 +163,8 @@ distLiftNestProduct q =
 
         -- Only allow the rewrite if both product inputs are flat (i.e. unit
         -- segment). This is equivalent to the old flat NestProduct rewrite.
-        VProp UnitSeg <- segProp <$> properties $(v "qo1")
-        VProp UnitSeg <- segProp <$> properties $(v "qi")
+        VProp UnitSegP <- segProp <$> properties $(v "qo1")
+        VProp UnitSegP <- segProp <$> properties $(v "qi")
 
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
@@ -188,8 +188,8 @@ distLiftNestJoin q =
 
         -- Only allow the rewrite if both product inputs are flat (i.e. unit
         -- segment). This is equivalent to the old flat NestProduct rewrite.
-        VProp UnitSeg <- segProp <$> properties $(v "qo1")
-        VProp UnitSeg <- segProp <$> properties $(v "qi")
+        VProp UnitSegP <- segProp <$> properties $(v "qo1")
+        VProp UnitSegP <- segProp <$> properties $(v "qi")
 
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
@@ -1085,9 +1085,9 @@ nestJoinChain q =
 
        -- Only allow the rewrite if all join inputs are flat (i.e. unit
        -- segment). This is equivalent to the old flat NestJoin rewrite.
-       VProp UnitSeg <- segProp <$> properties $(v "xs")
-       VProp UnitSeg <- segProp <$> properties $(v "ys")
-       VProp UnitSeg <- segProp <$> properties $(v "zs")
+       VProp UnitSegP <- segProp <$> properties $(v "xs")
+       VProp UnitSegP <- segProp <$> properties $(v "ys")
+       VProp UnitSegP <- segProp <$> properties $(v "zs")
 
        xsWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "xs")
        ysWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "ys")

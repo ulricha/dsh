@@ -62,7 +62,7 @@ newtype ColName = ColName String deriving (Eq, Ord, Show)
 $(deriveJSON defaultOptions ''ColName)
 
 -- | Typed table columns
-type Column = (ColName, ScalarType)
+type ColumnInfo = (ColName, ScalarType)
 
 -- | Table keys
 newtype Key = Key (N.NonEmpty ColName) deriving (Eq, Ord, Show)
@@ -78,7 +78,7 @@ $(deriveJSON defaultOptions ''Emptiness)
 
 -- | Information about base tables
 data BaseTableSchema = BaseTableSchema
-    { tableCols     :: N.NonEmpty Column
+    { tableCols     :: N.NonEmpty ColumnInfo
     , tableKeys     :: N.NonEmpty Key
     , tableNonEmpty :: Emptiness
     } deriving (Eq, Ord, Show)

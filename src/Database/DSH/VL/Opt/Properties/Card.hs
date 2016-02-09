@@ -13,8 +13,8 @@ unp = unpack "Properties.Card"
 inferCardOneNullOp :: NullOp -> Either String (VectorProp Bool)
 inferCardOneNullOp op =
   case op of
-    Lit (_, rows) -> Right $ VProp $ length rows == 1
-    TableRef _       -> Right $ VProp False
+    Lit (_, f, _) -> Right $ VProp $ frameLen f == 1
+    TableRef _    -> Right $ VProp False
 
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferCardOneUnOp c op =

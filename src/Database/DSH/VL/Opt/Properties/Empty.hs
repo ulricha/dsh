@@ -21,9 +21,8 @@ mapUnp = mapUnpack "Properties.Empty"
 inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
-    Lit (_, []) -> Right $ VProp True
-    Lit{}       -> Right $ VProp False
-    TableRef{}  -> Right $ VProp False
+    Lit (_, f, _) -> Right $ VProp $ frameLen f == 0
+    TableRef{}    -> Right $ VProp False
 
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
