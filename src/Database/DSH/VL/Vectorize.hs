@@ -9,6 +9,7 @@ import           Control.Applicative
 import           Control.Monad
 import qualified Data.List                      as List
 import qualified Data.List.NonEmpty             as N
+import qualified Data.Sequence                  as S
 import           Prelude                        hiding (reverse, zip)
 import qualified Prelude                        as P
 
@@ -518,7 +519,7 @@ fromTuple _             = $impossible
 
 -- | Turn list elements into vector columns and encode inner lists in separate
 -- vectors.
--- 
+--
 -- 'toColumns' receives the element type of the list and all element values of
 -- the list.
 toColumns :: Type -> [L.Val] -> Build VL ([ScalarType], [VL.Column], Layout VLDVec)
@@ -529,13 +530,13 @@ toColumns (TupleT tys) ts = do
     let tupleComponents = List.transpose $ map fromTuple ts
     (colTys, cols, lyts) <- unzip3 <$> zipWithM toColumns tys tupleComponents
     return (List.concat colTys, List.concat cols, LTuple lyts)
-toColumns (ScalarT t) vs  = return ([t], [map scalarVal vs], LCol)
+toColumns (ScalarT t) vs  = return ([t], [S.fromList $ map scalarVal vs], LCol)
 
 -- | Divide columns into segments according to the length of the original inner
 -- lists.
 chopSegments :: [Int] -> [VL.Column] -> [VL.Segment]
 chopSegments (l:ls) cols =
-    let (seg, cols') = unzip $ map (splitAt l) cols
+    let (seg, cols') = unzip $ map (S.splitAt l) cols
     in VL.Seg seg l : chopSegments ls cols'
 chopSegments []     _    = []
 

@@ -8,15 +8,17 @@ module Database.DSH.VL.Opt.Properties.Const
     ) where
 
 import           Control.Monad
+import qualified Data.Foldable                         as F
 import           Data.List
-import qualified Data.List.NonEmpty                          as N
+import qualified Data.List.NonEmpty                    as N
 import           Data.Maybe
+import qualified Data.Sequence                         as S
 
-import Database.DSH.Common.Impossible
+import           Database.DSH.Common.Impossible
+import           Database.DSH.Common.Lang
+import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Opt.Properties.Common
 import           Database.DSH.VL.Opt.Properties.Types
-import           Database.DSH.VL.Lang
-import           Database.DSH.Common.Lang
 
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Const"
@@ -106,10 +108,10 @@ inferConstVecNullOp op =
     Lit (tys, _, segs)      -> return $ VProp $ ConstVec constCols
         where constCols       = map toConstPayload $ vectorCols tys segs
 
-              toConstPayload col@(c : _) = if all (c ==) col
-                                           then ConstPL c
-                                           else NonConstPL
-              toConstPayload []          = NonConstPL
+              toConstPayload col =
+                  case S.viewl col of
+                      c S.:< s | F.all (c ==) s -> ConstPL c
+                      _                         -> NonConstPL
 
     TableRef (_, schema)    -> return $ VProp
                                       $ ConstVec

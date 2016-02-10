@@ -7,15 +7,17 @@
 module Database.DSH.VL.Lang where
 
 import           Data.Aeson.TH
-import qualified Data.List.NonEmpty          as N
+import qualified Data.List.NonEmpty             as N
+import           Data.Monoid
+import qualified Data.Sequence                  as S
 
-import           Database.Algebra.Dag        (Operator, opChildren,
-                                              replaceOpChild)
+import           Database.Algebra.Dag           (Operator, opChildren,
+                                                 replaceOpChild)
 import           Database.Algebra.Dag.Common
 
-import qualified Database.DSH.Common.Lang    as L
-import           Database.DSH.Common.Type
 import           Database.DSH.Common.Impossible
+import qualified Database.DSH.Common.Lang       as L
+import           Database.DSH.Common.Type
 
 
 type DBCol = Int
@@ -66,7 +68,7 @@ $(deriveJSON defaultOptions ''FrameSpec)
 --------------------------------------------------------------------------------
 -- Segments for vector literals.
 
-type Column = [L.ScalarVal]
+type Column = S.Seq L.ScalarVal
 
 data Segment = Seg
     { segCols :: [Column]
@@ -87,15 +89,15 @@ $(deriveJSON defaultOptions ''Segments)
 
 -- | Extract complete columns from segments.
 vectorCols :: [ScalarType] -> Segments -> [Column]
-vectorCols tys (UnitSeg [])   = map (const []) tys
+vectorCols tys (UnitSeg [])   = map (const S.empty) tys
 vectorCols _   (UnitSeg cols) = cols
 vectorCols tys (Segs segs)    = flattenSegments tys segs
 
 flattenSegments :: [ScalarType] -> [Segment] -> [Column]
-flattenSegments tys []   = map (const []) tys
-flattenSegments tys segs = go (map (const []) tys) segs
+flattenSegments tys []   = map (const S.empty) tys
+flattenSegments tys segs = go (map (const S.empty) tys) segs
   where
-    go cols (s:ss) = go (zipWith (++) cols (segCols s)) ss
+    go cols (s:ss) = go (zipWith (<>) cols (segCols s)) ss
     go cols []     = cols
 
 --------------------------------------------------------------------------------

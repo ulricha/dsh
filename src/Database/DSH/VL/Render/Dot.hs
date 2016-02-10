@@ -1,17 +1,18 @@
 module Database.DSH.VL.Render.Dot(renderVLDot) where
 
-import Prelude hiding ((<$>))
-import qualified Data.IntMap                 as Map
-import qualified Data.List.NonEmpty          as N
+import qualified Data.Foldable                as F
+import qualified Data.IntMap                  as Map
 import           Data.List
+import qualified Data.List.NonEmpty           as N
+import           Prelude                      hiding ((<$>))
 
 import           Text.PrettyPrint.ANSI.Leijen
 
-import qualified Database.Algebra.Dag        as Dag
-import           Database.Algebra.Dag.Common as C
+import qualified Database.Algebra.Dag         as Dag
+import           Database.Algebra.Dag.Common  as C
 
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 import           Database.DSH.VL.Lang
 
@@ -113,7 +114,7 @@ renderSegment :: Segment -> Doc
 renderSegment s = brackets $ renderColumns $ segCols s
 
 renderColumns :: [Column] -> Doc
-renderColumns cols = renderData $ transpose cols
+renderColumns cols = renderData $ transpose $ map F.toList $ F.toList cols
 
 -- | Create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc
