@@ -63,12 +63,14 @@ data FrameSpec = -- | All elements up to and including the current
 $(deriveJSON defaultOptions ''FrameSpec)
 
 --------------------------------------------------------------------------------
--- Vector Language operators. Documentation can be found in module
--- VectorAlgebra.
+-- Segments for vector literals.
 
 type Column = [L.ScalarVal]
 
-newtype Segment = Seg { segCols :: [Column] } deriving (Eq, Ord, Show)
+data Segment = Seg
+    { segCols :: [Column]
+    , segLen  :: !Int
+    } deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''Segment)
 

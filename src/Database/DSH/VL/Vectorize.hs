@@ -536,7 +536,7 @@ toColumns (ScalarT t) vs  = return ([t], [map scalarVal vs], LCol)
 chopSegments :: [Int] -> [VL.Column] -> [VL.Segment]
 chopSegments (l:ls) cols =
     let (seg, cols') = unzip $ map (splitAt l) cols
-    in VL.Seg seg : chopSegments ls cols'
+    in VL.Seg seg l : chopSegments ls cols'
 chopSegments []     _    = []
 
 -- | Encode all inner list values for a list type constructor in a vector.
