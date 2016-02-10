@@ -100,17 +100,6 @@ constExpr constCols expr =
 
 --------------------------------------------------------------------------------
 
-vectorCols :: Segments -> [Column]
-vectorCols (UnitSeg cols) = cols
-vectorCols (Segs segs)    = flattenSegments segs
-
-flattenSegments :: [Segment] -> [Column]
-flattenSegments (seg:segs) = go (replicate (length $ segCols seg) []) (seg:segs)
-  where
-    go cols (s:ss) = go (zipWith (++) cols (segCols s)) ss
-    go cols []     = cols
-flattenSegments []         = $impossible
-
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
   case op of

@@ -15,6 +15,7 @@ import           Database.Algebra.Dag.Common
 
 import qualified Database.DSH.Common.Lang    as L
 import           Database.DSH.Common.Type
+import           Database.DSH.Common.Impossible
 
 
 type DBCol = Int
@@ -83,6 +84,22 @@ data Segments = UnitSeg [Column]
               deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''Segments)
+
+-- | Extract complete columns from segments.
+vectorCols :: Segments -> [Column]
+vectorCols (UnitSeg cols) = cols
+vectorCols (Segs segs)    = flattenSegments segs
+
+flattenSegments :: [Segment] -> [Column]
+flattenSegments (seg:segs) = go (replicate (length $ segCols seg) []) (seg:segs)
+  where
+    go cols (s:ss) = go (zipWith (++) cols (segCols s)) ss
+    go cols []     = cols
+flattenSegments []         = $impossible
+
+--------------------------------------------------------------------------------
+-- Vector Language operators. Documentation can be found in module
+-- VectorAlgebra.
 
 data NullOp = Lit ([ScalarType], SegFrame, Segments)
             | TableRef (String, L.BaseTableSchema)
