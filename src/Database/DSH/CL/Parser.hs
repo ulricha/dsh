@@ -1,25 +1,50 @@
 -- | A parser for comprehension language (CL) expressions.
 --
 -- @
--- t ::= [t] | (t, ..., t) | Int | Double | ...
+-- Types:
 --
--- e ::= table(n)::t
+-- t ::= [t] | (t, ..., t) | bt
+--
+-- Base types:
+--
+-- bt ::= Int | Double | Decimal | String | Char | Bool | ()
+--
+-- Expressions:
+--
+-- e ::= table(n, s, k)::t
 --     | (prim1 e)::t
 --     | (prim2 e e)::t
 --     | (prefixOp e)::t
 --     | (e infixOp e)::t
 --     | (if e then e else e)::t
 --     | l::t
---     | x::t
+--     | n::t
 --     | [ e | qs ]::t
 --     | (e, ..., e)::t
+--     | e.[1-9][0-9]*::t
 --     | (let x = e in e)::t
+--     | (e).n::t
+--
+-- Comprehension qualifiers:
 --
 -- qs ::= x <- e, qs | e, qs | x <- e | e
+--
+-- Schema:
+--
+-- s ::= [ n::bt, ... ]
+--
+-- Keys:
+--
+-- k ::= [ [n, ...], ...]
+--
+-- Identifiers:
+--
+-- n ::= [a-zA-Z0-9]+
 -- @
 
 module Database.DSH.CL.Parser
     ( parseCL
+    , typedExpr
     ) where
 
 import           Control.Applicative
@@ -33,6 +58,7 @@ import qualified Text.Megaparsec.Lexer    as Lex
 
 import           Database.DSH.CL.Lang
 import qualified Database.DSH.Common.Lang as L
+import qualified Database.DSH.Common.Nat  as N
 import qualified Database.DSH.Common.Type as T
 
 type CLParser a = Parsec String a
@@ -55,9 +81,6 @@ parens = between (symbol "(") (symbol ")")
 brackets :: CLParser a -> CLParser a
 brackets = between (symbol "[") (symbol "]")
 
-braces :: CLParser a -> CLParser a
-braces = between (symbol "{") (symbol "}")
-
 colon :: CLParser ()
 colon = void $ symbol ":"
 
@@ -68,7 +91,7 @@ comma :: CLParser ()
 comma = void $ symbol ","
 
 ident :: CLParser String
-ident = lexeme (some alphaNumChar)
+ident = lexeme ((:) <$> lowerChar <*> many alphaNumChar)
 
 kw :: String -> CLParser ()
 kw s = void $ lexeme (string s)
@@ -98,11 +121,7 @@ list :: CLParser a -> CLParser [a]
 list p = brackets (p `sepBy` comma)
 
 nonEmpty :: CLParser a -> CLParser (N.NonEmpty a)
-nonEmpty p = brackets $ do
-    x <- p
-    void $ comma
-    xs <- p `sepBy` comma
-    return $ x :| xs
+nonEmpty p = brackets $ (:|) <$> p <*> ((comma *> p `sepBy` comma) <|> pure [])
 
 tuple :: CLParser a -> CLParser [a]
 tuple p = parens (p `sepBy1` comma)
@@ -120,14 +139,15 @@ baseType =     try (kw "Int" *> pure T.IntT)
            <|> try (kw "()" *> pure T.UnitT)
            <|> try (kw "Decimal" *> pure T.DecimalT)
            <|> try (kw "Date" *> pure T.DateT)
+           <|> try (kw "String" *> pure T.StringT)
 
 typeExpr :: CLParser T.Type
-typeExpr = T.ListT <$> brackets typeExpr
+typeExpr =     T.ListT <$> brackets typeExpr
            <|> try (T.ScalarT <$> baseType)
            <|> T.TupleT <$> tuple typeExpr
 
-typeAnnotation :: CLParser Type
-typeAnnotation = colon >> colon >> typeExpr
+typeAnnotation :: CLParser a -> CLParser a
+typeAnnotation p = colon >> colon >> p
 
 --------------------------------------------------------------------------------
 -- Table references
@@ -136,7 +156,7 @@ colName :: CLParser L.ColName
 colName = L.ColName <$> ident
 
 tableCols :: CLParser (N.NonEmpty L.ColumnInfo)
-tableCols = nonEmpty $ (,) <$> colName <*> baseType
+tableCols = nonEmpty $ (,) <$> colName <*> typeAnnotation baseType
 
 tableKeys :: CLParser (N.NonEmpty L.Key)
 tableKeys = nonEmpty $ L.Key <$> nonEmpty colName
@@ -144,6 +164,7 @@ tableKeys = nonEmpty $ L.Key <$> nonEmpty colName
 baseTableSchema :: CLParser L.BaseTableSchema
 baseTableSchema = do
     cols      <- tableCols
+    void comma
     keys      <- tableKeys
     return $ L.BaseTableSchema cols keys L.PossiblyEmpty
 
@@ -175,11 +196,11 @@ prim1 =     try (kw "singleton" *> pure Singleton)
         <|> try (kw "sort" *> pure Sort)
         <|> try (kw "group" *> pure Group)
 
-prim2 :: CLParser Prim2
-prim2 =     try (kw "append" *> pure Append)
-        <|> try (kw "zip" *> pure Zip)
-
-
+prim2 :: CLParser (Expr -> Expr -> Type -> Expr)
+prim2 =     try (kw "append"   *> pure (\e1 e2 t -> AppE2 t Append e1 e2))
+        <|> try (kw "zip"      *> pure (\e1 e2 t -> AppE2 t Zip e1 e2))
+        <|> try (kw "diffDays" *> pure (\e1 e2 t -> BinOp t (L.SBDateOp L.DiffDays) e1 e2))
+        <|> try (kw "addDays"  *> pure (\e1 e2 t -> BinOp t (L.SBDateOp L.AddDays) e1 e2))
 
 --------------------------------------------------------------------------------
 -- Literals
@@ -188,7 +209,7 @@ baseLit :: CLParser L.ScalarVal
 baseLit =     try (L.DoubleV <$> doubleLit)
           <|> try (L.IntV <$> integerLit)
           <|> try (L.BoolV <$> boolLit)
-          <|> try (L.StringV <$> T.pack <$> stringLit)
+          <|> try (L.StringV . T.pack <$> stringLit)
           <|> try (unitLit *> pure L.UnitV)
 
 literal :: CLParser L.Val
@@ -232,7 +253,7 @@ app1 :: CLParser (Type -> Expr)
 app1 = (\p e t -> AppE1 t p e) <$> prim1 <*> (sep *> typedExpr)
 
 app2 :: CLParser (Type -> Expr)
-app2 = (\p e1 e2 t -> AppE2 t p e1 e2) <$> prim2 <*> (sep *> typedExpr) <*> (sep *> typedExpr)
+app2 = prim2 <*> (sep *> typedExpr) <*> (sep *> typedExpr)
 
 infixApp :: CLParser (Type -> Expr)
 infixApp = (\e1 op e2 t -> BinOp t op e1 e2) <$> typedExpr <*> infixOp <*> typedExpr
@@ -251,7 +272,7 @@ ifExpr = do
     return $ \ty -> If ty condExpr thenExpr elseExpr
 
 expr :: CLParser (Type -> Expr)
-expr = try app1 <|> try app2 <|> try infixApp <|> try prefixApp <|> try ifExpr
+expr = try app1 <|> try app2 <|> try infixApp <|> try prefixApp <|> try ifExpr <|> try letExpr
 
 qualifier :: CLParser Qual
 qualifier = try (BindQ <$> ident <*> (symbol "<-" *> typedExpr))
@@ -277,24 +298,31 @@ letExpr = do
     return $ \ty -> Let ty x boundExpr inExpr
 
 tupleExpr :: CLParser (Type -> Expr)
-tupleExpr = (\es ty -> MkTuple ty es) <$> (parens $ typedExpr `sepBy1` comma)
+tupleExpr = flip MkTuple <$> parens (typedExpr `sepBy1` comma)
 
 annotatedExpr :: CLParser Expr
 annotatedExpr = do
     exprConst <- parens expr
-    ty        <- typeAnnotation
+    ty        <- typeAnnotation typeExpr
     return $ exprConst ty
 
+tupElemExpr:: CLParser (Type -> Expr)
+tupElemExpr =
+    (\e i t -> AppE1 t (TupElem i) e)
+        <$> (parens typedExpr <* char '.')
+        <*> (N.intIndex <$> integerLit)
+
 typedExpr :: CLParser Expr
-typedExpr =     try (tableRef <*> typeAnnotation)
+typedExpr =     try (tableRef <*> typeAnnotation typeExpr)
             <|> try annotatedExpr
-            <|> try ((\e t -> Lit t e) <$> literal <*> typeAnnotation)
-            <|> try ((\n t -> Var t n) <$> ident <*> typeAnnotation)
-            <|> try (comprehension <*> typeAnnotation)
-            <|> try (tupleExpr <*> typeAnnotation)
-            <|> try (letExpr <*> typeAnnotation)
+            <|> try (flip Lit <$> literal <*> typeAnnotation typeExpr)
+            <|> try (flip Var <$> ident <*> typeAnnotation typeExpr)
+            <|> try (comprehension <*> typeAnnotation typeExpr)
+            <|> try (tupleExpr <*> typeAnnotation typeExpr)
+            <|> try (tupElemExpr <*> typeAnnotation typeExpr)
+            <|> try (parens typedExpr)
 
 parseCL :: String -> Either String Expr
-parseCL inp = case runParser typedExpr "" inp of
-    Left err -> Left $ show err
-    Right e  -> Right e
+parseCL inp = case parseMaybe typedExpr inp of
+    Nothing -> Left "parse error"
+    Just e  -> Right e
