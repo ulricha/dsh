@@ -6,5 +6,7 @@ module Database.DSH.VL
 
 import           Database.DSH.Translate.VL2Algebra (VecBuild, runVecBuild, vl2Algebra)
 import           Database.DSH.VL.Lang              (VL, AggrFun (..), DBCol,
-                                                    Expr (..), FrameSpec (..), WinFun (..))
+                                                    Expr (..), FrameSpec (..), WinFun (..),
+                                                    Segments(..), Segment, vectorCols, segCols, segLen,
+                                                    Column, SegFrame, frameLen)
 import           Database.DSH.VL.VectorAlgebra
