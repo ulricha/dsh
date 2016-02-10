@@ -86,16 +86,17 @@ data Segments = UnitSeg [Column]
 $(deriveJSON defaultOptions ''Segments)
 
 -- | Extract complete columns from segments.
-vectorCols :: Segments -> [Column]
-vectorCols (UnitSeg cols) = cols
-vectorCols (Segs segs)    = flattenSegments segs
+vectorCols :: [ScalarType] -> Segments -> [Column]
+vectorCols tys (UnitSeg [])   = map (const []) tys
+vectorCols _   (UnitSeg cols) = cols
+vectorCols tys (Segs segs)    = flattenSegments tys segs
 
-flattenSegments :: [Segment] -> [Column]
-flattenSegments (seg:segs) = go (replicate (length $ segCols seg) []) (seg:segs)
+flattenSegments :: [ScalarType] -> [Segment] -> [Column]
+flattenSegments tys []   = map (const []) tys
+flattenSegments tys segs = go (map (const []) tys) segs
   where
     go cols (s:ss) = go (zipWith (++) cols (segCols s)) ss
     go cols []     = cols
-flattenSegments []         = $impossible
 
 --------------------------------------------------------------------------------
 -- Vector Language operators. Documentation can be found in module

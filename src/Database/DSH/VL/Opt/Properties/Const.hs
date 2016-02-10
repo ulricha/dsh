@@ -103,8 +103,8 @@ constExpr constCols expr =
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
   case op of
-    Lit (_, _, segs)      -> return $ VProp $ ConstVec constCols
-        where constCols       = map toConstPayload $ vectorCols segs
+    Lit (tys, _, segs)      -> return $ VProp $ ConstVec constCols
+        where constCols       = map toConstPayload $ vectorCols tys segs
 
               toConstPayload col@(c : _) = if all (c ==) col
                                            then ConstPL c
