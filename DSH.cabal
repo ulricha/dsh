@@ -125,6 +125,7 @@ Library
                      Database.DSH.Common.Vector
                      Database.DSH.Common.Lang
                      Database.DSH.Common.Impossible
+                     Database.DSH.Common.Pretty
 
   Other-modules:     Database.DSH.Frontend.Internals
                      Database.DSH.Frontend.Externals
@@ -136,7 +137,6 @@ Library
                      Database.DSH.Execute
 
                      Database.DSH.Common.Nat
-                     Database.DSH.Common.Pretty
                      Database.DSH.Common.RewriteM
                      Database.DSH.Common.Kure
                      Database.DSH.Common.TH
