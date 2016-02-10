@@ -53,18 +53,18 @@ inferSegmentsUnOp c op =
     NumberS     -> pure c
     R1          ->
       case c of
-        VProp _           -> throwError "Properties.Card: not a pair/triple"
+        VProp _           -> throwError "Properties.Segments: not a pair/triple"
         VPropPair b _     -> pure $ VProp b
         VPropTriple b _ _ -> pure $ VProp b
     R2          ->
       case c of
-        VProp _           -> throwError "Properties.Card: not a pair/triple"
+        VProp _           -> throwError "Properties.Segments: not a pair/triple"
         VPropPair _ b     -> pure $ VProp b
         VPropTriple _ b _ -> pure $ VProp b
     R3          ->
       case c of
         VPropTriple _ _ b -> pure $ VProp b
-        _                 -> throwError "Properties.Card: not a triple"
+        _                 -> throwError "Properties.Segments: not a triple"
 
 inferSegmentsBinOp :: VectorProp SegP -> VectorProp SegP -> BinOp -> Either String (VectorProp SegP)
 inferSegmentsBinOp c1 c2 op =
