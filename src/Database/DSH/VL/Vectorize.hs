@@ -223,7 +223,7 @@ dist _ _ = $impossible
 
 only :: Shape VLDVec -> Build VL (Shape VLDVec)
 only (VShape _ (LNest qi lyti)) = VShape <$> vlUnsegment qi <*> pure lyti
-only (VShape q lyt)             = return $ SShape q lyt
+only (VShape q lyt)             = SShape <$> vlUnsegment q <*> pure lyt
 only _                          = $impossible
 
 aggr :: (Expr -> AggrFun) -> Shape VLDVec -> Build VL (Shape VLDVec)
