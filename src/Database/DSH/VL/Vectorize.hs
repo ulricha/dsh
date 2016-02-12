@@ -527,7 +527,9 @@ toColumns (ListT t) ls    = do
     (v, lyt) <- toVector t ls
     return ([], [], LNest v lyt)
 toColumns (TupleT tys) ts = do
-    let tupleComponents = List.transpose $ map fromTuple ts
+    let tupleComponents = if null ts
+                          then map (const []) tys
+                          else List.transpose $ map fromTuple ts
     (colTys, cols, lyts) <- unzip3 <$> zipWithM toColumns tys tupleComponents
     return (List.concat colTys, List.concat cols, LTuple lyts)
 toColumns (ScalarT t) vs  = return ([t], [S.fromList $ map scalarVal vs], LCol)
