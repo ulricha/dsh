@@ -30,9 +30,9 @@ inferSegmentsNullOp op =
 flatInputs :: SegP -> SegP -> Either String SegP
 flatInputs UnitSegP UnitSegP = pure UnitSegP
 flatInputs SegdP    SegdP    = pure SegdP
-flatInputs SegNAP      _       = throwError "Properties.Segments: unexpected SegNAP input"
-flatInputs _       SegNAP      = throwError "Properties.Segments: unexpected SegNAP input"
-flatInputs _       _       = throwError "Properties.Segments: inconsistent inputs"
+flatInputs SegNAP   _        = throwError "Properties.Segments: unexpected SegNAP input"
+flatInputs _        SegNAP   = throwError "Properties.Segments: unexpected SegNAP input"
+flatInputs s1       s2       = throwError $ "Properties.Segments: inconsistent inputs " ++ show s1 ++ " " ++ show s2
 
 inferSegmentsUnOp :: VectorProp SegP -> UnOp -> Either String (VectorProp SegP)
 inferSegmentsUnOp c op =
@@ -76,7 +76,7 @@ inferSegmentsBinOp c1 c2 op =
     AppSort         -> pure $ VPropPair SegdP SegNAP
     AppFilter       -> pure $ VPropPair SegdP SegNAP
     AppRep          -> pure $ VPropPair SegdP SegNAP
-    UnboxSng        -> [ VPropPair f SegNAP | f <- unp c2 ]
+    UnboxSng        -> [ VPropPair f SegNAP | f <- unp c1 ]
     Append          -> pure $ VPropTriple UnitSegP SegNAP SegNAP
     AppendS         -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
     Align           -> join [ VProp <$> flatInputs f1 f2 | f1 <- unp c1, f2 <- unp c2 ]
