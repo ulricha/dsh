@@ -341,7 +341,7 @@ sameInputAlign q =
 -- same.
 sameInputZip :: VLRule BottomUpProps
 sameInputZip q =
-  $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
+  $(dagPatMatch 'q "R1 ((q1) ZipS (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
@@ -402,7 +402,7 @@ alignProjectLeft q =
 
 zipProjectLeft :: VLRule BottomUpProps
 zipProjectLeft q =
-  $(dagPatMatch 'q "R1 ((Project ps1 (q1)) Zip (q2))"
+  $(dagPatMatch 'q "R1 ((Project ps1 (q1)) ZipS (q2))"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
@@ -412,7 +412,7 @@ zipProjectLeft q =
           -- Take the projection expressions from the left and the
           -- shifted columns from the right.
           let proj = $(v "ps1") ++ [ Column $ c + w1 | c <- [1 .. w2]]
-          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
+          zipNode <- insert $ BinOp ZipS $(v "q1") $(v "q2")
           r1Node  <- insert $ UnOp R1 zipNode
           void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
@@ -433,7 +433,7 @@ alignProjectRight q =
 
 zipProjectRight :: VLRule BottomUpProps
 zipProjectRight q =
-  $(dagPatMatch 'q "R1 ((q1) Zip (Project p2 (q2)))"
+  $(dagPatMatch 'q "R1 ((q1) ZipS (Project p2 (q2)))"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
@@ -443,7 +443,7 @@ zipProjectRight q =
           -- the right projection. Since expressions are applied after
           -- the zip, their column references have to be shifted.
           let proj = [Column c | c <- [1..w1]] ++ [ mapExprCols (+ w1) e | e <- $(v "p2") ]
-          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
+          zipNode <- insert $ BinOp ZipS $(v "q1") $(v "q2")
           r1Node  <- insert $ UnOp R1 zipNode
           void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
@@ -479,23 +479,29 @@ alignConstRight q =
             let proj = map Column [1..w1] ++ map Constant vals
             void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
--- | In contrast to the 'Align' version ('alignConstLeft') this
--- rewrite is only valid if we can statically determine that both
--- input vectors have the same length. If the constant vector was
--- shorter, overhanging elements from the non-constant vector would
--- need to be discarded. In general, we can only determine equal
--- length for the special case of length one.
+-- | In contrast to the 'Align' version ('alignConstLeft') this rewrite is only
+-- valid if we can statically determine that both input vectors have the same
+-- length. If the constant vector was shorter, overhanging elements from the
+-- non-constant vector would need to be discarded. In general, we can only
+-- determine equal length for the special case of length one.
+--
+-- Since we use ZipS here, we have to ensure that the constant is in the same
+-- segment as the entry from the non-constant tuple. At the moment, we can
+-- guarantee this only for unit-segment vectors.
 zipConstLeft :: VLRule BottomUpProps
 zipConstLeft q =
-  $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
+  $(dagPatMatch 'q "R1 ((q1) ZipS (q2))"
     [| do
+
         prop1               <- properties $(v "q1")
         VProp card1         <- return $ card1Prop prop1
         VProp (ConstVec ps) <- return $ constProp prop1
+        VProp UnitSegP      <- return $ segProp prop1
 
         prop2               <- properties $(v "q2")
         VProp card2         <- return $ card1Prop prop2
         w2                  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+        VProp UnitSegP      <- return $ segProp prop2
 
         vals                <- mapM fromConst ps
         predicate $ card1 && card2
@@ -507,15 +513,17 @@ zipConstLeft q =
 
 zipConstRight :: VLRule BottomUpProps
 zipConstRight q =
-  $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
+  $(dagPatMatch 'q "R1 ((q1) ZipS (q2))"
     [| do
         prop1               <- properties $(v "q1")
         VProp card1         <- return $ card1Prop prop1
         w1                  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        VProp UnitSegP      <- return $ segProp prop1
 
         prop2               <- properties $(v "q2")
         VProp card2         <- return $ card1Prop prop2
         VProp (ConstVec ps) <- return $ constProp prop2
+        VProp UnitSegP      <- return $ segProp prop2
 
 
         vals                  <- mapM fromConst ps
@@ -528,7 +536,7 @@ zipConstRight q =
 
 zipZipLeft :: VLRule BottomUpProps
 zipZipLeft q =
-  $(dagPatMatch 'q "(q1) Zip (qz=(q11) [Zip | Align] (_))"
+  $(dagPatMatch 'q "(q1) ZipS (qz=(q11) [ZipS | Align] (_))"
      [| do
          predicate $ $(v "q1") == $(v "q11")
 
@@ -559,7 +567,7 @@ alignWinRight q =
 
 zipWinRight :: VLRule BottomUpProps
 zipWinRight q =
-  $(dagPatMatch 'q "R1 ((q1) Zip (qw=WinFun _ (q2)))"
+  $(dagPatMatch 'q "R1 ((q1) ZipS (qw=WinFun _ (q2)))"
      [| do
          predicate $ $(v "q1") == $(v "q2")
 
@@ -590,9 +598,11 @@ alignWinLeft q =
              let proj = map Column $ [1 .. w] ++ [w+1] ++ [1 .. w]
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qw") |])
 
+-- | If the output of a window operator is zipped with its own input, we can
+-- remove the Zip operator.
 zipWinLeft :: VLRule BottomUpProps
 zipWinLeft q =
-  $(dagPatMatch 'q "R1 ((qw=WinFun _ (q1)) Zip (q2))"
+  $(dagPatMatch 'q "R1 ((qw=WinFun _ (q1)) ZipS (q2))"
      [| do
          predicate $ $(v "q1") == $(v "q2")
 

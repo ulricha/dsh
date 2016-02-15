@@ -122,12 +122,6 @@ inferVectorTypeBinOp s1 s2 op =
       case (s1, s2) of
         (VProp (VTDataVec w1), VProp (VTDataVec w2)) -> Right $ VProp $ VTDataVec $ w1 + w2
         _                                                -> Left "Inputs of Align are not VTDataVecs"
-    Zip ->
-        case (s1, s2) of
-            (VProp (VTDataVec w1), VProp (VTDataVec w2)) ->
-                Right $ VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA
-            _                                            ->
-                Left "Inputs of PairL are not VTDataVecs"
     ZipS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ZipL"
     CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "CartProductS"
     NestProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestProductS"

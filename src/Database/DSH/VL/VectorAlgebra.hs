@@ -110,9 +110,6 @@ class VectorAlgebra a where
     -- operands to lifted operators.
     vecAlign :: DVec a -> DVec a -> Build a (DVec a)
 
-    -- | Positionally align two vectors. Basically: @zip xs ys@
-    vecZip :: (DVec a) -> DVec a -> Build a (DVec a, KVec a, KVec a)
-
     -- | Positionally align two vectors per segment: @map zip xss
     -- yss@.
     vecZipS :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)

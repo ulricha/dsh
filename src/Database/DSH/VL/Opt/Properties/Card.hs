@@ -63,7 +63,6 @@ inferCardOneBinOp c1 c2 op =
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
     Append -> Right $ VPropTriple False False False
     AppendS -> Right $ VPropTriple False False False
-    Zip ->  (||) <$> unp c1 <*> unp c2 >>= \p -> return $ VPropTriple p p p
     Align -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProductS -> return $ VPropTriple False False False
     NestProductS -> return $ VPropTriple False False False

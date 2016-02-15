@@ -69,7 +69,6 @@ inferEmptyBinOp e1 e2 op =
     Append -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
     AppendS -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
     AggrS _ -> return $ VProp False
-    Zip -> mapUnp e1 e2 (\ue1 ue2 -> let p = ue1 || ue2 in VPropTriple p p p)
     Align -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     ZipS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     CartProductS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))

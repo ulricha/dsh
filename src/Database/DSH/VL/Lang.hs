@@ -148,7 +148,6 @@ data BinOp = ReplicateNest
            | AggrS AggrFun
            | Append
            | AppendS
-           | Zip
            | ZipS
            | CartProductS
            | NestProductS

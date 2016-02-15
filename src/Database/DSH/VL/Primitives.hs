@@ -223,9 +223,6 @@ vlSelect p (VLDVec c) = pairVec (UnOp (Select p) c) dvec fvec
 vlProject :: [Expr] -> VLDVec -> Build VL VLDVec
 vlProject projs (VLDVec c) = dvec $ insert $ UnOp (Project projs) c
 
-vlZip :: VLDVec -> VLDVec -> Build VL (VLDVec, VLKVec, VLKVec)
-vlZip (VLDVec c1) (VLDVec c2) = tripleVec (BinOp Zip c1 c2) dvec kvec kvec
-
 vlAlign :: VLDVec -> VLDVec -> Build VL VLDVec
 vlAlign (VLDVec c1) (VLDVec c2) = vec (BinOp Align c1 c2) dvec
 

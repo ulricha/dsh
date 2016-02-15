@@ -274,11 +274,6 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
-      Zip -> do
-          (cols, _, _)        <- fromPropTriple ownReqColumns
-          (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
-          (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
-
       CartProductS -> do
           (cols1, _, _)       <- fromPropTriple ownReqColumns
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols1

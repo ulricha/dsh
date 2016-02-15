@@ -213,11 +213,6 @@ translateBinOp b c1 c2 = case b of
 
     V.AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
 
-
-    V.Zip -> do
-        (v, f1, f2) <- vecZip (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromKVec f1) (fromKVec f2)
-
     V.Align -> fromDVec <$> vecAlign (toDVec c1) (toDVec c2)
 
     V.ZipS -> do

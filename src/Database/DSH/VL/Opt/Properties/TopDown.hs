@@ -53,26 +53,25 @@ seed (UnOp op _)   =
 
 seed (BinOp op _ _) =
     case op of
-        Append       -> vPropTripleSeed
-        AppendS      -> vPropTripleSeed
-        ZipS         -> vPropTripleSeed
-        ReplicateNest     -> vPropPairSeed
-        ReplicateScalar      -> vPropPairSeed
-        AppKey       -> vPropPairSeed
-        AppSort      -> vPropPairSeed
-        AppFilter    -> vPropPairSeed
-        AppRep       -> vPropPairSeed
-        UnboxSng  -> vPropPairSeed
-        AggrS _      -> vPropSeed
-        Zip          -> vPropTripleSeed
-        Align        -> vPropSeed
-        CartProductS -> vPropTripleSeed
-        ThetaJoinS _ -> vPropTripleSeed
-        SemiJoinS _  -> vPropPairSeed
-        AntiJoinS _  -> vPropPairSeed
-        NestJoinS _  -> vPropTripleSeed
-        GroupJoin _  -> vPropSeed
-        NestProductS -> vPropTripleSeed
+        Append          -> vPropTripleSeed
+        AppendS         -> vPropTripleSeed
+        ZipS            -> vPropTripleSeed
+        ReplicateNest   -> vPropPairSeed
+        ReplicateScalar -> vPropPairSeed
+        AppKey          -> vPropPairSeed
+        AppSort         -> vPropPairSeed
+        AppFilter       -> vPropPairSeed
+        AppRep          -> vPropPairSeed
+        UnboxSng        -> vPropPairSeed
+        AggrS _         -> vPropSeed
+        Align           -> vPropSeed
+        CartProductS    -> vPropTripleSeed
+        ThetaJoinS _    -> vPropTripleSeed
+        SemiJoinS _     -> vPropPairSeed
+        AntiJoinS _     -> vPropPairSeed
+        NestJoinS _     -> vPropTripleSeed
+        GroupJoin _     -> vPropSeed
+        NestProductS    -> vPropTripleSeed
 
 seed (TerOp op _ _ _) =
     case op of
