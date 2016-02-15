@@ -82,7 +82,6 @@ class VectorAlgebra a where
     -- expressions per result column.
     vecProject :: [Expr] -> DVec a -> Build a (DVec a)
 
-    -- FIXME is distprim really necessary? could maybe be replaced by distdesc
     vecReplicateNest :: DVec a -> DVec a -> Build a (DVec a, RVec a)
 
     vecReplicateScalar :: DVec a -> DVec a -> Build a (DVec a, RVec a)
