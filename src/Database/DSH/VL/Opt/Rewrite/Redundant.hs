@@ -1107,9 +1107,20 @@ nestJoinChain q =
 
          -- The R1 node on the left nest join might already exist, but
          -- we simply rely on hash consing.
-         leftJoinR1  <- insert $ UnOp R1 $(v "lj")
-         rightJoin   <- insert $ BinOp (NestJoinS p') leftJoinR1 $(v "zs")
-         rightJoinR1 <- insert $ UnOp R1 rightJoin
+         leftJoinR1    <- insert $ UnOp R1 $(v "lj")
+
+         -- Since we employ the per-segment NestJoin, we have to unsegment the
+         -- left join result that is to be joined with the rightmost input (zs).
+         -- Otherwise, the segment structure of the left join result would not
+         -- match that of zs, which is guaranteed to consist of the unit
+         -- segment.
+         --
+         -- Note that the middle result vector still is the original segmented
+         -- result of the left join.
+         unsegmentLeft <- insert $ UnOp Unsegment leftJoinR1
+
+         rightJoin     <- insert $ BinOp (NestJoinS p') unsegmentLeft $(v "zs")
+         rightJoinR1   <- insert $ UnOp R1 rightJoin
 
          -- Because the original produced only the columns of ys and
          -- zs in the PropReorder output, we have to remove the xs
