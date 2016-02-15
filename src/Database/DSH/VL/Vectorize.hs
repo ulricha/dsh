@@ -269,7 +269,7 @@ tuple _ = $impossible
 tupElem :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
 tupElem i (SShape q (LTuple lyts)) =
     case lyts !! (tupleIndex i - 1) of
-        LNest qi lyt -> return $ VShape qi lyt
+        LNest qi lyt -> VShape <$> vlUnsegment qi <*> pure lyt
         _            -> do
             let (lyt', cols) = projectColumns i lyts
             proj <- vlProject (map Column cols) q
