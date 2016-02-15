@@ -77,7 +77,6 @@ inferSegmentsBinOp c1 c2 op =
     AppFilter       -> pure $ VPropPair SegdP SegNAP
     AppRep          -> pure $ VPropPair SegdP SegNAP
     UnboxSng        -> [ VPropPair f SegNAP | f <- unp c1 ]
-    Append          -> pure $ VPropTriple UnitSegP SegNAP SegNAP
     AppendS         -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
     Align           -> join [ VProp <$> flatInputs f1 f2 | f1 <- unp c1, f2 <- unp c2 ]
     CartProductS    -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]

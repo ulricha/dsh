@@ -203,10 +203,6 @@ translateBinOp b c1 c2 = case b of
         (v, k) <- vecUnboxSng (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromKVec k)
 
-    V.Append -> do
-        (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
-
     V.AppendS -> do
         (v, r1, r2) <- vecAppendS (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)

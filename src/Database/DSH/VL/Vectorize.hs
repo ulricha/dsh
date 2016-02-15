@@ -98,11 +98,10 @@ number (VShape q lyt) =
     VShape <$> vlNumberS q <*> pure (LTuple [lyt, LCol])
 number _ = $impossible
 
--- FIXME use AppendS
 append ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 append (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     -- Append the current vectors
-    (dv12, kv1, kv2) <- vlAppend dv1 dv2
+    (dv12, kv1, kv2) <- vlAppendS dv1 dv2
     -- Propagate position changes to descriptors of any inner vectors
     lyt1'       <- rekeyOuter kv1 lyt1
     lyt2'       <- rekeyOuter kv2 lyt2
@@ -252,7 +251,7 @@ ifList (SShape qb lytb) (VShape q1 lyt1) (VShape q2 lyt2) = do
     lyt2'                <- filterLayout falsefv lyt2
     lyt'                 <- appendLayout lyt1' lyt2'
 
-    (bothBranches, _, _) <- vlAppend trueVec' falseVec'
+    (bothBranches, _, _) <- vlAppendS trueVec' falseVec'
 
     return $ VShape bothBranches lyt'
 ifList qb (SShape q1 lyt1) (SShape q2 lyt2) = do

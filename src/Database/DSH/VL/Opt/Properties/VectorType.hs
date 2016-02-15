@@ -101,14 +101,6 @@ inferVectorTypeBinOp s1 s2 op =
     AppSort -> liftM2 VPropPair (unpack s2) (Right VTNA)
     AppFilter -> liftM2 VPropPair (unpack s2) (Right VTNA)
     AppKey -> liftM2 VPropPair (unpack s2) (Right VTNA)
-    Append ->
-      case (s1, s2) of
-        (VProp (VTDataVec w1), VProp (VTDataVec w2)) | w1 == w2 ->
-          Right $ VPropTriple (VTDataVec w1) VTNA VTNA
-        (VProp (VTDataVec w1), VProp (VTDataVec w2)) ->
-          Left $ "Inputs of Append do not have the same width " ++ (show w1) ++ " " ++ (show w2)
-        v ->
-          Left $ "Input of Append is not a VTDataVec " ++ (show v)
     AppendS ->
       case (s1, s2) of
         (VProp (VTDataVec w1), VProp (VTDataVec w2)) | w1 == w2 ->

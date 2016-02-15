@@ -66,7 +66,6 @@ inferEmptyBinOp e1 e2 op =
     ReplicateNest -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     ReplicateScalar -> mapUnp e1 e2 (\_ ue2 -> VPropPair ue2 ue2)
     UnboxSng -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    Append -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
     AppendS -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
     AggrS _ -> return $ VProp False
     Align -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))

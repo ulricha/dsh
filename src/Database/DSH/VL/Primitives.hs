@@ -187,9 +187,6 @@ vlAppRep (VLRVec c1) (VLDVec c2) = pairVec (BinOp AppRep c1 c2) dvec rvec
 vlNest :: VLDVec -> Build VL (VLDVec, VLDVec)
 vlNest (VLDVec c)= pairVec (UnOp Nest c) dvec dvec
 
-vlAppend :: VLDVec -> VLDVec -> Build VL (VLDVec, VLKVec, VLKVec)
-vlAppend (VLDVec c1) (VLDVec c2) = tripleVec (BinOp Append c1 c2) dvec kvec kvec
-
 vlAppendS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLKVec, VLKVec)
 vlAppendS (VLDVec c1) (VLDVec c2) = tripleVec (BinOp AppendS c1 c2) dvec kvec kvec
 

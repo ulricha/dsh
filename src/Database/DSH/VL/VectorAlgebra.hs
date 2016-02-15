@@ -101,7 +101,6 @@ class VectorAlgebra a where
 
     vecUnboxSng :: DVec a -> DVec a -> Build a (DVec a, KVec a)
 
-    vecAppend :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
     vecAppendS :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
     -- | Align two vectors positionally. However, in contrast to

@@ -159,7 +159,6 @@ opDotLabel tm i (BinOp AppSort _ _) = labelToDoc i "AppSort" empty (lookupTags i
 opDotLabel tm i (BinOp AppKey _ _) = labelToDoc i "AppKey" empty (lookupTags i tm)
 opDotLabel tm i (BinOp AppFilter _ _) = labelToDoc i "AppFilter" empty (lookupTags i tm)
 opDotLabel tm i (BinOp AppRep _ _) = labelToDoc i "AppRep" empty (lookupTags i tm)
-opDotLabel tm i (BinOp Append _ _) = labelToDoc i "Append" empty (lookupTags i tm)
 opDotLabel tm i (BinOp AppendS _ _) = labelToDoc i "AppendS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Align _ _) = labelToDoc i "Align" empty (lookupTags i tm)
 opDotLabel tm i (BinOp ZipS _ _) = labelToDoc i "ZipS" empty (lookupTags i tm)

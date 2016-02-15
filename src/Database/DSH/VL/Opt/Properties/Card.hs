@@ -61,7 +61,6 @@ inferCardOneBinOp c1 c2 op =
     AppRep -> return $ VPropPair False False
     UnboxSng -> return $ VPropPair False False
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
-    Append -> Right $ VPropTriple False False False
     AppendS -> Right $ VPropTriple False False False
     Align -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProductS -> return $ VPropTriple False False False
