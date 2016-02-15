@@ -90,6 +90,7 @@ inferSegmentsBinOp c1 c2 op =
     ZipS            -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
 
 inferSegmentsTerOp :: VectorProp SegP -> VectorProp SegP -> VectorProp SegP -> TerOp -> Either String (VectorProp SegP)
-inferSegmentsTerOp _ _ _ op =
+inferSegmentsTerOp c1 _ _ op =
   case op of
-    Combine -> pure $ VPropTriple SegdP SegNAP SegNAP
+    -- All three input vectors need to have the same segment structure.
+    Combine -> [ VPropTriple s1 SegNAP SegNAP | s1 <- unp c1 ]
