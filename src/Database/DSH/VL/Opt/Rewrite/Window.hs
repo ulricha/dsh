@@ -92,12 +92,9 @@ runningAggWinBounded q =
 
         predicate $ all (== (w + 1)) [nrCol, nrCol', nrCol'', nrCol''']
 
-        -- FIXME Take care of an aggregate function referencing columns from the
-        -- right GroupJoin input. Those need to be shifted.
-
         return $ do
             logRewrite "Window.RunningAggr" q
-            let afun'   = aggrToWinFun afun
+            let afun'   = aggrToWinFun $ mapAggrFun (mapExprCols (\c -> c - (w + 1))) afun
                 winSpec = FNPreceding constWinSize
 
             void $ replaceWithNew q $ UnOp (WinFun (afun', winSpec)) $(v "qn") |])
