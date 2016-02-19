@@ -81,8 +81,8 @@ redundantRulesBottomUp = [ sameInputAlign
                          , alignCartProdRight
                          , alignGroupJoinLeft
                          , alignGroupJoinRight
-                         -- , runningAggWinBounded
-                         -- , runningAggWinUnbounded
+                         , runningAggWinBounded
+                         , runningAggWinUnbounded
                          , inlineWinAggrProject
                          , pullProjectNumber
                          , constDist
