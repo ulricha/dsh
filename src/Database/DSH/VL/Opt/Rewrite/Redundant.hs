@@ -7,15 +7,16 @@ import           Control.Monad
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Lang
-
 import           Database.DSH.Common.Opt
+import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Opt.Properties.Types
 import           Database.DSH.VL.Opt.Properties.VectorType
+import           Database.DSH.VL.Opt.Rewrite.Aggregation
 import           Database.DSH.VL.Opt.Rewrite.Common
 import           Database.DSH.VL.Opt.Rewrite.Expressions
-import           Database.DSH.VL.Opt.Rewrite.Aggregation
 import           Database.DSH.VL.Opt.Rewrite.Window
-import           Database.DSH.VL.Lang
+
+{-# ANN module "HLint: ignore Reduce duplication" #-}
 
 removeRedundancy :: VLRewrite Bool
 removeRedundancy =
@@ -135,9 +136,9 @@ unreferencedReplicateNest :: VLRule Properties
 unreferencedReplicateNest q =
   $(dagPatMatch 'q  "R1 ((q1) ReplicateNest (q2))"
     [| do
-        VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties q
-        VProp (VTDataVec w1) <- vectorTypeProp <$> bu <$> properties $(v "q1")
-        VProp (VTDataVec w2) <- vectorTypeProp <$> bu <$> properties $(v "q2")
+        VProp (Just reqCols) <- reqColumnsProp . td <$> properties q
+        VProp (VTDataVec w1) <- vectorTypeProp . bu <$> properties $(v "q1")
+        VProp (VTDataVec w2) <- vectorTypeProp . bu <$> properties $(v "q2")
 
         -- Check that only columns from the right input are required
         predicate $ all (> w1) reqCols
@@ -458,7 +459,7 @@ alignConstLeft q =
   $(dagPatMatch 'q "(q1) Align (q2)"
     [| do
         VProp (ConstVec ps) <- constProp <$> properties $(v "q1")
-        w2                  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+        w2                  <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
         vals                <- mapM fromConst ps
 
         return $ do
@@ -470,7 +471,7 @@ alignConstRight :: VLRule BottomUpProps
 alignConstRight q =
   $(dagPatMatch 'q "(q1) Align (q2)"
     [| do
-        w1                  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        w1                  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
         VProp (ConstVec ps) <- constProp <$> properties $(v "q2")
         vals                <- mapM fromConst ps
 
@@ -500,7 +501,7 @@ zipConstLeft q =
 
         prop2               <- properties $(v "q2")
         VProp card2         <- return $ card1Prop prop2
-        w2                  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+        w2                  <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
         VProp UnitSegP      <- return $ segProp prop2
 
         vals                <- mapM fromConst ps
@@ -517,7 +518,7 @@ zipConstRight q =
     [| do
         prop1               <- properties $(v "q1")
         VProp card1         <- return $ card1Prop prop1
-        w1                  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        w1                  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
         VProp UnitSegP      <- return $ segProp prop1
 
         prop2               <- properties $(v "q2")
@@ -540,8 +541,8 @@ zipZipLeft q =
      [| do
          predicate $ $(v "q1") == $(v "q11")
 
-         w1 <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-         wz <- vectorWidth <$> vectorTypeProp <$> properties $(v "qz")
+         w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+         wz <- vectorWidth . vectorTypeProp <$> properties $(v "qz")
 
          return $ do
              logRewrite "Redundant.Zip/Align.Zip.Left" q
@@ -554,7 +555,7 @@ alignWinRight q =
      [| do
          predicate $ $(v "q1") == $(v "q2")
 
-         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         w <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
          return $ do
              logRewrite "Redundant.Align.Self.Win.Right" q
@@ -571,7 +572,7 @@ zipWinRight q =
      [| do
          predicate $ $(v "q1") == $(v "q2")
 
-         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         w <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
          return $ do
              logRewrite "Redundant.Zip.Self.Win.Right" q
@@ -588,7 +589,7 @@ alignWinLeft q =
      [| do
          predicate $ $(v "q1") == $(v "q2")
 
-         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         w <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
          return $ do
              logRewrite "Redundant.Align.Self.Win.Left" q
@@ -606,7 +607,7 @@ zipWinLeft q =
      [| do
          predicate $ $(v "q1") == $(v "q2")
 
-         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         w <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
          return $ do
              logRewrite "Redundant.Zip.Self.Win.Left" q
@@ -628,12 +629,12 @@ alignWinRightPush q =
     [| do
         let (winFun, frameSpec) = $(v "args")
         predicate $ isPrecedingFrameSpec frameSpec
-        w1 <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
         return $ do
             logRewrite "Redundant.Align.Win.Right" q
             zipNode <- insert $ BinOp Align $(v "q1") $(v "q2")
-            let winFun' = mapWinFun (mapExprCols (\c -> c + w1)) winFun
+            let winFun' = mapWinFun (mapExprCols (+ w1)) winFun
                 args'   = (winFun', frameSpec)
             void $ replaceWithNew q $ UnOp (WinFun args') zipNode |])
 
@@ -642,7 +643,7 @@ alignGroupJoinRight q =
   $(dagPatMatch 'q "(qo) Align (gj=(qo1) GroupJoin _ (_))"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
-        w <- vectorWidth <$> vectorTypeProp <$> properties $(v "qo")
+        w <- vectorWidth . vectorTypeProp <$> properties $(v "qo")
 
         return $ do
             logRewrite "Redundant.Align.GroupJoin.Right" q
@@ -656,7 +657,7 @@ alignGroupJoinLeft q =
   $(dagPatMatch 'q "(gj=(qo1) GroupJoin _ (_)) Align (qo)"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
-        w <- vectorWidth <$> vectorTypeProp <$> properties $(v "qo")
+        w <- vectorWidth . vectorTypeProp <$> properties $(v "qo")
 
         return $ do
             logRewrite "Redundant.Align.GroupJoin.Left" q
@@ -683,9 +684,9 @@ unboxNumber :: VLRule Properties
 unboxNumber q =
   $(dagPatMatch 'q "R1 ((NumberS (qo)) UnboxSng (qi))"
     [| do
-        VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties q
-        VProp (VTDataVec wo) <- vectorTypeProp <$> bu <$> properties $(v "qo")
-        VProp (VTDataVec wi) <- vectorTypeProp <$> bu <$> properties $(v "qi")
+        VProp (Just reqCols) <- reqColumnsProp . td <$> properties q
+        VProp (VTDataVec wo) <- vectorTypeProp . bu <$> properties $(v "qo")
+        VProp (VTDataVec wi) <- vectorTypeProp . bu <$> properties $(v "qi")
         predicate $ (wo+1) `notElem` reqCols
 
         return $ do
@@ -713,8 +714,8 @@ alignUnboxSngRight q =
      [| do
          predicate $ $(v "q11") == $(v "q12")
 
-         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q11")
-         rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q11")
+         rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
 
          return $ do
              logRewrite "Redundant.Align.UnboxSng.Right" q
@@ -741,8 +742,8 @@ alignUnboxSngLeft q =
      [| do
          predicate $ $(v "q11") == $(v "q12")
 
-         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q11")
-         rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q11")
+         rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
 
          return $ do
              logRewrite "Redundant.Align.UnboxSng.Left" q
@@ -807,7 +808,7 @@ scalarConditional q =
 
         -- The selection condition must be the negated form of the
         -- then-condition.
-        predicate $ (UnApp (SUBoolOp Not) predExpr) == $(v "negPred")
+        predicate $ UnApp (SUBoolOp Not) predExpr == $(v "negPred")
 
         return $ do
           logRewrite "Redundant.ScalarConditional" q
@@ -833,8 +834,8 @@ pullProjectGroupJoinLeft q =
   $(dagPatMatch 'q "(Project proj (q1)) GroupJoin args (q2)"
     [| do
         let (p, a) = $(v "args")
-        leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-        rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+        leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+        rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
 
         return $ do
             logRewrite "Redundant.Project.GroupJoin.Left" q
@@ -852,7 +853,7 @@ pullProjectGroupJoinRight q =
   $(dagPatMatch 'q "(q1) GroupJoin args (Project proj (q2))"
     [| do
         let (p, a) = $(v "args")
-        leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
         return $ do
             logRewrite "Redundant.Project.GroupJoin.Right" q
@@ -870,8 +871,8 @@ pullProjectNestJoinLeft :: VLRule BottomUpProps
 pullProjectNestJoinLeft q =
   $(dagPatMatch 'q "R1 ((Project proj (q1)) NestJoinS p (q2))"
     [| do
-        leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-        rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+        leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+        rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
 
         return $ do
             logRewrite "Redundant.Project.NestJoin.Left" q
@@ -889,7 +890,7 @@ pullProjectNestJoinRight :: VLRule BottomUpProps
 pullProjectNestJoinRight q =
   $(dagPatMatch 'q "R1 ((q1) NestJoinS p (Project proj (q2)))"
     [| do
-        leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
         return $ do
             logRewrite "Redundant.Project.NestJoin.Right" q
@@ -908,7 +909,7 @@ pullProjectNumber :: VLRule BottomUpProps
 pullProjectNumber q =
   $(dagPatMatch 'q "NumberS (Project proj (q1))"
     [| do
-         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         w <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
          return $ do
              logRewrite "Redundant.Project.Number" q
@@ -921,15 +922,14 @@ pullProjectNumber q =
 
 pullProjectSort :: VLRule ()
 pullProjectSort q =
-  $(dagPatMatch 'q "R1 (SortS ses (Project ps (q)))"
-    [| do
-          return $ do
-              logRewrite "Redundant.Project.Sort" q
-              let env = zip [1..] $(v "ps")
-              let ses' = map (mergeExpr env) $(v "ses")
-              sortNode <- insert $ UnOp (SortS ses') $(v "q")
-              r1Node   <- insert (UnOp R1 sortNode)
-              void $ replaceWithNew q $ UnOp (Project $(v "ps")) r1Node |])
+  $(dagPatMatch 'q "R1 (SortS ses (Project ps (q1)))"
+    [| return $ do
+           logRewrite "Redundant.Project.Sort" q
+           let env = zip [1..] $(v "ps")
+           let ses' = map (mergeExpr env) $(v "ses")
+           sortNode <- insert $ UnOp (SortS ses') $(v "q1")
+           r1Node   <- insert (UnOp R1 sortNode)
+           void $ replaceWithNew q $ UnOp (Project $(v "ps")) r1Node |])
 
 -- Motivation: In order to eliminate or pull up sorting operations in
 -- VL rewrites or subsequent stages, payload columns which might
@@ -940,8 +940,7 @@ pullProjectSort q =
 pullProjectAppKey :: VLRule ()
 pullProjectAppKey q =
   $(dagPatMatch 'q "R1 ((qp) AppKey (Project proj (qv)))"
-    [| do
-         return $ do
+    [| return $ do
            logRewrite "Redundant.Project.AppKey" q
            rekeyNode <- insert $ BinOp AppKey $(v "qp") $(v "qv")
            r1Node    <- insert $ UnOp R1 rekeyNode
@@ -951,8 +950,8 @@ pullProjectUnboxSngLeft :: VLRule BottomUpProps
 pullProjectUnboxSngLeft q =
   $(dagPatMatch 'q "R1 ((Project proj (q1)) UnboxSng (q2))"
     [| do
-         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-         rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+         rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
 
          return $ do
            logRewrite "Redundant.Project.UnboxSng" q
@@ -969,7 +968,7 @@ pullProjectUnboxSngRight :: VLRule BottomUpProps
 pullProjectUnboxSngRight q =
   $(dagPatMatch 'q "R1 ((q1) UnboxSng (Project proj (q2)))"
     [| do
-         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
          return $ do
            logRewrite "Redundant.Project.UnboxSng" q
@@ -990,7 +989,7 @@ pullProjectReplicateScalarRight :: VLRule BottomUpProps
 pullProjectReplicateScalarRight q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateScalar (Project p (q2)))"
     [| do
-         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
          return $ do
            logRewrite "Redundant.Project.ReplicateScalar" q
@@ -1004,8 +1003,7 @@ pullProjectReplicateScalarRight q =
 pullProjectAppRep :: VLRule ()
 pullProjectAppRep q =
   $(dagPatMatch 'q "R1 ((qp) AppRep (Project proj (qv)))"
-    [| do
-         return $ do
+    [| return $ do
            logRewrite "Redundant.Project.AppRep" q
            repNode <- insert $ BinOp AppRep $(v "qp") $(v "qv")
            r1Node  <- insert $ UnOp R1 repNode
@@ -1014,8 +1012,7 @@ pullProjectAppRep q =
 pullProjectAppFilter :: VLRule ()
 pullProjectAppFilter q =
   $(dagPatMatch 'q "R1 ((q1) AppFilter (Project proj (q2)))"
-    [| do
-         return $ do
+    [| return $ do
            logRewrite "Redundant.Project.AppFilter" q
            filterNode <- insert $ BinOp AppFilter $(v "q1") $(v "q2")
            r1Node     <- insert $ UnOp R1 filterNode
@@ -1024,8 +1021,7 @@ pullProjectAppFilter q =
 pullProjectAppSort :: VLRule ()
 pullProjectAppSort q =
   $(dagPatMatch 'q "R1 ((q1) AppSort (Project proj (q2)))"
-    [| do
-         return $ do
+    [| return $ do
            logRewrite "Redundant.Project.AppSort" q
            sortNode <- insert $ BinOp AppSort $(v "q1") $(v "q2")
            r1Node   <- insert $ UnOp R1 sortNode
@@ -1034,8 +1030,7 @@ pullProjectAppSort q =
 pullProjectUnboxKey :: VLRule ()
 pullProjectUnboxKey q =
   $(dagPatMatch 'q "UnboxKey (Project _ (q1))"
-    [| do
-         return $ do
+    [| return $ do
            logRewrite "Redundant.Project.UnboxKey" q
            void $ replaceWithNew q $ UnOp UnboxKey $(v "q1") |])
 
@@ -1044,10 +1039,9 @@ pullProjectUnboxKey q =
 pullProjectAggrS :: VLRule ()
 pullProjectAggrS q =
   $(dagPatMatch 'q "(Project _ (q1)) AggrS args (q2)"
-    [| do
-        return $ do
-            logRewrite "Redundant.Project.AggrS" q
-            void $ replaceWithNew q $ BinOp (AggrS $(v "args")) $(v "q1") $(v "q2") |])
+    [| return $ do
+           logRewrite "Redundant.Project.AggrS" q
+           void $ replaceWithNew q $ BinOp (AggrS $(v "args")) $(v "q1") $(v "q2") |])
 
 --------------------------------------------------------------------------------
 -- Rewrites that deal with nested structures and propagation vectors.
@@ -1099,9 +1093,9 @@ nestJoinChain q =
        VProp UnitSegP <- segProp <$> properties $(v "ys")
        VProp UnitSegP <- segProp <$> properties $(v "zs")
 
-       xsWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "xs")
-       ysWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "ys")
-       zsWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "zs")
+       xsWidth <- vectorWidth . vectorTypeProp <$> properties $(v "xs")
+       ysWidth <- vectorWidth . vectorTypeProp <$> properties $(v "ys")
+       zsWidth <- vectorWidth . vectorTypeProp <$> properties $(v "zs")
 
        return $ do
          logRewrite "Redundant.Prop.NestJoinChain" q
@@ -1148,8 +1142,8 @@ notReqNumber :: VLRule Properties
 notReqNumber q =
   $(dagPatMatch 'q "NumberS (q1)"
     [| do
-        w <- vectorWidth <$> vectorTypeProp <$> bu <$> properties $(v "q1")
-        VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties $(v "q")
+        w <- vectorWidth . vectorTypeProp . bu <$> properties $(v "q1")
+        VProp (Just reqCols) <- reqColumnsProp . td <$> properties $(v "q")
 
         -- The number output in column w + 1 must not be required
         predicate $ all (<= w) reqCols
@@ -1170,8 +1164,8 @@ selectCartProd :: VLRule BottomUpProps
 selectCartProd q =
   $(dagPatMatch 'q "R1 (Select p (R1 ((q1) CartProductS (q2))))"
     [| do
-        wl <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-        BinApp (SBRelOp op) (Column lc) (Column rc)  <- return $(v "p")
+        wl <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+        BinApp (SBRelOp op) (Column lc) (Column rc) <- return $(v "p")
 
         -- The left operand column has to be from the left input, the
         -- right operand from the right input.
@@ -1272,18 +1266,16 @@ pushUnboxSngThetaJoinRight q =
 pushAggrSAlign :: VLRule ()
 pushAggrSAlign q =
   $(dagPatMatch 'q "((_) Align (q1)) AggrS af (q2)"
-    [| do
-        return $ do
-            logRewrite "Redundant.AggrS.Push.Align" q
-            void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
+    [| return $ do
+           logRewrite "Redundant.AggrS.Push.Align" q
+           void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
 
 pushAggrSReplicateScalar :: VLRule ()
 pushAggrSReplicateScalar q =
   $(dagPatMatch 'q "(R1 ((_) ReplicateScalar (q1))) AggrS af (q2)"
-    [| do
-        return $ do
-            logRewrite "Redundant.AggrS.Push.ReplicateScalar" q
-            void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
+    [| return $ do
+           logRewrite "Redundant.AggrS.Push.ReplicateScalar" q
+           void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
 
 -- | Apply a singleton unbox operator before an align operator. By unboxing
 -- early, we hope to be able to eliminate unboxing (e.g. by combining it with an
@@ -1296,12 +1288,11 @@ pushAggrSReplicateScalar q =
 pushUnboxSngAlign :: VLRule ()
 pushUnboxSngAlign q =
   $(dagPatMatch 'q "R1 (((q1) Align (q2)) UnboxSng (q3))"
-    [| do
-        return $ do
-            logRewrite "Redundant.UnboxSng.Push.Align" q
-            unboxNode <- insert $ BinOp UnboxSng $(v "q2") $(v "q3")
-            r1Node    <- insert $ UnOp R1 unboxNode
-            void $ replaceWithNew q $ BinOp Align $(v "q1") r1Node |])
+    [| return $ do
+           logRewrite "Redundant.UnboxSng.Push.Align" q
+           unboxNode <- insert $ BinOp UnboxSng $(v "q2") $(v "q3")
+           r1Node    <- insert $ UnOp R1 unboxNode
+           void $ replaceWithNew q $ BinOp Align $(v "q1") r1Node |])
 
 -- | Unbox singletons early, namely before distributing another singleton.
 --
@@ -1309,10 +1300,9 @@ pushUnboxSngAlign q =
 pushUnboxSngReplicateScalar :: VLRule ()
 pushUnboxSngReplicateScalar q =
   $(dagPatMatch 'q "R1 ((R1 ((q1) ReplicateScalar (q2))) UnboxSng (q3))"
-    [| do
-        return $ do
-            logRewrite "Redundant.UnboxSng.Push.ReplicateScalar" q
-            unboxNode <- insert $ BinOp UnboxSng $(v "q2") $(v "q3")
-            r1Node    <- insert $ UnOp R1 unboxNode
-            distNode  <- insert $ BinOp ReplicateScalar $(v "q1") r1Node
-            void $ replaceWithNew q $ UnOp R1 distNode |])
+    [| return $ do
+           logRewrite "Redundant.UnboxSng.Push.ReplicateScalar" q
+           unboxNode <- insert $ BinOp UnboxSng $(v "q2") $(v "q3")
+           r1Node    <- insert $ UnOp R1 unboxNode
+           distNode  <- insert $ BinOp ReplicateScalar $(v "q1") r1Node
+           void $ replaceWithNew q $ UnOp R1 distNode |])
