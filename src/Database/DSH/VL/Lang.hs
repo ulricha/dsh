@@ -15,7 +15,6 @@ import           Database.Algebra.Dag           (Operator, opChildren,
                                                  replaceOpChild)
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.Common.Impossible
 import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Type
 

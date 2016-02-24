@@ -5,11 +5,9 @@
 -- whether it is a proper segmented vector.
 module Database.DSH.VL.Opt.Properties.Segments where
 
-import Data.List
 import Control.Monad.Except
 
 import Database.DSH.VL.Lang
-import Database.DSH.Common.Lang
 
 import Database.DSH.VL.Opt.Properties.Types
 import Database.DSH.VL.Opt.Properties.Common

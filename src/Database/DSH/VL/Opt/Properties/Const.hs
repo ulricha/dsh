@@ -9,7 +9,6 @@ module Database.DSH.VL.Opt.Properties.Const
 
 import           Control.Monad
 import qualified Data.Foldable                         as F
-import           Data.List
 import qualified Data.List.NonEmpty                    as N
 import           Data.Maybe
 import qualified Data.Sequence                         as S

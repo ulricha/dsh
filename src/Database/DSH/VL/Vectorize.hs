@@ -11,7 +11,6 @@ import qualified Data.List                      as List
 import qualified Data.List.NonEmpty             as N
 import qualified Data.Sequence                  as S
 import           Prelude                        hiding (reverse, zip)
-import qualified Prelude                        as P
 
 import           Database.Algebra.Dag.Build
 
@@ -24,6 +23,8 @@ import           Database.DSH.Common.Vector
 import           Database.DSH.VL.Lang           (AggrFun (..), Expr (..), VL ())
 import qualified Database.DSH.VL.Lang           as VL
 import           Database.DSH.VL.Primitives
+
+{-# ANN module "HLint: ignore Reduce duplication" #-}
 
 --------------------------------------------------------------------------------
 -- Construction of not-lifted primitives
