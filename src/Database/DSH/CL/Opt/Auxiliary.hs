@@ -94,7 +94,7 @@ toJoinExpr n = do
     e <- idR
 
     case e of
-        AppE1 _ (TupElem i) _ -> do
+        AppE1 _ (TupElem i) _ ->
             appe1T (toJoinExpr n) (\t _ e1 -> JTupElem t i e1)
         BinOp _ o _ _ -> do
             o' <- constT $ toJoinBinOp o
@@ -102,12 +102,12 @@ toJoinExpr n = do
         UnOp _ o _ -> do
             o' <- constT $ toJoinUnOp o
             unopT (toJoinExpr n) (\t _ e1 -> JUnOp t o' e1)
-        Lit t v       -> do
+        Lit t v       ->
             return $ JLit t v
         Var t x       -> do
             guardMsg (n == x) "toJoinExpr: wrong name"
             return $ JInput t
-        _             -> do
+        _             ->
             fail "toJoinExpr: can't translate to join expression"
 
 flipRelOp :: BinRelOp -> BinRelOp
@@ -208,7 +208,7 @@ freeVars = either error id . applyExpr freeVarsT
 
 -- | Compute all identifiers bound by a qualifier list
 compBoundVars :: F.Foldable f => f Qual -> [Ident]
-compBoundVars qs = F.foldr aux [] qs
+compBoundVars = F.foldr aux []
   where
     aux :: Qual -> [Ident] -> [Ident]
     aux (BindQ n _) ns = n : ns
@@ -237,13 +237,13 @@ substR v s = readerT $ \expr -> case expr of
 
     -- If a let-binding shadows the name we substitute, only descend
     -- into the bound expression.
-    ExprCL (Let _ n _ _) | n == v    -> tryR $ childR LetBind (substR v s)
-    ExprCL (Let _ n _ _) | otherwise ->
-        if n `elem` freeVars s
-        -- If the let-bound name occurs free in the substitute,
-        -- alpha-convert the binding to avoid capturing the name.
-        then $unimplemented >>> tryR (anyR (substR v s))
-        else tryR $ anyR (substR v s)
+    ExprCL (Let _ n _ _)
+        | n == v    -> tryR $ childR LetBind (substR v s)
+        | otherwise -> if n `elem` freeVars s
+                       -- If the let-bound name occurs free in the substitute,
+                       -- alpha-convert the binding to avoid capturing the name.
+                       then $unimplemented >>> tryR (anyR (substR v s))
+                       else tryR $ anyR (substR v s)
 
     -- If some generator shadows v, we must not substitute in the comprehension
     -- head. However, substitute in the qualifier list. The traversal on
@@ -254,7 +254,7 @@ substR v s = readerT $ \expr -> case expr of
     ExprCL _                                           -> tryR $ anyR $ substR v s
 
     -- Don't substitute past shadowing generators
-    QualsCL ((BindQ n _) :* _) | n == v                -> tryR $ childR QualsHead (substR v s)
+    QualsCL (BindQ n _ :* _) | n == v                  -> tryR $ childR QualsHead (substR v s)
     QualsCL _                                          -> tryR $ anyR $ substR v s
     QualCL _                                           -> tryR $ anyR $ substR v s
 
@@ -280,22 +280,23 @@ tupleVars n t1 t2 = (v1Rep, v2Rep)
 -- Helpers for combining generators with guards in a comprehensions'
 -- qualifier list
 
--- | Insert a guard in a qualifier list at the first possible
--- position.
+-- | Insert a guard in a qualifier list at the first possible position.
+-- 'insertGuard' expects the guard expression to insert, the initial name
+-- envionment above the qualifiers and the list of qualifiers.
 insertGuard :: Expr -> S.Set Ident -> NL Qual -> NL Qual
-insertGuard guardExpr initialEnv quals = go initialEnv quals
+insertGuard guardExpr = go
   where
     go :: S.Set Ident -> NL Qual -> NL Qual
     go env (S q)                 =
-        if all (\v -> S.member v env) fvs
+        if all (`S.member` env) fvs
         then GuardQ guardExpr :* S q
         else q :* (S $ GuardQ guardExpr)
     go env (q@(BindQ x _) :* qs) =
-        if all (\v -> S.member v env) fvs
+        if all (`S.member` env) fvs
         then GuardQ guardExpr :* q :* qs
         else q :* go (S.insert x env) qs
     go env (GuardQ p :* qs)      =
-        if all (\v -> S.member v env) fvs
+        if all (`S.member` env) fvs
         then GuardQ guardExpr :* GuardQ p :* qs
         else GuardQ p :* go env qs
 
@@ -354,9 +355,9 @@ mergeGuardsIterR mergeGuardR = do
     ExprCL (Comp ty e qs) <- idR
 
     -- Separate generators from guards
-    ((g : gs), guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
+    (g : gs, guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
 
-    let initialComp = C ty e (fmap (uncurry BindQ) $ fromListSafe g gs)
+    let initialComp = C ty e (uncurry BindQ <$> fromListSafe g gs)
 
     -- Try to merge one guard with some generators
     (C _ e' qs', remGuards) <- constT (return ())
@@ -365,7 +366,7 @@ mergeGuardsIterR mergeGuardR = do
     -- If there are any guards remaining which we could not turn into
     -- joins, append them at the end of the new qualifier list
     case remGuards of
-        rg : rgs -> let rqs = fmap GuardQ $ fromListSafe rg rgs
+        rg : rgs -> let rqs = GuardQ <$> fromListSafe rg rgs
                     in return $ ExprCL $ Comp ty e' (appendNL qs' rqs)
         []       -> return $ ExprCL $ Comp ty e' qs'
 
