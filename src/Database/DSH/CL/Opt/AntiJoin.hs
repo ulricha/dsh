@@ -1,6 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE PatternSynonyms #-}
-
 module Database.DSH.CL.Opt.AntiJoin
     ( antijoinR
     ) where
@@ -27,9 +24,6 @@ import qualified Database.DSH.CL.Primitives as P
 -- Queries with Universal Quantification in Object-Oriented and
 -- Object-Relational Databases (VLDB 1995).
 
-pattern PAnd xs <- AppE1 _ And xs
-pattern PNot e <- UnOp _ (SUBoolOp Not) e
-
 negateRelOp :: BinRelOp -> BinRelOp
 negateRelOp op = case op of
     Eq  -> NEq
@@ -51,7 +45,7 @@ quantifierPredicateT :: Ident
 quantifierPredicateT x y = readerT $ \q -> case q of
     -- If the quantifier predicate is already negated, take its
     -- non-negated form.
-    ExprCL (PNot _) -> do
+    ExprCL (NotP _) -> do
         conjs <- childT UnOpArg conjunctsT
 
         -- Separate predicate parts that only depend on the inner
@@ -105,7 +99,7 @@ universalQualR :: RewriteC (NL Qual)
 universalQualR = readerT $ \quals -> case quals of
     -- Special case: no range predicate
     -- [ ... | ..., x <- xs, and [ q | y <- ys ]]
-    BindQ x xs :* (S (GuardQ (PAnd (Comp _ q (S (BindQ y ys)))))) -> do
+    BindQ x xs :* (S (GuardQ (AndP (Comp _ q (S (BindQ y ys)))))) -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
@@ -114,7 +108,7 @@ universalQualR = readerT $ \quals -> case quals of
 
     -- Special case: no range predicate
     -- [ ... | ..., x <- xs, and [ q | y <- ys ], ... ]
-    BindQ x xs :* (GuardQ (PAnd (Comp _ q (S (BindQ y ys))))) :* qs -> do
+    BindQ x xs :* (GuardQ (AndP (Comp _ q (S (BindQ y ys))))) :* qs -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
@@ -122,7 +116,7 @@ universalQualR = readerT $ \quals -> case quals of
         return $ antijoinGen :* qs
 
     -- [ ... | ..., x <- xs, and [ q | y <- ys, ps ], ... ]
-    BindQ x xs :* GuardQ (PAnd (Comp _ q (BindQ y ys :* ps))) :* qs -> do
+    BindQ x xs :* GuardQ (AndP (Comp _ q (BindQ y ys :* ps))) :* qs -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
@@ -130,7 +124,7 @@ universalQualR = readerT $ \quals -> case quals of
         return $ antijoinGen :* qs
 
     -- [ ... | ..., x <- xs, and [ q | y <- ys, ps ]]
-    BindQ x xs :* (S (GuardQ (PAnd (Comp _ q (BindQ y ys :* ps))))) -> do
+    BindQ x xs :* (S (GuardQ (AndP (Comp _ q (BindQ y ys :* ps))))) -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 

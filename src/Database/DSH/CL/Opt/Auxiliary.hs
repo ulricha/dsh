@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE PatternSynonyms       #-}
 
 -- | Common tools for rewrites
 module Database.DSH.CL.Opt.Auxiliary
@@ -39,6 +40,17 @@ module Database.DSH.CL.Opt.Auxiliary
     , fromGen
       -- * NL spine traversal
     , onetdSpineT
+      -- * Pattern synonyms for expressions
+    , pattern ConcatP
+    , pattern SingletonP
+    , pattern GuardP
+    , pattern SemiJoinP
+    , pattern AndP
+    , pattern NotP
+    , pattern EqP
+    , pattern LengthP
+    , pattern OrP
+    , pattern NullP
     ) where
 
 import           Control.Arrow
@@ -411,3 +423,19 @@ fromGuard (BindQ _ _) = fail "not a guard"
 fromGen :: Monad m => Qual -> m (Ident, Expr)
 fromGen (BindQ x xs) = return (x, xs)
 fromGen (GuardQ _)   = fail "not a generator"
+
+--------------------------------------------------------------------------------
+-- Pattern synonyms for expressions
+
+pattern ConcatP xs           <- AppE1 _ Concat xs
+pattern SingletonP x         <- AppE1 _ Singleton x
+pattern GuardP p             <- AppE1 _ Guard p
+pattern SemiJoinP ty p xs ys <- AppE2 ty (SemiJoin p) xs ys
+pattern AndP xs              <- AppE1 _ And xs
+pattern NotP e               <- UnOp _ (SUBoolOp Not) e
+pattern EqP e1 e2 <- BinOp _ (SBRelOp Eq) e1 e2
+pattern LengthP e <- AppE1 _ Length e
+pattern OrP xs <- AppE1 _ Or xs
+pattern NullP e <- AppE1 _ Null e
+pattern TrueP = Lit PBoolT (ScalarV (BoolV True))
+
