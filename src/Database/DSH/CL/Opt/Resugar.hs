@@ -1,5 +1,3 @@
-{-# LANGUAGE PatternSynonyms #-}
-
 -- | Resguaring rules that restore a source comprehension form from
 -- the desugared 'concatMap' form.
 module Database.DSH.CL.Opt.Resugar
@@ -13,10 +11,7 @@ import           Database.DSH.Common.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Opt.PartialEval
-
-pattern ConcatP xs   <- AppE1 _ Concat xs
-pattern SingletonP x <- AppE1 _ Singleton x
-pattern GuardP p     <- AppE1 _ Guard p
+import           Database.DSH.CL.Opt.Auxiliary
 
 -- | Eliminate a singleton list in a comprehension head.
 -- concat [ [e] | qs ] => [ e | qs ]
