@@ -48,13 +48,14 @@ reqRightPredCols (JoinPred cs) = L.nub
                                 $ N.toList cs
 
 aggrReqCols :: AggrFun -> [DBCol]
-aggrReqCols (AggrSum _ e) = reqExprCols e
-aggrReqCols (AggrMin e)   = reqExprCols e
-aggrReqCols (AggrMax e)   = reqExprCols e
-aggrReqCols (AggrAvg e)   = reqExprCols e
-aggrReqCols (AggrAll e)   = reqExprCols e
-aggrReqCols (AggrAny e)   = reqExprCols e
-aggrReqCols AggrCount     = []
+aggrReqCols (AggrSum _ e)         = reqExprCols e
+aggrReqCols (AggrMin e)           = reqExprCols e
+aggrReqCols (AggrMax e)           = reqExprCols e
+aggrReqCols (AggrAvg e)           = reqExprCols e
+aggrReqCols (AggrAll e)           = reqExprCols e
+aggrReqCols (AggrAny e)           = reqExprCols e
+aggrReqCols AggrCount             = []
+aggrReqCols (AggrCountDistinct e) = reqExprCols e
 
 winReqCols :: WinFun -> [DBCol]
 winReqCols (WinSum e)        = reqExprCols e

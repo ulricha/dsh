@@ -36,14 +36,15 @@ renderFrameSpec FAllPreceding   = text "allprec"
 renderFrameSpec (FNPreceding n) = int n <+> text "prec"
 
 renderAggrFun :: AggrFun -> Doc
-renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnType t)
-                                        [renderExpr c]
-renderAggrFun (AggrMin c)   = renderFun (text "min") [renderExpr c]
-renderAggrFun (AggrMax c)   = renderFun (text "max") [renderExpr c]
-renderAggrFun (AggrAvg c)   = renderFun (text "avg") [renderExpr c]
-renderAggrFun (AggrAny c)   = renderFun (text "any") [renderExpr c]
-renderAggrFun (AggrAll c)   = renderFun (text "all") [renderExpr c]
-renderAggrFun AggrCount     = renderFun (text "count") []
+renderAggrFun (AggrSum t c)         = renderFun (text "sum" <> char '_' <> renderColumnType t)
+                                                [renderExpr c]
+renderAggrFun (AggrMin c)           = renderFun (text "min") [renderExpr c]
+renderAggrFun (AggrMax c)           = renderFun (text "max") [renderExpr c]
+renderAggrFun (AggrAvg c)           = renderFun (text "avg") [renderExpr c]
+renderAggrFun (AggrAny c)           = renderFun (text "any") [renderExpr c]
+renderAggrFun (AggrAll c)           = renderFun (text "all") [renderExpr c]
+renderAggrFun AggrCount             = renderFun (text "count") []
+renderAggrFun (AggrCountDistinct c) = renderFun (text "countDistinct") [renderExpr c]
 
 renderWinFun :: WinFun -> Doc
 renderWinFun (WinSum c)        = renderFun (text "sum") [renderExpr c]

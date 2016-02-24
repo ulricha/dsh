@@ -86,13 +86,14 @@ constVal wrap (ConstPL val) = return $ wrap val
 constVal _             _    = fail "no match"
 
 mapAggrFun :: (Expr -> Expr) -> AggrFun -> AggrFun
-mapAggrFun f (AggrMax e) = AggrMax $ f e
-mapAggrFun f (AggrSum t e) = AggrSum t $ f e
-mapAggrFun f (AggrMin e) = AggrMin $ f e
-mapAggrFun f (AggrAvg e) = AggrAvg $ f e
-mapAggrFun f (AggrAny e) = AggrAny $ f e
-mapAggrFun f (AggrAll e) = AggrAll $ f e
-mapAggrFun _ AggrCount   = AggrCount
+mapAggrFun f (AggrMax e)           = AggrMax $ f e
+mapAggrFun f (AggrSum t e)         = AggrSum t $ f e
+mapAggrFun f (AggrMin e)           = AggrMin $ f e
+mapAggrFun f (AggrAvg e)           = AggrAvg $ f e
+mapAggrFun f (AggrAny e)           = AggrAny $ f e
+mapAggrFun f (AggrAll e)           = AggrAll $ f e
+mapAggrFun _ AggrCount             = AggrCount
+mapAggrFun f (AggrCountDistinct e) = AggrCountDistinct $ f e
 
 mapWinFun :: (Expr -> Expr) -> WinFun -> WinFun
 mapWinFun f (WinMax e)        = WinMax $ f e

@@ -38,6 +38,7 @@ data AggrFun = AggrSum ScalarType Expr
              | AggrAll Expr
              | AggrAny Expr
              | AggrCount
+             | AggrCountDistinct Expr
              deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''AggrFun)

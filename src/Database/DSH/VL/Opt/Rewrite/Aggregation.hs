@@ -29,6 +29,7 @@ aggregationRules = [ inlineAggrSProject
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
 aggregationRulesBottomUp = [ {- nonEmptyAggr
                            , nonEmptyAggrS -}
+                             countDistinct
                            ]
 
 groupingToAggregation :: VLRewrite Bool
@@ -267,4 +268,16 @@ groupJoin q =
         return $ do
             logRewrite "GroupJoin" q
             void $ replaceWithNew q $ BinOp (GroupJoin ($(v "p"), $(v "a"))) $(v "qo") $(v "qi")
+        |])
+
+countDistinct :: VLRule BottomUpProps
+countDistinct q =
+  $(dagPatMatch 'q "(q1) AggrS a (UniqueS (q2))"
+    [| do
+        AggrCount           <- return $(v "a")
+        VProp (VTDataVec 1) <- vectorTypeProp <$> properties $(v "q2")
+
+        return $ do
+            logRewrite "CountDistinct" q
+            void $ replaceWithNew q $ BinOp (AggrS (AggrCountDistinct (Column 1))) $(v "q1") $(v "q2")
         |])

@@ -25,14 +25,15 @@ pattern DoubleJoinPred e11 op1 e12 e21 op2 e22 = JoinPred ((JoinConjunct e11 op1
 pattern AddExpr e1 e2 = BinApp (SBNumOp Add) e1 e2
 pattern SubExpr e1 e2 = BinApp (SBNumOp Sub) e1 e2
 
-aggrToWinFun :: AggrFun -> WinFun
-aggrToWinFun (AggrSum _ e) = WinSum e
-aggrToWinFun (AggrMin e)   = WinMin e
-aggrToWinFun (AggrMax e)   = WinMax e
-aggrToWinFun (AggrAvg e)   = WinAvg e
-aggrToWinFun (AggrAll e)   = WinAll e
-aggrToWinFun (AggrAny e)   = WinAny e
-aggrToWinFun AggrCount     = WinCount
+aggrToWinFun :: AggrFun -> Maybe WinFun
+aggrToWinFun (AggrSum _ e)         = Just $ WinSum e
+aggrToWinFun (AggrMin e)           = Just $ WinMin e
+aggrToWinFun (AggrMax e)           = Just $ WinMax e
+aggrToWinFun (AggrAvg e)           = Just $ WinAvg e
+aggrToWinFun (AggrAll e)           = Just $ WinAll e
+aggrToWinFun (AggrAny e)           = Just $ WinAny e
+aggrToWinFun AggrCount             = Just WinCount
+aggrToWinFun (AggrCountDistinct _) = Nothing
 
 -- Turn a running aggregate based on a self-join into a window operator.
 runningAggWinUnbounded :: VLRule BottomUpProps
@@ -59,12 +60,12 @@ runningAggWinUnbounded q =
         let isWindowColumn c = c >= w + 2 && c <= 2 * w + 1
         predicate $ all isWindowColumn (aggrReqCols $(v "afun"))
 
+        -- Shift column references in aggregate functions so that they are
+        -- applied to partition columns.
+        Just afun' <- return $ aggrToWinFun $ mapAggrFun (mapExprCols (\c -> c - (w + 1))) $(v "afun")
+
         return $ do
             logRewrite "Window.RunningAggr" q
-            -- Shift column references in aggregate functions so that
-            -- they are applied to partition columns.
-            let afun' = aggrToWinFun $ mapAggrFun (mapExprCols (\c -> c - (w + 1))) $(v "afun")
-
             void $ replaceWithNew q $ UnOp (WinFun (afun', FAllPreceding)) $(v "q1") |])
 
 -- Turn a running aggregate based on a self-join into a window operator.
@@ -92,10 +93,11 @@ runningAggWinBounded q =
 
         predicate $ all (== (w + 1)) [nrCol, nrCol', nrCol'', nrCol''']
 
+        Just afun' <- return $ aggrToWinFun $ mapAggrFun (mapExprCols (\c -> c - (w + 1))) afun
+
         return $ do
             logRewrite "Window.RunningAggr" q
-            let afun'   = aggrToWinFun $ mapAggrFun (mapExprCols (\c -> c - (w + 1))) afun
-                winSpec = FNPreceding constWinSize
+            let winSpec = FNPreceding constWinSize
 
             void $ replaceWithNew q $ UnOp (WinFun (afun', winSpec)) $(v "qn") |])
 
