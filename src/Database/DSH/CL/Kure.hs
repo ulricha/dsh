@@ -91,22 +91,22 @@ type AbsPathC = AbsolutePath CrumbC
 type PathC = Path CrumbC
 
 -- | The context for KURE-based CL rewrites
-data CompCtx = CompCtx { cl_bindings :: M.Map L.Ident Type
-                       , cl_path     :: AbsPathC
+data CompCtx = CompCtx { clBindings :: M.Map L.Ident Type
+                       , clPath     :: AbsPathC
                        }
 
 instance ExtendPath CompCtx CrumbC where
-    c@@n = c { cl_path = cl_path c @@ n }
+    c@@n = c { clPath = clPath c @@ n }
 
 instance ReadPath CompCtx CrumbC where
-    absPath c = cl_path c
+    absPath = clPath
 
 initialCtx :: CompCtx
-initialCtx = CompCtx { cl_bindings = M.empty, cl_path = mempty }
+initialCtx = CompCtx { clBindings = M.empty, clPath = mempty }
 
 -- | Record a variable binding in the context
 bindVar :: L.Ident -> Type -> CompCtx -> CompCtx
-bindVar n ty ctx = ctx { cl_bindings = M.insert n ty (cl_bindings ctx) }
+bindVar n ty ctx = ctx { clBindings = M.insert n ty (clBindings ctx) }
 
 -- | If the qualifier represents a generator, bind the variable in the context.
 bindQual :: CompCtx -> Qual -> CompCtx
@@ -114,13 +114,13 @@ bindQual ctx (BindQ n e) = bindVar n (elemT $ typeOf e) ctx
 bindQual ctx _           = ctx
 
 inScopeNames :: CompCtx -> [L.Ident]
-inScopeNames = M.keys . cl_bindings
+inScopeNames = M.keys . clBindings
 
 boundIn :: L.Ident -> CompCtx -> Bool
-boundIn n ctx = n `M.member` (cl_bindings ctx)
+boundIn n ctx = n `M.member` clBindings ctx
 
 freeIn :: L.Ident -> CompCtx -> Bool
-freeIn n ctx = n `M.notMember` (cl_bindings ctx)
+freeIn n ctx = n `M.notMember` clBindings ctx
 
 -- | Generate a fresh name that is not bound in the current context.
 freshNameT :: [L.Ident] -> TransformC a L.Ident
@@ -131,7 +131,7 @@ freshNameT avoidNames = do
 -- | Perform a transform with an empty path, i.e. a path starting from
 -- the current node.
 withLocalPathT :: Monad m => Transform CompCtx m a b -> Transform CompCtx m a b
-withLocalPathT t = transform $ \c a -> applyT t (c { cl_path = SnocPath [] }) a
+withLocalPathT t = transform $ \c a -> applyT t (c { clPath = SnocPath [] }) a
 
 --------------------------------------------------------------------------------
 -- Support for stateful transforms
@@ -139,11 +139,11 @@ withLocalPathT t = transform $ \c a -> applyT t (c { cl_path = SnocPath [] }) a
 -- | Run a stateful transform with an initial state and turn it into a regular
 -- (non-stateful) transform
 statefulT :: s -> Transform CompCtx (RewriteStateM s) a b -> TransformC a (s, b)
-statefulT s t = resultT (stateful s) t
+statefulT s = resultT (stateful s)
 
 -- | Turn a regular rewrite into a stateful rewrite
 liftstateT :: Transform CompCtx (RewriteM Int) a b -> Transform CompCtx (RewriteStateM s) a b
-liftstateT t = resultT liftstate t
+liftstateT = resultT liftstate
 
 --------------------------------------------------------------------------------
 -- Congruence combinators for CL expressions

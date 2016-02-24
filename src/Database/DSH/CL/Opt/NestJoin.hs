@@ -1,7 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE QuasiQuotes           #-}
-{-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | Deal with nested comprehensions by introducing explicit nesting
@@ -58,7 +56,7 @@ nestedCompT x = do
         BindQ y ys :* qsr -> return (y, ys, toList qsr)
         _                 -> fail "no match"
 
-    guardM $ not $ x `elem` freeVars ys
+    guardM $ x `notElem` freeVars ys
     guards <- constT $ mapM fromGuard qsr
 
     p <- snocPathToPath <$> absPathT
@@ -70,8 +68,8 @@ nestedCompT x = do
 searchCompQuals :: Ident -> [Ident] -> TransformC CL (PathC, NestedComp)
 searchCompQuals x qualBoundVars =
     readerT $ \qs -> case qs of
-        QualsCL ((BindQ y ys) :* _) ->
-            (guardM (null $ (freeVars ys) `intersect` qualBoundVars)
+        QualsCL (BindQ y ys :* _) ->
+            (guardM (null $ freeVars ys `intersect` qualBoundVars)
              >>
              pathT [QualsHead, BindQualExpr] (searchNestedCompT x))
             <+
@@ -83,7 +81,7 @@ searchCompQuals x qualBoundVars =
         -- principle we could, but the guard would have to be
         -- loop-invariant (i.e. do not depend on any local generators)
         -- and that's rather unlikely.
-        QualsCL ((GuardQ _) :* _)  ->
+        QualsCL (GuardQ _ :* _)  ->
             childT QualsTail (searchCompQuals x qualBoundVars)
         QualsCL (S (GuardQ _))     -> fail "don't search in guard expressions"
         _                          -> fail "only consider qualifier lists here"
@@ -184,7 +182,7 @@ unnestWorkerT headComp (x, xs) = do
 
     -- Do the same on left over predicates, which will be
     -- evaluated on the nestjoin result.
-    remPreds <- sequence $ map tuplifyInnerVarR leftOverPreds
+    remPreds <- mapM tuplifyInnerVarR leftOverPreds
     let remGuards = map GuardQ remPreds
 
     -- Construct the inner comprehension with the tuplified head
@@ -330,7 +328,7 @@ unnestGuardT localGenVars (x, xs) guardExpr = do
 -- | Search for unnestable combinations of a generator and a nested
 -- guard in a qualifier list.
 unnestQualsR :: [Ident] -> Rewrite CompCtx GuardM (NL Qual)
-unnestQualsR localGenVars = do
+unnestQualsR localGenVars =
     readerT $ \quals -> case quals of
         -- In the middle of a qualifier list
         BindQ x xs :* GuardQ p :* qs -> do
@@ -342,7 +340,7 @@ unnestQualsR localGenVars = do
             return $ BindQ x xs' :* qs'
 
         -- At the end of a qualifier list
-        BindQ x xs :* (S (GuardQ p)) -> do
+        BindQ x xs :* S (GuardQ p) -> do
             (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p
                                                     >>>
                                                     unnestGuardT localGenVars (x, xs) p
@@ -362,7 +360,7 @@ unnestQualsR localGenVars = do
 unnestGuardR :: [Expr] -> [Expr] -> TransformC CL (CL, [Expr], [Expr])
 unnestGuardR candGuards failedGuards = do
     Comp t _ qs      <- promoteT idR
-    let localGenVars = concatMap (either ((: []) . fst) (const [])) $ map fromQual $ toList qs
+    let localGenVars = concatMap (either ((: []) . fst) (const []) . fromQual) $ toList qs
     let unnestR = anytdR (promoteR $ unnestQualsR localGenVars) >>> projectT
     ((tuplifyVarR, Just guardExpr), qs') <- statefulT (idR, Nothing) $ childT CompQuals unnestR
 
@@ -377,7 +375,7 @@ unnestGuardR candGuards failedGuards = do
 unnestGuardWorkerR :: MergeGuard
 unnestGuardWorkerR comp guardExpr candGuards failedGuards = do
     let C ty h qs = comp
-    env <- S.fromList <$> M.keys <$> cl_bindings <$> contextT
+    env <- S.fromList . M.keys . clBindings <$> contextT
     let compWithGuard = constT $ return $ ExprCL $ Comp ty h (insertGuard guardExpr env qs)
     (comp', candGuards', failedGuards') <- compWithGuard >>> unnestGuardR candGuards failedGuards
     ExprCL (Comp _ h' qs') <- return comp'

@@ -71,6 +71,11 @@ applyExpr f e = runRewriteM $ applyT f initialCtx (inject e)
 applyInjectable :: Injection a CL => TransformC CL b -> a -> Either String b
 applyInjectable t e = runRewriteM $ applyT t initialCtx (inject e)
 
+--------------------------------------------------------------------------------
+-- Rewrite join predicates into general expressions.
+
+toExpr :: TransformC JoinExpr Expr
+toExpr = undefined
 
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates

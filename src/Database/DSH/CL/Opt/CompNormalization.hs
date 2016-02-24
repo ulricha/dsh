@@ -166,7 +166,7 @@ qualsguardpushfrontR = do
     (g : gs, guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
 
     let gens = uncurry BindQ <$> fromListSafe g gs
-    env <- S.fromList <$> M.keys <$> cl_bindings <$> contextT
+    env <- S.fromList . M.keys . clBindings <$> contextT
     let qs' = foldl (\quals guard -> insertGuard guard env quals) gens guards
     guardM $ qs /= qs'
     return qs'
