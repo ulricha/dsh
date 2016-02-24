@@ -288,6 +288,7 @@ listTests conn = testGroup "Lists"
     , testPropertyConn conn "unzip"                        prop_unzip
     , testPropertyConn conn "unzip3"                       prop_unzip3
     , testPropertyConn conn "nub"                          prop_nub
+    , testPropertyConn conn "length . nub"                 prop_nub_length
     , testPropertyConn conn "number"                       prop_number
     ]
 
@@ -360,6 +361,7 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "map init"                              prop_map_init
     , testPropertyConn conn "map last"                              prop_map_last
     , testPropertyConn conn "map null"                              prop_map_null
+    , testPropertyConn conn "map (length . nub)"                    prop_map_nub_length
     , testPropertyConn conn "map nub"                               prop_map_nub
     , testPropertyConn conn "map snoc"                              prop_map_snoc
     , testPropertyConn conn "map take"                              prop_map_take
@@ -1189,8 +1191,14 @@ prop_unzip3 = makePropEq Q.unzip3 unzip3
 prop_nub :: Backend c => [Integer] -> c -> Property
 prop_nub = makePropEq Q.nub nub
 
+prop_nub_length :: Backend c => [Integer] -> c -> Property
+prop_nub_length = makePropEq (Q.length . Q.nub) (fromIntegral . length . nub)
+
 prop_map_nub :: Backend c => [[(Integer, Integer)]] -> c -> Property
 prop_map_nub = makePropEq (Q.map Q.nub) (map nub)
+
+prop_map_nub_length :: Backend c => [[Integer]] -> c -> Property
+prop_map_nub_length = makePropEq (Q.map (Q.length . Q.nub)) (map (fromIntegral . length . nub))
 
 -- * Tuples
 
