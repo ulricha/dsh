@@ -37,6 +37,11 @@ tupleElemR = do
     AppE1 _ (TupElem i) (MkTuple _ es) <- promoteT idR
     return $ inject $ es !! (tupleIndex i - 1)
 
+doubleNegationR :: RewriteC CL
+doubleNegationR = do
+    UnOp _ (SUBoolOp Not) (UnOp _ (SUBoolOp Not) e) <- promoteT idR
+    return $ inject e
+
 fromLiteral :: Expr -> TransformC CL Val
 fromLiteral (Lit _ val) = return val
 fromLiteral _           = fail "not a literal"
@@ -73,6 +78,7 @@ appendEmptyRightR = do
 partialEvalR :: RewriteC CL
 partialEvalR =
     readerT $ \cl -> case cl of
+        ExprCL UnOp{}    -> doubleNegationR
         ExprCL AppE1{}   -> tupleElemR <+ literalSingletonR
         ExprCL MkTuple{} -> identityPairR <+ literalTupleR
         ExprCL AppE2{}   -> literalAppendR <+ appendEmptyLeftR <+ appendEmptyRightR
