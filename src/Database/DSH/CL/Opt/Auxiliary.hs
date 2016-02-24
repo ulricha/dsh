@@ -51,6 +51,7 @@ module Database.DSH.CL.Opt.Auxiliary
     , pattern LengthP
     , pattern OrP
     , pattern NullP
+    , pattern TrueP
     ) where
 
 import           Control.Arrow
