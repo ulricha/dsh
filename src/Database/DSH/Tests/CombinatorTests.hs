@@ -258,6 +258,7 @@ listTests conn = testGroup "Lists"
     , testPropertyConn conn "groupagg avg"                 prop_groupagg_avg
     , testPropertyConn conn "sortWith"                     prop_sortWith
     , testPropertyConn conn "sortWith [(,)]"               prop_sortWith_pair
+    , testPropertyConn conn "sortWith [(Char,)]"           prop_sortWith_pair_stable
     , testPropertyConn conn "sortWith [(,[])]"             prop_sortWith_nest
     , testPropertyConn conn "Sortwith length nested"       prop_sortWith_length_nest
     , testPropertyConn conn "and"                          prop_and
@@ -903,6 +904,10 @@ prop_sortWith = makePropEq (Q.sortWith id) (sortWith id)
 
 prop_sortWith_pair :: Backend c => [(Integer, Integer)] -> c -> Property
 prop_sortWith_pair = makePropEq (Q.sortWith Q.fst) (sortWith fst)
+
+-- Test whether we keep the stable sorting semantics of sortWith.
+prop_sortWith_pair_stable :: Backend c => [(Char, Integer)] -> c -> Property
+prop_sortWith_pair_stable = makePropEq (Q.sortWith Q.fst) (sortWith fst)
 
 prop_sortWith_nest  :: Backend c => [(Integer, [Integer])] -> c -> Property
 prop_sortWith_nest = makePropEq (Q.sortWith Q.fst) (sortWith fst)
