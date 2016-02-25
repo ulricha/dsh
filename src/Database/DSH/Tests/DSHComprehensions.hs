@@ -9,6 +9,9 @@ module Database.DSH.Tests.DSHComprehensions where
 
 import Database.DSH
 
+{-# ANN module "HLint: ignore Use camelCase" #-}
+{-# ANN module "HLint: ignore Avoid lambda" #-}
+
 ---------------------------------------------------------------
 -- Comprehensions for quickcheck tests
 
@@ -124,6 +127,10 @@ nestjoin3 (view -> (xs, ys, zs)) =
 groupjoin_length :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
 groupjoin_length (view -> (xs, ys)) =
     [ tup2 x (length [ y | y <- ys, x == y ]) | x <- xs ]
+
+groupjoin_length_nub :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
+groupjoin_length_nub (view -> (xs, ys)) =
+    [ tup2 x (length $ nub [ y | y <- ys, x == y ]) | x <- xs ]
 
 groupjoin_sum :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
 groupjoin_sum (view -> (xs, ys)) =

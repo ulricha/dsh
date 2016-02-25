@@ -9,6 +9,7 @@ module Database.DSH.Tests.ComprehensionTests
     , tests_nest_guard_hunit
     ) where
 
+import           Data.List
 import           GHC.Exts
 
 import           Test.Framework                       (Test, testGroup)
@@ -22,6 +23,8 @@ import           Database.DSH.Backend
 import           Database.DSH.Tests.Common
 import qualified Database.DSH.Tests.DSHComprehensions as C
 
+{-# ANN module "HLint: ignore Use camelCase" #-}
+{-# ANN module "HLint: ignore Avoid lambda" #-}
 
 tests_comprehensions :: Backend c => c -> Test
 tests_comprehensions conn = testGroup "Comprehensions"
@@ -39,6 +42,7 @@ tests_comprehensions conn = testGroup "Comprehensions"
     , testProperty "nestjoin" (\a -> prop_nestjoin a conn)
     , testProperty "nestjoin3" (\a -> prop_nestjoin3 a conn)
     , testProperty "groupjoin_length" (\a -> prop_groupjoin_length a conn)
+    , testProperty "groupjoin_length_nub" (\a -> prop_groupjoin_length_nub a conn)
     , testProperty "groupjoin_sum" (\a -> prop_groupjoin_sum a conn)
     , testProperty "antijoin class12" (\a -> prop_aj_class12 a conn)
     , testProperty "antijoin class15" (\a -> prop_aj_class15 a conn)
@@ -201,6 +205,12 @@ prop_groupjoin_length = makePropEq C.groupjoin_length groupjoin_length_native
   where
     groupjoin_length_native (njxs, njys) =
         [ (x, fromIntegral $ length [ y | y <- njys, x == y ]) | x <- njxs ]
+
+prop_groupjoin_length_nub :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_groupjoin_length_nub = makePropEq C.groupjoin_length_nub groupjoin_length_nub_native
+  where
+    groupjoin_length_nub_native (njxs, njys) =
+        [ (x, fromIntegral $ length $ nub [ y | y <- njys, x == y ]) | x <- njxs ]
 
 prop_groupjoin_sum :: Backend c => ([Integer], [Integer]) -> c -> Property
 prop_groupjoin_sum = makePropEq C.groupjoin_sum groupjoin_sum_native

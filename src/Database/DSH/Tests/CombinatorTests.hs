@@ -39,6 +39,9 @@ import qualified Database.DSH                   as Q
 import           Database.DSH.Backend
 import           Database.DSH.Tests.Common
 
+{-# ANN module "HLint: ignore Use camelCase" #-}
+{-# ANN module "HLint: ignore Avoid lambda" #-}
+
 {-
 data D0 = C01 deriving (Eq,Ord,Show)
 
@@ -394,8 +397,8 @@ distTests conn = testGroup "Value replication"
 
 otherTests :: Backend c => c -> Test
 otherTests conn = testGroup "Combinations of operators"
-    [ testPropertyConn conn "elem + sort" prop_elem_sort
-    , testPropertyConn conn "elem + sort" prop_elem_sort2
+    [ testPropertyConn conn "map elem + sort" prop_elem_sort
+    , testPropertyConn conn "filter elem + sort" prop_elem_sort2
     , testPropertyConn conn "length . nub" prop_nub_length
     , testPropertyConn conn "map (length . nub)" prop_map_nub_length
     ]
