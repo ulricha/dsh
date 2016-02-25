@@ -344,6 +344,20 @@ njg5 njgxs njgys =
   , sum [ y | y <- toQ njgys, x < y, y > 5 ] < 10
   ]
 
+njg6 :: Q [Integer] -> Q [Integer] -> Q [Integer] -> Q [(Integer, [Integer])]
+njg6 njgxs njgys njgzs =
+    [ tup2 x [ y | y <- njgys, x == y ]
+    | x <- njgxs
+    , x `elem` njgzs
+    ]
+
+njg7 :: Q [Integer] -> Q [Integer] -> Q [Integer] -> Q [(Integer, [Integer])]
+njg7 njgxs njgys njgzs =
+    filter ((`elem` njgzs) . fst)
+    [ tup2 x [ y | y <- njgys, x == y ]
+    | x <- njgxs
+    ]
+
 --------------------------------------------------------------------------------
 -- Comprehensions for QuickCheck antijoin/semijoin tests
 

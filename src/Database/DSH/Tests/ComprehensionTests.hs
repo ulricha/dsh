@@ -1,3 +1,5 @@
+{-# LANGUAGE ViewPatterns #-}
+
 -- | Tests on certain aspects of comprehension nesting.
 module Database.DSH.Tests.ComprehensionTests
     ( tests_comprehensions
@@ -15,6 +17,7 @@ import           Test.Framework.Providers.QuickCheck2 (testProperty)
 import           Test.HUnit                           (Assertion)
 import           Test.QuickCheck
 
+import qualified Database.DSH                         as Q
 import           Database.DSH.Backend
 import           Database.DSH.Tests.Common
 import qualified Database.DSH.Tests.DSHComprehensions as C
@@ -48,6 +51,8 @@ tests_comprehensions conn = testGroup "Comprehensions"
     , testProperty "backdep5" (\a -> prop_backdep5 a conn)
     , testProperty "deep" (\a -> prop_deep_iter a conn)
     , testProperty "only tuple" (\a -> prop_only_tuple a conn)
+    , testProperty "njg6" (\a -> prop_njg6 a conn)
+    , testProperty "njg7" (\a -> prop_njg7 a conn)
     ]
 
 tests_lifted_joins :: Backend c => c -> Test
@@ -264,6 +269,17 @@ prop_backdep5 = makePropEq C.backdep5 backdep5
     backdep5 xss = [ [ x + fromIntegral (length xs)
                      | x <- take (length xs - 3) xs ]
                    | xs <- xss ]
+
+--------------------------------------------------------------------------------
+-- Property tests for join operators in combination with guards and filters
+
+prop_njg6 :: Backend c => ([Integer], [Integer], [Integer]) -> c -> Property
+prop_njg6 = makePropEq (\(Q.view -> (xs, ys, zs)) -> C.njg6 xs ys zs)
+                       (\(xs, ys, zs) -> njg6 xs ys zs)
+
+prop_njg7 :: Backend c => ([Integer], [Integer], [Integer]) -> c -> Property
+prop_njg7 = makePropEq (\(Q.view -> (xs, ys, zs)) -> C.njg7 xs ys zs)
+                       (\(xs, ys, zs) -> njg7 xs ys zs)
 
 --------------------------------------------------------------------------------
 -- Tests for lifted join operators
@@ -573,6 +589,20 @@ njg5 njgxs njgys =
   | x <- njgxs
   , sum [ y | y <- njgys, x < y, y > 5 ] < 10
   ]
+
+njg6 :: [Integer] -> [Integer] -> [Integer] -> [(Integer, [Integer])]
+njg6 njgxs njgys njgzs =
+    [ (x, [ y | y <- njgys, x == y ])
+    | x <- njgxs
+    , x `elem` njgzs
+    ]
+
+njg7 :: [Integer] -> [Integer] -> [Integer] -> [(Integer, [Integer])]
+njg7 njgxs njgys njgzs =
+    filter ((`elem` njgzs) . fst)
+    [ (x, [ y | y <- njgys, x == y ])
+    | x <- njgxs
+    ]
 
 --------------------------------------------------------------------------------
 --
