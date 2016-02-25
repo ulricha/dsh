@@ -37,4 +37,5 @@ defaultTests =
     , liftedTests
     , distTests
     , tests_laws
+    , otherTests
     ]

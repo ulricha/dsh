@@ -17,6 +17,7 @@ module Database.DSH.Tests.CombinatorTests
     , liftedTests
     , distTests
     , hunitCombinatorTests
+    , otherTests
     ) where
 
 
@@ -288,7 +289,6 @@ listTests conn = testGroup "Lists"
     , testPropertyConn conn "unzip"                        prop_unzip
     , testPropertyConn conn "unzip3"                       prop_unzip3
     , testPropertyConn conn "nub"                          prop_nub
-    , testPropertyConn conn "length . nub"                 prop_nub_length
     , testPropertyConn conn "number"                       prop_number
     ]
 
@@ -361,7 +361,6 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "map init"                              prop_map_init
     , testPropertyConn conn "map last"                              prop_map_last
     , testPropertyConn conn "map null"                              prop_map_null
-    , testPropertyConn conn "map (length . nub)"                    prop_map_nub_length
     , testPropertyConn conn "map nub"                               prop_map_nub
     , testPropertyConn conn "map snoc"                              prop_map_snoc
     , testPropertyConn conn "map take"                              prop_map_take
@@ -391,6 +390,17 @@ distTests conn = testGroup "Value replication"
     , testPropertyConn conn "dist list2" prop_dist_list2
     , testCase "dist lift" (test_dist_lift conn)
     ]
+
+otherTests :: Backend c => c -> Test
+otherTests conn = testGroup "Combinations of operators"
+    [ testPropertyConn conn "elem + sort" prop_elem_sort
+    , testPropertyConn conn "length . nub" prop_nub_length
+    , testPropertyConn conn "map (length . nub)" prop_map_nub_length
+    ]
+
+prop_elem_sort :: Backend c => ([Integer], [(Integer, Char)]) -> c -> Property
+prop_elem_sort = makePropEq (\(Q.view -> (xs, ys)) -> Q.map (\x -> Q.fst x `Q.elem` xs) $ Q.sortWith Q.snd ys)
+                            (\(xs, ys) -> map (\x -> fst x `elem` xs) $ sortWith snd ys)
 
 hunitCombinatorTests :: Backend c => c -> Test
 hunitCombinatorTests conn = testGroup "HUnit combinators"
@@ -1191,14 +1201,8 @@ prop_unzip3 = makePropEq Q.unzip3 unzip3
 prop_nub :: Backend c => [Integer] -> c -> Property
 prop_nub = makePropEq Q.nub nub
 
-prop_nub_length :: Backend c => [Integer] -> c -> Property
-prop_nub_length = makePropEq (Q.length . Q.nub) (fromIntegral . length . nub)
-
 prop_map_nub :: Backend c => [[(Integer, Integer)]] -> c -> Property
 prop_map_nub = makePropEq (Q.map Q.nub) (map nub)
-
-prop_map_nub_length :: Backend c => [[Integer]] -> c -> Property
-prop_map_nub_length = makePropEq (Q.map (Q.length . Q.nub)) (map (fromIntegral . length . nub))
 
 -- * Tuples
 
@@ -1413,3 +1417,9 @@ hnegative_map_sum = makeEqAssertion "hnegative_map_sum"
   where
     xss :: [[Integer]]
     xss = [[10, 20, 30], [-10, -20, -30], [], [0]]
+
+prop_nub_length :: Backend c => [Integer] -> c -> Property
+prop_nub_length = makePropEq (Q.length . Q.nub) (fromIntegral . length . nub)
+
+prop_map_nub_length :: Backend c => [[Integer]] -> c -> Property
+prop_map_nub_length = makePropEq (Q.map (Q.length . Q.nub)) (map (fromIntegral . length . nub))
