@@ -39,6 +39,9 @@ import qualified Database.DSH                   as Q
 import           Database.DSH.Backend
 import           Database.DSH.Tests.Common
 
+{-# ANN module "HLint: ignore Use camelCase" #-}
+{-# ANN module "HLint: ignore Avoid lambda" #-}
+
 {-
 data D0 = C01 deriving (Eq,Ord,Show)
 
@@ -394,14 +397,11 @@ distTests conn = testGroup "Value replication"
 
 otherTests :: Backend c => c -> Test
 otherTests conn = testGroup "Combinations of operators"
-    [ testPropertyConn conn "elem + sort" prop_elem_sort
+    [ testPropertyConn conn "map elem + sort" prop_elem_sort
+    , testPropertyConn conn "filter elem + sort" prop_elem_sort2
     , testPropertyConn conn "length . nub" prop_nub_length
     , testPropertyConn conn "map (length . nub)" prop_map_nub_length
     ]
-
-prop_elem_sort :: Backend c => ([Integer], [(Integer, Char)]) -> c -> Property
-prop_elem_sort = makePropEq (\(Q.view -> (xs, ys)) -> Q.map (\x -> Q.fst x `Q.elem` xs) $ Q.sortWith Q.snd ys)
-                            (\(xs, ys) -> map (\x -> fst x `elem` xs) $ sortWith snd ys)
 
 hunitCombinatorTests :: Backend c => c -> Test
 hunitCombinatorTests conn = testGroup "HUnit combinators"
@@ -1428,3 +1428,12 @@ prop_nub_length = makePropEq (Q.length . Q.nub) (fromIntegral . length . nub)
 
 prop_map_nub_length :: Backend c => [[Integer]] -> c -> Property
 prop_map_nub_length = makePropEq (Q.map (Q.length . Q.nub)) (map (fromIntegral . length . nub))
+
+prop_elem_sort :: Backend c => ([Integer], [(Integer, Char)]) -> c -> Property
+prop_elem_sort = makePropEq (\(Q.view -> (xs, ys)) -> Q.map (\x -> Q.fst x `Q.elem` xs) $ Q.sortWith Q.snd ys)
+                            (\(xs, ys) -> map (\x -> fst x `elem` xs) $ sortWith snd ys)
+
+prop_elem_sort2 :: Backend c => ([Integer], [(Integer, Char)]) -> c -> Property
+prop_elem_sort2 = makePropEq (\(Q.view -> (xs, ys)) -> Q.filter (\x -> Q.fst x `Q.elem` xs) $ Q.sortWith Q.snd ys)
+                             (\(xs, ys) -> filter (\x -> fst x `elem` xs) $ sortWith snd ys)
+
