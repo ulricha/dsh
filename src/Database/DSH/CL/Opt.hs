@@ -21,6 +21,7 @@ import           Database.DSH.CL.Opt.PartialEval
 import           Database.DSH.CL.Opt.PostProcess
 import           Database.DSH.CL.Opt.PredPushdown
 import           Database.DSH.CL.Opt.Resugar
+import           Database.DSH.CL.Opt.JoinPushdown
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
@@ -53,12 +54,12 @@ buUnnestR =
 postProcessCompR :: RewriteC CL
 postProcessCompR = do
     ExprCL Comp{} <- idR
-    (guardpushbackR
+    guardpushbackR
         >+> repeatR introduceCartProductsR
-        >+> repeatR predpushdownR)
+        >+> repeatR predpushdownR
 
 postProcessR :: RewriteC CL
-postProcessR = repeatR $ anybuR postProcessCompR
+postProcessR = repeatR $ anybuR (postProcessCompR <+ joinPushdownR)
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
