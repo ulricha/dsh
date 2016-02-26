@@ -76,6 +76,7 @@ redundantRulesBottomUp = [ sameInputAlign
                          , alignWinRight
                          , zipWinLeft
                          , zipWinRight
+                         , zipWinRight2
                          , alignWinRightPush
                          , alignUnboxSngRight
                          , alignUnboxSngLeft
@@ -580,6 +581,27 @@ zipWinRight q =
              -- operator produces the input column followed the window
              -- function result.
              let proj = map Column $ [1 .. w] ++ [1 .. w] ++ [w+1]
+             -- logGeneral ("zipWinRight " ++ show proj)
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qw") |])
+
+-- | Remove a Zip operator when the right input consists of two window
+-- operators.
+--
+-- FIXME this should be solved properly for the general case.
+zipWinRight2 :: VLRule BottomUpProps
+zipWinRight2 q =
+  $(dagPatMatch 'q "R1 ((q1) ZipS (qw=WinFun _ (WinFun _ (q2))))"
+     [| do
+         predicate $ $(v "q1") == $(v "q2")
+
+         w <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+
+         return $ do
+             logRewrite "Redundant.Zip.Self.Win.Right.Double" q
+             -- We get all columns from the left input. The WinAggr
+             -- operator produces the input column followed the window
+             -- function result.
+             let proj = map Column $ [1 .. w] ++ [1 .. w] ++ [w+1, w+2]
              -- logGeneral ("zipWinRight " ++ show proj)
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qw") |])
 
