@@ -10,6 +10,8 @@ module Database.DSH.CL.Opt.Auxiliary
     , applyInjectable
       -- * Monad rewrites with additional state
     , TuplifyM
+      -- * Convert join predicates into general expressions
+    , fromJoinExpr
       -- * Converting predicate expressions into join predicates
     , toJoinExpr
     , splitJoinPredT
@@ -45,7 +47,10 @@ module Database.DSH.CL.Opt.Auxiliary
     , pattern SingletonP
     , pattern GuardP
     , pattern SemiJoinP
+    , pattern NestJoinP
+    , pattern NestProductP
     , pattern AndP
+    , pattern SortP
     , pattern NotP
     , pattern EqP
     , pattern LengthP
@@ -87,8 +92,25 @@ applyInjectable t e = runRewriteM $ applyT t initialCtx (inject e)
 --------------------------------------------------------------------------------
 -- Rewrite join predicates into general expressions.
 
-toExpr :: TransformC JoinExpr Expr
-toExpr = undefined
+fromJoinBinOp :: JoinBinOp -> ScalarBinOp
+fromJoinBinOp (JBNumOp o)    = SBNumOp o
+fromJoinBinOp (JBStringOp o) = SBStringOp o
+
+fromJoinUnOp :: JoinUnOp -> ScalarUnOp
+fromJoinUnOp (JUNumOp o)  = SUNumOp o
+fromJoinUnOp (JUCastOp o) = SUCastOp o
+fromJoinUnOp (JUTextOp o) = SUTextOp o
+
+fromJoinExpr :: MonadCatch m => Ident -> JoinExpr -> m Expr
+fromJoinExpr n (JBinOp ty op e1 e2)   = BinOp ty (fromJoinBinOp op)
+                                            <$> fromJoinExpr n e1
+                                            <*> fromJoinExpr n e2
+fromJoinExpr n (JUnOp ty op e1)       = UnOp ty (fromJoinUnOp op)
+                                            <$> fromJoinExpr n e1
+fromJoinExpr n (JTupElem ty tupIdx e) = AppE1 ty (TupElem tupIdx)
+                                            <$> fromJoinExpr n e
+fromJoinExpr n (JLit ty val)          = pure $ Lit ty val
+fromJoinExpr n (JInput ty)            = pure $ Var ty n
 
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
@@ -431,8 +453,11 @@ fromGen (GuardQ _)   = fail "not a generator"
 pattern ConcatP xs           <- AppE1 _ Concat xs
 pattern SingletonP x         <- AppE1 _ Singleton x
 pattern GuardP p             <- AppE1 _ Guard p
-pattern SemiJoinP ty p xs ys <- AppE2 ty (SemiJoin p) xs ys
+pattern SemiJoinP ty p xs ys = AppE2 ty (SemiJoin p) xs ys
+pattern NestJoinP ty p xs ys = AppE2 ty (NestJoin p) xs ys
+pattern NestProductP ty xs ys = AppE2 ty NestProduct xs ys
 pattern AndP xs              <- AppE1 _ And xs
+pattern SortP ty xs          = AppE1 ty Sort xs
 pattern NotP e               <- UnOp _ (SUBoolOp Not) e
 pattern EqP e1 e2 <- BinOp _ (SBRelOp Eq) e1 e2
 pattern LengthP e <- AppE1 _ Length e

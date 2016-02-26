@@ -188,8 +188,11 @@ $(deriveJSON defaultOptions ''ScalarBinOp)
 -----------------------------------------------------------------------------
 -- Join operator arguments: limited expressions that can be used on joins
 
-data JoinConjunct e = JoinConjunct e BinRelOp e
-                    deriving (Show, Eq, Ord)
+data JoinConjunct e = JoinConjunct
+    { jcLeft  :: e
+    , jcOp    :: BinRelOp
+    , jcRight :: e
+    } deriving (Show, Eq, Ord)
 
 instance ToJSON e => ToJSON (JoinConjunct e) where
     toJSON (JoinConjunct e1 op e2) = toJSON (e1, op, e2)
@@ -197,8 +200,8 @@ instance ToJSON e => ToJSON (JoinConjunct e) where
 instance FromJSON e => FromJSON (JoinConjunct e) where
     parseJSON d = parseJSON d >>= \(e1, op, e2) -> return $ JoinConjunct e1 op e2
 
-newtype JoinPredicate e = JoinPred (N.NonEmpty (JoinConjunct e))
-                        deriving (Show, Eq, Ord)
+newtype JoinPredicate e = JoinPred { jpConjuncts :: N.NonEmpty (JoinConjunct e) }
+    deriving (Show, Eq, Ord)
 
 instance ToJSON e => ToJSON (JoinPredicate e) where
     toJSON (JoinPred conjs) = toJSON conjs

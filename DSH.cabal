@@ -150,6 +150,7 @@ Library
                      Database.DSH.CL.Opt.PostProcess
                      Database.DSH.CL.Opt.LoopInvariant
                      Database.DSH.CL.Opt.PredPushdown
+                     Database.DSH.CL.Opt.JoinPushdown
                      Database.DSH.CL.Opt.Normalize
                      Database.DSH.CL.Opt.CompNormalization
                      Database.DSH.CL.Opt.PartialEval
