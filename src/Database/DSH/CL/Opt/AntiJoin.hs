@@ -93,13 +93,13 @@ mkUniversalQuantOnlyAntiJoinT (x, xs) (y, ys) q = do
     -- [ y | y <- ys, ps ++ nonCorrPreds ]
     let ys' = Comp yst (Var yt y) innerQuals
 
-    return $ BindQ x (P.antijoin xs ys' $ JoinPred $ qPred)
+    return $ BindQ x (P.antijoin xs ys' $ JoinPred qPred)
 
 universalQualR :: RewriteC (NL Qual)
 universalQualR = readerT $ \quals -> case quals of
     -- Special case: no range predicate
     -- [ ... | ..., x <- xs, and [ q | y <- ys ]]
-    BindQ x xs :* (S (GuardQ (AndP (Comp _ q (S (BindQ y ys)))))) -> do
+    BindQ x xs :* S (GuardQ (AndP (Comp _ q (S (BindQ y ys))))) -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
@@ -108,7 +108,7 @@ universalQualR = readerT $ \quals -> case quals of
 
     -- Special case: no range predicate
     -- [ ... | ..., x <- xs, and [ q | y <- ys ], ... ]
-    BindQ x xs :* (GuardQ (AndP (Comp _ q (S (BindQ y ys))))) :* qs -> do
+    BindQ x xs :* GuardQ (AndP (Comp _ q (S (BindQ y ys)))) :* qs -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
@@ -124,12 +124,12 @@ universalQualR = readerT $ \quals -> case quals of
         return $ antijoinGen :* qs
 
     -- [ ... | ..., x <- xs, and [ q | y <- ys, ps ]]
-    BindQ x xs :* (S (GuardQ (AndP (Comp _ q (BindQ y ys :* ps))))) -> do
+    BindQ x xs :* S (GuardQ (AndP (Comp _ q (BindQ y ys :* ps)))) -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
         antijoinGen <- mkUniversalRangeAntiJoinT (x, xs) (y, ys) ps q
-        return $ S $ antijoinGen
+        return $ S antijoinGen
     _ -> fail "no and pattern"
 
 mkUniversalRangeAntiJoinT :: (Ident, Expr)
@@ -223,7 +223,7 @@ mkClass16AntiJoinT :: (Ident, Expr)
                    -> NonEmpty (JoinConjunct JoinExpr)
                    -> NonEmpty (JoinConjunct JoinExpr)
                    -> [Expr]
-                   -> TransformC (NL Qual) (Qual)
+                   -> TransformC (NL Qual) Qual
 mkClass16AntiJoinT (x, xs) (y, ys) ps qs nonCorrPreds = do
     -- Prepare a comprehension that filters the inner input by the
     -- non-correlated predicates extracted from the quantifier
@@ -241,5 +241,5 @@ mkClass16AntiJoinT (x, xs) (y, ys) ps qs nonCorrPreds = do
 
 antijoinR :: RewriteC CL
 antijoinR = do
-    Comp _ _ _ <- promoteT idR
+    Comp{} <- promoteT idR
     childR CompQuals (promoteR $ onetdR universalQualR)

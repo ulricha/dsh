@@ -1,7 +1,5 @@
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell     #-}
 
 -- | This module implements predicate pushdown on comprehensions.
 module Database.DSH.CL.Opt.PredPushdown
@@ -19,6 +17,8 @@ import qualified Database.DSH.CL.Primitives    as P
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 
+{-# ANN module "HLint: ignore Reduce duplication" #-}
+
 --------------------------------------------------------------------------------
 -- Auxiliary functions
 
@@ -35,7 +35,7 @@ allVarPathsT :: Ident -> TransformC CL [PathC]
 allVarPathsT x = do
     varPaths <- collectT $ varPathT x
     guardM $ not $ null varPaths
-    parentPathLen <- length <$> snocPathToPath <$> absPathT
+    parentPathLen <- length . snocPathToPath <$> absPathT
     let localPaths = map (init . drop parentPathLen) varPaths
     return localPaths
 
@@ -60,7 +60,7 @@ pushLeftTupleR x p = do
 
     localPaths <- predTrans >>> allVarPathsT x
 
-    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== (TupElem First))) localPaths)
+    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== TupElem First)) localPaths)
 
     let xst = typeOf xs
 
@@ -77,7 +77,7 @@ pushRightTupleR x p = do
 
     localPaths <- predTrans >>> allVarPathsT x
 
-    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== (TupElem (Next (First))))) localPaths)
+    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== TupElem (Next First))) localPaths)
 
     let yst = typeOf ys
 
@@ -115,12 +115,12 @@ mkMergeableJoinPredT x leftExpr op rightExpr = do
     rightVarPaths <- constRightExpr >>> allVarPathsT x
 
     leftExpr'     <- constLeftExpr
-                         >>> andR (map (unTuplifyR (== (TupElem First))) leftVarPaths)
+                         >>> andR (map (unTuplifyR (== TupElem First)) leftVarPaths)
                          >>> projectT
                          >>> toJoinExpr x
 
     rightExpr'    <- constRightExpr
-                         >>> andR (map (unTuplifyR (== (TupElem (Next First)))) rightVarPaths)
+                         >>> andR (map (unTuplifyR (== TupElem (Next First))) rightVarPaths)
                          >>> projectT
                          >>> toJoinExpr x
 
@@ -182,7 +182,7 @@ pushSortInputR x p = do
 -- operator that commutes with selection (e.g. sorting).
 
 pushPredicateR :: Ident -> Expr -> RewriteC CL
-pushPredicateR x p = do
+pushPredicateR x p =
     readerT $ \e -> case e of
         -- First, try to merge the predicate into the join. For
         -- regular joins and products, non-join predicates might apply
@@ -218,7 +218,7 @@ pushQualsR = do
 
 pushQualsEndR :: RewriteC CL
 pushQualsEndR = do
-    BindQ x _ :* (S (GuardQ p)) <- promoteT idR
+    BindQ x _ :* S (GuardQ p) <- promoteT idR
     [x'] <- return $ freeVars p
     guardM $ x == x'
     ExprCL gen' <- pathT [QualsHead, BindQualExpr] (pushPredicateR x p)
@@ -226,13 +226,13 @@ pushQualsEndR = do
 
 pushDownSinglePredR :: RewriteC CL
 pushDownSinglePredR = do
-    Comp _ _ _ <- promoteT idR
+    Comp{} <- promoteT idR
     childR CompQuals (promoteR $ pushQualsR <+ pushQualsEndR)
 
 pushDownPredsR :: MergeGuard
 pushDownPredsR comp guard guardsToTry leftOverGuards = do
     let C ty h qs = comp
-    env <- S.fromList <$> inScopeNames <$> contextT
+    env <- S.fromList . inScopeNames <$> contextT
     let compExpr = ExprCL $ Comp ty h (insertGuard guard env qs)
     ExprCL (Comp _ _ qs') <- constT (return compExpr) >>> pushDownSinglePredR
     return (C ty h qs', guardsToTry, leftOverGuards)

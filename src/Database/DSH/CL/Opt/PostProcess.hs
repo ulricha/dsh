@@ -32,7 +32,7 @@ mkproduct (x, xs) (y, ys) =
     in (tuplifyHeadR, joinGen)
 
 cartProductR :: Rewrite CompCtx TuplifyM (NL Qual)
-cartProductR = do
+cartProductR =
     readerT $ \e -> case e of
         BindQ x xs :* BindQ y ys :* qs -> do
             -- xs and ys generators must be independent
@@ -42,8 +42,8 @@ cartProductR = do
             -- Next, we apply the tuplifyHeadR rewrite to the tail,
             -- i.e. to all following qualifiers
             -- FIXME why is extractT required here?
-            qs' <- catchesT [ liftstateT $ (constT $ return qs)
-                                           >>> (extractR tuplifyHeadR)
+            qs' <- catchesM [ liftstateT $ constT (return qs)
+                                           >>> extractR tuplifyHeadR
                             , constT $ return qs
                             ]
 
@@ -52,7 +52,7 @@ cartProductR = do
 
             return $ q' :* qs'
 
-        BindQ x xs :* (S (BindQ y ys)) -> do
+        BindQ x xs :* S (BindQ y ys) -> do
             -- xs and ys generators must be independent
             guardM $ x `notElem` freeVars ys
 

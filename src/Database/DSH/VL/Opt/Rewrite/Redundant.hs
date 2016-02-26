@@ -168,8 +168,8 @@ distLiftNestProduct q =
         VProp UnitSegP <- segProp <$> properties $(v "qo1")
         VProp UnitSegP <- segProp <$> properties $(v "qi")
 
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo")
-        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
+        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "qo")
+        w2 <- vectorWidth . vectorTypeProp <$> properties $(v "qi")
 
         return $ do
             logRewrite "Redundant.ReplicateNest.NestProduct" q
@@ -193,8 +193,8 @@ distLiftNestJoin q =
         VProp UnitSegP <- segProp <$> properties $(v "qo1")
         VProp UnitSegP <- segProp <$> properties $(v "qi")
 
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo")
-        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
+        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "qo")
+        w2 <- vectorWidth . vectorTypeProp <$> properties $(v "qi")
 
         return $ do
             logRewrite "Redundant.ReplicateNest.NestJoin" q
@@ -208,8 +208,8 @@ distLiftProjectLeft :: VLRule BottomUpProps
 distLiftProjectLeft q =
   $(dagPatMatch 'q "R1 ((Project ps1 (q1)) ReplicateNest (q2))"
     [| do
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
+        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+        w2 <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
 
         return $ do
           logRewrite "Redundant.ReplicateNest.Project.Left" q
@@ -224,7 +224,7 @@ distLiftProjectRight :: VLRule BottomUpProps
 distLiftProjectRight q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateNest (Project p2 (q2)))"
     [| do
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
         return $ do
           logRewrite "Redundant.ReplicateNest.Project.Right" q
@@ -244,8 +244,8 @@ distLiftStacked q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateNest (r1=R1 ((q11) ReplicateNest (q2))))"
      [| do
          predicate $ $(v "q1") == $(v "q11")
-         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
+         w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+         w2 <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
 
          return $ do
              logRewrite "Redundant.ReplicateNest.Stacked" q
@@ -264,7 +264,7 @@ distLiftSelect :: VLRule BottomUpProps
 distLiftSelect q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateNest (R1 (Select p (q2))))"
      [| do
-         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+         w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
          return $ do
              logRewrite "Redundant.ReplicateNest.Select" q
              let p' = shiftExprCols w1 $(v "p")
@@ -282,8 +282,8 @@ alignedDistRight q =
   $(dagPatMatch 'q "(q21) Align (qr1=R1 ((q1) [ReplicateNest | ReplicateScalar] (q22)))"
     [| do
         predicate $ $(v "q21") == $(v "q22")
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q21")
+        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+        w2 <- vectorWidth . vectorTypeProp <$> properties $(v "q21")
 
         return $ do
             logRewrite "Redundant.Dist.Align.Right" q
@@ -304,8 +304,8 @@ alignedDistLeft q =
   $(dagPatMatch 'q "(qr1=R1 ((q1) [ReplicateNest | ReplicateScalar] (q21))) Align (q22)"
     [| do
         predicate $ $(v "q21") == $(v "q22")
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q21")
+        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+        w2 <- vectorWidth . vectorTypeProp <$> properties $(v "q21")
 
         return $ do
             logRewrite "Redundant.Dist.Align.Left" q
@@ -332,7 +332,7 @@ sameInputAlign q =
   $(dagPatMatch 'q "(q1) Align (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
-        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
         return $ do
           logRewrite "Redundant.Align.Self" q
@@ -346,7 +346,7 @@ sameInputZip q =
   $(dagPatMatch 'q "R1 ((q1) ZipS (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
-        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
         return $ do
           logRewrite "Redundant.Zip.Self" q
@@ -391,8 +391,8 @@ alignProjectLeft :: VLRule BottomUpProps
 alignProjectLeft q =
   $(dagPatMatch 'q "(Project ps1 (q1)) Align (q2)"
     [| do
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
+        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+        w2 <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
 
         return $ do
           logRewrite "Redundant.Align.Project.Left" q
@@ -406,8 +406,8 @@ zipProjectLeft :: VLRule BottomUpProps
 zipProjectLeft q =
   $(dagPatMatch 'q "R1 ((Project ps1 (q1)) ZipS (q2))"
     [| do
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
+        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+        w2 <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
 
         return $ do
           logRewrite "Redundant.Zip.Project.Left" q
@@ -422,7 +422,7 @@ alignProjectRight :: VLRule BottomUpProps
 alignProjectRight q =
   $(dagPatMatch 'q "(q1) Align (Project p2 (q2))"
     [| do
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
         return $ do
           logRewrite "Redundant.Align.Project.Right" q
@@ -437,7 +437,7 @@ zipProjectRight :: VLRule BottomUpProps
 zipProjectRight q =
   $(dagPatMatch 'q "R1 ((q1) ZipS (Project p2 (q2)))"
     [| do
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
         return $ do
           logRewrite "Redundant.Zip.Project.Right" q
@@ -1261,8 +1261,8 @@ pushUnboxSngThetaJoinRight q =
     $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qj1=(qo1) ThetaJoinS p (qo2))) UnboxSng (R1 ((R3 (qj2)) AppRep (qi))))"
       [| do
           predicate $ $(v "qj1") == $(v "qj2")
-          w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo1")
-          w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo2")
+          w1 <- vectorWidth . vectorTypeProp <$> properties $(v "qo1")
+          w2 <- vectorWidth . vectorTypeProp <$> properties $(v "qo2")
 
           return $ do
               logRewrite "Redundant.UnboxSng.Push.ThetaJoin.Right" q

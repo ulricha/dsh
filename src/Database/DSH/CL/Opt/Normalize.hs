@@ -128,7 +128,7 @@ inlineBindingR v s = readerT $ \expr -> case expr of
     -- If a let-binding shadows the name we substitute, only descend
     -- into the bound expression.
     ExprCL (Let _ n _ _) | n == v      -> promoteR $ letR (extractR $ inlineBindingR v s) idR
-    ExprCL (Let _ n _ _) | otherwise   ->
+                         | otherwise   ->
         if n `elem` freeVars s
         -- If the let-bound name occurs free in the substitute,
         -- alpha-convert the binding to avoid capturing the name.
@@ -137,7 +137,7 @@ inlineBindingR v s = readerT $ \expr -> case expr of
 
     -- We don't inline into comprehensions to avoid conflicts with
     -- loop-invariant extraction.
-    ExprCL (Comp _ _ _)                -> idR
+    ExprCL Comp{}                      -> idR
     ExprCL _                           -> anyR $ inlineBindingR v s
     _                                  -> $impossible
 
@@ -146,19 +146,19 @@ countVarRefT :: Ident -> TransformC CL (Sum Int)
 countVarRefT v = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
     ExprCL (Var _ n) | n == v          -> return 1
-    ExprCL (Var _ _) | otherwise       -> return 0
+                     | otherwise       -> return 0
 
     ExprCL (Let _ n _ _) | n == v      -> promoteT $ letT (constT $ return 0)
                                                           (extractT $ countVarRefT v)
                                                           (\_ _ c1 c2 -> c1 + c2)
-    ExprCL (Let _ _ _ _) | otherwise   -> promoteT $ letT (extractT $ countVarRefT v)
+                         | otherwise   -> promoteT $ letT (extractT $ countVarRefT v)
                                                           (extractT $ countVarRefT v)
                                                           (\_ _ c1 c2 -> c1 + c2)
 
     ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs -> promoteT $ compT (constT $ return 0)
                                                                          (extractT $ countVarRefT v)
                                                                          (\_ c1 c2 -> c1 + c2)
-    ExprCL (Comp _ _ _) | otherwise                  -> promoteT $ compT (extractT $ countVarRefT v)
+                         | otherwise                 -> promoteT $ compT (extractT $ countVarRefT v)
                                                                          (extractT $ countVarRefT v)
                                                                          (\_ c1 c2 -> c1 + c2)
     ExprCL Table{}                      -> return 0
@@ -189,7 +189,7 @@ referencedOnceR = do
     -- reason, we check if the occurence was actually eliminated by
     -- inlining and fail otherwise.
     body'        <- childT LetBody (inlineBindingR x e1)
-    0 <- (constT $ return body') >>> countVarRefT x
+    0 <- constT (return body') >>> countVarRefT x
     return body'
 
 simpleExpr :: Expr -> Bool

@@ -39,26 +39,24 @@ concatNestedCompR = do
 -- FIXME To be extra sure, we should check wether x occurs free in  or qs'
 guardGeneratorR :: RewriteC (NL Qual)
 guardGeneratorR = readerT $ \qual -> case qual of
-    BindQ _ (GuardP p) :* qs -> do
-        return $ GuardQ p :* qs
-    S (BindQ _ (GuardP p))     -> do
-        return $ S $ GuardQ p
-    _                          -> fail "not a guard combinator"
+    BindQ _ (GuardP p) :* qs -> return $ GuardQ p :* qs
+    S (BindQ _ (GuardP p))   -> return $ S $ GuardQ p
+    _                        -> fail "not a guard combinator"
 
 guardGeneratorsR :: RewriteC CL
 guardGeneratorsR = do
-    Comp _ _ _ <- promoteT idR
+    Comp{} <- promoteT idR
     childR CompQuals (promoteR $ onetdR guardGeneratorR)
 
 resugarRulesR :: RewriteC CL
 resugarRulesR = readerT $ \expr -> case expr of
-    ExprCL (ConcatP (Comp _ _ _)) -> concatCompSingletonR
-                                     <+ concatCompSingletonLitR
-                                     <+ concatNestedCompR
-    ExprCL (Comp _ _ _)           -> guardGeneratorsR
-    ExprCL _                      -> partialEvalR
-    _                    -> fail "no resugaring rule applies"
+    ExprCL (ConcatP Comp{}) -> concatCompSingletonR
+                               <+ concatCompSingletonLitR
+                               <+ concatNestedCompR
+    ExprCL Comp{}           -> guardGeneratorsR
+    ExprCL _                -> partialEvalR
+    _                       -> fail "no resugaring rule applies"
 
 -- | Resugar a comprehension.
 resugarR :: RewriteC CL
-resugarR = (repeatR $ anybuR resugarRulesR) >>> debugShow "resugared"
+resugarR = repeatR (anybuR resugarRulesR) >>> debugShow "resugared"

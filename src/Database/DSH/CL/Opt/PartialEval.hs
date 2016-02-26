@@ -1,7 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE QuasiQuotes         #-}
-{-# LANGUAGE TemplateHaskell     #-}
 
 -- | Support rewrites (partial evaluation, house cleaning)
 module Database.DSH.CL.Opt.PartialEval
