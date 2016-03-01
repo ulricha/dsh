@@ -17,12 +17,13 @@ import qualified Prelude                          as P
 
 import           Data.Decimal
 import           Data.List.NonEmpty               (NonEmpty)
+import           Data.Scientific
+import qualified Data.Sequence                    as S
 import           Data.String
 import           Data.Text                        (Text)
 import qualified Data.Text                        as T
 import           Data.Time.Calendar               (Day)
-import qualified Data.Sequence                    as S
-import           GHC.Exts(fromList, toList)
+import           GHC.Exts                         (fromList, toList)
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Frontend.Builtins
@@ -72,6 +73,12 @@ instance QA Decimal where
     type Rep Decimal = Decimal
     toExp = DecimalE
     frExp (DecimalE d) = d
+    frExp _ = $impossible
+
+instance QA Scientific where
+    type Rep Scientific = Scientific
+    toExp = ScientificE
+    frExp (ScientificE d) = d
     frExp _ = $impossible
 
 instance QA Day where
@@ -154,6 +161,7 @@ instance BasicType Integer where
 instance BasicType Double where
 instance BasicType Text where
 instance BasicType Decimal where
+instance BasicType Scientific where
 instance BasicType Day where
 
 -- TA instances
@@ -165,6 +173,7 @@ instance TA Integer where
 instance TA Double where
 instance TA Text where
 instance TA Decimal where
+instance TA Scientific where
 instance TA Day where
 
 -- Numerical instances
@@ -214,6 +223,21 @@ instance Num (Exp Decimal) where
                    e' = AppE Cond (tripleE c2 0 1)
                in  AppE Cond (tripleE c1 (-1) e')
 
+instance Num (Exp Scientific) where
+    (+) e1 e2 = AppE Add (pairE e1 e2)
+    (*) e1 e2 = AppE Mul (pairE e1 e2)
+    (-) e1 e2 = AppE Sub (pairE e1 e2)
+
+    fromInteger = ScientificE . fromInteger
+
+    abs e = let c = AppE Lt (pairE e 0)
+            in  AppE Cond (tripleE c (negate e) e)
+
+    signum e = let c1 = AppE Lt  (pairE e 0)
+                   c2 = AppE Equ (pairE e 0)
+                   e' = AppE Cond (tripleE c2 0 1)
+               in  AppE Cond (tripleE c1 (-1) e')
+
 instance Fractional (Exp Double) where
     (/) e1 e2    = AppE Div (pairE e1 e2)
     fromRational = DoubleE . fromRational
@@ -222,7 +246,15 @@ instance Fractional (Exp Decimal) where
     (/) e1 e2    = AppE Div (pairE e1 e2)
     fromRational = DecimalE . fromRational
 
+instance Fractional (Exp Scientific) where
+    (/) e1 e2    = AppE Div (pairE e1 e2)
+    fromRational = ScientificE . fromRational
+
 instance Fractional (Q Decimal) where
+    (/) (Q e1) (Q e2) = Q (e1 / e2)
+    fromRational = Q . fromRational
+
+instance Fractional (Q Scientific) where
     (/) (Q e1) (Q e2) = Q (e1 / e2)
     fromRational = Q . fromRational
 
@@ -264,6 +296,14 @@ instance Num (Q Decimal) where
     (*) (Q e1) (Q e2) = Q (e1 * e2)
     (-) (Q e1) (Q e2) = Q (e1 - e2)
     fromInteger       = Q . DecimalE . fromInteger
+    abs (Q e)         = Q (abs e)
+    signum (Q e)      = Q (signum e)
+
+instance Num (Q Scientific) where
+    (+) (Q e1) (Q e2) = Q (e1 + e2)
+    (*) (Q e1) (Q e2) = Q (e1 * e2)
+    (-) (Q e1) (Q e2) = Q (e1 - e2)
+    fromInteger       = Q . ScientificE . fromInteger
     abs (Q e)         = Q (abs e)
     signum (Q e)      = Q (signum e)
 
@@ -527,7 +567,7 @@ init :: (QA a) => Q [a] -> Q [a]
 init as = map fst $ filter (\xp -> snd xp < length as) $ number as
 
 index :: (QA a) => Q [a] -> Q Integer -> Q a
-index as i = only $ map fst $ filter (\xp -> snd xp == i + 1) $ number as 
+index as i = only $ map fst $ filter (\xp -> snd xp == i + 1) $ number as
 
 take :: (QA a) => Q Integer -> Q [a] -> Q [a]
 take i xs = map fst $ filter (\xp -> snd xp <= i) $ number xs

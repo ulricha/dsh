@@ -8,6 +8,7 @@ import qualified Prelude                    as P
 
 import           Data.Decimal
 import qualified Data.List                  as List
+import           Data.Scientific
 import qualified Data.Text                  as T
 import           Text.Printf
 
@@ -216,7 +217,7 @@ string s = Lit PStringT (L.ScalarV (L.StringV s))
 double :: P.Double -> Expr
 double d = Lit PDoubleT (L.ScalarV (L.DoubleV d))
 
-decimal :: Decimal -> Expr
+decimal :: Scientific -> Expr
 decimal d = Lit PDecimalT (L.ScalarV (L.DecimalV d))
 
 day :: L.Date -> Expr

@@ -11,6 +11,7 @@ module Database.DSH.Frontend.Internals where
 
 import qualified Data.Sequence as S
 import           Data.Decimal
+import           Data.Scientific
 import           Data.List.NonEmpty               (NonEmpty)
 import           Data.Text                        (Text)
 import           Data.Time.Calendar               (Day)
@@ -35,6 +36,7 @@ data Exp a where
     DoubleE     :: !Double  -> Exp Double
     TextE       :: !Text    -> Exp Text
     DecimalE    :: !Decimal -> Exp Decimal
+    ScientificE :: !Scientific -> Exp Scientific
     DayE        :: !Day     -> Exp Day
     ListE       :: (Reify a)           => !(S.Seq (Exp a)) -> Exp [a]
     AppE        :: (Reify a, Reify b)  => Fun a b -> Exp a -> Exp b
@@ -44,17 +46,18 @@ data Exp a where
     TupleConstE :: !(TupleConst a) -> Exp a
 
 data Type a where
-    UnitT     :: Type ()
-    BoolT     :: Type Bool
-    CharT     :: Type Char
-    IntegerT  :: Type Integer
-    DoubleT   :: Type Double
-    TextT     :: Type Text
-    DecimalT  :: Type Decimal
-    DayT      :: Type Day
-    ListT     :: (Reify a)          => Type a -> Type [a]
-    ArrowT    :: (Reify a,Reify b)  => Type a -> Type b -> Type (a -> b)
-    TupleT    :: TupleType a -> Type a
+    UnitT       :: Type ()
+    BoolT       :: Type Bool
+    CharT       :: Type Char
+    IntegerT    :: Type Integer
+    DoubleT     :: Type Double
+    TextT       :: Type Text
+    DecimalT    :: Type Decimal
+    ScientificT :: Type Scientific
+    DayT        :: Type Day
+    ListT       :: (Reify a)          => Type a -> Type [a]
+    ArrowT      :: (Reify a,Reify b)  => Type a -> Type b -> Type (a -> b)
+    TupleT      :: TupleType a -> Type a
 
 instance Pretty (Type a) where
     pretty UnitT          = text "()"
@@ -64,6 +67,7 @@ instance Pretty (Type a) where
     pretty DoubleT        = text "Double"
     pretty TextT          = text "Text"
     pretty DecimalT       = text "Decimal"
+    pretty ScientificT    = text "Scientific"
     pretty DayT           = text "Day"
     pretty (ListT t)      = brackets $ pretty t
     pretty (ArrowT t1 t2) = parens $ pretty t1 <+> text "->" <+> pretty t2
@@ -145,6 +149,9 @@ instance Reify Double where
 
 instance Reify Decimal where
     reify _ = DecimalT
+
+instance Reify Scientific where
+    reify _ = ScientificT
 
 instance Reify Text where
     reify _ = TextT

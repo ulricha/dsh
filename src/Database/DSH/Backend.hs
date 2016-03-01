@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric    #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies     #-}
-{-# LANGUAGE BangPatterns     #-}
 
 -- | This module provides an abstraction over flat relational backends
 -- with respect to code generation and query execution.
@@ -19,21 +18,23 @@ module Database.DSH.Backend
     , boolE
     , charE
     , textE
+    , scientificE
     , decimalE
     , dayE
     ) where
 
+import           Data.ByteString                 (ByteString)
 import           Data.Decimal
 import           Data.Hashable
-import           Data.Text                        (Text)
-import           Data.ByteString                  (ByteString)
-import qualified Data.Time.Calendar               as C
-import           GHC.Generics                     (Generic)
+import           Data.Scientific
+import           Data.Text                       (Text)
+import qualified Data.Time.Calendar              as C
+import           GHC.Generics                    (Generic)
 
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Vector
-import qualified Database.DSH.Frontend.Internals  as F
-import           Database.DSH.VL.Lang             (VL)
+import qualified Database.DSH.Frontend.Internals as F
+import           Database.DSH.VL.Lang            (VL)
 
 --------------------------------------------------------------------------------
 -- Backend-independent composite keys
@@ -91,14 +92,14 @@ class Row r where
     -- | Convert an attribute value to a segment descriptor value
     descrVal   :: Scalar r -> Int
 
-    boolVal    :: Scalar r -> F.Exp Bool
-    integerVal :: Scalar r -> F.Exp Integer
-    doubleVal  :: Scalar r -> F.Exp Double
-    charVal    :: Scalar r -> F.Exp Char
-    textVal    :: Scalar r -> F.Exp Text
-    unitVal    :: Scalar r -> F.Exp ()
-    decimalVal :: Scalar r -> F.Exp Decimal
-    dayVal     :: Scalar r -> F.Exp C.Day
+    boolVal    :: Scalar r -> Bool
+    integerVal :: Scalar r -> Integer
+    doubleVal  :: Scalar r -> Double
+    charVal    :: Scalar r -> Char
+    textVal    :: Scalar r -> Text
+    unitVal    :: Scalar r -> ()
+    decimalVal :: Scalar r -> Scientific
+    dayVal     :: Scalar r -> C.Day
 
     keyVal :: Scalar r -> KeyVal
 
@@ -126,6 +127,9 @@ textE = F.TextE
 
 dayE :: C.Day -> F.Exp C.Day
 dayE = F.DayE
+
+scientificE :: Scientific -> F.Exp Scientific
+scientificE = F.ScientificE
 
 decimalE :: Decimal -> F.Exp Decimal
 decimalE = F.DecimalE
