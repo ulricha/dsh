@@ -97,7 +97,6 @@ class Row r where
     doubleVal  :: Scalar r -> Double
     charVal    :: Scalar r -> Char
     textVal    :: Scalar r -> Text
-    unitVal    :: Scalar r -> ()
     decimalVal :: Scalar r -> Scientific
     dayVal     :: Scalar r -> C.Day
 
