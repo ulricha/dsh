@@ -11,16 +11,6 @@ module Database.DSH.Backend
       -- * Backend Functionality Classes
     , Backend(..)
     , Row(..)
-      -- * Literal scalar value expressions
-    , doubleE
-    , unitE
-    , integerE
-    , boolE
-    , charE
-    , textE
-    , scientificE
-    , decimalE
-    , dayE
     ) where
 
 import           Data.ByteString                 (ByteString)
@@ -101,34 +91,3 @@ class Row r where
     dayVal     :: Scalar r -> C.Day
 
     keyVal :: Scalar r -> KeyVal
-
---------------------------------------------------------------------------------
--- Constructors for literal scalar type expressions. Backends need
--- those to construct result expressions from rows.
-
-doubleE :: Double -> F.Exp Double
-doubleE = F.DoubleE
-
-unitE :: F.Exp ()
-unitE = F.UnitE
-
-integerE :: Integer -> F.Exp Integer
-integerE = F.IntegerE
-
-boolE :: Bool -> F.Exp Bool
-boolE = F.BoolE
-
-charE :: Char -> F.Exp Char
-charE = F.CharE
-
-textE :: Text -> F.Exp Text
-textE = F.TextE
-
-dayE :: C.Day -> F.Exp C.Day
-dayE = F.DayE
-
-scientificE :: Scientific -> F.Exp Scientific
-scientificE = F.ScientificE
-
-decimalE :: Decimal -> F.Exp Decimal
-decimalE = F.DecimalE
