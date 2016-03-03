@@ -28,6 +28,7 @@ module Database.DSH.Common.Type
     , pattern PStringT
     , pattern PDoubleT
     , pattern PDecimalT
+    , pattern PScientificT
     , pattern PDateT
     , pattern PPairT
     , Typed (..)
@@ -51,6 +52,7 @@ instance Pretty Type where
 instance Pretty ScalarType where
     pretty IntT          = text "Int"
     pretty DecimalT      = text "Decimal"
+    pretty ScientificT   = text "Scientific"
     pretty BoolT         = text "Bool"
     pretty DoubleT       = text "Double"
     pretty StringT       = text "String"
@@ -71,6 +73,7 @@ data ScalarType  = IntT
                  | StringT
                  | UnitT
                  | DecimalT
+                 | ScientificT
                  | DateT
                  deriving (Show, Eq, Ord)
 
@@ -82,6 +85,7 @@ isNum (TupleT _)  = False
 isNum (ScalarT IntT)        = True
 isNum (ScalarT DoubleT)     = True
 isNum (ScalarT DecimalT)    = True
+isNum (ScalarT ScientificT) = True
 isNum (ScalarT BoolT)       = False
 isNum (ScalarT StringT)     = False
 isNum (ScalarT UnitT)       = False
@@ -94,13 +98,14 @@ scalarType _           = Nothing
 --------------------------------------------------------------------------------
 -- Smart constructors and deconstructors.
 
-pattern PIntT     = ScalarT IntT
-pattern PStringT  = ScalarT StringT
-pattern PDoubleT  = ScalarT DoubleT
-pattern PDecimalT = ScalarT DecimalT
-pattern PBoolT    = ScalarT BoolT
-pattern PDateT    = ScalarT DateT
-pattern PUnitT    = ScalarT UnitT
+pattern PIntT        = ScalarT IntT
+pattern PStringT     = ScalarT StringT
+pattern PDoubleT     = ScalarT DoubleT
+pattern PDecimalT    = ScalarT DecimalT
+pattern PScientificT = ScalarT ScientificT
+pattern PBoolT       = ScalarT BoolT
+pattern PDateT       = ScalarT DateT
+pattern PUnitT       = ScalarT UnitT
 
 pattern PPairT t1 t2 = TupleT [t1, t2]
 

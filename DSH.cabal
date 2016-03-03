@@ -100,6 +100,7 @@ Library
                      hashable                     >= 1.2,
                      unordered-containers         >= 0.2,
                      megaparsec                   >= 4.2,
+                     scientific                   >= 0.3,
                      algebra-dag                  >= 0.1.1
 
   Hs-source-dirs:    src
@@ -219,6 +220,7 @@ executable vldot
                       ansi-wl-pprint      >= 0.6.7.2,
                       semigroups          >= 0.16,
                       text                >= 1.2,
+                      scientific          >= 0.3,
                       vector              >= 0.10,
 
                       algebra-dag          >= 0.1

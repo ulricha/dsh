@@ -189,19 +189,20 @@ mkCKey !r !cs = CompositeKey $! map (keyVal . flip col r) cs
 constructVal :: Row r => [ColName] -> SegLayout a -> r -> F.Exp a
 constructVal !keyCols !lyt !row =
     case lyt of
-        STuple !stup      -> constructTuple keyCols stup row
-        SNest _ !segMap   -> case M.lookup (mkCKey row keyCols) segMap of
-                                  Just !v -> v
-                                  Nothing -> F.ListE S.empty
-        SCol F.DoubleT c  -> doubleVal $! col c row
-        SCol F.IntegerT c -> integerVal $! col c row
-        SCol F.BoolT c    -> boolVal $! col c row
-        SCol F.CharT c    -> charVal $! col c row
-        SCol F.TextT c    -> textVal $! col c row
-        SCol F.UnitT c    -> unitVal $! col c row
-        SCol F.DayT c     -> dayVal $! col c row
-        SCol F.DecimalT c -> decimalVal $! col c row
-        SCol _       _    -> $impossible
+        STuple !stup         -> constructTuple keyCols stup row
+        SNest _ !segMap      -> case M.lookup (mkCKey row keyCols) segMap of
+                                     Just !v -> v
+                                     Nothing -> F.ListE S.empty
+        SCol F.DoubleT c     -> F.DoubleE $ doubleVal $ col c row
+        SCol F.IntegerT c    -> F.IntegerE $ integerVal $ col c row
+        SCol F.BoolT c       -> F.BoolE $ boolVal $ col c row
+        SCol F.CharT c       -> F.CharE $ charVal $ col c row
+        SCol F.TextT c       -> F.TextE $ textVal $ col c row
+        SCol F.UnitT c       -> F.UnitE
+        SCol F.DayT c        -> F.DayE $ dayVal $ col c row
+        SCol F.DecimalT c    -> F.DecimalE $ fromRational $ toRational $ decimalVal $ col c row
+        SCol F.ScientificT c -> F.ScientificE $ decimalVal $ col c row
+        SCol _       _       -> $impossible
 
 constructTuple :: Row r => [ColName] -> SegTuple a -> r -> F.Exp a
 constructTuple !kc !lyt !r =

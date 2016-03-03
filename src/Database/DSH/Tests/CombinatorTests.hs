@@ -1,9 +1,9 @@
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 -- | Tests on individual query combinators.
 module Database.DSH.Tests.CombinatorTests
@@ -25,6 +25,7 @@ import qualified Data.Decimal                   as D
 import           Data.Either
 import           Data.List
 import           Data.Maybe
+import qualified Data.Scientific                as S
 import           Data.Text                      (Text)
 import qualified Data.Time.Calendar             as C
 import           Data.Word
@@ -101,6 +102,7 @@ typeTests conn = testGroup "Supported Types"
   , testPropertyConn conn "Text"                      prop_text
   , testPropertyConn conn "Day"                       prop_day
   , testPropertyConn conn "Decimal"                   prop_decimal
+  , testPropertyConn conn "Scientific"                prop_scientific
   , testPropertyConn conn "Integer"                   prop_integer
   , testPropertyConn conn "Double"                    prop_double
   , testPropertyConn conn "[Integer]"                 prop_list_integer_1
@@ -434,6 +436,9 @@ prop_day = makePropEq id id
 
 prop_decimal :: Backend c => (Positive Word8, Integer) -> c -> Property
 prop_decimal (p, m) = makePropEq id id (D.Decimal (getPositive p) m)
+
+prop_scientific :: Backend c => (Integer, Int) -> c -> Property
+prop_scientific (p, m) = makePropEq id id (S.scientific p m)
 
 prop_list_integer_1 :: Backend c => [Integer] -> c -> Property
 prop_list_integer_1 = makePropEq id id

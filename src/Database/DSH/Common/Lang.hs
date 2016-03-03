@@ -7,7 +7,7 @@ module Database.DSH.Common.Lang where
 
 import           Data.Aeson
 import           Data.Aeson.TH
-import           Data.Decimal
+import           Data.Scientific
 import qualified Data.List.NonEmpty           as N
 import qualified Data.Text                    as T
 import qualified Data.Time.Calendar           as C
@@ -32,12 +32,6 @@ data Val = ListV    [Val]
          | ScalarV  ScalarVal
          deriving (Eq, Ord, Show)
 
-instance ToJSON Decimal where
-    toJSON = toJSON . show
-
-instance FromJSON Decimal where
-    parseJSON s = read <$> parseJSON s
-
 instance FromJSON Date where
     parseJSON o = Date <$> (\(y, m, d) -> C.fromGregorian y m d) <$> parseJSON o
 
@@ -50,7 +44,7 @@ data ScalarVal = IntV      Int
                | BoolV     Bool
                | StringV   T.Text
                | DoubleV   Double
-               | DecimalV  Decimal
+               | DecimalV  Scientific
                | DateV     Date
                | UnitV
                deriving (Eq, Ord, Show)
@@ -253,13 +247,13 @@ instance Pretty Val where
     pretty (ScalarV v)   = pretty v
 
 instance Pretty ScalarVal where
-    pretty (IntV i)      = int i
-    pretty (BoolV b)     = bool b
-    pretty (StringV t)   = dquotes $ string $ T.unpack t
-    pretty (DoubleV d)   = double d
-    pretty (DecimalV d)  = text $ show d
-    pretty UnitV         = text "()"
-    pretty (DateV d)     = text $ C.showGregorian $ unDate d
+    pretty (IntV i)        = int i
+    pretty (BoolV b)       = bool b
+    pretty (StringV t)     = dquotes $ string $ T.unpack t
+    pretty (DoubleV d)     = double d
+    pretty (DecimalV d)    = text $ show d
+    pretty UnitV           = text "()"
+    pretty (DateV d)       = text $ C.showGregorian $ unDate d
 
 instance Pretty BinRelOp where
     pretty Eq  = text "=="
