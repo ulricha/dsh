@@ -278,12 +278,16 @@ groupJoin q =
 -- has been changed.
 groupJoinSmall :: VLRule ()
 groupJoinSmall q =
-  $(dagPatMatch 'q "(_) AggrS a (R1 ((qo) NestJoinS p (qi)))"
+  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((qo1) AggrS a (R1 ((qo2) NestJoinS p (qi)))))"
     [| do
+        predicate $ $(v "qo1") /= $(v "qo2")
+        predicate $ $(v "qo") /= $(v "qo2")
 
         return $ do
-            logRewrite "GroupJoin.Small" q
-            void $ replaceWithNew q $ BinOp (GroupJoinSmall ($(v "p"), $(v "a"))) $(v "qo") $(v "qi")
+            logRewrite "GroupJoin" q
+            groupJoinNode <- insert $ BinOp (GroupJoinSmall ($(v "p"), $(v "a"))) $(v "qo2") $(v "qi")
+            unboxNode     <- insert $ BinOp UnboxSng $(v "qo") groupJoinNode
+            void $ replaceWithNew q $ UnOp R1 unboxNode
         |])
 
 countDistinct :: VLRule BottomUpProps
