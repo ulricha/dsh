@@ -317,6 +317,21 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           rightReqCols <- prcols ∪ arcols
           return (leftReqCols', rightReqCols)
 
+      GroupJoinSmall (p, a) -> do
+          let acols = Just $ aggrReqCols a
+          -- columns from the left required by the predicate
+          let plcols = VProp $ Just $ reqLeftPredCols p
+          -- columns from the right required by the predicate
+          let prcols = VProp $ Just $ reqRightPredCols p
+          -- Columns from left and right sides that are required for
+          -- the aggregate.
+          (alcols, arcols) <- partitionCols childBUProps1 childBUProps2 acols
+          -- left: plcols, alcols
+          -- right: prcols, arcols
+          leftReqCols  <- plcols ∪ alcols
+          rightReqCols <- prcols ∪ arcols
+          return (leftReqCols, rightReqCols)
+
       ZipS -> do
           (cols, _, _) <- fromPropTriple ownReqColumns
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols

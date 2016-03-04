@@ -24,6 +24,7 @@ aggregationRules = [ inlineAggrSProject
                    , mergeGroupWithGroupAggrLeft
                    , mergeGroupWithGroupAggrRight
                    , groupJoin
+                   , groupJoinSmall
                    ]
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
@@ -268,6 +269,21 @@ groupJoin q =
         return $ do
             logRewrite "GroupJoin" q
             void $ replaceWithNew q $ BinOp (GroupJoin ($(v "p"), $(v "a"))) $(v "qo") $(v "qi")
+        |])
+
+-- | Merge nestjoin-based binary grouping and subsequent aggregation into one
+-- groupjoin operator. This rewrite introduces only the 'small' GroupJoin
+-- operator that does not perform unboxing. This should enable us to fuse group
+-- creation and aggregation even when the segment structure of the left input
+-- has been changed.
+groupJoinSmall :: VLRule ()
+groupJoinSmall q =
+  $(dagPatMatch 'q "(_) AggrS a (R1 ((qo) NestJoinS p (qi)))"
+    [| do
+
+        return $ do
+            logRewrite "GroupJoin.Small" q
+            void $ replaceWithNew q $ BinOp (GroupJoinSmall ($(v "p"), $(v "a"))) $(v "qo") $(v "qi")
         |])
 
 countDistinct :: VLRule BottomUpProps

@@ -264,6 +264,9 @@ inferConstVecBinOp c1 c2 op =
       let constCols = cols1 ++ [NonConstPL]
       return $ VProp (ConstVec constCols)
 
+    GroupJoinSmall _ -> 
+      return $ VProp (ConstVec [NonConstPL])
+
     ThetaJoinS _ -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV

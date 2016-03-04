@@ -232,6 +232,7 @@ translateBinOp b c1 c2 = case b of
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.GroupJoin (p, a) -> fromDVec <$> vecGroupJoin p a (toDVec c1) (toDVec c2)
+    V.GroupJoinSmall (p, a) -> fromDVec <$> vecGroupJoinSmall p a (toDVec c1) (toDVec c2)
 
     V.SemiJoinS p -> do
         (v, r) <- vecSemiJoinS p (toDVec c1) (toDVec c2)

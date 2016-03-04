@@ -123,6 +123,7 @@ inferVectorTypeBinOp s1 s2 op =
     GroupJoin _ -> do
         VTDataVec w <- unpack s1
         return $ VProp $ VTDataVec $ w + 1
+    GroupJoinSmall _ -> return $ VProp $ VTDataVec 1
     SemiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
     AntiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
 

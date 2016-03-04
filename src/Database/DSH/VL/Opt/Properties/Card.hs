@@ -68,6 +68,7 @@ inferCardOneBinOp c1 c2 op =
     ThetaJoinS _ -> return $ VPropTriple False False False
     NestJoinS _ -> return $ VPropTriple False False False
     GroupJoin _ -> return $ VProp False
+    GroupJoinSmall _ -> return $ VProp False
     SemiJoinS _ -> return $ VPropPair False False
     AntiJoinS _ -> return $ VPropPair False False
     ZipS -> do

@@ -119,5 +119,6 @@ class VectorAlgebra a where
     vecSemiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
     vecAntiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
     vecGroupJoin :: JoinPredicate Expr -> AggrFun -> DVec a -> DVec a -> Build a (DVec a)
+    vecGroupJoinSmall :: JoinPredicate Expr -> AggrFun -> DVec a -> DVec a -> Build a (DVec a)
 
     vecCombine :: DVec a -> DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)

@@ -175,6 +175,8 @@ opDotLabel tm i (BinOp (AntiJoinS p) _ _) =
   labelToDoc i "AntiJoinS" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (GroupJoin (p, a)) _ _) =
   labelToDoc i "GroupJoin" (renderJoinPred p <+> renderAggrFun a) (lookupTags i tm)
+opDotLabel tm i (BinOp (GroupJoinSmall (p, a)) _ _) =
+  labelToDoc i "GroupJoinSmall" (renderJoinPred p <+> renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "Combine" empty (lookupTags i tm)
 
 opDotColor :: VL -> DotColor
@@ -185,6 +187,7 @@ opDotColor (BinOp (NestJoinS _) _ _)   = DCGreen
 opDotColor (BinOp (SemiJoinS _) _ _)   = DCGreen
 opDotColor (BinOp (AntiJoinS _) _ _)   = DCGreen
 opDotColor (BinOp (GroupJoin _) _ _)   = DCGreen
+opDotColor (BinOp (GroupJoinSmall _) _ _)   = DCGreen
 opDotColor (UnOp (SortS _) _)          = DCTomato
 opDotColor (UnOp (GroupS _) _)         = DCTomato
 opDotColor (BinOp UnboxSng _ _)        = DCTan
