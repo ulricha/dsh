@@ -50,11 +50,11 @@ module Database.DSH.CL.Opt.Auxiliary
     , pattern NestJoinP
     , pattern NestProductP
     , pattern AndP
+    , pattern OrP
     , pattern SortP
     , pattern NotP
     , pattern EqP
     , pattern LengthP
-    , pattern OrP
     , pattern NullP
     , pattern TrueP
     ) where
@@ -191,15 +191,13 @@ isThetaJoinPred _ _ _ = False
 
 -- | Does the predicate look like an existential quantifier?
 isSemiJoinPred :: Ident -> Expr -> Bool
-isSemiJoinPred x (AppE1 _ Or (Comp _ p
-                                     (S (BindQ y _)))) = isThetaJoinPred x y p
-isSemiJoinPred _  _                                    = False
+isSemiJoinPred x (OrP (Comp _ p (S (BindQ y _)))) = isThetaJoinPred x y p
+isSemiJoinPred _  _                               = False
 
 -- | Does the predicate look like an universal quantifier?
 isAntiJoinPred :: Ident -> Expr -> Bool
-isAntiJoinPred x (AppE1 _ And (Comp _ p
-                                      (S (BindQ y _)))) = isThetaJoinPred x y p
-isAntiJoinPred _  _                                     = False
+isAntiJoinPred x (AndP (Comp _ p (S (BindQ y _)))) = isThetaJoinPred x y p
+isAntiJoinPred _  _                                = False
 
 isFlatExpr :: Expr -> Bool
 isFlatExpr expr =
@@ -433,12 +431,12 @@ pattern GuardP p             <- AppE1 _ Guard p
 pattern SemiJoinP ty p xs ys = AppE2 ty (SemiJoin p) xs ys
 pattern NestJoinP ty p xs ys = AppE2 ty (NestJoin p) xs ys
 pattern NestProductP ty xs ys = AppE2 ty NestProduct xs ys
-pattern AndP xs              <- AppE1 _ And xs
+pattern AndP xs              <- AppE1 _ (Agg And) xs
+pattern OrP xs              <- AppE1 _ (Agg Or) xs
 pattern SortP ty xs          = AppE1 ty Sort xs
 pattern NotP e               <- UnOp _ (SUBoolOp Not) e
 pattern EqP e1 e2 <- BinOp _ (SBRelOp Eq) e1 e2
-pattern LengthP e <- AppE1 _ Length e
-pattern OrP xs <- AppE1 _ Or xs
+pattern LengthP e <- AppE1 _ (Agg Length) e
 pattern NullP e <- AppE1 _ Null e
 pattern TrueP = Lit PBoolT (ScalarV (BoolV True))
 

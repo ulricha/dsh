@@ -36,7 +36,6 @@ prim1 t p e = mkApp t <$> expr e
         case p of
             CL.Singleton        -> mkPrim1 NKL.Singleton
             CL.Only             -> mkPrim1 NKL.Only
-            CL.Length           -> mkPrim1 NKL.Length
             CL.Concat           -> mkPrim1 NKL.Concat
             -- Null in explicit form is useful during CL optimization
             -- to easily recognize universal/existential patterns. In
@@ -44,18 +43,13 @@ prim1 t p e = mkApp t <$> expr e
             -- need to store it explicitly. Therefore, we implement it
             -- using length in NKL.
             CL.Null             -> nklNull
-            CL.Sum              -> mkPrim1 NKL.Sum
-            CL.Avg              -> mkPrim1 NKL.Avg
-            CL.Minimum          -> mkPrim1 NKL.Minimum
-            CL.Maximum          -> mkPrim1 NKL.Maximum
             CL.Reverse          -> mkPrim1 NKL.Reverse
-            CL.And              -> mkPrim1 NKL.And
-            CL.Or               -> mkPrim1 NKL.Or
             CL.Nub              -> mkPrim1 NKL.Nub
             CL.Number           -> mkPrim1 NKL.Number
             CL.TupElem i        -> mkPrim1 $ NKL.TupElem i
             CL.Sort             -> mkPrim1 NKL.Sort
             CL.Group            -> mkPrim1 NKL.Group
+            CL.Agg a            -> nklAgg a
             CL.Guard            -> $impossible
 
     nklNull _ ne = NKL.BinOp PBoolT
@@ -64,6 +58,15 @@ prim1 t p e = mkApp t <$> expr e
                              (NKL.AppE1 PIntT NKL.Length ne)
 
     mkPrim1 nop nt ne = NKL.AppE1 nt nop ne
+
+    nklAgg a = case a of
+            CL.Sum              -> mkPrim1 NKL.Sum
+            CL.Avg              -> mkPrim1 NKL.Avg
+            CL.Minimum          -> mkPrim1 NKL.Minimum
+            CL.Maximum          -> mkPrim1 NKL.Maximum
+            CL.And              -> mkPrim1 NKL.And
+            CL.Or               -> mkPrim1 NKL.Or
+            CL.Length           -> mkPrim1 NKL.Length
 
 
 -- | Transform applications of binary primitives.

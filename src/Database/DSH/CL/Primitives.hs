@@ -34,7 +34,7 @@ reverse e = let t@(ListT _) = typeOf e
 length :: Expr -> Expr
 length e = let t = typeOf e
            in if isList t
-              then AppE1 PIntT Length e
+              then AppE1 PIntT (Agg Length) e
               else tyErr "length"
 
 null :: Expr -> Expr
@@ -48,13 +48,13 @@ null e =
 and :: Expr -> Expr
 and e = let t = typeOf e
          in if ListT PBoolT P.== t
-            then AppE1 PBoolT And e
+            then AppE1 PBoolT (Agg And) e
             else tyErrShow "and" [t]
 
 or :: Expr -> Expr
 or e = let t = typeOf e
          in if ListT PBoolT P.== t
-            then AppE1 PBoolT Or e
+            then AppE1 PBoolT (Agg Or) e
             else tyErr "or"
 
 concat :: Expr -> Expr
@@ -66,26 +66,26 @@ concat e = let t = typeOf e
 sum :: Expr -> Expr
 sum e = let (ListT t) = typeOf e
          in if isNum t
-                then AppE1 t Sum e
+                then AppE1 t (Agg Sum) e
                 else tyErr "sum"
 
 
 avg :: Expr -> Expr
 avg e = case typeOf e of
-            ListT PDoubleT  -> AppE1 PDoubleT Avg e
-            ListT PDecimalT -> AppE1 PDecimalT Avg e
+            ListT PDoubleT  -> AppE1 PDoubleT (Agg Avg) e
+            ListT PDecimalT -> AppE1 PDecimalT (Agg Avg) e
             _              -> tyErr "avg"
 
 minimum :: Expr -> Expr
 minimum e = let (ListT t) = typeOf e
              in if isNum t
-                 then AppE1 t Minimum e
+                 then AppE1 t (Agg Minimum) e
                  else tyErr "minimum"
 
 maximum :: Expr -> Expr
 maximum e = let (ListT t) = typeOf e
              in if isNum t
-                 then AppE1 t Maximum e
+                 then AppE1 t (Agg Maximum) e
                  else tyErr "maximum"
 
 nub :: Expr -> Expr

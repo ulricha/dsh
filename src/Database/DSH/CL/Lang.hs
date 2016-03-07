@@ -11,6 +11,7 @@ module Database.DSH.CL.Lang
     , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL, toNonEmpty
     , Qual(..), isGuard, isBind
     , Typed(..)
+    , Aggregate(..)
     , Prim1(..)
     , Prim2(..)
     ) where
@@ -92,44 +93,44 @@ appendNL (S a)     bs = a :* bs
 --------------------------------------------------------------------------------
 -- CL primitives
 
+data Aggregate = Length | Avg | Minimum | Maximum | And | Or | Sum
+    deriving (Eq, Show)
+
 data Prim1 = Singleton
            | Only
-           | Length
            | Concat
            | Null
-           | Sum
-           | Avg
-           | Minimum
-           | Maximum
            | Reverse
-           | And
-           | Or
            | Nub
            | Number
            | Sort
            | Group
            | Guard
            | TupElem TupleIndex
+           | Agg Aggregate
            deriving (Eq, Show)
+
+instance Pretty Aggregate where
+  pretty Length          = combinator $ text "length"
+  pretty Sum             = combinator $ text "sum"
+  pretty Avg             = combinator $ text "avg"
+  pretty Minimum         = combinator $ text "minimum"
+  pretty Maximum         = combinator $ text "maximum"
+  pretty And             = combinator $ text "and"
+  pretty Or              = combinator $ text "or"
 
 instance Pretty Prim1 where
   pretty Sort            = combinator $ text "sort"
   pretty Group           = combinator $ text "group"
   pretty Singleton       = combinator $ text "sng"
   pretty Only            = combinator $ text "only"
-  pretty Length          = combinator $ text "length"
   pretty Concat          = combinator $ text "concat"
   pretty Null            = combinator $ text "null"
-  pretty Sum             = combinator $ text "sum"
-  pretty Avg             = combinator $ text "avg"
-  pretty Minimum         = combinator $ text "minimum"
-  pretty Maximum         = combinator $ text "maximum"
   pretty Reverse         = combinator $ text "reverse"
-  pretty And             = combinator $ text "and"
-  pretty Or              = combinator $ text "or"
   pretty Nub             = combinator $ text "nub"
   pretty Number          = combinator $ text "number"
   pretty Guard           = combinator $ text "guard"
+  pretty (Agg a)         = pretty a
   -- tuple access is pretty-printed in a special way
   pretty TupElem{}       = $impossible
 
