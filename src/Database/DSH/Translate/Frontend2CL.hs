@@ -65,7 +65,7 @@ lamBody f = do
 translate :: forall a. Exp a -> Compile CL.Expr
 translate (TupleConstE tc) = let translateTupleConst = $(mkTranslateTupleTerm 16)
                              in translateTupleConst tc
-translate UnitE = return $ CP.unit
+translate UnitE = return CP.unit
 translate (BoolE b) = return $ CP.bool b
 translate (CharE c) = return $ CP.string $ T.singleton c
 translate (IntegerE i) = return $ CP.int (fromInteger i)
@@ -79,7 +79,7 @@ translate (VarE i) = do
     return $ CP.var (translateType ty) (prefixVar i)
 translate (ListE es) = do
     let ty = reify (undefined :: a)
-    CP.list (translateType ty) <$> (mapM translate $ toList es)
+    CP.list (translateType ty) <$> mapM translate (toList es)
 -- We expect the query language to be first order. Lambdas must only
 -- occur as an argument to higher-order built-in combinators (map,
 -- concatMap, sortWith, ...). If lambdas occur in other places that
@@ -152,6 +152,7 @@ translateType CharT          = Ty.PStringT
 translateType IntegerT       = Ty.PIntT
 translateType DoubleT        = Ty.PDoubleT
 translateType DecimalT       = Ty.PDecimalT
+translateType ScientificT    = Ty.PDecimalT
 translateType TextT          = Ty.PStringT
 translateType DayT           = Ty.PDateT
 translateType (ListT t)      = Ty.ListT (translateType t)

@@ -14,7 +14,6 @@ module Database.DSH.Backend
     ) where
 
 import           Data.ByteString                 (ByteString)
-import           Data.Decimal
 import           Data.Hashable
 import           Data.Scientific
 import           Data.Text                       (Text)
@@ -23,7 +22,6 @@ import           GHC.Generics                    (Generic)
 
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Vector
-import qualified Database.DSH.Frontend.Internals as F
 import           Database.DSH.VL.Lang            (VL)
 
 --------------------------------------------------------------------------------
@@ -38,7 +36,7 @@ newtype CompositeKey = CompositeKey { unCKey :: [KeyVal] }
     deriving (Eq, Generic)
 
 instance Hashable C.Day where
-    hashWithSalt s d = s `hashWithSalt` (C.toGregorian d)
+    hashWithSalt s d = s `hashWithSalt` C.toGregorian d
 
 instance Hashable KeyVal where
 
