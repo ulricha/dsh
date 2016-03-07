@@ -44,6 +44,10 @@ tests_comprehensions conn = testGroup "Comprehensions"
     , testProperty "groupjoin_length" (\a -> prop_groupjoin_length a conn)
     , testProperty "groupjoin_length_nub" (\a -> prop_groupjoin_length_nub a conn)
     , testProperty "groupjoin_sum" (\a -> prop_groupjoin_sum a conn)
+    , testProperty "groupjoin_sum2" (\a -> prop_groupjoin_sum2 a conn)
+    , testProperty "groupjoin_sum_length" (\a -> prop_groupjoin_sum_length a conn)
+    , testProperty "groupjoin_sum_deep" (\a -> prop_groupjoin_sum_deep a conn)
+    , testProperty "groupjoin_length_deep_sum" (\a -> prop_groupjoin_length_deep_sum a conn)
     , testProperty "antijoin class12" (\a -> prop_aj_class12 a conn)
     , testProperty "antijoin class15" (\a -> prop_aj_class15 a conn)
     , testProperty "antijoin class16" (\a -> prop_aj_class16 a conn)
@@ -216,7 +220,40 @@ prop_groupjoin_sum :: Backend c => ([Integer], [Integer]) -> c -> Property
 prop_groupjoin_sum = makePropEq C.groupjoin_sum groupjoin_sum_native
   where
     groupjoin_sum_native (njxs, njys) =
-        [ (x, fromIntegral $ sum [ 2 * y | y <- njys, x == y ]) | x <- njxs ]
+        [ (x, fromIntegral $ sum [ 2 * y + x | y <- njys, x == y ]) | x <- njxs ]
+
+prop_groupjoin_sum2 :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_groupjoin_sum2 = makePropEq C.groupjoin_sum2 groupjoin_sum2_native
+  where
+    groupjoin_sum2_native (njxs, njys) =
+        [ x + fromIntegral (sum [ 2 * y | y <- njys, x == y ]) | x <- njxs ]
+
+prop_groupjoin_sum_length :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_groupjoin_sum_length = makePropEq C.groupjoin_sum_length groupjoin_sum_length_native
+  where
+    groupjoin_sum_length_native (njxs, njys) =
+        [ ( x
+          , fromIntegral $ sum [ 2 * y | y <- njys, x == y ]
+          , fromIntegral $ length [ y | y <- njys, x == y ]
+          )
+        | x <- njxs
+        ]
+
+prop_groupjoin_sum_deep :: Backend c => ([Integer], [Integer], [Integer]) -> c -> Property
+prop_groupjoin_sum_deep = makePropEq C.groupjoin_sum_deep groupjoin_sum_deep_native
+  where
+    groupjoin_sum_deep_native (njxs, njys, njzs) =
+        [ [ (x, fromIntegral $ sum [ 2 * y | y <- njys, x == y ]) | x <- njxs, x == z ]
+        | z <- njzs
+        ]
+
+prop_groupjoin_length_deep_sum :: Backend c => ([Integer], [Integer], [Integer]) -> c -> Property
+prop_groupjoin_length_deep_sum = makePropEq C.groupjoin_length_deep_sum groupjoin_length_deep_sum_native
+  where
+    groupjoin_length_deep_sum_native (njxs, njys, njzs) =
+        [ z + sum [ fromIntegral $ length [ 2 * y + x | y <- njys, x == y ] | x <- njxs, x == z ]
+        | z <- njzs
+        ]
 
 prop_aj_class12 :: Backend c => ([Integer], [Integer]) -> c -> Property
 prop_aj_class12 = makePropEq C.aj_class12 aj_class12_native

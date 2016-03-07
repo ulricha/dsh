@@ -134,7 +134,30 @@ groupjoin_length_nub (view -> (xs, ys)) =
 
 groupjoin_sum :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
 groupjoin_sum (view -> (xs, ys)) =
-    [ tup2 x (sum [ 2 * y | y <- ys, x == y ]) | x <- xs ]
+    [ tup2 x (sum [ 2 * y + x | y <- ys, x == y ]) | x <- xs ]
+
+groupjoin_sum2 :: Q ([Integer], [Integer]) -> Q [Integer]
+groupjoin_sum2 (view -> (xs, ys)) =
+    [ x + sum [ 2 * y | y <- ys, x == y ] | x <- xs ]
+
+groupjoin_sum_deep :: Q ([Integer], [Integer], [Integer]) -> Q [[(Integer, Integer)]]
+groupjoin_sum_deep (view -> (xs, ys, zs)) =
+    [ [ tup2 x (sum [ 2 * y | y <- ys, x == y ]) | x <- xs, x == z ]
+    | z <- zs
+    ]
+
+groupjoin_length_deep_sum:: Q ([Integer], [Integer], [Integer]) -> Q [Integer]
+groupjoin_length_deep_sum (view -> (xs, ys, zs)) =
+    [ z + sum [ length [ 2 * y + x | y <- ys, x == y ] | x <- xs, x == z ]
+    | z <- zs
+    ]
+
+groupjoin_sum_length :: Q ([Integer], [Integer]) -> Q [(Integer, Integer, Integer)]
+groupjoin_sum_length (view -> (xs, ys)) =
+    [ tup3 x (sum [ 2 * y | y <- ys, x == y ])
+             (length [ y | y <- ys, x == y ])
+    | x <- xs
+    ]
 
 --------------------------------------------------------------------------------
 -- Comprehensions for lifted join tests
