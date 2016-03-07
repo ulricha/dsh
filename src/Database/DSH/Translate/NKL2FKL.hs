@@ -45,35 +45,36 @@ liftOperators expr = runFlat initEnv (flatten expr)
 prim1 :: N.Prim1 -> F.LExpr -> Nat -> F.LExpr
 prim1 p =
     case p of
-        N.Singleton -> P.sng
-        N.Only      -> P.only
-        N.Length    -> P.length
-        N.Concat    -> P.concat
-        N.Sum       -> P.sum
-        N.Avg       -> P.avg
-        N.TupElem n -> P.tupElem n
-        N.Minimum   -> P.minimum
-        N.Maximum   -> P.maximum
-        N.Reverse   -> P.reverse
-        N.And       -> P.and
-        N.Or        -> P.or
-        N.Nub       -> P.nub
-        N.Number    -> P.number
-        N.Sort      -> P.sort
-        N.Group     -> P.group
-        N.Restrict  -> P.restrict
+        N.Singleton   -> P.sng
+        N.Only        -> P.only
+        N.Agg Length  -> P.length
+        N.Concat      -> P.concat
+        N.Agg Sum     -> P.sum
+        N.Agg Avg     -> P.avg
+        N.TupElem n   -> P.tupElem n
+        N.Agg Minimum -> P.minimum
+        N.Agg Maximum -> P.maximum
+        N.Reverse     -> P.reverse
+        N.Agg And     -> P.and
+        N.Agg Or      -> P.or
+        N.Nub         -> P.nub
+        N.Number      -> P.number
+        N.Sort        -> P.sort
+        N.Group       -> P.group
+        N.Restrict    -> P.restrict
 
 prim2 :: N.Prim2 -> F.LExpr -> F.LExpr -> Nat -> F.LExpr
 prim2 p =
     case p of
-        N.Append       -> P.append
-        N.Zip          -> P.zip
-        N.CartProduct  -> P.cartProduct
-        N.NestProduct  -> P.nestProduct
-        N.ThetaJoin jp -> P.thetaJoin jp
-        N.NestJoin jp  -> P.nestJoin jp
-        N.SemiJoin jp  -> P.semiJoin jp
-        N.AntiJoin jp  -> P.antiJoin jp
+        N.Append           -> P.append
+        N.Zip              -> P.zip
+        N.CartProduct      -> P.cartProduct
+        N.NestProduct      -> P.nestProduct
+        N.ThetaJoin jp     -> P.thetaJoin jp
+        N.NestJoin jp      -> P.nestJoin jp
+        N.GroupJoin jp a e -> P.groupJoin jp a e
+        N.SemiJoin jp      -> P.semiJoin jp
+        N.AntiJoin jp      -> P.antiJoin jp
 
 --------------------------------------------------------------------------------
 -- Flattening environment

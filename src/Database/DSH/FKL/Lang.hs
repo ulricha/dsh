@@ -51,16 +51,9 @@ type LExpr = ExprTempl LiftedN BroadcastExt
 -- be unconcated again. We know this statically when introducing
 -- concat/unconcat for higher-lifted primitives.
 
-data Prim1 = Length
-           | Concat
+data Prim1 = Concat
            | TupElem TupleIndex
-           | Sum
-           | Avg
-           | Minimum
-           | Maximum
            | Reverse
-           | And
-           | Or
            | Nub
            | Number
            | Sort
@@ -68,6 +61,7 @@ data Prim1 = Length
            | Group
            | Singleton
            | Only
+           | Agg L.Aggregate
     deriving (Show, Eq)
 
 data Prim2 = Append
@@ -76,6 +70,7 @@ data Prim2 = Append
            | NestProduct
            | ThetaJoin (L.JoinPredicate L.ScalarExpr)
            | NestJoin (L.JoinPredicate L.ScalarExpr)
+           | GroupJoin (L.JoinPredicate L.ScalarExpr) L.Aggregate L.ScalarExpr
            | SemiJoin (L.JoinPredicate L.ScalarExpr)
            | AntiJoin (L.JoinPredicate L.ScalarExpr)
            | Dist
@@ -88,6 +83,7 @@ isJoinOp op =
         NestProduct -> True
         ThetaJoin{} -> True
         NestJoin{}  -> True
+        GroupJoin{} -> True
         SemiJoin{}  -> True
         AntiJoin{}  -> True
         Append      -> False
@@ -152,15 +148,8 @@ instance Pretty LiftedN where
     pretty (LiftedN n)    = super $ superscript (intFromNat n)
 
 instance Pretty Prim1 where
-    pretty Length       = combinator $ text "length"
     pretty Concat       = combinator $ text "concat"
-    pretty Sum          = combinator $ text "sum"
-    pretty Avg          = combinator $ text "avg"
-    pretty Minimum      = combinator $ text "minimum"
-    pretty Maximum      = combinator $ text "maximum"
     pretty Reverse      = combinator $ text "reverse"
-    pretty And          = combinator $ text "and"
-    pretty Or           = combinator $ text "or"
     pretty Nub          = combinator $ text "nub"
     pretty Number       = combinator $ text "number"
     pretty Sort         = combinator $ text "sort"
@@ -168,18 +157,20 @@ instance Pretty Prim1 where
     pretty Group        = combinator $ text "group"
     pretty Singleton    = combinator $ text "sng"
     pretty Only         = combinator $ text "only"
+    pretty (Agg a)      = pretty a
     pretty TupElem{}    = $impossible
 
 instance Pretty Prim2 where
-    pretty Dist            = dist $ text "dist"
-    pretty Append          = combinator $ text "append"
-    pretty Zip             = combinator $ text "zip"
-    pretty CartProduct     = join $ text "cartproduct"
-    pretty NestProduct     = join $ text "nestproduct"
-    pretty (ThetaJoin p)   = join $ text $ printf "thetajoin{%s}" (pp p)
-    pretty (NestJoin p)    = join $ text $ printf "nestjoin{%s}" (pp p)
-    pretty (SemiJoin p)    = join $ text $ printf "semijoin{%s}" (pp p)
-    pretty (AntiJoin p)    = join $ text $ printf "antijoin{%s}" (pp p)
+    pretty Dist              = dist $ text "dist"
+    pretty Append            = combinator $ text "append"
+    pretty Zip               = combinator $ text "zip"
+    pretty CartProduct       = join $ text "cartproduct"
+    pretty NestProduct       = join $ text "nestproduct"
+    pretty (ThetaJoin p)     = join $ text $ printf "thetajoin{%s}" (pp p)
+    pretty (NestJoin p)      = join $ text $ printf "nestjoin{%s}" (pp p)
+    pretty (GroupJoin p a e) = join $ text $ printf "groupjoin{%s, %s(%s)}" (pp p) (pp a) (pp e)
+    pretty (SemiJoin p)      = join $ text $ printf "semijoin{%s}" (pp p)
+    pretty (AntiJoin p)      = join $ text $ printf "antijoin{%s}" (pp p)
 
 instance Pretty Prim3 where
     pretty Combine = combinator $ text "combine"

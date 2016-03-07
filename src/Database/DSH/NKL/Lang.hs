@@ -52,7 +52,7 @@ instance Pretty Expr where
     pretty (AppE1 _ (TupElem n) e1) =
         parenthize e1 <> dot <> int (tupleIndex n)
     pretty (Table _ n _)       = kw (text "table") <> parens (text n)
-    pretty (AppE1 _ p1 e)      = pretty p1 <+> (parenthize e)
+    pretty (AppE1 _ p1 e)      = pretty p1 <+> parenthize e
     pretty (AppE2 _ p2 e1 e2)
         | isJoinOp p2 = prettyJoin (pretty p2) (parenthize e1) (parenthize e2)
         | otherwise   = prettyApp2 (pretty p2) (parenthize e1) (parenthize e2)
@@ -74,49 +74,37 @@ instance Pretty Expr where
 parenthize :: Expr -> Doc
 parenthize e =
     case e of
-        Var _ _               -> pretty e
-        Const _ _             -> pretty e
-        Table _ _ _           -> pretty e
-        Iterator _ _ _ _      -> pretty e
+        Var{}                 -> pretty e
+        Const{}               -> pretty e
+        Table{}               -> pretty e
+        Iterator{}            -> pretty e
         AppE1 _ (TupElem _) _ -> pretty e
         _                     -> parens $ pretty e
 
 data Prim1 = Singleton
            | Only
-           | Length
            | Concat
-           | Sum
-           | Avg
-           | Minimum
-           | Maximum
            | Reverse
-           | And
-           | Or
            | Nub
            | Number
            | Sort
            | Group
            | Restrict
            | TupElem TupleIndex
+           | Agg L.Aggregate
            deriving (Eq, Show)
 
 instance Pretty Prim1 where
     pretty Singleton       = combinator $ text "sng"
     pretty Only            = combinator $ text "only"
-    pretty Length          = combinator $ text "length"
     pretty Concat          = combinator $ text "concat"
-    pretty Sum             = combinator $ text "sum"
-    pretty Avg             = combinator $ text "avg"
-    pretty Minimum         = combinator $ text "minimum"
-    pretty Maximum         = combinator $ text "maximum"
     pretty Reverse         = combinator $ text "reverse"
-    pretty And             = combinator $ text "and"
-    pretty Or              = combinator $ text "or"
     pretty Nub             = combinator $ text "nub"
     pretty Number          = combinator $ text "number"
     pretty Sort            = combinator $ text "sort"
     pretty Restrict        = restrict $ text "restrict"
     pretty Group           = combinator $ text "group"
+    pretty (Agg a)         = pretty a
     -- tuple access is pretty-printed in a special way
     pretty TupElem{}       = $impossible
 
@@ -126,6 +114,7 @@ data Prim2 = Append
            | NestProduct
            | ThetaJoin (L.JoinPredicate L.ScalarExpr)
            | NestJoin (L.JoinPredicate L.ScalarExpr)
+           | GroupJoin (L.JoinPredicate L.ScalarExpr) L.Aggregate L.ScalarExpr
            | SemiJoin (L.JoinPredicate L.ScalarExpr)
            | AntiJoin (L.JoinPredicate L.ScalarExpr)
            deriving (Eq, Show)
@@ -137,18 +126,20 @@ isJoinOp op =
         NestProduct -> True
         ThetaJoin{} -> True
         NestJoin{}  -> True
+        GroupJoin{} -> True
         SemiJoin{}  -> True
         AntiJoin{}  -> True
         Append      -> False
         Zip         -> False
 
 instance Pretty Prim2 where
-    pretty Append        = combinator $ text "append"
-    pretty Zip           = combinator $ text "zip"
+    pretty Append            = combinator $ text "append"
+    pretty Zip               = combinator $ text "zip"
 
-    pretty CartProduct     = join $ text "cartproduct"
-    pretty NestProduct     = join $ text "nestproduct"
-    pretty (ThetaJoin p)   = join $ text $ printf "thetajoin{%s}" (pp p)
-    pretty (NestJoin p)    = join $ text $ printf "nestjoin{%s}" (pp p)
-    pretty (SemiJoin p)    = join $ text $ printf "semijoin{%s}" (pp p)
-    pretty (AntiJoin p)    = join $ text $ printf "antijoin{%s}" (pp p)
+    pretty CartProduct       = join $ text "cartproduct"
+    pretty NestProduct       = join $ text "nestproduct"
+    pretty (ThetaJoin p)     = join $ text $ printf "thetajoin{%s}" (pp p)
+    pretty (NestJoin p)      = join $ text $ printf "nestjoin{%s}" (pp p)
+    pretty (GroupJoin p a e) = join $ text $ printf "groupjoin{%s, %s(%s)}" (pp p) (pp a) (pp e)
+    pretty (SemiJoin p)      = join $ text $ printf "semijoin{%s}" (pp p)
+    pretty (AntiJoin p)      = join $ text $ printf "antijoin{%s}" (pp p)

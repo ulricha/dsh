@@ -2,6 +2,14 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
+-- FIXME TODO
+-- * Redefine GroupJoin to include NestJoin
+-- * Allow multiple aggregates on GroupJoin
+-- * Gradually merge aggregates into existing GroupJoin
+-- * Search in guards for aggregates
+-- * Use same infrastructure to introduce GroupAggr
+-- * Special case: duplicate elimination -> CountDistinct
+
 module Database.DSH.CL.Opt.GroupJoin
   ( groupjoinR
   ) where
@@ -60,15 +68,7 @@ searchAggregatedGroupT x =
 
 --------------------------------------------------------------------------------
 
-aggType :: Aggregate -> Type -> Type
-aggType Length _   = PIntT
-aggType Sum ty     = ty
-aggType Maximum ty = ty
-aggType Minimum ty = ty
-aggType Avg ty     = ty
-aggType And _      = PBoolT
-aggType Or _       = PBoolT
-
+-- FIXME make sure that there are no other occurences of x.2 in the head.
 groupjoinR :: RewriteC CL
 groupjoinR = do
     e@(Comp ty h (S (BindQ x (NestJoinP _ p xs ys)))) <- promoteT idR

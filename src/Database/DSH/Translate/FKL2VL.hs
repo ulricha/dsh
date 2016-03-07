@@ -99,12 +99,38 @@ papp3 :: Prim3 -> Lifted -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Buil
 papp3 Combine Lifted    = V.combineL
 papp3 Combine NotLifted = V.combine
 
+aggL :: Type -> Aggregate -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
+aggL t Sum     = V.aggrL (VL.AggrSum $ typeToScalarType $ elemT t)
+aggL _ Avg     = V.aggrL VL.AggrAvg
+aggL _ Maximum = V.aggrL VL.AggrMax
+aggL _ Minimum = V.aggrL VL.AggrMin
+aggL _ Or      = V.aggrL VL.AggrAny
+aggL _ And     = V.aggrL VL.AggrAll
+aggL _ Length  = V.lengthL
+
+agg :: Type -> Aggregate -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
+agg t Sum     = V.aggr (VL.AggrSum $ typeToScalarType t)
+agg _ Avg     = V.aggr VL.AggrAvg
+agg _ Maximum = V.aggr VL.AggrMax
+agg _ Minimum = V.aggr VL.AggrMin
+agg _ Or      = V.aggr VL.AggrAny
+agg _ And     = V.aggr VL.AggrAll
+agg _ Length  = V.length_
+
+afun :: Type -> Aggregate -> VL.Expr -> VL.AggrFun
+afun t Sum     = (VL.AggrSum $ typeToScalarType t)
+afun _ Avg     = VL.AggrAvg
+afun _ Maximum = VL.AggrMax
+afun _ Minimum = VL.AggrMin
+afun _ Or      = VL.AggrAny
+afun _ And     = VL.AggrAll
+afun _ Length  = const VL.AggrCount
+
 papp1 :: Type -> Prim1 -> Lifted -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp1 t f Lifted =
     case f of
         Singleton       -> V.singletonL
         Only            -> V.onlyL
-        Length          -> V.lengthL
         Concat          -> V.concatL
         Reverse         -> V.reverseL
         Nub             -> V.nubL
@@ -112,19 +138,13 @@ papp1 t f Lifted =
         Sort            -> V.sortL
         Group           -> V.groupL
         Restrict        -> V.restrictL
-        And             -> V.aggrL VL.AggrAll
-        Or              -> V.aggrL VL.AggrAny
-        Minimum         -> V.aggrL VL.AggrMin
-        Maximum         -> V.aggrL VL.AggrMax
-        Sum             -> V.aggrL $ VL.AggrSum $ typeToScalarType $ elemT t
-        Avg             -> V.aggrL VL.AggrAvg
+        Agg a           -> aggL t a
         TupElem i       -> V.tupElemL i
 
 papp1 t f NotLifted =
     case f of
         Singleton        -> V.singleton
         Only             -> V.only
-        Length           -> V.length_
         Number           -> V.number
         Sort             -> V.sort
         Group            -> V.group
@@ -132,26 +152,22 @@ papp1 t f NotLifted =
         Nub              -> V.nub
         Reverse          -> V.reverse
         Concat           -> V.concat
-        Sum              -> V.aggr $ VL.AggrSum $ typeToScalarType t
-        Avg              -> V.aggr VL.AggrAvg
-        Or               -> V.aggr VL.AggrAny
-        And              -> V.aggr VL.AggrAll
-        Maximum          -> V.aggr VL.AggrMax
-        Minimum          -> V.aggr VL.AggrMin
+        Agg a            -> agg t a
         TupElem i        -> V.tupElem i
 
 papp2 :: Prim2 -> Lifted -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp2 f Lifted =
     case f of
-        Dist           -> V.distL
-        Append         -> V.appendL
-        Zip            -> V.zipL
-        CartProduct    -> V.cartProductL
-        NestProduct    -> V.nestProductL
-        ThetaJoin p    -> V.thetaJoinL p
-        NestJoin p     -> V.nestJoinL p
-        SemiJoin p     -> V.semiJoinL p
-        AntiJoin p     -> V.antiJoinL p
+        Dist            -> V.distL
+        Append          -> V.appendL
+        Zip             -> V.zipL
+        CartProduct     -> V.cartProductL
+        NestProduct     -> V.nestProductL
+        ThetaJoin p     -> V.thetaJoinL p
+        NestJoin p      -> V.nestJoinL p
+        GroupJoin p a e -> V.groupJoinL p (afun (typeOf e) a $ scalarExpr e)
+        SemiJoin p      -> V.semiJoinL p
+        AntiJoin p      -> V.antiJoinL p
 
 papp2 f NotLifted =
     case f of
@@ -162,6 +178,7 @@ papp2 f NotLifted =
         NestProduct     -> V.nestProduct
         ThetaJoin p     -> V.thetaJoin p
         NestJoin p      -> V.nestJoin p
+        GroupJoin p a e -> V.groupJoin p (afun (typeOf e) a $ scalarExpr e)
         SemiJoin p      -> V.semiJoin p
         AntiJoin p      -> V.antiJoin p
 

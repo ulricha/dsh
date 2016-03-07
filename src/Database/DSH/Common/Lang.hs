@@ -7,14 +7,15 @@ module Database.DSH.Common.Lang where
 
 import           Data.Aeson
 import           Data.Aeson.TH
-import           Data.Scientific
 import qualified Data.List.NonEmpty           as N
+import           Data.Scientific
 import qualified Data.Text                    as T
 import qualified Data.Time.Calendar           as C
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import           Text.Printf
 
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 
 instance ToJSON a => ToJSON (N.NonEmpty a) where
@@ -177,6 +178,31 @@ data ScalarBinOp = SBNumOp BinNumOp
                  deriving (Show, Eq, Ord)
 
 $(deriveJSON defaultOptions ''ScalarBinOp)
+
+-----------------------------------------------------------------------------
+-- Aggregates
+
+-- | Aggregate functions
+data Aggregate = Length | Avg | Minimum | Maximum | And | Or | Sum
+    deriving (Eq, Show)
+
+aggType :: Aggregate -> Type -> Type
+aggType Length _   = PIntT
+aggType Sum ty     = ty
+aggType Maximum ty = ty
+aggType Minimum ty = ty
+aggType Avg ty     = ty
+aggType And _      = PBoolT
+aggType Or _       = PBoolT
+
+instance Pretty Aggregate where
+  pretty Length          = combinator $ text "length"
+  pretty Sum             = combinator $ text "sum"
+  pretty Avg             = combinator $ text "avg"
+  pretty Minimum         = combinator $ text "minimum"
+  pretty Maximum         = combinator $ text "maximum"
+  pretty And             = combinator $ text "and"
+  pretty Or              = combinator $ text "or"
 
 
 -----------------------------------------------------------------------------

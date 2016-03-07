@@ -100,7 +100,7 @@ addOffset i (Offset o) = Offset $ o + i
 
 toVLjoinConjunct :: L.JoinConjunct L.ScalarExpr -> L.JoinConjunct Expr
 toVLjoinConjunct (L.JoinConjunct e1 o e2) =
-    L.JoinConjunct (joinExpr e1) o (joinExpr e2)
+    L.JoinConjunct (scalarExpr e1) o (scalarExpr e2)
 
 toVLJoinPred :: L.JoinPredicate L.ScalarExpr -> L.JoinPredicate Expr
 toVLJoinPred (L.JoinPred cs) = L.JoinPred $ fmap toVLjoinConjunct cs
@@ -108,8 +108,8 @@ toVLJoinPred (L.JoinPred cs) = L.JoinPred $ fmap toVLjoinConjunct cs
 -- | Convert join expressions into VL expressions. The main challenge
 -- here is to convert sequences of tuple accessors (fst/snd) into VL
 -- column indices.
-joinExpr :: L.ScalarExpr -> Expr
-joinExpr expr = offsetExpr $ aux expr
+scalarExpr :: L.ScalarExpr -> Expr
+scalarExpr expr = offsetExpr $ aux expr
   where
     -- Construct expressions in a bottom-up way. For a given join
     -- expression, return the following:
@@ -231,6 +231,12 @@ vlThetaJoinS joinPred (VLDVec c1) (VLDVec c2) =
 vlNestJoinS :: L.JoinPredicate L.ScalarExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlNestJoinS joinPred (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp (NestJoinS joinPred') c1 c2) dvec rvec rvec
+  where
+    joinPred' = toVLJoinPred joinPred
+
+vlGroupJoin :: L.JoinPredicate L.ScalarExpr -> AggrFun -> VLDVec -> VLDVec -> Build VL VLDVec
+vlGroupJoin joinPred afun (VLDVec c1) (VLDVec c2) =
+    vec (BinOp (GroupJoin (joinPred', afun)) c1 c2) dvec
   where
     joinPred' = toVLJoinPred joinPred
 

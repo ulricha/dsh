@@ -49,25 +49,15 @@ prim1 t p e = mkApp t <$> expr e
             CL.TupElem i        -> mkPrim1 $ NKL.TupElem i
             CL.Sort             -> mkPrim1 NKL.Sort
             CL.Group            -> mkPrim1 NKL.Group
-            CL.Agg a            -> nklAgg a
+            CL.Agg a            -> mkPrim1 (NKL.Agg a)
             CL.Guard            -> $impossible
 
     nklNull _ ne = NKL.BinOp PBoolT
                              (SBRelOp Eq)
                              (NKL.Const PIntT $ ScalarV $ IntV 0)
-                             (NKL.AppE1 PIntT NKL.Length ne)
+                             (NKL.AppE1 PIntT (NKL.Agg Length) ne)
 
-    mkPrim1 nop nt ne = NKL.AppE1 nt nop ne
-
-    nklAgg a = case a of
-            CL.Sum              -> mkPrim1 NKL.Sum
-            CL.Avg              -> mkPrim1 NKL.Avg
-            CL.Minimum          -> mkPrim1 NKL.Minimum
-            CL.Maximum          -> mkPrim1 NKL.Maximum
-            CL.And              -> mkPrim1 NKL.And
-            CL.Or               -> mkPrim1 NKL.Or
-            CL.Length           -> mkPrim1 NKL.Length
-
+    mkPrim1 nop nt = NKL.AppE1 nt nop
 
 -- | Transform applications of binary primitives.
 prim2 :: Type -> CL.Prim2 -> CL.Expr -> CL.Expr -> NameEnv NKL.Expr
@@ -75,14 +65,15 @@ prim2 t o e1 e2 = mkApp2
   where
     mkApp2 =
         case o of
-            CL.Append       -> mkPrim2 NKL.Append
-            CL.Zip          -> mkPrim2 NKL.Zip
-            CL.CartProduct  -> mkPrim2 NKL.CartProduct
-            CL.NestProduct  -> mkPrim2 NKL.NestProduct
-            CL.ThetaJoin p  -> mkPrim2 $ NKL.ThetaJoin p
-            CL.NestJoin p   -> mkPrim2 $ NKL.NestJoin p
-            CL.SemiJoin p   -> mkPrim2 $ NKL.SemiJoin p
-            CL.AntiJoin p   -> mkPrim2 $ NKL.AntiJoin p
+            CL.Append          -> mkPrim2 NKL.Append
+            CL.Zip             -> mkPrim2 NKL.Zip
+            CL.CartProduct     -> mkPrim2 NKL.CartProduct
+            CL.NestProduct     -> mkPrim2 NKL.NestProduct
+            CL.ThetaJoin p     -> mkPrim2 $ NKL.ThetaJoin p
+            CL.NestJoin p      -> mkPrim2 $ NKL.NestJoin p
+            CL.GroupJoin p a e -> mkPrim2 $ NKL.GroupJoin p a e
+            CL.SemiJoin p      -> mkPrim2 $ NKL.SemiJoin p
+            CL.AntiJoin p      -> mkPrim2 $ NKL.AntiJoin p
 
     mkPrim2 :: NKL.Prim2 -> NameEnv NKL.Expr
     mkPrim2 nop = NKL.AppE2 t nop <$> expr e1 <*> expr e2

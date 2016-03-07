@@ -72,14 +72,20 @@ thetaJoin p xs ys d =
         ListT yt = unliftTypeN d $ typeOf ys
     in PApp2 (liftTypeN d $ ListT (PPairT xt yt)) (ThetaJoin p) (LiftedN d) xs ys
 
-nestJoin :: JoinPredicate ScalarExpr  -> LExpr -> LExpr -> Nat -> LExpr
+nestJoin :: JoinPredicate ScalarExpr -> LExpr -> LExpr -> Nat -> LExpr
 nestJoin p xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = unliftTypeN d $ typeOf ys
         rt       = ListT (PPairT xt (ListT (PPairT xt yt)))
     in PApp2 (liftTypeN d rt) (NestJoin p) (LiftedN d) xs ys
 
-semiJoin :: JoinPredicate ScalarExpr  -> LExpr -> LExpr -> Nat -> LExpr
+groupJoin :: JoinPredicate ScalarExpr -> Aggregate -> ScalarExpr -> LExpr -> LExpr -> Nat -> LExpr
+groupJoin p a e xs ys d =
+    let ListT xt = unliftTypeN d $ typeOf xs
+        rt       = ListT (PPairT xt (aggType a $ typeOf e))
+    in PApp2 (liftTypeN d rt) (GroupJoin p a e) (LiftedN d) xs ys
+
+semiJoin :: JoinPredicate ScalarExpr -> LExpr -> LExpr -> Nat -> LExpr
 semiJoin p e1 e2 d =
     let t1 = unliftTypeN d $ typeOf e1
     in PApp2 (liftTypeN d t1) (SemiJoin p) (LiftedN d) e1 e2
@@ -95,7 +101,7 @@ append e1 e2 d =
     in PApp2 (liftTypeN d t1) Append (LiftedN d) e1 e2
 
 length :: LExpr -> Nat -> LExpr
-length e1 d = PApp1 (liftTypeN d PIntT) Length (LiftedN d) e1
+length e1 d = PApp1 (liftTypeN d PIntT) (Agg Length) (LiftedN d) e1
 
 nub :: LExpr -> Nat -> LExpr
 nub e1 d =
@@ -114,31 +120,31 @@ reverse e1 d =
     in PApp1 (liftTypeN d t1) Reverse (LiftedN d) e1
 
 and :: LExpr -> Nat -> LExpr
-and e1 d = PApp1 (liftTypeN d PBoolT) And (LiftedN d) e1
+and e1 d = PApp1 (liftTypeN d PBoolT) (Agg And) (LiftedN d) e1
 
 or :: LExpr -> Nat -> LExpr
-or e1 d = PApp1 (liftTypeN d PBoolT) Or (LiftedN d) e1
+or e1 d = PApp1 (liftTypeN d PBoolT) (Agg Or) (LiftedN d) e1
 
 sum :: LExpr -> Nat -> LExpr
 sum e1 d =
     let ListT t = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t) Sum (LiftedN d) e1
+    in PApp1 (liftTypeN d t) (Agg Sum) (LiftedN d) e1
 
 avg :: LExpr -> Nat -> LExpr
 avg e1 d = case unliftTypeN d $ typeOf e1 of
-               ListT PDoubleT  -> PApp1 (liftTypeN d PDoubleT) Avg (LiftedN d) e1
-               ListT PDecimalT -> PApp1 (liftTypeN d PDecimalT) Avg (LiftedN d) e1
+               ListT PDoubleT  -> PApp1 (liftTypeN d PDoubleT) (Agg Avg) (LiftedN d) e1
+               ListT PDecimalT -> PApp1 (liftTypeN d PDecimalT) (Agg Avg) (LiftedN d) e1
                _              -> $impossible
 
 minimum :: LExpr -> Nat -> LExpr
 minimum e1 d =
     let ListT t = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t) Minimum (LiftedN d) e1
+    in PApp1 (liftTypeN d t) (Agg Minimum) (LiftedN d) e1
 
 maximum :: LExpr -> Nat -> LExpr
 maximum e1 d =
     let ListT t = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t) Maximum (LiftedN d) e1
+    in PApp1 (liftTypeN d t) (Agg Maximum) (LiftedN d) e1
 
 concat :: LExpr -> Nat -> LExpr
 concat e d =

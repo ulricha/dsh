@@ -11,7 +11,6 @@ module Database.DSH.CL.Lang
     , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL, toNonEmpty
     , Qual(..), isGuard, isBind
     , Typed(..)
-    , Aggregate(..)
     , Prim1(..)
     , Prim2(..)
     ) where
@@ -93,9 +92,6 @@ appendNL (S a)     bs = a :* bs
 --------------------------------------------------------------------------------
 -- CL primitives
 
-data Aggregate = Length | Avg | Minimum | Maximum | And | Or | Sum
-    deriving (Eq, Show)
-
 data Prim1 = Singleton
            | Only
            | Concat
@@ -107,17 +103,8 @@ data Prim1 = Singleton
            | Group
            | Guard
            | TupElem TupleIndex
-           | Agg Aggregate
+           | Agg L.Aggregate
            deriving (Eq, Show)
-
-instance Pretty Aggregate where
-  pretty Length          = combinator $ text "length"
-  pretty Sum             = combinator $ text "sum"
-  pretty Avg             = combinator $ text "avg"
-  pretty Minimum         = combinator $ text "minimum"
-  pretty Maximum         = combinator $ text "maximum"
-  pretty And             = combinator $ text "and"
-  pretty Or              = combinator $ text "or"
 
 instance Pretty Prim1 where
   pretty Sort            = combinator $ text "sort"
@@ -140,7 +127,7 @@ data Prim2 = Append
            | NestProduct
            | ThetaJoin (L.JoinPredicate L.ScalarExpr)
            | NestJoin (L.JoinPredicate L.ScalarExpr)
-           | GroupJoin (L.JoinPredicate L.ScalarExpr) Aggregate L.ScalarExpr
+           | GroupJoin (L.JoinPredicate L.ScalarExpr) L.Aggregate L.ScalarExpr
            | SemiJoin (L.JoinPredicate L.ScalarExpr)
            | AntiJoin (L.JoinPredicate L.ScalarExpr)
            deriving (Eq, Show)
