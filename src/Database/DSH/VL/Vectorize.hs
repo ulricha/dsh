@@ -60,7 +60,7 @@ nestProduct (VShape dv1 lyt1) (VShape dv2 lyt2) = do
   return $ VShape dv1 (LTuple [lyt1, LNest dvi (LTuple [lyt1', lyt2'])])
 nestProduct _ _ = $impossible
 
-thetaJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+thetaJoin :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 thetaJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     (dv, rv1, rv2) <- vlThetaJoinS joinPred dv1 dv2
     lyt1'          <- repLayout rv1 lyt1
@@ -68,7 +68,7 @@ thetaJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     return $ VShape dv $ LTuple [lyt1', lyt2']
 thetaJoin _ _ _ = $impossible
 
-nestJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+nestJoin :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     (dv, rv1, rv2) <- vlNestJoinS joinPred dv1 dv2
     lyt1'          <- repLayout rv1 lyt1
@@ -76,14 +76,14 @@ nestJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     return $ VShape dv1 (LTuple [lyt1, LNest dv (LTuple [lyt1', lyt2'])])
 nestJoin _ _ _ = $impossible
 
-semiJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+semiJoin :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 semiJoin joinPred (VShape dv1 lyt1) (VShape dv2 _) = do
     (dv, fv) <- vlSemiJoinS joinPred dv1 dv2
     lyt1'    <- filterLayout fv lyt1
     return $ VShape dv lyt1'
 semiJoin _ _ _ = $impossible
 
-antiJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+antiJoin :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 antiJoin joinPred (VShape dv1 lyt1) (VShape dv2 _) = do
     (dv, fv) <- vlAntiJoinS joinPred dv1 dv2
     lyt1'    <- filterLayout fv lyt1
@@ -335,7 +335,7 @@ nestProductL (VShape dvo1 (LNest dvi1 lyt1)) (VShape _dvo2 (LNest dvi2 lyt2)) = 
     return $ VShape dvo1 (LNest dvi1 (LTuple [lyt1, LNest dvi lyt]))
 nestProductL _ _ = $impossible
 
-thetaJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+thetaJoinL :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 thetaJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do
     (dvi, rv1, rv2) <- vlThetaJoinS joinPred dvi1 dvi2
     lyt1'           <- repLayout rv1 lyt1
@@ -344,7 +344,7 @@ thetaJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2))
 thetaJoinL _ _ _ = $impossible
 
 -- △^L :: [[a]] -> [[b]] -> [[(a, [(a, b)])]]
-nestJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+nestJoinL :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do
     (dv, rv1, rv2) <- vlNestJoinS joinPred dvi1 dvi2
     lyt1'          <- repLayout rv1 lyt1
@@ -353,14 +353,14 @@ nestJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) 
     return $ VShape dvo1 (LNest dvi1 (LTuple [lyt1, LNest dv lyt]))
 nestJoinL _ _ _ = $impossible
 
-semiJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+semiJoinL :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 semiJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 _)) = do
     (dv, fv) <- vlSemiJoinS joinPred dvi1 dvi2
     lyt1'    <- filterLayout fv lyt1
     return $ VShape dvo1 (LNest dv lyt1')
 semiJoinL _ _ _ = $impossible
 
-antiJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+antiJoinL :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 antiJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 _)) = do
     (dv, fv) <- vlAntiJoinS joinPred dvi1 dvi2
     lyt1'    <- filterLayout fv lyt1

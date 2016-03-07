@@ -215,14 +215,14 @@ data JoinUnOp = JUNumOp UnNumOp
               | JUTextOp UnTextOp
               deriving (Show, Eq, Ord)
 
-data JoinExpr = JBinOp Type JoinBinOp JoinExpr JoinExpr
-              | JUnOp Type JoinUnOp JoinExpr
-              | JTupElem Type TupleIndex JoinExpr
+data ScalarExpr = JBinOp Type JoinBinOp ScalarExpr ScalarExpr
+              | JUnOp Type JoinUnOp ScalarExpr
+              | JTupElem Type TupleIndex ScalarExpr
               | JLit Type Val
               | JInput Type
               deriving (Show, Eq)
 
-instance Typed JoinExpr where
+instance Typed ScalarExpr where
     typeOf (JBinOp t _ _ _) = t
     typeOf (JUnOp t _ _)    = t
     typeOf (JTupElem t _ _) = t
@@ -232,7 +232,7 @@ instance Typed JoinExpr where
 -----------------------------------------------------------------------------
 -- Pretty-printing of stuff
 
-parenthize :: JoinExpr -> Doc
+parenthize :: ScalarExpr -> Doc
 parenthize e =
     case e of
         JBinOp _ _ _ _ -> parens $ pretty e
@@ -321,7 +321,7 @@ instance Pretty JoinBinOp where
     pretty (JBNumOp o)    = pretty o
     pretty (JBStringOp o) = pretty o
 
-instance Pretty JoinExpr where
+instance Pretty ScalarExpr where
     pretty (JBinOp _ op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2
     pretty (JUnOp _ op e)      = pretty op <+> parenthize e
     pretty (JLit _ v)          = pretty v

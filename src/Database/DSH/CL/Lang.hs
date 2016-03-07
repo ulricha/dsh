@@ -137,10 +137,10 @@ data Prim2 = Append
            | Zip
            | CartProduct
            | NestProduct
-           | ThetaJoin (L.JoinPredicate L.JoinExpr)
-           | NestJoin (L.JoinPredicate L.JoinExpr)
-           | SemiJoin (L.JoinPredicate L.JoinExpr)
-           | AntiJoin (L.JoinPredicate L.JoinExpr)
+           | ThetaJoin (L.JoinPredicate L.ScalarExpr)
+           | NestJoin (L.JoinPredicate L.ScalarExpr)
+           | SemiJoin (L.JoinPredicate L.ScalarExpr)
+           | AntiJoin (L.JoinPredicate L.ScalarExpr)
            deriving (Eq, Show)
 
 isJoinOp :: Prim2 -> Bool

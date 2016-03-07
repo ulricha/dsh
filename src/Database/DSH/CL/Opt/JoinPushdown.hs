@@ -49,7 +49,7 @@ pushFilterjoinCompR = do
 
     -- Extract all left join expressions and turn them into regular expressions
     predInputName <- freshNameT []
-    leftPreds     <- mapM (fromJoinExpr predInputName . jcLeft) $ jpConjuncts joinPred
+    leftPreds     <- mapM (fromScalarExpr predInputName . jcLeft) $ jpConjuncts joinPred
 
     -- Inline the head expression into the join predicate
     inlinedPreds  <- constT (return leftPreds)
@@ -62,9 +62,9 @@ pushFilterjoinCompR = do
     -- evaluation (especially tuple fusion) should eliminate those.
     evalPreds     <- constT (return inlinedPreds) >>> mapT (tryR partialEvalR)
 
-    -- Turn the join predicate back into a 'JoinExpr'. If the inlined predicate
+    -- Turn the join predicate back into a 'ScalarExpr'. If the inlined predicate
     -- can't be transformed, the complete rewrite will fail.
-    leftPreds'    <- constT (return evalPreds) >>> mapT (promoteT $ toJoinExpr x)
+    leftPreds'    <- constT (return evalPreds) >>> mapT (promoteT $ toScalarExpr x)
     let joinPred' = updatePredicateLeft leftPreds' joinPred
 
     let e' = Comp ty h (BindQ x (AppE2 (typeOf xs) (joinConst joinPred') xs ys) :* qs)
@@ -78,8 +78,8 @@ pushFilterjoinCompR = do
 -- joins into inputs of other tupling join operators.
 --
 -- FIXME This rewrite should be integrated into the KURE-based framework for CL rewrites.
-untuplifyJoinExpr :: JoinPredicate JoinExpr -> JoinPredicate JoinExpr
-untuplifyJoinExpr (JoinPred cs) = JoinPred $ fmap updateConjunct cs
+untuplifyScalarExpr :: JoinPredicate ScalarExpr -> JoinPredicate ScalarExpr
+untuplifyScalarExpr (JoinPred cs) = JoinPred $ fmap updateConjunct cs
   where
     updateConjunct jc = JoinConjunct (descend (jcLeft jc)) (jcOp jc) (jcRight jc)
 
@@ -91,7 +91,7 @@ untuplifyJoinExpr (JoinPred cs) = JoinPred $ fmap updateConjunct cs
     descend (JLit ty val)                                = JLit ty val
     descend (JInput _)                                   = $impossible
 
-isFilteringJoin :: Monad m => Prim2 -> m (JoinPredicate JoinExpr -> Prim2, JoinPredicate JoinExpr)
+isFilteringJoin :: Monad m => Prim2 -> m (JoinPredicate ScalarExpr -> Prim2, JoinPredicate ScalarExpr)
 isFilteringJoin joinOp =
     case joinOp of
         SemiJoin p -> return (SemiJoin, p)
@@ -112,7 +112,7 @@ pushFilterjoinNestjoinR = do
     -- Rewrite the join predicate to refer to the complete input, not only to
     -- its first tuple component. This is necessary because we are below the
     -- tupling caused by the NestJoin.
-    let joinPred' = untuplifyJoinExpr joinPred
+    let joinPred' = untuplifyScalarExpr joinPred
     return $ inject $ NestJoinP ty predNest (AppE2 (typeOf xs) (joinConst joinPred') xs zs) ys
 
 -- | If the left input of a filtering join is a NestProduct operator, push the join
@@ -129,7 +129,7 @@ pushFilterjoinNestproductR = do
     -- Rewrite the join predicate to refer to the complete input, not only to
     -- its first tuple component. This is necessary because we are below the
     -- tupling caused by the NestJoin.
-    let joinPred' = untuplifyJoinExpr joinPred
+    let joinPred' = untuplifyScalarExpr joinPred
     return $ inject $ NestProductP ty (AppE2 (typeOf xs) (joinConst joinPred') xs zs) ys
 
 --------------------------------------------------------------------------------
@@ -140,11 +140,11 @@ pushFilterjoinNestproductR = do
 -- type of the input. This rewrite is necessary when pushing filtering joins
 -- into the input of a sort operator.
 --
--- Note: This is *not* the inverse of 'untuplifyJoinExpr'!
+-- Note: This is *not* the inverse of 'untuplifyScalarExpr'!
 --
 -- FIXME Should be integrated into the KURE-based framework.
-tuplifyJoinExpr :: (Type, Type) -> JoinPredicate JoinExpr -> JoinPredicate JoinExpr
-tuplifyJoinExpr (t1, t2) (JoinPred cs) = JoinPred $ fmap updateConjunct cs
+tuplifyScalarExpr :: (Type, Type) -> JoinPredicate ScalarExpr -> JoinPredicate ScalarExpr
+tuplifyScalarExpr (t1, t2) (JoinPred cs) = JoinPred $ fmap updateConjunct cs
   where
     updateConjunct jc = JoinConjunct (descend (jcLeft jc)) (jcOp jc) (jcRight jc)
 
@@ -184,7 +184,7 @@ pushFilterjoinSortR = do
     -- Rewrite the join predicate to refer only to the first tuple component of
     -- the sort input. The second tuple component is the sorting key which is
     -- eliminated after sorting.
-    let joinPred' = tuplifyJoinExpr sortInputType joinPred
+    let joinPred' = tuplifyScalarExpr sortInputType joinPred
 
     return $ inject $ SortP ty (AppE2 (typeOf xs) (joinConst joinPred') xs ys)
 

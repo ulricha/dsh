@@ -11,9 +11,9 @@ module Database.DSH.CL.Opt.Auxiliary
       -- * Monad rewrites with additional state
     , TuplifyM
       -- * Convert join predicates into general expressions
-    , fromJoinExpr
+    , fromScalarExpr
       -- * Converting predicate expressions into join predicates
-    , toJoinExpr
+    , toScalarExpr
     , splitJoinPredT
     , joinConjunctsT
     , conjunctsT
@@ -101,16 +101,16 @@ fromJoinUnOp (JUNumOp o)  = SUNumOp o
 fromJoinUnOp (JUCastOp o) = SUCastOp o
 fromJoinUnOp (JUTextOp o) = SUTextOp o
 
-fromJoinExpr :: MonadCatch m => Ident -> JoinExpr -> m Expr
-fromJoinExpr n (JBinOp ty op e1 e2)   = BinOp ty (fromJoinBinOp op)
-                                            <$> fromJoinExpr n e1
-                                            <*> fromJoinExpr n e2
-fromJoinExpr n (JUnOp ty op e1)       = UnOp ty (fromJoinUnOp op)
-                                            <$> fromJoinExpr n e1
-fromJoinExpr n (JTupElem ty tupIdx e) = AppE1 ty (TupElem tupIdx)
-                                            <$> fromJoinExpr n e
-fromJoinExpr n (JLit ty val)          = pure $ Lit ty val
-fromJoinExpr n (JInput ty)            = pure $ Var ty n
+fromScalarExpr :: MonadCatch m => Ident -> ScalarExpr -> m Expr
+fromScalarExpr n (JBinOp ty op e1 e2)   = BinOp ty (fromJoinBinOp op)
+                                            <$> fromScalarExpr n e1
+                                            <*> fromScalarExpr n e2
+fromScalarExpr n (JUnOp ty op e1)       = UnOp ty (fromJoinUnOp op)
+                                            <$> fromScalarExpr n e1
+fromScalarExpr n (JTupElem ty tupIdx e) = AppE1 ty (TupElem tupIdx)
+                                            <$> fromScalarExpr n e
+fromScalarExpr n (JLit ty val)          = pure $ Lit ty val
+fromScalarExpr n (JInput ty)            = pure $ Var ty n
 
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
@@ -129,26 +129,26 @@ toJoinUnOp (SUTextOp o) = return $ JUTextOp o
 toJoinUnOp (SUBoolOp _) = fail "toJoinUnOp: join expressions can't contain boolean ops"
 toJoinUnOp (SUDateOp _) = fail "toJoinUnOp: join expressions can't contain date ops"
 
-toJoinExpr :: Ident -> TransformC Expr JoinExpr
-toJoinExpr n = do
+toScalarExpr :: Ident -> TransformC Expr ScalarExpr
+toScalarExpr n = do
     e <- idR
 
     case e of
         AppE1 _ (TupElem i) _ ->
-            appe1T (toJoinExpr n) (\t _ e1 -> JTupElem t i e1)
+            appe1T (toScalarExpr n) (\t _ e1 -> JTupElem t i e1)
         BinOp _ o _ _ -> do
             o' <- constT $ toJoinBinOp o
-            binopT (toJoinExpr n) (toJoinExpr n) (\t _ e1 e2 -> JBinOp t o' e1 e2)
+            binopT (toScalarExpr n) (toScalarExpr n) (\t _ e1 e2 -> JBinOp t o' e1 e2)
         UnOp _ o _ -> do
             o' <- constT $ toJoinUnOp o
-            unopT (toJoinExpr n) (\t _ e1 -> JUnOp t o' e1)
+            unopT (toScalarExpr n) (\t _ e1 -> JUnOp t o' e1)
         Lit t v       ->
             return $ JLit t v
         Var t x       -> do
-            guardMsg (n == x) "toJoinExpr: wrong name"
+            guardMsg (n == x) "toScalarExpr: wrong name"
             return $ JInput t
         _             ->
-            fail "toJoinExpr: can't translate to join expression"
+            fail "toScalarExpr: can't translate to join expression"
 
 flipRelOp :: BinRelOp -> BinRelOp
 flipRelOp Eq  = Eq
@@ -163,23 +163,23 @@ flipRelOp LtE = GtE
 -- (relational operator with simple projection expressions on both
 -- sides) or if one side of the predicate has free variables which are
 -- not the variables of the qualifiers given to the function.
-splitJoinPredT :: Ident -> Ident -> TransformC Expr (JoinConjunct JoinExpr)
+splitJoinPredT :: Ident -> Ident -> TransformC Expr (JoinConjunct ScalarExpr)
 splitJoinPredT x y = do
     BinOp _ (SBRelOp op) e1 e2 <- idR
 
     [x'] <- return $ freeVars e1
     [y'] <- return $ freeVars e2
 
-    if | x == x' && y == y' -> binopT (toJoinExpr x)
-                                      (toJoinExpr y)
+    if | x == x' && y == y' -> binopT (toScalarExpr x)
+                                      (toScalarExpr y)
                                       (\_ _ e1' e2' -> JoinConjunct e1' op e2')
-       | y == x' && x == y' -> binopT (toJoinExpr y)
-                                      (toJoinExpr x)
+       | y == x' && x == y' -> binopT (toScalarExpr y)
+                                      (toScalarExpr x)
                                       (\_ _ e1' e2' -> JoinConjunct e2' (flipRelOp op) e1')
        | otherwise          -> fail "splitJoinPredT: not a theta-join predicate"
 
 -- | Split a conjunctive combination of join predicates.
-joinConjunctsT :: Ident -> Ident -> TransformC CL (NonEmpty (JoinConjunct JoinExpr))
+joinConjunctsT :: Ident -> Ident -> TransformC CL (NonEmpty (JoinConjunct ScalarExpr))
 joinConjunctsT x y = conjunctsT >>> mapT (splitJoinPredT x y)
 
 -- | Split a combination of logical conjunctions into its sub-terms.

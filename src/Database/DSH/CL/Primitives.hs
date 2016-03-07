@@ -6,7 +6,6 @@ module Database.DSH.CL.Primitives where
 
 import qualified Prelude                    as P
 
-import           Data.Decimal
 import qualified Data.List                  as List
 import           Data.Scientific
 import qualified Data.Text                  as T
@@ -177,24 +176,24 @@ cartproduct xs ys = AppE2 resType CartProduct xs ys
   where
     resType  = ListT P.$ PPairT (elemT P.$ typeOf xs) (typeOf ys)
 
-nestjoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
+nestjoin :: Expr -> Expr -> L.JoinPredicate L.ScalarExpr -> Expr
 nestjoin xs ys p = AppE2 resType (NestJoin p) xs ys
   where
     resType  = ListT P.$ PPairT (elemT P.$ typeOf xs) (typeOf ys)
 
-thetajoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
+thetajoin :: Expr -> Expr -> L.JoinPredicate L.ScalarExpr -> Expr
 thetajoin xs ys p = AppE2 rt (ThetaJoin p) xs ys
   where
     xst = typeOf xs
     yst = typeOf ys
     rt  = ListT (PPairT (elemT xst) (elemT yst))
 
-semijoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
+semijoin :: Expr -> Expr -> L.JoinPredicate L.ScalarExpr -> Expr
 semijoin xs ys p = AppE2 xst (SemiJoin p) xs ys
   where
     xst = typeOf xs
 
-antijoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
+antijoin :: Expr -> Expr -> L.JoinPredicate L.ScalarExpr -> Expr
 antijoin xs ys p = AppE2 xst (AntiJoin p) xs ys
   where
     xst = typeOf xs

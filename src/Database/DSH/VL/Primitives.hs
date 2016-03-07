@@ -107,24 +107,24 @@ toGeneralUnOp (L.JUNumOp o)  = L.SUNumOp o
 toGeneralUnOp (L.JUCastOp o) = L.SUCastOp o
 toGeneralUnOp (L.JUTextOp o) = L.SUTextOp o
 
-toVLjoinConjunct :: L.JoinConjunct L.JoinExpr -> L.JoinConjunct Expr
+toVLjoinConjunct :: L.JoinConjunct L.ScalarExpr -> L.JoinConjunct Expr
 toVLjoinConjunct (L.JoinConjunct e1 o e2) =
     L.JoinConjunct (joinExpr e1) o (joinExpr e2)
 
-toVLJoinPred :: L.JoinPredicate L.JoinExpr -> L.JoinPredicate Expr
+toVLJoinPred :: L.JoinPredicate L.ScalarExpr -> L.JoinPredicate Expr
 toVLJoinPred (L.JoinPred cs) = L.JoinPred $ fmap toVLjoinConjunct cs
 
 -- | Convert join expressions into VL expressions. The main challenge
 -- here is to convert sequences of tuple accessors (fst/snd) into VL
 -- column indices.
-joinExpr :: L.JoinExpr -> Expr
+joinExpr :: L.ScalarExpr -> Expr
 joinExpr expr = offsetExpr $ aux expr
   where
     -- Construct expressions in a bottom-up way. For a given join
     -- expression, return the following:
     -- pair accessors   -> column offset in the flat relational representation
     -- scalar operation -> corresponding VL expression
-    aux :: L.JoinExpr -> ColExpr
+    aux :: L.ScalarExpr -> ColExpr
     -- FIXME VL joins should include join expressions!
     aux (L.JBinOp _ op e1 e2)  = Expr $ BinApp (toGeneralBinOp op)
                                                (offsetExpr $ aux e1)
@@ -231,13 +231,13 @@ vlCartProductS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlCartProductS (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp CartProductS c1 c2) dvec rvec rvec
 
-vlThetaJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
+vlThetaJoinS :: L.JoinPredicate L.ScalarExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlThetaJoinS joinPred (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp (ThetaJoinS joinPred') c1 c2) dvec rvec rvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlNestJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
+vlNestJoinS :: L.JoinPredicate L.ScalarExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlNestJoinS joinPred (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp (NestJoinS joinPred') c1 c2) dvec rvec rvec
   where
@@ -246,13 +246,13 @@ vlNestJoinS joinPred (VLDVec c1) (VLDVec c2) =
 vlNestProductS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
 vlNestProductS (VLDVec c1) (VLDVec c2) = tripleVec (BinOp NestProductS c1 c2) dvec rvec rvec
 
-vlSemiJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
+vlSemiJoinS :: L.JoinPredicate L.ScalarExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
 vlSemiJoinS joinPred (VLDVec c1) (VLDVec c2) =
     pairVec (BinOp (SemiJoinS joinPred') c1 c2) dvec fvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlAntiJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
+vlAntiJoinS :: L.JoinPredicate L.ScalarExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
 vlAntiJoinS joinPred (VLDVec c1) (VLDVec c2) =
     pairVec (BinOp (AntiJoinS joinPred') c1 c2) dvec fvec
   where

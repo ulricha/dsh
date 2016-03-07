@@ -66,25 +66,25 @@ nestProduct xs ys d =
         rt       = ListT (PPairT xt (ListT (PPairT xt yt)))
     in PApp2 (liftTypeN d rt) NestProduct (LiftedN d) xs ys
 
-thetaJoin :: JoinPredicate JoinExpr  -> LExpr -> LExpr -> Nat -> LExpr
+thetaJoin :: JoinPredicate ScalarExpr  -> LExpr -> LExpr -> Nat -> LExpr
 thetaJoin p xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = unliftTypeN d $ typeOf ys
     in PApp2 (liftTypeN d $ ListT (PPairT xt yt)) (ThetaJoin p) (LiftedN d) xs ys
 
-nestJoin :: JoinPredicate JoinExpr  -> LExpr -> LExpr -> Nat -> LExpr
+nestJoin :: JoinPredicate ScalarExpr  -> LExpr -> LExpr -> Nat -> LExpr
 nestJoin p xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = unliftTypeN d $ typeOf ys
         rt       = ListT (PPairT xt (ListT (PPairT xt yt)))
     in PApp2 (liftTypeN d rt) (NestJoin p) (LiftedN d) xs ys
 
-semiJoin :: JoinPredicate JoinExpr  -> LExpr -> LExpr -> Nat -> LExpr
+semiJoin :: JoinPredicate ScalarExpr  -> LExpr -> LExpr -> Nat -> LExpr
 semiJoin p e1 e2 d =
     let t1 = unliftTypeN d $ typeOf e1
     in PApp2 (liftTypeN d t1) (SemiJoin p) (LiftedN d) e1 e2
 
-antiJoin :: JoinPredicate JoinExpr  -> LExpr -> LExpr -> Nat -> LExpr
+antiJoin :: JoinPredicate ScalarExpr  -> LExpr -> LExpr -> Nat -> LExpr
 antiJoin p e1 e2 d =
     let t1 = unliftTypeN d $ typeOf e1
     in PApp2 (liftTypeN d t1) (AntiJoin p) (LiftedN d) e1 e2

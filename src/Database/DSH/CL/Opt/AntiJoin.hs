@@ -41,7 +41,7 @@ negateRelOp op = case op of
 -- evaluated on the inner source.
 quantifierPredicateT :: Ident
                      -> Ident
-                     -> TransformC CL (NonEmpty (JoinConjunct JoinExpr), [Expr])
+                     -> TransformC CL (NonEmpty (JoinConjunct ScalarExpr), [Expr])
 quantifierPredicateT x y = readerT $ \q -> case q of
     -- If the quantifier predicate is already negated, take its
     -- non-negated form.
@@ -177,7 +177,7 @@ mkUniversalRangeAntiJoinT (x, xs) (y, ys) ps q = do
 mkClass12AntiJoinT :: (Ident, Expr)               -- ^ Generator variable and expression for the outer
                    -> (Ident, Expr)
                    -> NL Expr
-                   -> JoinPredicate JoinExpr
+                   -> JoinPredicate ScalarExpr
                    -> [Expr]
                    -> TransformC (NL Qual) Qual
 mkClass12AntiJoinT (x, xs) (y, ys) ps qs nonCorrPreds = do
@@ -205,7 +205,7 @@ mkClass12AntiJoinT (x, xs) (y, ys) ps qs nonCorrPreds = do
 -- p(x, y), q(y)
 mkClass15AntiJoinT :: (Ident, Expr)               -- ^ Generator variable and expression for the outer
                    -> (Ident, Expr)
-                   -> JoinPredicate JoinExpr
+                   -> JoinPredicate ScalarExpr
                    -> Expr
                    -> TransformC (NL Qual) Qual
 mkClass15AntiJoinT (x, xs) (y, ys) ps qs = do
@@ -220,8 +220,8 @@ mkClass15AntiJoinT (x, xs) (y, ys) ps qs = do
 
 mkClass16AntiJoinT :: (Ident, Expr)
                    -> (Ident, Expr)
-                   -> NonEmpty (JoinConjunct JoinExpr)
-                   -> NonEmpty (JoinConjunct JoinExpr)
+                   -> NonEmpty (JoinConjunct ScalarExpr)
+                   -> NonEmpty (JoinConjunct ScalarExpr)
                    -> [Expr]
                    -> TransformC (NL Qual) Qual
 mkClass16AntiJoinT (x, xs) (y, ys) ps qs nonCorrPreds = do

@@ -106,7 +106,7 @@ pushLeftR x p = do
 -- the right expression refers only to the snd component (or vice
 -- versa).
 
-mkMergeableJoinPredT :: Ident -> Expr -> BinRelOp -> Expr -> TransformC CL (JoinConjunct JoinExpr)
+mkMergeableJoinPredT :: Ident -> Expr -> BinRelOp -> Expr -> TransformC CL (JoinConjunct ScalarExpr)
 mkMergeableJoinPredT x leftExpr op rightExpr = do
     let constLeftExpr = constT $ return $ inject leftExpr
         constRightExpr = constT $ return $ inject rightExpr
@@ -117,12 +117,12 @@ mkMergeableJoinPredT x leftExpr op rightExpr = do
     leftExpr'     <- constLeftExpr
                          >>> andR (map (unTuplifyR (== TupElem First)) leftVarPaths)
                          >>> projectT
-                         >>> toJoinExpr x
+                         >>> toScalarExpr x
 
     rightExpr'    <- constRightExpr
                          >>> andR (map (unTuplifyR (== TupElem (Next First))) rightVarPaths)
                          >>> projectT
-                         >>> toJoinExpr x
+                         >>> toScalarExpr x
 
     return $ JoinConjunct leftExpr' op rightExpr'
 
@@ -134,7 +134,7 @@ mirrorRelOp Lt  = Gt
 mirrorRelOp LtE = GtE
 mirrorRelOp NEq = NEq
 
-splitMergeablePredT :: Ident -> Expr -> TransformC CL (JoinConjunct JoinExpr)
+splitMergeablePredT :: Ident -> Expr -> TransformC CL (JoinConjunct ScalarExpr)
 splitMergeablePredT x p = do
     ExprCL (BinOp _ (SBRelOp op) leftExpr rightExpr) <- return $ inject p
     guardM $ freeVars p == [x]
