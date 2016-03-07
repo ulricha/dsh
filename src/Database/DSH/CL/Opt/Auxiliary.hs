@@ -92,42 +92,21 @@ applyInjectable t e = runRewriteM $ applyT t initialCtx (inject e)
 --------------------------------------------------------------------------------
 -- Rewrite join predicates into general expressions.
 
-fromJoinBinOp :: JoinBinOp -> ScalarBinOp
-fromJoinBinOp (JBNumOp o)    = SBNumOp o
-fromJoinBinOp (JBStringOp o) = SBStringOp o
-
-fromJoinUnOp :: JoinUnOp -> ScalarUnOp
-fromJoinUnOp (JUNumOp o)  = SUNumOp o
-fromJoinUnOp (JUCastOp o) = SUCastOp o
-fromJoinUnOp (JUTextOp o) = SUTextOp o
-
+-- | 'fromScalarExpr n e' rewrites scalar expression 'e' into a general
+-- expression and uses the name 'n' for the input variable.
 fromScalarExpr :: MonadCatch m => Ident -> ScalarExpr -> m Expr
-fromScalarExpr n (JBinOp ty op e1 e2)   = BinOp ty (fromJoinBinOp op)
+fromScalarExpr n (JBinOp ty op e1 e2)   = BinOp ty op
                                             <$> fromScalarExpr n e1
                                             <*> fromScalarExpr n e2
-fromScalarExpr n (JUnOp ty op e1)       = UnOp ty (fromJoinUnOp op)
+fromScalarExpr n (JUnOp ty op e1)       = UnOp ty op
                                             <$> fromScalarExpr n e1
 fromScalarExpr n (JTupElem ty tupIdx e) = AppE1 ty (TupElem tupIdx)
                                             <$> fromScalarExpr n e
-fromScalarExpr n (JLit ty val)          = pure $ Lit ty val
+fromScalarExpr _ (JLit ty val)          = pure $ Lit ty val
 fromScalarExpr n (JInput ty)            = pure $ Var ty n
 
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
-
-toJoinBinOp :: Monad m => ScalarBinOp -> m JoinBinOp
-toJoinBinOp (SBNumOp o)     = return $ JBNumOp o
-toJoinBinOp (SBStringOp o)  = return $ JBStringOp o
-toJoinBinOp (SBRelOp _)     = fail "toJoinBinOp: join expressions can't contain relational ops"
-toJoinBinOp (SBBoolOp _)    = fail "toJoinBinOp: join expressions can't contain boolean ops"
-toJoinBinOp (SBDateOp _)    = fail "toJoinBinOp: join expressions can't contain date ops"
-
-toJoinUnOp :: Monad m => ScalarUnOp -> m JoinUnOp
-toJoinUnOp (SUNumOp o)  = return $ JUNumOp o
-toJoinUnOp (SUCastOp o) = return $ JUCastOp o
-toJoinUnOp (SUTextOp o) = return $ JUTextOp o
-toJoinUnOp (SUBoolOp _) = fail "toJoinUnOp: join expressions can't contain boolean ops"
-toJoinUnOp (SUDateOp _) = fail "toJoinUnOp: join expressions can't contain date ops"
 
 toScalarExpr :: Ident -> TransformC Expr ScalarExpr
 toScalarExpr n = do
@@ -136,12 +115,10 @@ toScalarExpr n = do
     case e of
         AppE1 _ (TupElem i) _ ->
             appe1T (toScalarExpr n) (\t _ e1 -> JTupElem t i e1)
-        BinOp _ o _ _ -> do
-            o' <- constT $ toJoinBinOp o
-            binopT (toScalarExpr n) (toScalarExpr n) (\t _ e1 e2 -> JBinOp t o' e1 e2)
-        UnOp _ o _ -> do
-            o' <- constT $ toJoinUnOp o
-            unopT (toScalarExpr n) (\t _ e1 -> JUnOp t o' e1)
+        BinOp _ o _ _ ->
+            binopT (toScalarExpr n) (toScalarExpr n) (\t _ e1 e2 -> JBinOp t o e1 e2)
+        UnOp _ o _ ->
+            unopT (toScalarExpr n) (\t _ e1 -> JUnOp t o e1)
         Lit t v       ->
             return $ JLit t v
         Var t x       -> do

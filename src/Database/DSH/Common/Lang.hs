@@ -33,7 +33,7 @@ data Val = ListV    [Val]
          deriving (Eq, Ord, Show)
 
 instance FromJSON Date where
-    parseJSON o = Date <$> (\(y, m, d) -> C.fromGregorian y m d) <$> parseJSON o
+    parseJSON o = Date . (\(y, m, d) -> C.fromGregorian y m d) <$> parseJSON o
 
 instance ToJSON Date where
     toJSON = toJSON . C.toGregorian . unDate
@@ -206,20 +206,11 @@ instance FromJSON e => FromJSON (JoinPredicate e) where
 singlePred :: JoinConjunct e -> JoinPredicate e
 singlePred c = JoinPred $ c N.:| []
 
-data JoinBinOp = JBNumOp BinNumOp
-               | JBStringOp BinStringOp
-               deriving (Show, Eq, Ord)
-
-data JoinUnOp = JUNumOp UnNumOp
-              | JUCastOp UnCastOp
-              | JUTextOp UnTextOp
-              deriving (Show, Eq, Ord)
-
-data ScalarExpr = JBinOp Type JoinBinOp ScalarExpr ScalarExpr
-              | JUnOp Type JoinUnOp ScalarExpr
-              | JTupElem Type TupleIndex ScalarExpr
-              | JLit Type Val
-              | JInput Type
+data ScalarExpr = JBinOp Type ScalarBinOp ScalarExpr ScalarExpr
+                | JUnOp Type ScalarUnOp ScalarExpr
+                | JTupElem Type TupleIndex ScalarExpr
+                | JLit Type Val
+                | JInput Type
               deriving (Show, Eq)
 
 instance Typed ScalarExpr where
@@ -235,11 +226,11 @@ instance Typed ScalarExpr where
 parenthize :: ScalarExpr -> Doc
 parenthize e =
     case e of
-        JBinOp _ _ _ _ -> parens $ pretty e
-        JUnOp _ _ _    -> parens $ pretty e
-        JTupElem _ _ _ -> pretty e
-        JLit  _ _      -> pretty e
-        JInput _       -> pretty e
+        JBinOp{}   -> parens $ pretty e
+        JUnOp{}    -> parens $ pretty e
+        JTupElem{} -> pretty e
+        JLit{}     -> pretty e
+        JInput{}   -> pretty e
 
 instance Pretty Val where
     pretty (ListV xs)    = list $ map pretty xs
@@ -311,15 +302,6 @@ instance Pretty UnDateOp where
     pretty DateDay   = text "dateDay"
     pretty DateMonth = text "dateMonth"
     pretty DateYear  = text "dateYear"
-
-instance Pretty JoinUnOp where
-    pretty (JUNumOp o)  = pretty o
-    pretty (JUCastOp o) = pretty o
-    pretty (JUTextOp o) = pretty o
-
-instance Pretty JoinBinOp where
-    pretty (JBNumOp o)    = pretty o
-    pretty (JBStringOp o) = pretty o
 
 instance Pretty ScalarExpr where
     pretty (JBinOp _ op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2

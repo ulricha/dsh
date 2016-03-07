@@ -98,15 +98,6 @@ addOffset :: Int -> ColExpr -> ColExpr
 addOffset _ (Expr _)   = $impossible
 addOffset i (Offset o) = Offset $ o + i
 
-toGeneralBinOp :: L.JoinBinOp -> L.ScalarBinOp
-toGeneralBinOp (L.JBNumOp o)    = L.SBNumOp o
-toGeneralBinOp (L.JBStringOp o) = L.SBStringOp o
-
-toGeneralUnOp :: L.JoinUnOp -> L.ScalarUnOp
-toGeneralUnOp (L.JUNumOp o)  = L.SUNumOp o
-toGeneralUnOp (L.JUCastOp o) = L.SUCastOp o
-toGeneralUnOp (L.JUTextOp o) = L.SUTextOp o
-
 toVLjoinConjunct :: L.JoinConjunct L.ScalarExpr -> L.JoinConjunct Expr
 toVLjoinConjunct (L.JoinConjunct e1 o e2) =
     L.JoinConjunct (joinExpr e1) o (joinExpr e2)
@@ -126,10 +117,10 @@ joinExpr expr = offsetExpr $ aux expr
     -- scalar operation -> corresponding VL expression
     aux :: L.ScalarExpr -> ColExpr
     -- FIXME VL joins should include join expressions!
-    aux (L.JBinOp _ op e1 e2)  = Expr $ BinApp (toGeneralBinOp op)
+    aux (L.JBinOp _ op e1 e2)  = Expr $ BinApp op
                                                (offsetExpr $ aux e1)
                                                (offsetExpr $ aux e2)
-    aux (L.JUnOp _ op e)       = Expr $ UnApp (toGeneralUnOp op) (offsetExpr $ aux e)
+    aux (L.JUnOp _ op e)       = Expr $ UnApp op (offsetExpr $ aux e)
     aux (L.JTupElem _ i e)           =
         case Ty.typeOf e of
             -- Compute the record width of all preceding tuple elements in the type
