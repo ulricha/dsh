@@ -39,14 +39,6 @@ allVarPathsT x = do
     let localPaths = map (init . drop parentPathLen) varPaths
     return localPaths
 
--- | All occurences of variable x must occur in the form of a tuple
--- accessor, either fst or snd. Remove this tuple accessor.
-unTuplifyR :: (Prim1 -> Bool) -> PathC -> RewriteC CL
-unTuplifyR isTupleOp path = pathR path $ do
-    AppE1 ty op (Var _ x)  <- promoteT idR
-    guardM $ isTupleOp op
-    return $ inject $ Var ty x
-
 --------------------------------------------------------------------------
 -- Push a guard into a branch of a join operator
 
@@ -60,7 +52,7 @@ pushLeftTupleR x p = do
 
     localPaths <- predTrans >>> allVarPathsT x
 
-    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== TupElem First)) localPaths)
+    ExprCL p' <- predTrans >>> andR (map (unTuplifyPathR (== TupElem First)) localPaths)
 
     let xst = typeOf xs
 
@@ -77,7 +69,7 @@ pushRightTupleR x p = do
 
     localPaths <- predTrans >>> allVarPathsT x
 
-    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== TupElem (Next First))) localPaths)
+    ExprCL p' <- predTrans >>> andR (map (unTuplifyPathR (== TupElem (Next First))) localPaths)
 
     let yst = typeOf ys
 
@@ -115,12 +107,12 @@ mkMergeableJoinPredT x leftExpr op rightExpr = do
     rightVarPaths <- constRightExpr >>> allVarPathsT x
 
     leftExpr'     <- constLeftExpr
-                         >>> andR (map (unTuplifyR (== TupElem First)) leftVarPaths)
+                         >>> andR (map (unTuplifyPathR (== TupElem First)) leftVarPaths)
                          >>> projectT
                          >>> toScalarExpr x
 
     rightExpr'    <- constRightExpr
-                         >>> andR (map (unTuplifyR (== TupElem (Next First))) rightVarPaths)
+                         >>> andR (map (unTuplifyPathR (== TupElem (Next First))) rightVarPaths)
                          >>> projectT
                          >>> toScalarExpr x
 

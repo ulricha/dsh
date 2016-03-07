@@ -140,6 +140,7 @@ data Prim2 = Append
            | NestProduct
            | ThetaJoin (L.JoinPredicate L.ScalarExpr)
            | NestJoin (L.JoinPredicate L.ScalarExpr)
+           | GroupJoin (L.JoinPredicate L.ScalarExpr) Aggregate L.ScalarExpr
            | SemiJoin (L.JoinPredicate L.ScalarExpr)
            | AntiJoin (L.JoinPredicate L.ScalarExpr)
            deriving (Eq, Show)
@@ -151,20 +152,22 @@ isJoinOp op =
         NestProduct -> True
         ThetaJoin{} -> True
         NestJoin{}  -> True
+        GroupJoin{} -> True
         SemiJoin{}  -> True
         AntiJoin{}  -> True
         Append      -> False
         Zip         -> False
 
 instance Pretty Prim2 where
-  pretty Append        = combinator $ text "append"
-  pretty Zip           = combinator $ text "zip"
-  pretty CartProduct   = join $ text "cartproduct"
-  pretty NestProduct   = join $ text "nestproduct"
-  pretty (ThetaJoin p) = join $ text $ printf "thetajoin{%s}" (pp p)
-  pretty (NestJoin p)  = join $ text $ printf "nestjoin{%s}" (pp p)
-  pretty (SemiJoin p)  = join $ text $ printf "semijoin{%s}" (pp p)
-  pretty (AntiJoin p)  = join $ text $ printf "antijoin{%s}" (pp p)
+  pretty Append            = combinator $ text "append"
+  pretty Zip               = combinator $ text "zip"
+  pretty CartProduct       = join $ text "cartproduct"
+  pretty NestProduct       = join $ text "nestproduct"
+  pretty (ThetaJoin p)     = join $ text $ printf "thetajoin{%s}" (pp p)
+  pretty (NestJoin p)      = join $ text $ printf "nestjoin{%s}" (pp p)
+  pretty (SemiJoin p)      = join $ text $ printf "semijoin{%s}" (pp p)
+  pretty (AntiJoin p)      = join $ text $ printf "antijoin{%s}" (pp p)
+  pretty (GroupJoin p a e) = join $ text $ printf "groupjoin{%s, %s(%s)}" (pp p) (pp a) (pp e)
 
 --------------------------------------------------------------------------------
 -- CL expressions

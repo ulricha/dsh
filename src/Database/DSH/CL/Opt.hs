@@ -22,6 +22,7 @@ import           Database.DSH.CL.Opt.PostProcess
 import           Database.DSH.CL.Opt.PredPushdown
 import           Database.DSH.CL.Opt.Resugar
 import           Database.DSH.CL.Opt.JoinPushdown
+import           Database.DSH.CL.Opt.GroupJoin
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
@@ -42,6 +43,7 @@ compNormEarlyR = m_norm_1R
 buUnnestR :: RewriteC CL
 buUnnestR =
     zipCorrelatedR
+    <+ groupjoinR
     <+ repeatR nestjoinR
     -- If the inverse M-Norm-3 succeeds, try to unnest the new
     -- generator

@@ -161,6 +161,7 @@ Library
                      Database.DSH.CL.Opt.AntiJoin
                      Database.DSH.CL.Opt.NestJoin
                      Database.DSH.CL.Opt.Resugar
+                     Database.DSH.CL.Opt.GroupJoin
                      Database.DSH.FKL.Lang
                      Database.DSH.FKL.Primitives
                      Database.DSH.FKL.Rewrite

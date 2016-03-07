@@ -28,6 +28,8 @@ module Database.DSH.CL.Opt.Auxiliary
       -- * Substituion
     , substR
     , tuplifyR
+    , unTuplifyR
+    , unTuplifyPathR
       -- * Combining generators and guards
     , insertGuard
       -- * Generic iterator to merge guards into generators
@@ -42,6 +44,8 @@ module Database.DSH.CL.Opt.Auxiliary
     , fromGen
       -- * NL spine traversal
     , onetdSpineT
+      -- * Path utilities
+    , localizePathT
       -- * Pattern synonyms for expressions
     , pattern ConcatP
     , pattern SingletonP
@@ -57,6 +61,8 @@ module Database.DSH.CL.Opt.Auxiliary
     , pattern LengthP
     , pattern NullP
     , pattern TrueP
+    , pattern TupFirstP
+    , pattern TupSecondP
     ) where
 
 import           Control.Arrow
@@ -275,7 +281,7 @@ substR v s = readerT $ \expr -> case expr of
 
 
 --------------------------------------------------------------------------------
--- Tuplifying variables
+-- Tuplifying and Untuplifying variables
 
 -- | Turn all occurences of two identifiers into accesses to one tuple variable.
 -- tuplifyR z c y e = e[fst z/x][snd z/y]
@@ -290,6 +296,17 @@ tupleVars n t1 t2 = (v1Rep, v2Rep)
         pt    = PPairT t1 t2
         v1Rep = AppE1 t1 (TupElem First) v
         v2Rep = AppE1 t2 (TupElem (Next First)) v
+
+-- | Remove tuple accessor from a variable.
+unTuplifyR :: (Prim1 -> Bool) -> RewriteC CL
+unTuplifyR isTupleOp = do
+    AppE1 ty op (Var _ x)  <- promoteT idR
+    guardM $ isTupleOp op
+    return $ inject $ Var ty x
+
+-- | Remove tuple accessor from a variable at a specific path.
+unTuplifyPathR :: (Prim1 -> Bool) -> PathC -> RewriteC CL
+unTuplifyPathR isTupleOp path = pathR path (unTuplifyR isTupleOp)
 
 --------------------------------------------------------------------------------
 -- Helpers for combining generators with guards in a comprehensions'
@@ -423,6 +440,15 @@ fromGen (BindQ x xs) = return (x, xs)
 fromGen (GuardQ _)   = fail "not a generator"
 
 --------------------------------------------------------------------------------
+-- Path utilities
+
+-- | Turn an absolute path into a local path.
+localizePathT :: PathC -> TransformC CL (Path CrumbC)
+localizePathT path = do
+    pathLen <- length . snocPathToPath <$> absPathT
+    return $ drop pathLen path
+
+--------------------------------------------------------------------------------
 -- Pattern synonyms for expressions
 
 pattern ConcatP xs           <- AppE1 _ Concat xs
@@ -439,4 +465,6 @@ pattern EqP e1 e2 <- BinOp _ (SBRelOp Eq) e1 e2
 pattern LengthP e <- AppE1 _ (Agg Length) e
 pattern NullP e <- AppE1 _ Null e
 pattern TrueP = Lit PBoolT (ScalarV (BoolV True))
+pattern TupFirstP t e = AppE1 t (TupElem First) e
+pattern TupSecondP t e = AppE1 t (TupElem (Next First)) e
 

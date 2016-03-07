@@ -79,11 +79,6 @@ invariantQualR localVars = readerT $ \expr -> case expr of
 --------------------------------------------------------------------------------
 -- Search and replace loop-invariant expressions
 
-localizePathT :: PathC -> TransformC CL (Path CrumbC)
-localizePathT path = do
-    pathLen <- length . snocPathToPath <$> absPathT
-    return $ drop pathLen path
-
 -- | 'pullCompInvariantR e p ns' replaces expression 'e' in a comprehension at
 -- local path 'p' by a variable that is bound by a let-expression.
 pullCompInvariantR :: Expr -> PathC -> [Ident] -> RewriteC CL
