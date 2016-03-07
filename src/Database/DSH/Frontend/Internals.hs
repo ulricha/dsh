@@ -75,7 +75,7 @@ instance Pretty (Type a) where
 
 -- FIXME generate with TH
 instance Pretty (TupleType a) where
-    pretty (Tuple2T t1 t2) = tupled $ [pretty t1, pretty t2]
+    pretty (Tuple2T t1 t2) = tupled [pretty t1, pretty t2]
     pretty _               = $unimplemented
 
 --------------------------------------------------------------------------------

@@ -6,7 +6,6 @@ module Database.DSH.CL.Primitives where
 
 import qualified Prelude                    as P
 
-import           Data.Decimal
 import qualified Data.List                  as List
 import           Data.Scientific
 import qualified Data.Text                  as T
