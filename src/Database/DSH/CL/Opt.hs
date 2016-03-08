@@ -43,8 +43,7 @@ compNormEarlyR = m_norm_1R
 buUnnestR :: RewriteC CL
 buUnnestR =
     zipCorrelatedR
-    <+ groupjoinR
-    <+ repeatR nestjoinR
+    <+ repeatR (groupjoinR >+> nestjoinR >+> groupjoinR)
     -- If the inverse M-Norm-3 succeeds, try to unnest the new
     -- generator
     <+ (nestingGenR >>> pathR [CompQuals, QualsSingleton, BindQualExpr] nestjoinR)

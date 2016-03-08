@@ -68,11 +68,31 @@ searchAggregatedGroupT x =
 
 --------------------------------------------------------------------------------
 
--- FIXME make sure that there are no other occurences of x.2 in the head.
 groupjoinR :: RewriteC CL
-groupjoinR = do
-    e@(Comp ty h (S (BindQ x (NestJoinP _ p xs ys)))) <- promoteT idR
+groupjoinR = groupjoinQualR <+ groupjoinQualsR
 
+groupjoinQualR :: RewriteC CL
+groupjoinQualR = do
+    e@(Comp ty h (S (BindQ x (NestJoinP _ p xs ys)))) <- promoteT idR
+    (h', joinOp) <- groupjoinWorkerT h x p xs ys
+    return $ inject $ Comp ty h' (S (BindQ x joinOp))
+
+-- FIXME update type of x in qualifiers
+-- FIXME make sure that there are no other occurences of x.2 in qualifiers.
+groupjoinQualsR :: RewriteC CL
+groupjoinQualsR = do
+    e@(Comp ty h (BindQ x (NestJoinP _ p xs ys) :* qs)) <- promoteT idR
+    (h', joinOp) <- groupjoinWorkerT h x p xs ys
+    return $ inject $ Comp ty h' (BindQ x joinOp :* qs)
+
+-- FIXME make sure that there are no other occurences of x.2 in the head.
+groupjoinWorkerT :: Expr
+                 -> Ident
+                 -> JoinPredicate ScalarExpr
+                 -> Expr
+                 -> Expr
+                 -> TransformC CL (Expr, Expr)
+groupjoinWorkerT h x p xs ys = do
     -- Search for an aggregate applied to the groups that are produced by
     -- NestJoin.
     (aggPath, agg, aggExpr) <- searchAggregatedGroupT x
@@ -92,4 +112,4 @@ groupjoinR = do
               >>> substR x xv'
               >>> pathR headPath (constT $ return $ inject $ P.snd xv')
               >>> projectT
-    return $ inject $ Comp ty h' (S (BindQ x joinOp))
+    return (h', joinOp)
