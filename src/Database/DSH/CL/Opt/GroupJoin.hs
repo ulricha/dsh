@@ -77,7 +77,9 @@ groupjoinQualR :: RewriteC CL
 groupjoinQualR = do
     e@(Comp ty h (S (BindQ x (NestJoinP _ p xs ys)))) <- promoteT idR
     (h', joinOp, _) <- groupjoinWorkerT h x p xs ys
-    trace ("groupjoinqualR:\n" ++ pp e) $ return ()
+    -- trace ("groupjoinqualR:\n" ++ pp e) $ return ()
+    -- trace ("head:\n" ++ pp h') $ return ()
+    -- trace ("joinOp:\n" ++ pp joinOp) $ return ()
     return $ inject $ Comp ty h' (S (BindQ x joinOp))
 
 -- FIXME update type of x in qualifiers
@@ -87,7 +89,10 @@ groupjoinQualsR = do
     e@(Comp ty h (BindQ x (NestJoinP _ p xs ys) :* qs)) <- promoteT idR
     (h', joinOp, xv') <- groupjoinWorkerT h x p xs ys
     qs'               <- constT (return $ inject qs) >>> substR x xv' >>> projectT
-    trace ("groupjoinqualsR:\n" ++ pp e) $ return ()
+    -- trace ("groupjoinqualsR:\n" ++ pp e) $ return ()
+    -- trace ("head:\n" ++ pp h') $ return ()
+    -- trace ("joinOp:\n" ++ pp joinOp) $ return ()
+    -- trace ("quals:\n" ++ pp qs') $ return ()
     return $ inject $ Comp ty h' (BindQ x joinOp :* qs')
 
 -- FIXME make sure that there are no other occurences of x.2 in the head.
@@ -106,9 +111,9 @@ groupjoinWorkerT h x p xs ys = do
     -- Type of the GroupJoin result: xs :: [a], ys :: [b] => [(a, p(b))]
     let xt  = elemT $ typeOf xs
         at  = aggType agg $ elemT $ typeOf ys
-        ty' = ListT (TupleT [xt, at])
-        xv' = Var ty' x
-    let joinOp = AppE2 ty' (GroupJoin p agg aggExpr) xs ys
+        xt' = TupleT [xt, at]
+        xv' = Var xt' x
+    let joinOp = AppE2 (ListT xt') (GroupJoin p agg aggExpr) xs ys
 
     -- In the head expression, update the type of the generator variable. Then,
     -- replace the aggregate with a reference to the aggregate computed by the

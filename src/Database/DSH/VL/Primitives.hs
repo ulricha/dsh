@@ -126,7 +126,7 @@ scalarExpr expr = offsetExpr $ aux expr
         case Ty.typeOf e of
             -- Compute the record width of all preceding tuple elements in the type
             Ty.TupleT ts -> addOffset (sum $ map recordWidth $ take (tupleIndex i - 1) ts) (aux e)
-            t            -> error $ pp t --  $impossible
+            t            -> $impossible
     aux (L.JLit _ v)           = Expr $ Constant $ pVal v
     aux (L.JInput _)           = Offset 0
 
