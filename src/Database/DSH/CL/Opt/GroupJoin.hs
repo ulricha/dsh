@@ -1,6 +1,6 @@
-{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 
 -- FIXME TODO
 -- * Redefine GroupJoin to include NestJoin
@@ -12,6 +12,7 @@
 
 module Database.DSH.CL.Opt.GroupJoin
   ( groupjoinR
+  , sidewaysR
   ) where
 
 import           Debug.Trace
@@ -20,18 +21,19 @@ import           Control.Arrow
 import           Control.Monad
 
 import           Data.List
-import qualified Data.Set as S
-import qualified Data.Map as M
-import qualified Data.List.NonEmpty as N
+import           Data.List.NonEmpty                    (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty                    as N
+import qualified Data.Map                              as M
+import qualified Data.Set                              as S
 
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
 
-import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
+import           Database.DSH.CL.Lang
 
-import qualified Database.DSH.CL.Primitives as P
+import qualified Database.DSH.CL.Primitives            as P
 
 import           Database.DSH.CL.Opt.Auxiliary
 import           Database.DSH.CL.Opt.CompNormalization
@@ -74,7 +76,7 @@ groupjoinR = groupjoinQualR <+ groupjoinQualsR
 groupjoinQualR :: RewriteC CL
 groupjoinQualR = do
     e@(Comp ty h (S (BindQ x (NestJoinP _ p xs ys)))) <- promoteT idR
-    (h', joinOp) <- groupjoinWorkerT h x p xs ys
+    (h', joinOp, _) <- groupjoinWorkerT h x p xs ys
     return $ inject $ Comp ty h' (S (BindQ x joinOp))
 
 -- FIXME update type of x in qualifiers
@@ -82,7 +84,8 @@ groupjoinQualR = do
 groupjoinQualsR :: RewriteC CL
 groupjoinQualsR = do
     e@(Comp ty h (BindQ x (NestJoinP _ p xs ys) :* qs)) <- promoteT idR
-    (h', joinOp) <- groupjoinWorkerT h x p xs ys
+    (h', joinOp, xv') <- groupjoinWorkerT h x p xs ys
+    qs'               <- constT (return $ inject qs) >>> substR x xv'
     return $ inject $ Comp ty h' (BindQ x joinOp :* qs)
 
 -- FIXME make sure that there are no other occurences of x.2 in the head.
@@ -91,7 +94,7 @@ groupjoinWorkerT :: Expr
                  -> JoinPredicate ScalarExpr
                  -> Expr
                  -> Expr
-                 -> TransformC CL (Expr, Expr)
+                 -> TransformC CL (Expr, Expr, Expr)
 groupjoinWorkerT h x p xs ys = do
     -- Search for an aggregate applied to the groups that are produced by
     -- NestJoin.
@@ -112,4 +115,13 @@ groupjoinWorkerT h x p xs ys = do
               >>> substR x xv'
               >>> pathR headPath (constT $ return $ inject $ P.snd xv')
               >>> projectT
-    return (h', joinOp)
+    return (h', joinOp, xv')
+
+--------------------------------------------------------------------------------
+
+sidewaysR :: RewriteC CL
+sidewaysR = do
+    NestJoinP ty1 p1 xs (GroupJoinP ty2 p2 a e ys zs) <- promoteT idR
+    JoinConjunct c1 Eq c2 :| [] <- return $ jpConjuncts p2
+    let semiPred = JoinPred $ JoinConjunct c2 Eq c1 :| []
+    return $ inject $ NestJoinP ty1 p1 xs (GroupJoinP ty2 p2 a e (SemiJoinP (typeOf ys) semiPred ys xs) zs)

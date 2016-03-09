@@ -101,7 +101,8 @@ optimizeR :: RewriteC CL
 optimizeR = resugarR >+>
             normalizeOnceR >+>
             repeatR applyOptimizationsR >+>
-            postProcessR
+            postProcessR >+>
+            anybuR sidewaysR
 
 -- | Apply the default set of unnesting and decorrelation rewrites to
 -- a CL query.
