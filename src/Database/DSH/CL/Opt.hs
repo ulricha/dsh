@@ -44,6 +44,7 @@ buUnnestR :: RewriteC CL
 buUnnestR =
     zipCorrelatedR
     <+ repeatR (groupjoinR >+> nestjoinR >+> groupjoinR)
+    -- <+ repeatR nestjoinR
     -- If the inverse M-Norm-3 succeeds, try to unnest the new
     -- generator
     <+ (nestingGenR >>> pathR [CompQuals, QualsSingleton, BindQualExpr] nestjoinR)
@@ -101,8 +102,8 @@ optimizeR :: RewriteC CL
 optimizeR = resugarR >+>
             normalizeOnceR >+>
             repeatR applyOptimizationsR >+>
-            postProcessR >+>
-            anybuR sidewaysR
+            postProcessR
+            -- anybuR sidewaysR
 
 -- | Apply the default set of unnesting and decorrelation rewrites to
 -- a CL query.

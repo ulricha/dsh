@@ -64,6 +64,7 @@ module Database.DSH.CL.Opt.Auxiliary
     , pattern TrueP
     , pattern TupFirstP
     , pattern TupSecondP
+    , pattern (:<-:)
     ) where
 
 import           Control.Arrow
@@ -469,4 +470,4 @@ pattern NullP e <- AppE1 _ Null e
 pattern TrueP = Lit PBoolT (ScalarV (BoolV True))
 pattern TupFirstP t e = AppE1 t (TupElem First) e
 pattern TupSecondP t e = AppE1 t (TupElem (Next First)) e
-
+pattern a :<-: b = BindQ a b

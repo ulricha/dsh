@@ -8,6 +8,7 @@ import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Lang      as L
 import qualified Database.DSH.Common.Type      as Ty
 import           Database.DSH.Common.Vector
+import           Database.DSH.Common.Pretty
 
 import           Database.DSH.Common.Impossible
 
@@ -125,7 +126,7 @@ scalarExpr expr = offsetExpr $ aux expr
         case Ty.typeOf e of
             -- Compute the record width of all preceding tuple elements in the type
             Ty.TupleT ts -> addOffset (sum $ map recordWidth $ take (tupleIndex i - 1) ts) (aux e)
-            _            -> $impossible
+            t            -> error $ pp t --  $impossible
     aux (L.JLit _ v)           = Expr $ Constant $ pVal v
     aux (L.JInput _)           = Offset 0
 

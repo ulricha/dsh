@@ -49,11 +49,11 @@ import           Database.DSH.CL.Opt.CompNormalization
 toAggregateExprT :: Ident -> TransformC CL ScalarExpr
 toAggregateExprT x =
     readerT $ \e -> case e of
-        ExprCL (Comp _ _ (S (BindQ y (TupSecondP _ (Var _ x'))))) | x == x' ->
+        ExprCL (Comp _ _ (S (y :<-: TupSecondP _ (Var _ x')))) | x == x' ->
             childT CompHead $ promoteT (toScalarExpr y)
-        ExprCL (TupSecondP t (Var _ x')) | x == x'                          ->
+        ExprCL (TupSecondP t (Var _ x')) | x == x'                       ->
             return $ JInput t
-        _                                                                   ->
+        _                                                                ->
             fail "not an aggregate expression"
 
 -- | Traverse though an expression and search for an aggregate that is eligible
@@ -77,6 +77,7 @@ groupjoinQualR :: RewriteC CL
 groupjoinQualR = do
     e@(Comp ty h (S (BindQ x (NestJoinP _ p xs ys)))) <- promoteT idR
     (h', joinOp, _) <- groupjoinWorkerT h x p xs ys
+    trace ("groupjoinqualR:\n" ++ pp e) $ return ()
     return $ inject $ Comp ty h' (S (BindQ x joinOp))
 
 -- FIXME update type of x in qualifiers
@@ -85,8 +86,9 @@ groupjoinQualsR :: RewriteC CL
 groupjoinQualsR = do
     e@(Comp ty h (BindQ x (NestJoinP _ p xs ys) :* qs)) <- promoteT idR
     (h', joinOp, xv') <- groupjoinWorkerT h x p xs ys
-    qs'               <- constT (return $ inject qs) >>> substR x xv'
-    return $ inject $ Comp ty h' (BindQ x joinOp :* qs)
+    qs'               <- constT (return $ inject qs) >>> substR x xv' >>> projectT
+    trace ("groupjoinqualsR:\n" ++ pp e) $ return ()
+    return $ inject $ Comp ty h' (BindQ x joinOp :* qs')
 
 -- FIXME make sure that there are no other occurences of x.2 in the head.
 groupjoinWorkerT :: Expr
@@ -122,6 +124,6 @@ groupjoinWorkerT h x p xs ys = do
 sidewaysR :: RewriteC CL
 sidewaysR = do
     NestJoinP ty1 p1 xs (GroupJoinP ty2 p2 a e ys zs) <- promoteT idR
-    JoinConjunct c1 Eq c2 :| [] <- return $ jpConjuncts p2
+    JoinConjunct c1 Eq c2 :| [] <- return $ jpConjuncts p1
     let semiPred = JoinPred $ JoinConjunct c2 Eq c1 :| []
     return $ inject $ NestJoinP ty1 p1 xs (GroupJoinP ty2 p2 a e (SemiJoinP (typeOf ys) semiPred ys xs) zs)

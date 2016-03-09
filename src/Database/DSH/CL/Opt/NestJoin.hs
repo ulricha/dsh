@@ -234,8 +234,6 @@ unnestWorkerT headComp (x, xs) = do
 unnestFromHeadR :: RewriteC CL
 unnestFromHeadR = do
     e@(Comp to ho qso) <- promoteT idR
-    trace ("nestjoin:\n" ++ pp e) $ return ()
-    
 
     -- We need one generator on a comprehension
     (x, xs, qsr) <- case qso of
