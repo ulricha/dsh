@@ -11,6 +11,7 @@ module Database.DSH.CL.Opt.JoinPushdown
     ) where
 
 import           Control.Arrow
+import           Control.Monad
 import qualified Data.List.NonEmpty              as N
 
 import           Database.DSH.CL.Kure
@@ -101,6 +102,11 @@ isFilteringJoin joinOp =
 -- | If the left input of a filtering join is a NestJoin operator, push the join
 -- into the left NestJoin input to reduce the cardinality before sorting.
 --
+-- In principle, we need to check whether the predicate of the filtering join
+-- refers only to the first component of the tuples produced by NestJoin.
+-- However, we know that the second tuple component has a list type and there is
+-- no way that a list can occur in a join predicate.
+--
 -- Informally, the rewrite is correct because NestJoin produces one tuple for
 -- each tuple from its left input. Whether these tuples are filtered before or
 -- after is not relevant. Also, both NestJoin and SemiJoin keep the order of
@@ -115,8 +121,48 @@ pushFilterjoinNestjoinR = do
     let joinPred' = untuplifyScalarExpr joinPred
     return $ inject $ NestJoinP ty predNest (AppE2 (typeOf xs) (joinConst joinPred') xs zs) ys
 
+firstOnly :: JoinPredicate ScalarExpr -> Bool
+firstOnly p = all go $ jcLeft <$> jpConjuncts p
+  where
+    go (JBinOp _ _ e1 e2)          = go e1 && go e2
+    go (JUnOp _ _ e)               = go e
+    go (JTupElem _ First JInput{}) = True
+    go (JTupElem _ _     JInput{}) = False
+    go (JTupElem _ _     e)        = go e
+    go JLit{}                      = True
+    go JInput{}                    = $impossible
+
+-- | If the left input of a filtering join is a GroupJoin operator, push the
+-- join into the left NestJoin input to reduce the cardinality before sorting.
+-- For this rewrite to work, we have to check whether the filtering join refers
+-- only to the left component of the pairs produced by the GroupJoin.
+--
+-- Informally, the rewrite is correct because NestJoin produces one tuple for
+-- each tuple from its left input. Whether these tuples are filtered before or
+-- after is not relevant. Also, both NestJoin and SemiJoin keep the order of
+-- their left input.
+pushFilterjoinGroupJoinR :: RewriteC CL
+pushFilterjoinGroupJoinR = do
+    AppE2 ty joinOp (GroupJoinP _ predGroup agg aggExpr xs ys) zs <- promoteT idR
+    (joinConst, joinPred) <- isFilteringJoin joinOp
+
+    -- Check whether the filtering join predicate refers only to the left side
+    -- of the GroupJoin.
+    guardM $ firstOnly joinPred
+
+    -- Rewrite the join predicate to refer to the complete input, not only to
+    -- its first tuple component. This is necessary because we are below the
+    -- tupling caused by the GroupJoin.
+    let joinPred' = untuplifyScalarExpr joinPred
+    return $ inject $ GroupJoinP ty predGroup agg aggExpr (AppE2 (typeOf xs) (joinConst joinPred') xs zs) ys
+
 -- | If the left input of a filtering join is a NestProduct operator, push the join
 -- into the left NestProduct input to reduce the cardinality before sorting.
+--
+-- In principle, we need to check whether the predicate of the filtering join
+-- refers only to the first component of the tuples produced by NestProduct.
+-- However, we know that the second tuple component has a list type and there is
+-- no way that a list can occur in a join predicate.
 --
 -- Informally, the rewrite is correct because NestProduct produces one tuple for
 -- each tuple from its left input. Whether these tuples are filtered before or
@@ -194,6 +240,7 @@ pushThroughRewritesR :: RewriteC CL
 pushThroughRewritesR = pushFilterjoinNestjoinR
                        <+ pushFilterjoinSortR
                        <+ pushFilterjoinNestproductR
+                       <+ pushFilterjoinGroupJoinR
 
 joinPushdownR :: RewriteC CL
 joinPushdownR =
