@@ -188,7 +188,8 @@ pushPredicateR x p =
 
         -- FIXME why commented out?
         -- ExprCL (AppE2 _ (Prim2 (NestProduct _ _) _) _ _) -> pushLeftTupleR p
-        ExprCL (AppE2 _ (NestJoin _) _ _)  -> pushLeftTupleR x p
+        ExprCL NestJoinP{}                 -> pushLeftTupleR x p
+        ExprCL GroupJoinP{}                -> pushLeftTupleR x p
 
         -- Semi- and Antijoin operators produce a subset of their left
         -- input. A filter can only apply to the left input,
