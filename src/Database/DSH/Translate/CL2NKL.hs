@@ -65,15 +65,15 @@ prim2 t o e1 e2 = mkApp2
   where
     mkApp2 =
         case o of
-            CL.Append          -> mkPrim2 NKL.Append
-            CL.Zip             -> mkPrim2 NKL.Zip
-            CL.CartProduct     -> mkPrim2 NKL.CartProduct
-            CL.NestProduct     -> mkPrim2 NKL.NestProduct
-            CL.ThetaJoin p     -> mkPrim2 $ NKL.ThetaJoin p
-            CL.NestJoin p      -> mkPrim2 $ NKL.NestJoin p
-            CL.GroupJoin p a e -> mkPrim2 $ NKL.GroupJoin p a e
-            CL.SemiJoin p      -> mkPrim2 $ NKL.SemiJoin p
-            CL.AntiJoin p      -> mkPrim2 $ NKL.AntiJoin p
+            CL.Append         -> mkPrim2 NKL.Append
+            CL.Zip            -> mkPrim2 NKL.Zip
+            CL.CartProduct    -> mkPrim2 NKL.CartProduct
+            CL.NestProduct    -> mkPrim2 NKL.NestProduct
+            CL.ThetaJoin p    -> mkPrim2 $ NKL.ThetaJoin p
+            CL.NestJoin p     -> mkPrim2 $ NKL.NestJoin p
+            CL.GroupJoin p as -> mkPrim2 $ NKL.GroupJoin p as
+            CL.SemiJoin p     -> mkPrim2 $ NKL.SemiJoin p
+            CL.AntiJoin p     -> mkPrim2 $ NKL.AntiJoin p
 
     mkPrim2 :: NKL.Prim2 -> NameEnv NKL.Expr
     mkPrim2 nop = NKL.AppE2 t nop <$> expr e1 <*> expr e2

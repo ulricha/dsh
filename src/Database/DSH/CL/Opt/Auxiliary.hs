@@ -17,7 +17,10 @@ module Database.DSH.CL.Opt.Auxiliary
     , splitJoinPredT
     , joinConjunctsT
     , conjunctsT
-    -- * Pushing guards towards the front of a qualifier list
+      -- * Helpers on scalar expressions
+    , firstOnly
+    , untuplifyScalarExpr
+      -- * Pushing guards towards the front of a qualifier list
     , isThetaJoinPred
     , isSemiJoinPred
     , isAntiJoinPred
@@ -183,6 +186,30 @@ conjunctsT = readerT $ \e -> case e of
 
     _ -> $impossible
 
+--------------------------------------------------------------------------------
+-- Helpers on scalar expressions
+
+-- | Check whether a scalar expression refers only to the first tuple component
+-- of the input.
+firstOnly :: ScalarExpr -> Bool
+firstOnly (JBinOp _ _ e1 e2)          = firstOnly e1 && firstOnly e2
+firstOnly (JUnOp _ _ e)               = firstOnly e
+firstOnly (JTupElem _ First JInput{}) = True
+firstOnly (JTupElem _ _     JInput{}) = False
+firstOnly (JTupElem _ _     e)        = firstOnly e
+firstOnly JLit{}                      = True
+firstOnly JInput{}                    = $impossible
+
+-- | Change a scalar expression that only refers to the first tuple component of
+-- the input to refer directly to the input.
+untuplifyScalarExpr :: ScalarExpr -> ScalarExpr
+untuplifyScalarExpr (JBinOp ty op e1 e2)                         = JBinOp ty op (untuplifyScalarExpr e1) (untuplifyScalarExpr e2)
+untuplifyScalarExpr (JUnOp ty op e)                              = JUnOp ty op (untuplifyScalarExpr e)
+untuplifyScalarExpr (JTupElem _ First (JInput (TupleT [t1, _]))) = JInput t1
+untuplifyScalarExpr (JTupElem _ _ (JInput _))                    = $impossible
+untuplifyScalarExpr (JTupElem ty idx e)                          = JTupElem ty idx (untuplifyScalarExpr e)
+untuplifyScalarExpr (JLit ty val)                                = JLit ty val
+untuplifyScalarExpr (JInput _)                                   = $impossible
 
 --------------------------------------------------------------------------------
 -- Distinguish certain kinds of guards
@@ -458,7 +485,7 @@ pattern SingletonP x         <- AppE1 _ Singleton x
 pattern GuardP p             <- AppE1 _ Guard p
 pattern SemiJoinP ty p xs ys = AppE2 ty (SemiJoin p) xs ys
 pattern NestJoinP ty p xs ys = AppE2 ty (NestJoin p) xs ys
-pattern GroupJoinP ty p a e xs ys = AppE2 ty (GroupJoin p a e) xs ys
+pattern GroupJoinP ty p as xs ys = AppE2 ty (GroupJoin p as) xs ys
 pattern NestProductP ty xs ys = AppE2 ty NestProduct xs ys
 pattern AndP xs              <- AppE1 _ (Agg And) xs
 pattern OrP xs              <- AppE1 _ (Agg Or) xs

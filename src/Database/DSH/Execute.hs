@@ -198,7 +198,7 @@ constructVal !keyCols !lyt !row =
         SCol F.BoolT c       -> F.BoolE $ boolVal $ col c row
         SCol F.CharT c       -> F.CharE $ charVal $ col c row
         SCol F.TextT c       -> F.TextE $ textVal $ col c row
-        SCol F.UnitT c       -> F.UnitE
+        SCol F.UnitT _       -> F.UnitE
         SCol F.DayT c        -> F.DayE $ dayVal $ col c row
         SCol F.DecimalT c    -> F.DecimalE $ fromRational $ toRational $ decimalVal $ col c row
         SCol F.ScientificT c -> F.ScientificE $ decimalVal $ col c row

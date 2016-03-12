@@ -66,15 +66,15 @@ prim1 p =
 prim2 :: N.Prim2 -> F.LExpr -> F.LExpr -> Nat -> F.LExpr
 prim2 p =
     case p of
-        N.Append           -> P.append
-        N.Zip              -> P.zip
-        N.CartProduct      -> P.cartProduct
-        N.NestProduct      -> P.nestProduct
-        N.ThetaJoin jp     -> P.thetaJoin jp
-        N.NestJoin jp      -> P.nestJoin jp
-        N.GroupJoin jp a e -> P.groupJoin jp a e
-        N.SemiJoin jp      -> P.semiJoin jp
-        N.AntiJoin jp      -> P.antiJoin jp
+        N.Append          -> P.append
+        N.Zip             -> P.zip
+        N.CartProduct     -> P.cartProduct
+        N.NestProduct     -> P.nestProduct
+        N.ThetaJoin jp    -> P.thetaJoin jp
+        N.NestJoin jp     -> P.nestJoin jp
+        N.GroupJoin jp as -> P.groupJoin jp as
+        N.SemiJoin jp     -> P.semiJoin jp
+        N.AntiJoin jp     -> P.antiJoin jp
 
 --------------------------------------------------------------------------------
 -- Flattening environment

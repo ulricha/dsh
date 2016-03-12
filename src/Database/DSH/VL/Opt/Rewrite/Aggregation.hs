@@ -4,11 +4,13 @@ module Database.DSH.VL.Opt.Rewrite.Aggregation
     ) where
 
 import           Control.Monad
+import           Data.List.NonEmpty                   (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                   as N
 import           Data.Semigroup
 
 import           Database.Algebra.Dag.Common
 
+import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Opt
 import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Opt.Properties.Types
@@ -267,7 +269,7 @@ groupJoin q =
 
         return $ do
             logRewrite "GroupJoin" q
-            void $ replaceWithNew q $ BinOp (GroupJoin ($(v "p"), $(v "a"))) $(v "qo") $(v "qi")
+            void $ replaceWithNew q $ BinOp (GroupJoin ($(v "p"), (NE $ $(v "a") :| []))) $(v "qo") $(v "qi")
         |])
 
 countDistinct :: VLRule BottomUpProps

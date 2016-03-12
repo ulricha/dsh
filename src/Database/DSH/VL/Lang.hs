@@ -154,7 +154,7 @@ data BinOp = ReplicateNest
            | SemiJoinS (L.JoinPredicate Expr)
            | AntiJoinS (L.JoinPredicate Expr)
            | NestJoinS (L.JoinPredicate Expr)
-           | GroupJoin (L.JoinPredicate Expr, AggrFun)
+           | GroupJoin (L.JoinPredicate Expr, L.NE AggrFun)
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''BinOp)

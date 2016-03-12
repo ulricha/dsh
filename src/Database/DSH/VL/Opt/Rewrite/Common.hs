@@ -9,7 +9,7 @@ import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.QueryPlan
 
-import           Database.DSH.Common.Lang
+import qualified Database.DSH.Common.Lang                as L
 import           Database.DSH.Common.Opt
 import           Database.DSH.Common.Vector
 import           Database.DSH.VL.Lang
@@ -81,7 +81,7 @@ mergeExpr env expr =
         Constant _     -> expr
 
 -- | Unwrap a constant value
-constVal :: Monad m => (ScalarVal -> a) -> ConstPayload -> m a
+constVal :: Monad m => (L.ScalarVal -> a) -> ConstPayload -> m a
 constVal wrap (ConstPL val) = return $ wrap val
 constVal _             _    = fail "no match"
 

@@ -83,6 +83,18 @@ $(deriveJSON defaultOptions ''BaseTableSchema)
 -- | Identifiers
 type Ident = String
 
+-----------------------------------------------------------------------------
+
+-- | A wrapper around 'NonEmpty' lists to avoid an orphan instance for 'Pretty'.
+newtype NE a = NE { getNE :: N.NonEmpty a } deriving (Eq, Ord, Show)
+
+instance Pretty a => Pretty (NE a) where
+    pretty (NE xs) = pretty $ N.toList xs
+
+instance Functor NE where
+    fmap f (NE xs) = NE (fmap f xs)
+
+$(deriveJSON defaultOptions ''NE)
 
 -----------------------------------------------------------------------------
 -- Scalar operators
@@ -180,22 +192,30 @@ data ScalarBinOp = SBNumOp BinNumOp
 $(deriveJSON defaultOptions ''ScalarBinOp)
 
 -----------------------------------------------------------------------------
--- Aggregates
+-- Aggregate
 
--- | Aggregate functions
-data Aggregate = Length | Avg | Minimum | Maximum | And | Or | Sum
+-- | AggrFun functions
+data AggrFun = Length | Avg | Minimum | Maximum | And | Or | Sum
     deriving (Eq, Show)
 
-aggType :: Aggregate -> Type -> Type
-aggType Length _   = PIntT
-aggType Sum ty     = ty
-aggType Maximum ty = ty
-aggType Minimum ty = ty
-aggType Avg ty     = ty
-aggType And _      = PBoolT
-aggType Or _       = PBoolT
+data AggrApp = AggrApp
+    { aaFun :: AggrFun
+    , aaArg :: ScalarExpr
+    } deriving (Eq, Show)
 
-instance Pretty Aggregate where
+aggType :: AggrApp -> Type
+aggType (AggrApp af e) = aggFunType af $ typeOf e
+
+aggFunType :: AggrFun -> Type -> Type
+aggFunType Length _   = PIntT
+aggFunType Sum ty     = ty
+aggFunType Maximum ty = ty
+aggFunType Minimum ty = ty
+aggFunType Avg ty     = ty
+aggFunType And _      = PBoolT
+aggFunType Or _       = PBoolT
+
+instance Pretty AggrFun where
   pretty Length          = combinator $ text "length"
   pretty Sum             = combinator $ text "sum"
   pretty Avg             = combinator $ text "avg"
@@ -204,6 +224,8 @@ instance Pretty Aggregate where
   pretty And             = combinator $ text "and"
   pretty Or              = combinator $ text "or"
 
+instance Pretty AggrApp where
+    pretty aa = pretty (aaFun aa) <> parens (pretty $ aaArg aa)
 
 -----------------------------------------------------------------------------
 -- Join operator arguments: limited expressions that can be used on joins
@@ -333,7 +355,7 @@ instance Pretty ScalarExpr where
     pretty (JBinOp _ op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2
     pretty (JUnOp _ op e)      = pretty op <+> parenthize e
     pretty (JLit _ v)          = pretty v
-    pretty (JInput ty)         = text "I" <> text "::" <> pretty ty
+    pretty (JInput _)          = text "I"
     pretty (JTupElem _ i e1)   =
         parenthize e1 <> dot <> int (tupleIndex i)
 

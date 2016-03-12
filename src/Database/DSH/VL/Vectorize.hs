@@ -77,12 +77,12 @@ nestJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
 nestJoin _ _ _ = $impossible
 
 groupJoin :: L.JoinPredicate L.ScalarExpr
-          -> AggrFun
+          -> L.NE AggrFun
           -> Shape VLDVec
           -> Shape VLDVec -> Build VL (Shape VLDVec)
-groupJoin joinPred afun (VShape dv1 lyt1) (VShape dv2 _) = do
-    dv <- vlGroupJoin joinPred afun dv1 dv2
-    return $ VShape dv (LTuple [lyt1, LCol])
+groupJoin joinPred afuns (VShape dv1 lyt1) (VShape dv2 _) = do
+    dv <- vlGroupJoin joinPred afuns dv1 dv2
+    return $ VShape dv (LTuple $ lyt1 : map (const LCol) (N.toList $ L.getNE afuns))
 groupJoin _ _ _ _ = $impossible
 
 semiJoin :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -363,13 +363,13 @@ nestJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) 
 nestJoinL _ _ _ = $impossible
 
 groupJoinL :: L.JoinPredicate L.ScalarExpr
-           -> AggrFun
+           -> L.NE AggrFun
            -> Shape VLDVec
            -> Shape VLDVec
            -> Build VL (Shape VLDVec)
-groupJoinL joinPred afun (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 _)) = do
-    dv <- vlGroupJoin joinPred afun dvi1 dvi2
-    return $ VShape dvo1 (LNest dv (LTuple [lyt1, LCol]))
+groupJoinL joinPred afuns (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 _)) = do
+    dv <- vlGroupJoin joinPred afuns dvi1 dvi2
+    return $ VShape dvo1 (LNest dv (LTuple (lyt1 : map (const LCol) (N.toList $ L.getNE afuns))))
 groupJoinL _ _ _ _ = $impossible
 
 semiJoinL :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)

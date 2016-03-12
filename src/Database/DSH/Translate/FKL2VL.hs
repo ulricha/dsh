@@ -6,17 +6,17 @@ module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 import           Control.Monad.Reader
 
 import           Database.Algebra.Dag.Build
-import qualified Database.Algebra.Dag.Common   as Alg
+import qualified Database.Algebra.Dag.Common    as Alg
 
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Vector
 import           Database.DSH.FKL.Lang
-import           Database.DSH.Common.Impossible
-import qualified Database.DSH.VL.Lang          as VL
+import qualified Database.DSH.VL.Lang           as VL
 import           Database.DSH.VL.Primitives
-import qualified Database.DSH.VL.Vectorize     as V
+import qualified Database.DSH.VL.Vectorize      as V
 
 --------------------------------------------------------------------------------
 -- Extend the DAG builder monad with an environment for compiled VL
@@ -45,8 +45,7 @@ fkl2VL expr =
         Let _ n e1 e -> do
             e1' <- fkl2VL e1
             local (bind n e1') $ fkl2VL e
-        Table _ n schema -> do
-            lift $ V.dbTable n schema
+        Table _ n schema -> lift $ V.dbTable n schema
         Const t v -> lift $ V.shredLiteral t v
         BinOp _ o NotLifted e1 e2    -> do
             s1 <- fkl2VL e1
@@ -99,7 +98,7 @@ papp3 :: Prim3 -> Lifted -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Buil
 papp3 Combine Lifted    = V.combineL
 papp3 Combine NotLifted = V.combine
 
-aggL :: Type -> Aggregate -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
+aggL :: Type -> AggrFun -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 aggL t Sum     = V.aggrL (VL.AggrSum $ typeToScalarType $ elemT t)
 aggL _ Avg     = V.aggrL VL.AggrAvg
 aggL _ Maximum = V.aggrL VL.AggrMax
@@ -108,7 +107,7 @@ aggL _ Or      = V.aggrL VL.AggrAny
 aggL _ And     = V.aggrL VL.AggrAll
 aggL _ Length  = V.lengthL
 
-agg :: Type -> Aggregate -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
+agg :: Type -> AggrFun -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 agg t Sum     = V.aggr (VL.AggrSum $ typeToScalarType t)
 agg _ Avg     = V.aggr VL.AggrAvg
 agg _ Maximum = V.aggr VL.AggrMax
@@ -117,14 +116,18 @@ agg _ Or      = V.aggr VL.AggrAny
 agg _ And     = V.aggr VL.AggrAll
 agg _ Length  = V.length_
 
-afun :: Type -> Aggregate -> VL.Expr -> VL.AggrFun
-afun t Sum     = (VL.AggrSum $ typeToScalarType t)
-afun _ Avg     = VL.AggrAvg
-afun _ Maximum = VL.AggrMax
-afun _ Minimum = VL.AggrMin
-afun _ Or      = VL.AggrAny
-afun _ And     = VL.AggrAll
-afun _ Length  = const VL.AggrCount
+translateAggrFun :: AggrApp -> VL.AggrFun
+translateAggrFun a = case aaFun a of
+    Sum     -> let t = typeToScalarType $ typeOf $ aaArg a
+               in VL.AggrSum t e
+    Avg     -> VL.AggrAvg e
+    Maximum -> VL.AggrMax e
+    Minimum -> VL.AggrMin e
+    Or      -> VL.AggrAny e
+    And     -> VL.AggrAll e
+    Length  -> VL.AggrCount
+  where
+    e = scalarExpr $ aaArg a
 
 papp1 :: Type -> Prim1 -> Lifted -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp1 t f Lifted =
@@ -165,7 +168,7 @@ papp2 f Lifted =
         NestProduct     -> V.nestProductL
         ThetaJoin p     -> V.thetaJoinL p
         NestJoin p      -> V.nestJoinL p
-        GroupJoin p a e -> V.groupJoinL p (afun (typeOf e) a $ scalarExpr e)
+        GroupJoin p (NE as) -> V.groupJoinL p (NE $ fmap translateAggrFun as)
         SemiJoin p      -> V.semiJoinL p
         AntiJoin p      -> V.antiJoinL p
 
@@ -178,7 +181,7 @@ papp2 f NotLifted =
         NestProduct     -> V.nestProduct
         ThetaJoin p     -> V.thetaJoin p
         NestJoin p      -> V.nestJoin p
-        GroupJoin p a e -> V.groupJoin p (afun (typeOf e) a $ scalarExpr e)
+        GroupJoin p (NE as) -> V.groupJoin p (NE $ fmap translateAggrFun as)
         SemiJoin p      -> V.semiJoin p
         AntiJoin p      -> V.antiJoin p
 
@@ -195,15 +198,15 @@ insertTopProjections g = g >>= traverseShape
     traverseShape (SShape (VLDVec q) lyt)     =
         insertProj lyt q SShape
 
-    traverseLayout :: (Layout VLDVec) -> Build VL.VL (Layout VLDVec)
+    traverseLayout :: Layout VLDVec -> Build VL.VL (Layout VLDVec)
     traverseLayout LCol                   = return LCol
     traverseLayout (LTuple lyts)          = LTuple <$> mapM traverseLayout lyts
     traverseLayout (LNest (VLDVec q) lyt) =
       insertProj lyt q LNest
 
-    insertProj :: Layout VLDVec                    -- ^ The node's layout
-               -> Alg.AlgNode                      -- ^ The top node to consider
-               -> (VLDVec -> (Layout VLDVec) -> t) -- ^ Layout/Shape constructor
+    insertProj :: Layout VLDVec                  -- ^ The node's layout
+               -> Alg.AlgNode                    -- ^ The top node to consider
+               -> (VLDVec -> Layout VLDVec -> t) -- ^ Layout/Shape constructor
                -> Build VL.VL t
     insertProj lyt q describe = do
         let width = columnsInLayout lyt

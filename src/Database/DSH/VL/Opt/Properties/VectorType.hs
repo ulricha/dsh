@@ -120,9 +120,9 @@ inferVectorTypeBinOp s1 s2 op =
     UnboxSng -> reqValVectors s1 s2 (\w1 w2 -> VPropPair (VTDataVec $ w1 + w2) VTNA) "UnboxSng"
     ThetaJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ThetaJoinS"
     NestJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestJoinS"
-    GroupJoin _ -> do
+    GroupJoin (_, as) -> do
         VTDataVec w <- unpack s1
-        return $ VProp $ VTDataVec $ w + 1
+        return $ VProp $ VTDataVec (w + length (getNE as))
     SemiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
     AntiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
 

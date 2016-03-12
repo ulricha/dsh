@@ -1,19 +1,21 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Smart constructors for FKL functions and operators
 module Database.DSH.FKL.Primitives where
 
-import           Prelude                    hiding (concat, fst, snd)
+import           Prelude                        hiding (concat, fst, snd)
 
 import           Text.Printf
 
+import           Data.Foldable
+
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Lang
-import           Database.DSH.Common.Impossible
 
 --------------------------------------------------------------------------------
 -- Smart constructors for primitive combinators in the lifting FKL dialect
@@ -79,11 +81,11 @@ nestJoin p xs ys d =
         rt       = ListT (PPairT xt (ListT (PPairT xt yt)))
     in PApp2 (liftTypeN d rt) (NestJoin p) (LiftedN d) xs ys
 
-groupJoin :: JoinPredicate ScalarExpr -> Aggregate -> ScalarExpr -> LExpr -> LExpr -> Nat -> LExpr
-groupJoin p a e xs ys d =
+groupJoin :: JoinPredicate ScalarExpr -> NE AggrApp -> LExpr -> LExpr -> Nat -> LExpr
+groupJoin p (NE as) xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
-        rt       = ListT (PPairT xt (aggType a $ typeOf e))
-    in PApp2 (liftTypeN d rt) (GroupJoin p a e) (LiftedN d) xs ys
+        rt       = ListT (TupleT $ xt : toList (fmap aggType as))
+    in PApp2 (liftTypeN d rt) (GroupJoin p (NE as)) (LiftedN d) xs ys
 
 semiJoin :: JoinPredicate ScalarExpr -> LExpr -> LExpr -> Nat -> LExpr
 semiJoin p e1 e2 d =

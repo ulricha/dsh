@@ -8,7 +8,6 @@ import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Lang      as L
 import qualified Database.DSH.Common.Type      as Ty
 import           Database.DSH.Common.Vector
-import           Database.DSH.Common.Pretty
 
 import           Database.DSH.Common.Impossible
 
@@ -126,7 +125,7 @@ scalarExpr expr = offsetExpr $ aux expr
         case Ty.typeOf e of
             -- Compute the record width of all preceding tuple elements in the type
             Ty.TupleT ts -> addOffset (sum $ map recordWidth $ take (tupleIndex i - 1) ts) (aux e)
-            t            -> $impossible
+            _            -> $impossible
     aux (L.JLit _ v)           = Expr $ Constant $ pVal v
     aux (L.JInput _)           = Offset 0
 
@@ -235,9 +234,9 @@ vlNestJoinS joinPred (VLDVec c1) (VLDVec c2) =
   where
     joinPred' = toVLJoinPred joinPred
 
-vlGroupJoin :: L.JoinPredicate L.ScalarExpr -> AggrFun -> VLDVec -> VLDVec -> Build VL VLDVec
-vlGroupJoin joinPred afun (VLDVec c1) (VLDVec c2) =
-    vec (BinOp (GroupJoin (joinPred', afun)) c1 c2) dvec
+vlGroupJoin :: L.JoinPredicate L.ScalarExpr -> L.NE AggrFun -> VLDVec -> VLDVec -> Build VL VLDVec
+vlGroupJoin joinPred afuns (VLDVec c1) (VLDVec c2) =
+    vec (BinOp (GroupJoin (joinPred', afuns)) c1 c2) dvec
   where
     joinPred' = toVLJoinPred joinPred
 

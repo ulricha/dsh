@@ -11,7 +11,6 @@ module Database.DSH.CL.Opt.JoinPushdown
     ) where
 
 import           Control.Arrow
-import           Control.Monad
 import qualified Data.List.NonEmpty              as N
 
 import           Database.DSH.CL.Kure
@@ -78,19 +77,12 @@ pushFilterjoinCompR = do
 -- input into direct references to the input. This is necessary when pushing
 -- joins into inputs of other tupling join operators.
 --
--- FIXME This rewrite should be integrated into the KURE-based framework for CL rewrites.
-untuplifyScalarExpr :: JoinPredicate ScalarExpr -> JoinPredicate ScalarExpr
-untuplifyScalarExpr (JoinPred cs) = JoinPred $ fmap updateConjunct cs
+-- FIXME This rewrite should be integrated into the KURE-based framework for CL
+-- rewrites.
+untuplifyJoinPredLeft :: JoinPredicate ScalarExpr -> JoinPredicate ScalarExpr
+untuplifyJoinPredLeft (JoinPred cs) = JoinPred $ fmap updateConjunct cs
   where
-    updateConjunct jc = JoinConjunct (descend (jcLeft jc)) (jcOp jc) (jcRight jc)
-
-    descend (JBinOp ty op e1 e2)                         = JBinOp ty op (descend e1) (descend e2)
-    descend (JUnOp ty op e)                              = JUnOp ty op (descend e)
-    descend (JTupElem _ First (JInput (TupleT [t1, _]))) = JInput t1
-    descend (JTupElem _ _ (JInput _))                    = $impossible
-    descend (JTupElem ty idx e)                          = JTupElem ty idx (descend e)
-    descend (JLit ty val)                                = JLit ty val
-    descend (JInput _)                                   = $impossible
+    updateConjunct jc = JoinConjunct (untuplifyScalarExpr (jcLeft jc)) (jcOp jc) (jcRight jc)
 
 isFilteringJoin :: Monad m => Prim2 -> m (JoinPredicate ScalarExpr -> Prim2, JoinPredicate ScalarExpr)
 isFilteringJoin joinOp =
@@ -118,19 +110,11 @@ pushFilterjoinNestjoinR = do
     -- Rewrite the join predicate to refer to the complete input, not only to
     -- its first tuple component. This is necessary because we are below the
     -- tupling caused by the NestJoin.
-    let joinPred' = untuplifyScalarExpr joinPred
+    let joinPred' = untuplifyJoinPredLeft joinPred
     return $ inject $ NestJoinP ty predNest (AppE2 (typeOf xs) (joinConst joinPred') xs zs) ys
 
-firstOnly :: JoinPredicate ScalarExpr -> Bool
-firstOnly p = all go $ jcLeft <$> jpConjuncts p
-  where
-    go (JBinOp _ _ e1 e2)          = go e1 && go e2
-    go (JUnOp _ _ e)               = go e
-    go (JTupElem _ First JInput{}) = True
-    go (JTupElem _ _     JInput{}) = False
-    go (JTupElem _ _     e)        = go e
-    go JLit{}                      = True
-    go JInput{}                    = $impossible
+firstOnlyJoinPred :: JoinPredicate ScalarExpr -> Bool
+firstOnlyJoinPred p = all firstOnly $ jcLeft <$> jpConjuncts p
 
 -- | If the left input of a filtering join is a GroupJoin operator, push the
 -- join into the left NestJoin input to reduce the cardinality before sorting.
@@ -143,18 +127,18 @@ firstOnly p = all go $ jcLeft <$> jpConjuncts p
 -- their left input.
 pushFilterjoinGroupJoinR :: RewriteC CL
 pushFilterjoinGroupJoinR = do
-    AppE2 ty joinOp (GroupJoinP _ predGroup agg aggExpr xs ys) zs <- promoteT idR
+    AppE2 ty joinOp (GroupJoinP _ predGroup as xs ys) zs <- promoteT idR
     (joinConst, joinPred) <- isFilteringJoin joinOp
 
     -- Check whether the filtering join predicate refers only to the left side
     -- of the GroupJoin.
-    guardM $ firstOnly joinPred
+    guardM $ firstOnlyJoinPred joinPred
 
     -- Rewrite the join predicate to refer to the complete input, not only to
     -- its first tuple component. This is necessary because we are below the
     -- tupling caused by the GroupJoin.
-    let joinPred' = untuplifyScalarExpr joinPred
-    return $ inject $ GroupJoinP ty predGroup agg aggExpr (AppE2 (typeOf xs) (joinConst joinPred') xs zs) ys
+    let joinPred' = untuplifyJoinPredLeft joinPred
+    return $ inject $ GroupJoinP ty predGroup as (AppE2 (typeOf xs) (joinConst joinPred') xs zs) ys
 
 -- | If the left input of a filtering join is a NestProduct operator, push the join
 -- into the left NestProduct input to reduce the cardinality before sorting.
@@ -175,7 +159,7 @@ pushFilterjoinNestproductR = do
     -- Rewrite the join predicate to refer to the complete input, not only to
     -- its first tuple component. This is necessary because we are below the
     -- tupling caused by the NestJoin.
-    let joinPred' = untuplifyScalarExpr joinPred
+    let joinPred' = untuplifyJoinPredLeft joinPred
     return $ inject $ NestProductP ty (AppE2 (typeOf xs) (joinConst joinPred') xs zs) ys
 
 --------------------------------------------------------------------------------
@@ -186,7 +170,7 @@ pushFilterjoinNestproductR = do
 -- type of the input. This rewrite is necessary when pushing filtering joins
 -- into the input of a sort operator.
 --
--- Note: This is *not* the inverse of 'untuplifyScalarExpr'!
+-- Note: This is *not* the inverse of 'untuplifyJoinPredLeft'!
 --
 -- FIXME Should be integrated into the KURE-based framework.
 tuplifyScalarExpr :: (Type, Type) -> JoinPredicate ScalarExpr -> JoinPredicate ScalarExpr

@@ -11,7 +11,7 @@ import           Text.PrettyPrint.ANSI.Leijen
 import qualified Database.Algebra.Dag         as Dag
 import           Database.Algebra.Dag.Common  as C
 
-import           Database.DSH.Common.Lang
+import qualified Database.DSH.Common.Lang     as L
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 import           Database.DSH.VL.Lang
@@ -59,34 +59,34 @@ renderWinFun WinCount          = renderFun (text "count") []
 renderColumnType :: ScalarType -> Doc
 renderColumnType = text . show
 
-renderData :: [[ScalarVal]] -> Doc
+renderData :: [[L.ScalarVal]] -> Doc
 renderData [] = brackets empty
 renderData xs = flip (<>) semi $ sep $ punctuate semi $ map renderRow xs
 
-renderRow :: [ScalarVal] -> Doc
+renderRow :: [L.ScalarVal] -> Doc
 renderRow = hcat . punctuate comma . map pretty
 
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
 
-renderColName :: ColName -> Doc
-renderColName (ColName c) = text c
+renderColName :: L.ColName -> Doc
+renderColName (L.ColName c) = text c
 
-renderCol :: (ColName, ScalarType) -> Doc
+renderCol :: (L.ColName, ScalarType) -> Doc
 renderCol (c, t) = renderColName c <> text "::" <> renderColumnType t
 
 renderProj :: Doc -> Expr -> Doc
 renderProj d e = d <> colon <> renderExpr e
 
-renderJoinConjunct :: JoinConjunct Expr -> Doc
-renderJoinConjunct (JoinConjunct e1 o e2) =
+renderJoinConjunct :: L.JoinConjunct Expr -> Doc
+renderJoinConjunct (L.JoinConjunct e1 o e2) =
     parenthize1 e1 <+> text (pp o) <+> parenthize1 e2
 
-renderJoinPred :: JoinPredicate Expr -> Doc
-renderJoinPred (JoinPred conjs) = brackets
-                                  $ hsep
-                                  $ punctuate (text "&&")
-                                  $ map renderJoinConjunct $ N.toList conjs
+renderJoinPred :: L.JoinPredicate Expr -> Doc
+renderJoinPred (L.JoinPred conjs) = brackets
+                                    $ hsep
+                                    $ punctuate (text "&&")
+                                    $ map renderJoinConjunct $ N.toList conjs
 
 renderExpr :: Expr -> Doc
 renderExpr (BinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
@@ -130,7 +130,7 @@ opDotLabel tm i (NullaryOp (TableRef (n, schema))) =
     labelToDoc i "TableScan"
                  (text n <> text "\n"
                   <> align (bracketList (\c -> renderCol c <> text "\n")
-                                        (N.toList $ tableCols schema)))
+                                        (N.toList $ L.tableCols schema)))
                  (lookupTags i tm)
 opDotLabel tm i (UnOp UniqueS _) = labelToDoc i "UniqueS" empty (lookupTags i tm)
 opDotLabel tm i (UnOp NumberS _) = labelToDoc i "NumberS" empty (lookupTags i tm)
@@ -173,8 +173,8 @@ opDotLabel tm i (BinOp (SemiJoinS p) _ _) =
   labelToDoc i "SemiJoinS" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (AntiJoinS p) _ _) =
   labelToDoc i "AntiJoinS" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (GroupJoin (p, a)) _ _) =
-  labelToDoc i "GroupJoin" (renderJoinPred p <+> renderAggrFun a) (lookupTags i tm)
+opDotLabel tm i (BinOp (GroupJoin (p, as)) _ _) =
+  labelToDoc i "GroupJoin" (renderJoinPred p <+> bracketList renderAggrFun (N.toList $ L.getNE as)) (lookupTags i tm)
 opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "Combine" empty (lookupTags i tm)
 
 opDotColor :: VL -> DotColor

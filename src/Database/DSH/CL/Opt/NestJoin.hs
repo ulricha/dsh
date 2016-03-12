@@ -10,8 +10,6 @@ module Database.DSH.CL.Opt.NestJoin
   , nestingGenR
   ) where
 
-import Debug.Trace
-
 import           Control.Arrow
 import           Control.Monad
 
@@ -21,8 +19,6 @@ import qualified Data.Map as M
 import qualified Data.List.NonEmpty as N
 
 import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Pretty
-
 
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
@@ -233,7 +229,7 @@ unnestWorkerT headComp (x, xs) = do
 -- extract it and transform it into a nesting operator.
 unnestFromHeadR :: RewriteC CL
 unnestFromHeadR = do
-    e@(Comp to ho qso) <- promoteT idR
+    Comp to ho qso <- promoteT idR
 
     -- We need one generator on a comprehension
     (x, xs, qsr) <- case qso of

@@ -2,12 +2,12 @@
 
 module Database.DSH.VL.Opt.Properties.ReqColumns where
 
-import qualified Data.List                                  as L
-import qualified Data.List.NonEmpty                         as N
+import qualified Data.List                            as L
+import qualified Data.List.NonEmpty                   as N
 
-import           Database.DSH.Common.Lang
-import           Database.DSH.VL.Opt.Properties.Types
+import qualified Database.DSH.Common.Lang             as Lang
 import           Database.DSH.VL.Lang
+import           Database.DSH.VL.Opt.Properties.Types
 
 
 (∪) :: VectorProp ReqCols -> VectorProp ReqCols -> Either String (VectorProp ReqCols)
@@ -37,15 +37,15 @@ reqExprCols (Column col)     = [col]
 reqExprCols (Constant _)     = []
 reqExprCols (If c t e)       = reqExprCols c `L.union` reqExprCols t `L.union` reqExprCols e
 
-reqLeftPredCols :: JoinPredicate Expr -> [DBCol]
-reqLeftPredCols (JoinPred cs) = L.nub
-                                $ concatMap (\(JoinConjunct le _ _) -> reqExprCols le)
-                                $ N.toList cs
+reqLeftPredCols :: Lang.JoinPredicate Expr -> [DBCol]
+reqLeftPredCols (Lang.JoinPred cs) = L.nub
+                                     $ concatMap (reqExprCols . Lang.jcLeft)
+                                     $ N.toList cs
 
-reqRightPredCols :: JoinPredicate Expr -> [DBCol]
-reqRightPredCols (JoinPred cs) = L.nub
-                                $ concatMap (\(JoinConjunct _ _ re) -> reqExprCols re)
-                                $ N.toList cs
+reqRightPredCols :: Lang.JoinPredicate Expr -> [DBCol]
+reqRightPredCols (Lang.JoinPred cs) = L.nub
+                                      $ concatMap (reqExprCols . Lang.jcRight)
+                                      $ N.toList cs
 
 aggrReqCols :: AggrFun -> [DBCol]
 aggrReqCols (AggrSum _ e)         = reqExprCols e
@@ -298,9 +298,9 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
           (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
 
-      GroupJoin (p, a) -> do
+      GroupJoin (p, as) -> do
           cols <- fromProp ownReqColumns
-          let acols = Just $ aggrReqCols a
+          let acols = Just $ L.foldl' L.union [] (fmap aggrReqCols $ Lang.getNE as)
           -- columns from the left required by the predicate
           let plcols = VProp $ Just $ reqLeftPredCols p
           -- columns from the right required by the predicate

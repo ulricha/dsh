@@ -1,13 +1,13 @@
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 module Database.DSH.VL.VectorAlgebra where
 
-import qualified Data.List.NonEmpty              as N
-import           Database.DSH.Common.Lang
+import qualified Data.List.NonEmpty         as N
+import           Database.Algebra.Dag.Build
+import qualified Database.DSH.Common.Lang   as L
 import           Database.DSH.Common.Type
 import           Database.DSH.VL.Lang
-import           Database.Algebra.Dag.Build
 
 class VectorAlgebra a where
     -- | Data Vector
@@ -32,7 +32,7 @@ class VectorAlgebra a where
     vecLit :: [ScalarType] -> SegFrame -> Segments -> Build a (DVec a)
 
     -- | A reference to a database-resident table.
-    vecTableRef :: String -> BaseTableSchema -> Build a (DVec a)
+    vecTableRef :: String -> L.BaseTableSchema -> Build a (DVec a)
 
     -- | Perform duplicate elimination per segment.
     vecUniqueS :: DVec a -> Build a (DVec a)
@@ -114,10 +114,10 @@ class VectorAlgebra a where
 
     vecCartProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecNestProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-    vecThetaJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-    vecNestJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-    vecSemiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
-    vecAntiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
-    vecGroupJoin :: JoinPredicate Expr -> AggrFun -> DVec a -> DVec a -> Build a (DVec a)
+    vecThetaJoinS :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecNestJoinS :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecSemiJoinS :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
+    vecAntiJoinS :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
+    vecGroupJoin :: L.JoinPredicate Expr -> L.NE AggrFun -> DVec a -> DVec a -> Build a (DVec a)
 
     vecCombine :: DVec a -> DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)

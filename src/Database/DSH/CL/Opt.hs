@@ -104,6 +104,8 @@ optimizeR = resugarR >+>
             repeatR applyOptimizationsR >+>
             postProcessR >+>
             anybuR sidewaysR >+>
+            postProcessR >+>
+            anybuR mergeGroupjoinR >+>
             postProcessR
 
 -- | Apply the default set of unnesting and decorrelation rewrites to

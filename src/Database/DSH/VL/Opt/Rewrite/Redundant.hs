@@ -855,7 +855,7 @@ pullProjectGroupJoinLeft :: VLRule BottomUpProps
 pullProjectGroupJoinLeft q =
   $(dagPatMatch 'q "(Project proj (q1)) GroupJoin args (q2)"
     [| do
-        let (p, a) = $(v "args")
+        let (p, as) = $(v "args")
         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
         rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
 
@@ -865,16 +865,16 @@ pullProjectGroupJoinLeft q =
                 p'        = inlineJoinPredLeft (zip [1..] $(v "proj")) p
                 rightCols = [leftWidth+1 .. leftWidth + rightWidth]
                 env       = zip [1..] ($(v "proj") ++ map Column rightCols)
-                a'        = mapAggrFun (mergeExpr env) a
+                as'       = NE $ mapAggrFun (mergeExpr env) <$> getNE as
 
-            joinNode <- insert $ BinOp (GroupJoin (p', a')) $(v "q1") $(v "q2")
+            joinNode <- insert $ BinOp (GroupJoin (p', as')) $(v "q1") $(v "q2")
             void $ replaceWithNew q $ UnOp (Project proj') joinNode |])
 
 pullProjectGroupJoinRight :: VLRule BottomUpProps
 pullProjectGroupJoinRight q =
   $(dagPatMatch 'q "(q1) GroupJoin args (Project proj (q2))"
     [| do
-        let (p, a) = $(v "args")
+        let (p, as) = $(v "args")
         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
         return $ do
@@ -885,9 +885,9 @@ pullProjectGroupJoinRight q =
                 -- for the name shift due to the join.
                 proj'     = map (shiftExprCols leftWidth) $(v "proj")
                 env       = zip [1..] (map Column leftCols ++ proj')
-                a'        = mapAggrFun (mergeExpr env) a
+                as'        = NE $ mapAggrFun (mergeExpr env) <$> getNE as
 
-            void $ replaceWithNew q $ BinOp (GroupJoin (p', a')) $(v "q1") $(v "q2") |])
+            void $ replaceWithNew q $ BinOp (GroupJoin (p', as')) $(v "q1") $(v "q2") |])
 
 pullProjectNestJoinLeft :: VLRule BottomUpProps
 pullProjectNestJoinLeft q =
