@@ -159,6 +159,60 @@ groupjoin_sum_length (view -> (xs, ys)) =
     | x <- xs
     ]
 
+groupjoin_sum_length2 :: Q ([Integer], [Integer]) -> Q [(Integer, Integer, Integer)]
+groupjoin_sum_length2 (view -> (njxs, njys)) =
+    [ tup3 x
+           (sum [ 2 * y | y <- njys, x == y ])
+           (length [ y | y <- njys, x == y ])
+    | x <- njxs
+    , 20 < sum [ 3 + y | y <- njys, x == y ]
+    ]
+
+
+groupjoin_sum_guard :: Q ([Integer], [Integer]) -> Q [Integer]
+groupjoin_sum_guard (view -> (njxs, njys)) =
+    [ x
+    | x <- njxs
+    , let ys = [ 2 * y | y <- njys, x == y ]
+    , 5 < length ys
+    ]
+
+groupjoin_sum_guard2 :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
+groupjoin_sum_guard2 (view -> (njxs, njys)) =
+    [ pair x (sum ys)
+    | x <- njxs
+    , let ys = [ 2 * y | y <- njys, x == y ]
+    , 5 < length ys
+    ]
+
+groupjoin_sum_nest :: Q ([Integer], [Integer]) -> Q [(Integer, Integer, [Integer])]
+groupjoin_sum_nest (view -> (njxs, njys)) =
+    [ tup3 x (sum ys) ys
+    | x <- njxs
+    , let ys = [ 2 * y | y <- njys, x == y ]
+    ]
+
+groupjoin_sum_nest2 :: Q ([Integer], [Integer]) -> Q [(Integer, Integer, [Integer])]
+groupjoin_sum_nest2 (view -> (njxs, njys)) =
+    [ tup3 x (sum ys) ys
+    | x <- njxs
+    , let ys = [ 2 * y | y <- njys, x == y ]
+    , 10 > length ys
+    ]
+
+groupjoin_nestjoin :: Q ([Integer], [Integer], [Integer]) -> Q [(Integer, Integer, [Integer])]
+groupjoin_nestjoin (view -> (njxs, njys, njzs)) =
+    [ tup3 x (sum [ 2 * y | y <- njys, x == y ]) [ z + 10 | z <- njzs, z > x ]
+    | x <- njxs
+    ]
+
+groupjoin_nestjoin_guard :: Q ([Integer], [Integer], [Integer]) -> Q [(Integer, Integer, [Integer])]
+groupjoin_nestjoin_guard (view -> (njxs, njys, njzs)) =
+    [ tup3 x (sum [ 2 * y | y <- njys, x == y ]) [ z + 10 | z <- njzs, z > x ]
+    | x <- njxs
+    , 10 < length [ y | y <- njys, x == y ]
+    ]
+
 --------------------------------------------------------------------------------
 -- Comprehensions for lifted join tests
 

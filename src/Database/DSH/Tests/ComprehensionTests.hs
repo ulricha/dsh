@@ -48,6 +48,13 @@ tests_comprehensions conn = testGroup "Comprehensions"
     , testProperty "groupjoin_sum_length" (\a -> prop_groupjoin_sum_length a conn)
     , testProperty "groupjoin_sum_deep" (\a -> prop_groupjoin_sum_deep a conn)
     , testProperty "groupjoin_length_deep_sum" (\a -> prop_groupjoin_length_deep_sum a conn)
+    , testProperty "groupjoin_sum_length2" (\a -> prop_groupjoin_sum_length2 a conn)
+    , testProperty "groupjoin_length_guard" (\a -> prop_groupjoin_length_guard a conn)
+    , testProperty "groupjoin_length_guard2" (\a -> prop_groupjoin_length_guard2 a conn)
+    , testProperty "groupjoin_sum_nest" (\a -> prop_groupjoin_sum_nest a conn)
+    , testProperty "groupjoin_sum_nest2" (\a -> prop_groupjoin_sum_nest2 a conn)
+    , testProperty "groupjoin_nestjoin" (\a -> prop_groupjoin_nestjoin a conn)
+    , testProperty "groupjoin_nestjoin_guard" (\a -> prop_groupjoin_nestjoin_guard a conn)
     , testProperty "antijoin class12" (\a -> prop_aj_class12 a conn)
     , testProperty "antijoin class15" (\a -> prop_aj_class15 a conn)
     , testProperty "antijoin class16" (\a -> prop_aj_class16 a conn)
@@ -239,12 +246,80 @@ prop_groupjoin_sum_length = makePropEq C.groupjoin_sum_length groupjoin_sum_leng
         | x <- njxs
         ]
 
+prop_groupjoin_sum_length2 :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_groupjoin_sum_length2 = makePropEq C.groupjoin_sum_length2 groupjoin_sum_length2_native
+  where
+    groupjoin_sum_length2_native (njxs, njys) =
+        [ ( x
+          , fromIntegral $ sum [ 2 * y | y <- njys, x == y ]
+          , fromIntegral $ length [ y | y <- njys, x == y ]
+          )
+        | x <- njxs
+        , 20 < sum [ 3 + y | y <- njys, x == y ]
+        ]
+
 prop_groupjoin_sum_deep :: Backend c => ([Integer], [Integer], [Integer]) -> c -> Property
 prop_groupjoin_sum_deep = makePropEq C.groupjoin_sum_deep groupjoin_sum_deep_native
   where
     groupjoin_sum_deep_native (njxs, njys, njzs) =
         [ [ (x, fromIntegral $ sum [ 2 * y | y <- njys, x == y ]) | x <- njxs, x == z ]
         | z <- njzs
+        ]
+
+prop_groupjoin_length_guard :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_groupjoin_length_guard = makePropEq C.groupjoin_sum_guard groupjoin_length_guard_native
+  where
+    groupjoin_length_guard_native (njxs, njys) =
+        [ x
+        | x <- njxs
+        , let ys = [ 2 * y | y <- njys, x == y ]
+        , 5 < length ys
+        ]
+
+prop_groupjoin_length_guard2 :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_groupjoin_length_guard2 = makePropEq C.groupjoin_sum_guard2 groupjoin_sum_guard2_native
+  where
+    groupjoin_sum_guard2_native (njxs, njys) =
+        [ (x, fromIntegral $ sum ys)
+        | x <- njxs
+        , let ys = [ 2 * y | y <- njys, x == y ]
+        , 5 < length ys
+        ]
+
+prop_groupjoin_sum_nest :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_groupjoin_sum_nest = makePropEq C.groupjoin_sum_nest groupjoin_sum_nest_native
+  where
+    groupjoin_sum_nest_native (njxs, njys) =
+        [ (x, fromIntegral $ sum ys, ys)
+        | x <- njxs
+        , let ys = [ 2 * y | y <- njys, x == y ]
+        ]
+
+prop_groupjoin_sum_nest2 :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_groupjoin_sum_nest2 = makePropEq C.groupjoin_sum_nest2 groupjoin_sum_nest2_native
+  where
+    groupjoin_sum_nest2_native (njxs, njys) =
+        [ (x, fromIntegral $ sum ys, ys)
+        | x <- njxs
+        , let ys = [ 2 * y | y <- njys, x == y ]
+        , 10 > length ys
+        ]
+
+prop_groupjoin_nestjoin :: Backend c => ([Integer], [Integer], [Integer]) -> c -> Property
+prop_groupjoin_nestjoin = makePropEq C.groupjoin_nestjoin groupjoin_nestjoin_native
+  where
+    groupjoin_nestjoin_native (njxs, njys, njzs) =
+        [ (x, fromIntegral $ sum [ 2 * y | y <- njys, x == y ], [ z + 10 | z <- njzs, z > x ])
+        | x <- njxs
+        ]
+
+prop_groupjoin_nestjoin_guard :: Backend c => ([Integer], [Integer], [Integer]) -> c -> Property
+prop_groupjoin_nestjoin_guard = makePropEq C.groupjoin_nestjoin_guard groupjoin_nestjoin_guard_native
+  where
+    groupjoin_nestjoin_guard_native (njxs, njys, njzs) =
+        [ (x, fromIntegral $ sum [ 2 * y | y <- njys, x == y ], [ z + 10 | z <- njzs, z > x ])
+        | x <- njxs
+        , 10 < length [ y | y <- njys, x == y ]
         ]
 
 prop_groupjoin_length_deep_sum :: Backend c => ([Integer], [Integer], [Integer]) -> c -> Property
@@ -527,7 +602,7 @@ nj2 njxs njys =
 
 nj3 :: [Integer] -> [Integer] -> [(Integer, [Integer])]
 nj3 njxs njys =
-    [ pair x ([ y | y <- njys, x == y ] ++ ([100, 200, 300]))
+    [ pair x ([ y | y <- njys, x == y ] ++ [100, 200, 300])
     | x <- njxs
     ]
 
@@ -675,8 +750,8 @@ prop_only_tuple :: Backend c
                 => (Integer, NonEmptyList Integer, [Integer])
                 -> c
                 -> Property
-prop_only_tuple (x, ys, zs) c =
-    makePropEq C.only_tuple only_tuple (x, getNonEmpty ys, zs) c
+prop_only_tuple (x, ys, zs) =
+    makePropEq C.only_tuple only_tuple (x, getNonEmpty ys, zs)
 
 only_tuple :: (Integer, [Integer], [Integer]) -> (Integer, (Integer, [Integer]))
 only_tuple (x, ys, zs) =
