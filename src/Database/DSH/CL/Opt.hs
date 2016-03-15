@@ -43,8 +43,7 @@ compNormEarlyR = m_norm_1R
 buUnnestR :: RewriteC CL
 buUnnestR =
     zipCorrelatedR
-    <+ repeatR (groupjoinR >+> nestjoinR >+> groupjoinR)
-    -- <+ repeatR nestjoinR
+    <+ repeatR (nestjoinR >+> groupjoinR >+> anytdR mergeGroupjoinR)
     -- If the inverse M-Norm-3 succeeds, try to unnest the new
     -- generator
     <+ (nestingGenR >>> pathR [CompQuals, QualsSingleton, BindQualExpr] nestjoinR)
@@ -60,8 +59,14 @@ postProcessCompR = do
         >+> repeatR introduceCartProductsR
         >+> repeatR predpushdownR
 
+postProcessOnceR :: RewriteC CL
+postProcessOnceR = anybuR sidewaysR
+
+postProcessLoopR :: RewriteC CL
+postProcessLoopR = anybuR (postProcessCompR <+ joinPushdownR)
+
 postProcessR :: RewriteC CL
-postProcessR = repeatR $ anybuR (postProcessCompR <+ joinPushdownR)
+postProcessR = repeatR postProcessLoopR >+> postProcessOnceR >+> postProcessLoopR
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
@@ -77,6 +82,7 @@ descendR = readerT $ \cl -> case cl of
     -- before descending
     ExprCL _      -> repeatR partialEvalR
                      >+> repeatR normalizeExprR
+                     >+> mergeGroupjoinR
                      >+> anyR descendR
 
     -- We are looking only for expressions. On non-expressions, simply descend.
@@ -102,10 +108,6 @@ optimizeR :: RewriteC CL
 optimizeR = resugarR >+>
             normalizeOnceR >+>
             repeatR applyOptimizationsR >+>
-            postProcessR >+>
-            anybuR sidewaysR >+>
-            postProcessR >+>
-            anybuR mergeGroupjoinR >+>
             postProcessR
 
 -- | Apply the default set of unnesting and decorrelation rewrites to

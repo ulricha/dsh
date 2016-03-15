@@ -4,7 +4,6 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
 -- FIXME TODO
--- * Search in guards for aggregates
 -- * Use same infrastructure to introduce GroupAggr
 -- * Special case: duplicate elimination -> CountDistinct
 
@@ -13,8 +12,6 @@ module Database.DSH.CL.Opt.GroupJoin
   , sidewaysR
   , mergeGroupjoinR
   ) where
-
-import           Debug.Trace
 
 import           Control.Arrow
 
@@ -25,7 +22,6 @@ import           Data.Semigroup                 ((<>))
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
-import           Database.DSH.Common.Pretty
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
@@ -65,7 +61,8 @@ searchAggregatedGroupT x =
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
--- Introduce GroupJoin operator for aggregates in the comprehension head.
+-- Introduce GroupJoin operator for aggregates in the comprehension head or a
+-- guard.
 
 traverseGuardsT :: Ident -> TransformC CL a -> TransformC CL a
 traverseGuardsT genName t = readerT $ \qs -> case qs of
@@ -81,7 +78,7 @@ traverseGuardsT genName t = readerT $ \qs -> case qs of
 -- | Merge a NestJoin operator and an aggregate into a GroupJoin.
 groupjoinR :: RewriteC CL
 groupjoinR = do
-    e@(Comp ty _ qs) <- promoteT idR
+    Comp ty _ qs <- promoteT idR
 
     -- We need one NestJoin generator on a comprehension
     (x, p, xs, ys) <- case qs of
@@ -124,9 +121,6 @@ mkGroupJoin agg p xs ys =
     xt' = TupleT [xt, at]
 
 --------------------------------------------------------------------------------
--- Introduce GroupJoin operator for aggregates in a comprehension guard.
-
---------------------------------------------------------------------------------
 
 -- | Side-ways information passing to pre-filter the left GroupJoin input in a
 -- GroupJoin-NestJoin combination.
@@ -139,6 +133,9 @@ sidewaysR = do
     JoinConjunct c1 Eq c2 :| [] <- return $ jpConjuncts p1
     let semiPred = JoinPred $ JoinConjunct c2 Eq c1 :| []
     return $ inject $ NestJoinP ty1 p1 xs (GroupJoinP ty2 p2 as (SemiJoinP (typeOf ys) semiPred ys xs) zs)
+
+--------------------------------------------------------------------------------
+-- Merging of GroupJoin operators
 
 -- | Check whether the join predicates of two stacked GroupJoins are compatible
 -- for merging. They are compatible if the predicate of the topmost join refers
@@ -160,7 +157,7 @@ leftCompatible _ _ = False
 -- compatible.
 mergeGroupjoinR :: RewriteC CL
 mergeGroupjoinR = do
-    e@(GroupJoinP _ p1 (NE (a1 :| [])) (GroupJoinP _ p2 (NE as) xs ys) ys') <- promoteT idR
+    GroupJoinP _ p1 (NE (a1 :| [])) (GroupJoinP _ p2 (NE as) xs ys) ys' <- promoteT idR
     guardM $ ys == ys'
 
     guardM $ and $ N.zipWith (\c1 c2 -> leftCompatible (jcLeft c1) (jcLeft c2)
@@ -168,8 +165,6 @@ mergeGroupjoinR = do
                                         && jcRight c1 == jcRight c2)
                              (jpConjuncts p1)
                              (jpConjuncts p2)
-
-    trace (pp e) $ return ()
 
     let xt  = elemT $ typeOf xs
         a1t = aggType a1
