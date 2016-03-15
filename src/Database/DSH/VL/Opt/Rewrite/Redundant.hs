@@ -662,8 +662,9 @@ alignWinRightPush q =
 
 alignGroupJoinRight :: VLRule BottomUpProps
 alignGroupJoinRight q =
-  $(dagPatMatch 'q "(qo) Align (gj=(qo1) GroupJoin _ (_))"
+  $(dagPatMatch 'q "(qo) Align (gj=(qo1) GroupJoin args (_))"
     [| do
+        let aggCount = length $ getNE $ snd $(v "args")
         predicate $ $(v "qo") == $(v "qo1")
         w <- vectorWidth . vectorTypeProp <$> properties $(v "qo")
 
@@ -671,13 +672,14 @@ alignGroupJoinRight q =
             logRewrite "Redundant.Align.GroupJoin.Right" q
             -- In the result, replicate the columns from the outer
             -- vector to keep the schema intact.
-            let proj = map Column $ [1..w] ++ [1..w+1]
+            let proj = map Column $ [1..w] ++ [1..w+aggCount]
             void $ replaceWithNew q $ UnOp (Project proj) $(v "gj") |])
 
 alignGroupJoinLeft :: VLRule BottomUpProps
 alignGroupJoinLeft q =
-  $(dagPatMatch 'q "(gj=(qo1) GroupJoin _ (_)) Align (qo)"
+  $(dagPatMatch 'q "(gj=(qo1) GroupJoin args (_)) Align (qo)"
     [| do
+        let aggCount = length $ getNE $ snd $(v "args")
         predicate $ $(v "qo") == $(v "qo1")
         w <- vectorWidth . vectorTypeProp <$> properties $(v "qo")
 
@@ -685,7 +687,7 @@ alignGroupJoinLeft q =
             logRewrite "Redundant.Align.GroupJoin.Left" q
             -- In the result, replicate the columns from the outer
             -- vector to keep the schema intact.
-            let proj = map Column $ [1..w+1] ++ [1..w]
+            let proj = map Column $ [1..w+aggCount] ++ [1..w]
             void $ replaceWithNew q $ UnOp (Project proj) $(v "gj") |])
 
 -- | If the right (outer) input of Unbox is a NumberS operator and the
@@ -855,13 +857,14 @@ pullProjectGroupJoinLeft :: VLRule BottomUpProps
 pullProjectGroupJoinLeft q =
   $(dagPatMatch 'q "(Project proj (q1)) GroupJoin args (q2)"
     [| do
-        let (p, as) = $(v "args")
+        let (p, as)  = $(v "args")
+            aggCount = length $ getNE as
         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
         rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
 
         return $ do
             logRewrite "Redundant.Project.GroupJoin.Left" q
-            let proj'     = $(v "proj") ++ [Column $ leftWidth + 1]
+            let proj'     = $(v "proj") ++ map Column [leftWidth+1..leftWidth+aggCount]
                 p'        = inlineJoinPredLeft (zip [1..] $(v "proj")) p
                 rightCols = [leftWidth+1 .. leftWidth + rightWidth]
                 env       = zip [1..] ($(v "proj") ++ map Column rightCols)
