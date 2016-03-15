@@ -18,10 +18,11 @@ import           Debug.Trace
 
 import           Control.Arrow
 
-import           Data.List.NonEmpty            (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty            as N
-import           Data.Semigroup                ((<>))
+import           Data.List.NonEmpty             (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty             as N
+import           Data.Semigroup                 ((<>))
 
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
@@ -29,7 +30,7 @@ import           Database.DSH.Common.Pretty
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 
-import qualified Database.DSH.CL.Primitives    as P
+import qualified Database.DSH.CL.Primitives     as P
 
 import           Database.DSH.CL.Opt.Auxiliary
 
@@ -63,60 +64,64 @@ searchAggregatedGroupT x =
 
 --------------------------------------------------------------------------------
 
-groupjoinR :: RewriteC CL
-groupjoinR = groupjoinFromHeadR
-
 --------------------------------------------------------------------------------
 -- Introduce GroupJoin operator for aggregates in the comprehension head.
 
-groupjoinFromHeadR :: RewriteC CL
-groupjoinFromHeadR = do
-    Comp ty h qs <- promoteT idR
+traverseGuardsT :: Ident -> TransformC CL a -> TransformC CL a
+traverseGuardsT genName t = readerT $ \qs -> case qs of
+    QualsCL (BindQ y _ :* _)
+        | y == genName      -> fail "nestjoin generator name shadowed"
+        | otherwise         -> childT QualsTail (traverseGuardsT genName t)
+    QualsCL (GuardQ _ :* _) -> pathT [QualsHead, GuardQualExpr] t
+                               <+ childT QualsTail (traverseGuardsT genName t)
+    QualsCL (S (GuardQ _))  -> pathT [QualsSingleton, GuardQualExpr] t
+    QualsCL (S (BindQ _ _)) -> fail "end of qualifier list"
+    _                       -> fail "not a qualifier list"
 
-    -- We need one generator on a comprehension
-    (x, p, xs, ys, qsr) <- case qs of
-        S (BindQ x (NestJoinP _ p xs ys))     -> return (x, p, xs, ys, [])
-        BindQ x (NestJoinP _ p xs ys) :* qsr  -> return (x, p, xs, ys, toList qsr)
-        _                                     -> fail "no match"
+-- | Merge a NestJoin operator and an aggregate into a GroupJoin.
+groupjoinR :: RewriteC CL
+groupjoinR = do
+    e@(Comp ty _ qs) <- promoteT idR
 
-    (h', joinOp, xv') <- groupjoinWorkerT h x p xs ys
+    -- We need one NestJoin generator on a comprehension
+    (x, p, xs, ys) <- case qs of
+        S (BindQ x (NestJoinP _ p xs ys))  -> return (x, p, xs, ys)
+        BindQ x (NestJoinP _ p xs ys) :* _ -> return (x, p, xs, ys)
+        _                                  -> fail "no match"
 
-    -- In the outer comprehension's qualifier list, x is replaced by
-    -- the first pair component of the join result.
-    qsr' <- constT (return $ map inject qsr)
-            >>> mapT (substR x xv')
-            >>> mapT projectT
+    -- Search for an eligible aggregate in the comprehension head and guards.
+    (aggPath, agg) <- childT CompHead (searchAggregatedGroupT x)
+                      <+
+                      pathT [CompQuals, QualsTail] (traverseGuardsT x (searchAggregatedGroupT x))
 
-    return $ inject $ Comp ty h' (fromListSafe (BindQ x joinOp) qsr')
+    let (joinOp, joinTy) = mkGroupJoin agg p xs ys
+        xv'              = Var joinTy x
 
--- FIXME make sure that there are no other occurences of x.2 in the head.
-groupjoinWorkerT :: Expr
-                 -> Ident
-                 -> JoinPredicate ScalarExpr
-                 -> Expr
-                 -> Expr
-                 -> TransformC CL (Expr, Expr, Expr)
-groupjoinWorkerT h x p xs ys = do
-    -- Search for an aggregate applied to the groups that are produced by
-    -- NestJoin.
-    (aggPath, agg) <- searchAggregatedGroupT x
-    headPath <- drop 1 <$> localizePathT aggPath
+    localPath <- localizePathT aggPath
 
-    -- Type of the GroupJoin result: xs :: [a], ys :: [b] => [(a, p(b))]
-    let xt  = elemT $ typeOf xs
-        at  = aggType agg
-        xt' = TupleT [xt, at]
-        xv' = Var xt' x
-    let joinOp = AppE2 (ListT xt') (GroupJoin p (NE $ pure agg)) xs ys
+    -- Replace the aggregate with expression with x.2 (the aggregate produced by
+    -- GroupJoin).
+    Comp _ h' qs' <- pathR localPath (constT $ return $ inject $ P.snd xv') >>> projectT
 
-    -- In the head expression, update the type of the generator variable. Then,
-    -- replace the aggregate with a reference to the aggregate computed by the
-    -- GroupJoin.
-    h' <- constT (return $ inject h)
-              >>> substR x xv'
-              >>> pathR headPath (constT $ return $ inject $ P.snd xv')
-              >>> projectT
-    return (h', joinOp, xv')
+    -- Update the type of the variable bound by the NestJoin/GroupJoin
+    -- generator.
+    h'' <- constT (return $ inject h') >>> substR x xv' >>> projectT
+    qs'' <- constT (return $ inject qs') >>> substR x xv' >>> projectT
+
+    case qs'' of
+        BindQ _ _ :* qsr -> return $ inject $ Comp ty h'' (BindQ x joinOp :* qsr)
+        S (BindQ _ _)    -> return $ inject $ Comp ty h'' (S (BindQ x joinOp))
+        _                -> $impossible
+
+-- | Construct a groupjoin operator for the given inputs and predicate. Return
+-- the operator expression and its element type.
+mkGroupJoin :: AggrApp -> JoinPredicate ScalarExpr -> Expr -> Expr -> (Expr, Type)
+mkGroupJoin agg p xs ys =
+    (GroupJoinP (ListT xt') p (NE $ pure agg) xs ys, xt')
+  where
+    xt  = elemT $ typeOf xs
+    at  = aggType agg
+    xt' = TupleT [xt, at]
 
 --------------------------------------------------------------------------------
 -- Introduce GroupJoin operator for aggregates in a comprehension guard.
