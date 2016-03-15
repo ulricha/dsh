@@ -4,8 +4,6 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
 -- FIXME TODO
--- * Redefine GroupJoin to include NestJoin
--- * Gradually merge aggregates into existing GroupJoin
 -- * Search in guards for aggregates
 -- * Use same infrastructure to introduce GroupAggr
 -- * Special case: duplicate elimination -> CountDistinct
@@ -20,8 +18,9 @@ import           Debug.Trace
 
 import           Control.Arrow
 
-import           Data.List.NonEmpty                    (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty                    as N
+import           Data.List.NonEmpty            (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty            as N
+import           Data.Semigroup                ((<>))
 
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
@@ -30,7 +29,7 @@ import           Database.DSH.Common.Pretty
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 
-import qualified Database.DSH.CL.Primitives            as P
+import qualified Database.DSH.CL.Primitives    as P
 
 import           Database.DSH.CL.Opt.Auxiliary
 
@@ -65,29 +64,30 @@ searchAggregatedGroupT x =
 --------------------------------------------------------------------------------
 
 groupjoinR :: RewriteC CL
-groupjoinR = groupjoinQualR <+ groupjoinQualsR
+groupjoinR = groupjoinFromHeadR
 
-groupjoinQualR :: RewriteC CL
-groupjoinQualR = do
-    e@(Comp ty h (S (BindQ x (NestJoinP _ p xs ys)))) <- promoteT idR
-    (h', joinOp, _) <- groupjoinWorkerT h x p xs ys
-    -- trace ("groupjoinqualR:\n" ++ pp e) $ return ()
-    -- trace ("head:\n" ++ pp h') $ return ()
-    -- trace ("joinOp:\n" ++ pp joinOp) $ return ()
-    return $ inject $ Comp ty h' (S (BindQ x joinOp))
+--------------------------------------------------------------------------------
+-- Introduce GroupJoin operator for aggregates in the comprehension head.
 
--- FIXME update type of x in qualifiers
--- FIXME make sure that there are no other occurences of x.2 in qualifiers.
-groupjoinQualsR :: RewriteC CL
-groupjoinQualsR = do
-    e@(Comp ty h (BindQ x (NestJoinP _ p xs ys) :* qs)) <- promoteT idR
+groupjoinFromHeadR :: RewriteC CL
+groupjoinFromHeadR = do
+    Comp ty h qs <- promoteT idR
+
+    -- We need one generator on a comprehension
+    (x, p, xs, ys, qsr) <- case qs of
+        S (BindQ x (NestJoinP _ p xs ys))     -> return (x, p, xs, ys, [])
+        BindQ x (NestJoinP _ p xs ys) :* qsr  -> return (x, p, xs, ys, toList qsr)
+        _                                     -> fail "no match"
+
     (h', joinOp, xv') <- groupjoinWorkerT h x p xs ys
-    qs'               <- constT (return $ inject qs) >>> substR x xv' >>> projectT
-    trace ("groupjoinqualsR:\n" ++ pp e) $ return ()
-    -- trace ("head:\n" ++ pp h') $ return ()
-    trace ("joinOp:\n" ++ pp joinOp) $ return ()
-    -- trace ("quals:\n" ++ pp qs') $ return ()
-    return $ inject $ Comp ty h' (BindQ x joinOp :* qs')
+
+    -- In the outer comprehension's qualifier list, x is replaced by
+    -- the first pair component of the join result.
+    qsr' <- constT (return $ map inject qsr)
+            >>> mapT (substR x xv')
+            >>> mapT projectT
+
+    return $ inject $ Comp ty h' (fromListSafe (BindQ x joinOp) qsr')
 
 -- FIXME make sure that there are no other occurences of x.2 in the head.
 groupjoinWorkerT :: Expr
@@ -117,6 +117,9 @@ groupjoinWorkerT h x p xs ys = do
               >>> pathR headPath (constT $ return $ inject $ P.snd xv')
               >>> projectT
     return (h', joinOp, xv')
+
+--------------------------------------------------------------------------------
+-- Introduce GroupJoin operator for aggregates in a comprehension guard.
 
 --------------------------------------------------------------------------------
 
@@ -152,7 +155,7 @@ leftCompatible _ _ = False
 -- compatible.
 mergeGroupjoinR :: RewriteC CL
 mergeGroupjoinR = do
-    e@(GroupJoinP _ p1 (NE (a1 :| [])) (GroupJoinP _ p2 (NE (a2 :| [])) xs ys) ys') <- promoteT idR
+    e@(GroupJoinP _ p1 (NE (a1 :| [])) (GroupJoinP _ p2 (NE as) xs ys) ys') <- promoteT idR
     guardM $ ys == ys'
 
     guardM $ and $ N.zipWith (\c1 c2 -> leftCompatible (jcLeft c1) (jcLeft c2)
@@ -163,14 +166,16 @@ mergeGroupjoinR = do
 
     trace (pp e) $ return ()
 
-    let xt = elemT $ typeOf xs
+    let xt  = elemT $ typeOf xs
         a1t = aggType a1
-        a2t = aggType a2
-        gt = TupleT [xt, a2t, a1t]
-        combinedJoin = GroupJoinP (ListT gt) p2 (NE (a2 :| [a1])) xs ys
+        ats = map aggType $ N.toList as
+        gt  = TupleT $ xt : ats ++ [a1t]
+        as' = as <> pure a1
+        combinedJoin = GroupJoinP (ListT gt) p2 (NE as') xs ys
 
     ga <- freshNameT []
     let gav = Var gt ga
 
-    let h = P.pair (P.pair (P.fst gav) (P.snd gav)) (P.tupElem (Next (Next First)) gav)
+    let h = P.pair (P.tuple $ map (\i -> P.tupElem (intIndex i) gav) [1..length as + 1])
+                   (P.tupElem (intIndex $ length as + 2) gav)
     return $ inject $ P.singleGenComp h ga combinedJoin

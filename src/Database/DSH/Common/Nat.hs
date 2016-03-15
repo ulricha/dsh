@@ -2,6 +2,8 @@
 
 module Database.DSH.Common.Nat where
 
+import Data.Maybe
+
 import Database.DSH.Common.Impossible
 
 -- | Natural numbers that encode lifting levels
@@ -33,3 +35,30 @@ intIndex i
     | i < 1     = $impossible
     | i > 1     = Next $ (intIndex $ i - 1)
     | otherwise = First
+
+(-.) :: TupleIndex -> TupleIndex -> Maybe TupleIndex
+Next x -. First  = Just x
+Next x -. Next y = x -. y
+_      -. _      = Nothing
+
+instance Num TupleIndex where
+    First  + y = Next y
+    Next x + y = Next $ x + y
+
+    First  * y = y
+    Next x * y = y + x * y
+
+    abs x = x
+
+    x - y = fromMaybe (error "tupleindex substration") (x -. y)
+
+    signum First = First
+    signum (Next _) = First
+
+    fromInteger = intIndex . fromIntegral
+
+instance Enum TupleIndex where
+    toEnum i | i > 0 = intIndex i
+             | otherwise = error "toEnum: negative or zero TupleIndex"
+
+    fromEnum = tupleIndex
