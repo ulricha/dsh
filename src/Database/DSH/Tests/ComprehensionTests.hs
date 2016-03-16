@@ -301,7 +301,7 @@ prop_groupjoin_sum_nest2 = makePropEq C.groupjoin_sum_nest2 groupjoin_sum_nest2_
     groupjoin_sum_nest2_native (njxs, njys) =
         [ (x, fromIntegral $ sum ys, ys)
         | x <- njxs
-        , let ys = [ 2 * y | y <- njys, x == y ]
+        , let ys = [ x + 2 * y | y <- njys, x == y ]
         , 10 > length ys
         ]
 
