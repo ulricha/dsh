@@ -117,17 +117,17 @@ scalarExpr expr = offsetExpr $ aux expr
     -- scalar operation -> corresponding VL expression
     aux :: L.ScalarExpr -> ColExpr
     -- FIXME VL joins should include join expressions!
-    aux (L.JBinOp _ op e1 e2)  = Expr $ BinApp op
-                                               (offsetExpr $ aux e1)
-                                               (offsetExpr $ aux e2)
-    aux (L.JUnOp _ op e)       = Expr $ UnApp op (offsetExpr $ aux e)
-    aux (L.JTupElem _ i e)           =
+    aux (L.JBinOp op e1 e2)  = Expr $ BinApp op
+                                             (offsetExpr $ aux e1)
+                                             (offsetExpr $ aux e2)
+    aux (L.JUnOp op e)       = Expr $ UnApp op (offsetExpr $ aux e)
+    aux (L.JTupElem i e)     =
         case Ty.typeOf e of
             -- Compute the record width of all preceding tuple elements in the type
             Ty.TupleT ts -> addOffset (sum $ map recordWidth $ take (tupleIndex i - 1) ts) (aux e)
             _            -> $impossible
-    aux (L.JLit _ v)           = Expr $ Constant $ pVal v
-    aux (L.JInput _)           = Offset 0
+    aux (L.JLit _ v)         = Expr $ Constant $ pVal v
+    aux (L.JInput _)         = Offset 0
 
 
 ----------------------------------------------------------------------------------

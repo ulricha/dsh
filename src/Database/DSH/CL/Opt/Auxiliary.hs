@@ -76,7 +76,6 @@ import           Data.Either
 import qualified Data.Foldable                  as F
 import           Data.List
 import           Data.List.NonEmpty             (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty             as N
 import           Data.Semigroup                 hiding (First)
 import qualified Data.Set                       as S
 
@@ -108,13 +107,13 @@ applyInjectable t e = runRewriteM $ applyT t initialCtx (inject e)
 -- | 'fromScalarExpr n e' rewrites scalar expression 'e' into a general
 -- expression and uses the name 'n' for the input variable.
 fromScalarExpr :: MonadCatch m => Ident -> ScalarExpr -> m Expr
-fromScalarExpr n (JBinOp ty op e1 e2)   = BinOp ty op
-                                            <$> fromScalarExpr n e1
-                                            <*> fromScalarExpr n e2
-fromScalarExpr n (JUnOp ty op e1)       = UnOp ty op
-                                            <$> fromScalarExpr n e1
-fromScalarExpr n (JTupElem ty tupIdx e) = AppE1 ty (TupElem tupIdx)
-                                            <$> fromScalarExpr n e
+fromScalarExpr n e@(JBinOp op e1 e2)    = BinOp (typeOf e) op
+                                              <$> fromScalarExpr n e1
+                                              <*> fromScalarExpr n e2
+fromScalarExpr n e@(JUnOp op e1)        = UnOp (typeOf e) op
+                                              <$> fromScalarExpr n e1
+fromScalarExpr n e@(JTupElem tupIdx e1) = AppE1 (typeOf e) (TupElem tupIdx)
+                                              <$> fromScalarExpr n e1
 fromScalarExpr _ (JLit ty val)          = pure $ Lit ty val
 fromScalarExpr n (JInput ty)            = pure $ Var ty n
 
@@ -127,11 +126,11 @@ toScalarExpr n = do
 
     case e of
         AppE1 _ (TupElem i) _ ->
-            appe1T (toScalarExpr n) (\t _ e1 -> JTupElem t i e1)
+            appe1T (toScalarExpr n) (\_ _ e1 -> JTupElem i e1)
         BinOp _ o _ _ ->
-            binopT (toScalarExpr n) (toScalarExpr n) (\t _ e1 e2 -> JBinOp t o e1 e2)
+            binopT (toScalarExpr n) (toScalarExpr n) (\_ _ e1 e2 -> JBinOp o e1 e2)
         UnOp _ o _ ->
-            unopT (toScalarExpr n) (\t _ e1 -> JUnOp t o e1)
+            unopT (toScalarExpr n) (\_ _ e1 -> JUnOp o e1)
         Lit t v       ->
             return $ JLit t v
         Var t x       -> do
@@ -194,24 +193,24 @@ conjunctsT = readerT $ \e -> case e of
 -- | Check whether a scalar expression refers only to the first tuple component
 -- of the input.
 firstOnly :: ScalarExpr -> Bool
-firstOnly (JBinOp _ _ e1 e2)          = firstOnly e1 && firstOnly e2
-firstOnly (JUnOp _ _ e)               = firstOnly e
-firstOnly (JTupElem _ First JInput{}) = True
-firstOnly (JTupElem _ _     JInput{}) = False
-firstOnly (JTupElem _ _     e)        = firstOnly e
-firstOnly JLit{}                      = True
-firstOnly JInput{}                    = $impossible
+firstOnly (JBinOp _ e1 e2)          = firstOnly e1 && firstOnly e2
+firstOnly (JUnOp _ e)               = firstOnly e
+firstOnly (JTupElem First JInput{}) = True
+firstOnly (JTupElem _     JInput{}) = False
+firstOnly (JTupElem _     e)        = firstOnly e
+firstOnly JLit{}                    = True
+firstOnly JInput{}                  = $impossible
 
 -- | Change a scalar expression that only refers to the first tuple component of
 -- the input to refer directly to the input.
 untuplifyScalarExpr :: ScalarExpr -> ScalarExpr
-untuplifyScalarExpr (JBinOp ty op e1 e2)                         = JBinOp ty op (untuplifyScalarExpr e1) (untuplifyScalarExpr e2)
-untuplifyScalarExpr (JUnOp ty op e)                              = JUnOp ty op (untuplifyScalarExpr e)
-untuplifyScalarExpr (JTupElem _ First (JInput (TupleT [t1, _]))) = JInput t1
-untuplifyScalarExpr (JTupElem _ _ (JInput _))                    = $impossible
-untuplifyScalarExpr (JTupElem ty idx e)                          = JTupElem ty idx (untuplifyScalarExpr e)
-untuplifyScalarExpr (JLit ty val)                                = JLit ty val
-untuplifyScalarExpr (JInput _)                                   = $impossible
+untuplifyScalarExpr (JBinOp op e1 e2)                          = JBinOp op (untuplifyScalarExpr e1) (untuplifyScalarExpr e2)
+untuplifyScalarExpr (JUnOp op e)                               = JUnOp op (untuplifyScalarExpr e)
+untuplifyScalarExpr (JTupElem First (JInput (TupleT [t1, _]))) = JInput t1
+untuplifyScalarExpr (JTupElem _ (JInput _))                    = $impossible
+untuplifyScalarExpr (JTupElem idx e)                           = JTupElem idx (untuplifyScalarExpr e)
+untuplifyScalarExpr (JLit ty val)                              = JLit ty val
+untuplifyScalarExpr (JInput _)                                 = $impossible
 
 --------------------------------------------------------------------------------
 -- Distinguish certain kinds of guards
@@ -510,4 +509,3 @@ pattern TrueP = Lit PBoolT (ScalarV (BoolV True))
 pattern TupFirstP t e = AppE1 t (TupElem First) e
 pattern TupSecondP t e = AppE1 t (TupElem (Next First)) e
 pattern a :<-: b = BindQ a b
-

@@ -143,14 +143,14 @@ sidewaysR = do
 -- to the first tuple component of the left input and they are otherwise
 -- identical.
 leftCompatible :: ScalarExpr -> ScalarExpr -> Bool
-leftCompatible (JBinOp _ op e1 e2) (JBinOp _ op' e1' e2') =
+leftCompatible (JBinOp op e1 e2) (JBinOp op' e1' e2') =
     op == op' && leftCompatible e1 e1' && leftCompatible e2 e2'
-leftCompatible (JUnOp _ op e) (JUnOp _ op' e') =
+leftCompatible (JUnOp op e) (JUnOp op' e') =
     op == op' && leftCompatible e e'
 leftCompatible (JLit _ v) (JLit _ v') =
     v == v'
-leftCompatible (JTupElem _ First JInput{}) (JInput _) = True
-leftCompatible (JTupElem _ n e) (JTupElem _ n' e') =
+leftCompatible (JTupElem First JInput{}) (JInput _) = True
+leftCompatible (JTupElem n e) (JTupElem n' e') =
     n == n' && leftCompatible e e'
 leftCompatible _ _ = False
 

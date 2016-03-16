@@ -11,23 +11,14 @@ module Database.DSH.CL.Opt.JoinPushdown
     ) where
 
 import           Control.Arrow
-import qualified Data.List.NonEmpty              as N
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
 import           Database.DSH.CL.Opt.ProjectionPullup
-import           Database.DSH.CL.Opt.PartialEval
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
-
-updatePredicateLeft :: N.NonEmpty e -> JoinPredicate e -> JoinPredicate e
-updatePredicateLeft leftExprs p =
-    p { jpConjuncts = N.zipWith merge leftExprs (jpConjuncts p) }
-  where
-    merge e c = c { jcLeft = e }
-
 
 --------------------------------------------------------------------------------
 -- Push filtering joins into nesting operators
@@ -130,11 +121,11 @@ tuplifyScalarExpr (t1, t2) (JoinPred cs) = JoinPred $ fmap updateConjunct cs
   where
     updateConjunct jc = JoinConjunct (descend (jcLeft jc)) (jcOp jc) (jcRight jc)
 
-    descend (JBinOp ty op e1 e2)                         = JBinOp ty op (descend e1) (descend e2)
-    descend (JUnOp ty op e)                              = JUnOp ty op (descend e)
-    descend (JTupElem ty idx e)                          = JTupElem ty idx (descend e)
-    descend (JLit ty val)                                = JLit ty val
-    descend (JInput _)                                   = JTupElem t1 First (JInput (TupleT [t1, t2]))
+    descend (JBinOp op e1 e2)                         = JBinOp op (descend e1) (descend e2)
+    descend (JUnOp op e)                              = JUnOp op (descend e)
+    descend (JTupElem idx e)                          = JTupElem idx (descend e)
+    descend (JLit ty val)                             = JLit ty val
+    descend (JInput _)                                = JTupElem First (JInput (TupleT [t1, t2]))
 
 -- | If the left input of a filtering join is a Sort operator, push the join
 -- into the Sort input to reduce the cardinality before sorting.

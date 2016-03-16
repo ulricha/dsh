@@ -2,9 +2,11 @@
 {-# LANGUAGE GADTs                #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleContexts     #-}
 
 module Database.DSH.Common.Lang where
 
+import           Control.Monad.Except
 import           Data.Aeson
 import           Data.Aeson.TH
 import qualified Data.List.NonEmpty           as N
@@ -254,19 +256,78 @@ instance FromJSON e => FromJSON (JoinPredicate e) where
 singlePred :: JoinConjunct e -> JoinPredicate e
 singlePred c = JoinPred $ c N.:| []
 
-data ScalarExpr = JBinOp Type ScalarBinOp ScalarExpr ScalarExpr
-                | JUnOp Type ScalarUnOp ScalarExpr
-                | JTupElem Type TupleIndex ScalarExpr
+data ScalarExpr = JBinOp ScalarBinOp ScalarExpr ScalarExpr
+                | JUnOp ScalarUnOp ScalarExpr
+                | JTupElem TupleIndex ScalarExpr
                 | JLit Type Val
                 | JInput Type
               deriving (Show, Eq)
 
+-- | Modify the input type of a scalar expression.
+mapInput :: (Type -> Type) -> ScalarExpr -> ScalarExpr
+mapInput f (JBinOp op e1 e2) = JBinOp op (mapInput f e1) (mapInput f e2)
+mapInput f (JUnOp op e)      = JUnOp op (mapInput f e)
+mapInput f (JTupElem i e)    = JTupElem i (mapInput f e)
+mapInput _ (JLit ty v)       = JLit ty v
+mapInput f (JInput ty)       = JInput $ f ty
+
 instance Typed ScalarExpr where
-    typeOf (JBinOp t _ _ _) = t
-    typeOf (JUnOp t _ _)    = t
-    typeOf (JTupElem t _ _) = t
+    typeOf (JBinOp o e1 e2) = either error id $ inferBinOp (typeOf e1) (typeOf e2) o
+    typeOf (JUnOp o e)    = either error id $ inferUnOp (typeOf e) o
+    typeOf (JTupElem i e) = either error id $ inferTupleElem (typeOf e) i
     typeOf (JLit t _)       = t
     typeOf (JInput t)       = t
+
+--------------------------------------------------------------------------------
+-- Typing of expressions
+
+typeError :: (MonadError String m, Pretty a) => a -> [Type] -> m b
+typeError op argTys = throwError $ printf "type error for %s: %s" (pp op) (pp argTys)
+
+inferTupleElem :: MonadError String m => Type -> TupleIndex -> m Type
+inferTupleElem (TupleT ts) i
+    | length ts >= tupleIndex i = pure $ ts !! tupleIndex i
+    | otherwise                 = throwError $ printf "type error for _.%d: %s" (tupleIndex i) (pp (TupleT ts))
+inferTupleElem t i              = throwError $ printf "type error for _.%d: %s" (tupleIndex i) (pp t)
+
+inferUnOp :: MonadError String m => Type -> ScalarUnOp -> m Type
+inferUnOp t        (SUNumOp o)
+    | isNum t                                 = pure t
+    | otherwise                               = typeError o [t]
+inferUnOp PBoolT   (SUBoolOp _)               = pure PBoolT
+inferUnOp t        (SUBoolOp o)               = typeError o [t]
+inferUnOp PIntT    (SUCastOp CastDouble)      = pure PDoubleT
+inferUnOp PIntT    (SUCastOp CastDecimal)     = pure PDecimalT
+inferUnOp t        (SUCastOp o)               = typeError o [t]
+inferUnOp PStringT (SUTextOp (SubString _ _)) = pure PStringT
+inferUnOp t        (SUTextOp o)               = typeError o [t]
+inferUnOp PDateT   (SUDateOp _)               = pure PIntT
+inferUnOp t        (SUDateOp o)               = typeError o [t]
+
+inferBinOp :: MonadError String m => Type -> Type -> ScalarBinOp -> m Type
+inferBinOp t1 t2 op =
+    case op of
+        SBNumOp o
+            | isNum t1 && t1 == t2             -> pure t1
+            | otherwise                        -> typeError o [t1, t2]
+        SBRelOp o
+            | t1 == t2                         -> pure PBoolT
+            | otherwise                        -> typeError o [t1, t2]
+        SBBoolOp o
+            | t1 == PBoolT && t2 == PBoolT     -> pure PBoolT
+            | otherwise                        -> typeError o [t1, t2]
+        SBStringOp o
+            | t1 == PStringT && t2 == PStringT -> pure PStringT
+            | otherwise                        -> typeError o [t1, t2]
+        SBDateOp AddDays
+            | t1 == PIntT && t2 == PDateT      -> pure PDateT
+            | otherwise                        -> typeError AddDays [t1, t2]
+        SBDateOp SubDays
+            | t1 == PIntT && t2 == PDateT      -> pure PDateT
+            | otherwise                        -> typeError SubDays [t1, t2]
+        SBDateOp DiffDays
+            | t1 == PDateT && t2 == PDateT     -> pure PIntT
+            | otherwise                        -> typeError DiffDays [t1, t2]
 
 -----------------------------------------------------------------------------
 -- Pretty-printing of stuff
@@ -352,11 +413,11 @@ instance Pretty UnDateOp where
     pretty DateYear  = text "dateYear"
 
 instance Pretty ScalarExpr where
-    pretty (JBinOp _ op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2
-    pretty (JUnOp _ op e)      = pretty op <+> parenthize e
-    pretty (JLit _ v)          = pretty v
-    pretty (JInput _)          = text "I"
-    pretty (JTupElem _ i e1)   =
+    pretty (JBinOp op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2
+    pretty (JUnOp op e)      = pretty op <+> parenthize e
+    pretty (JLit _ v)        = pretty v
+    pretty (JInput _)        = text "I"
+    pretty (JTupElem i e1)   =
         parenthize e1 <> dot <> int (tupleIndex i)
 
 instance Pretty e => Pretty (JoinConjunct e) where
