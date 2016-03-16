@@ -196,7 +196,7 @@ groupjoin_sum_nest2 :: Q ([Integer], [Integer]) -> Q [(Integer, Integer, [Intege
 groupjoin_sum_nest2 (view -> (njxs, njys)) =
     [ tup3 x (sum ys) ys
     | x <- njxs
-    , let ys = [ 2 * y | y <- njys, x == y ]
+    , let ys = [ x + 2 * y | y <- njys, x == y ]
     , 10 > length ys
     ]
 

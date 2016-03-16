@@ -286,7 +286,7 @@ typeError op argTys = throwError $ printf "type error for %s: %s" (pp op) (pp ar
 
 inferTupleElem :: MonadError String m => Type -> TupleIndex -> m Type
 inferTupleElem (TupleT ts) i
-    | length ts >= tupleIndex i = pure $ ts !! tupleIndex i
+    | length ts >= tupleIndex i = pure $ ts !! (tupleIndex i - 1)
     | otherwise                 = throwError $ printf "type error for _.%d: %s" (tupleIndex i) (pp (TupleT ts))
 inferTupleElem t i              = throwError $ printf "type error for _.%d: %s" (tupleIndex i) (pp t)
 
@@ -416,7 +416,7 @@ instance Pretty ScalarExpr where
     pretty (JBinOp op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2
     pretty (JUnOp op e)      = pretty op <+> parenthize e
     pretty (JLit _ v)        = pretty v
-    pretty (JInput _)        = text "I"
+    pretty (JInput t)        = text "I" <> text "::" <> pretty t
     pretty (JTupElem i e1)   =
         parenthize e1 <> dot <> int (tupleIndex i)
 

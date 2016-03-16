@@ -173,7 +173,14 @@ mergeGroupjoinR = do
 -- aggregate expressions are not the same.
 mergeExistingAggrR :: AggrApp -> N.NonEmpty AggrApp -> Type -> JoinPredicate ScalarExpr -> Expr -> Expr -> RewriteC CL
 mergeExistingAggrR a as ty p xs ys = do
-    Just aggIndex <- return $ elemIndex a $ N.toList as
+    -- The argument expression of aggregate 'a' refers to the lower
+    -- GroupJoin output tuples. We have to eliminate references to the first
+    -- tuple component and change the type of the input accordingly.
+    let xt  = elemT $ typeOf xs
+        yt  = elemT $ typeOf ys
+        a'  = a { aaArg = mapInput (const $ TupleT [xt, yt]) $ unFst (aaArg a) }
+
+    Just aggIndex <- return $ elemIndex a' $ N.toList as
     let combinedJoin = GroupJoinP (ListT ty) p (NE as) xs ys
 
     ga <- freshNameT []
@@ -183,13 +190,29 @@ mergeExistingAggrR a as ty p xs ys = do
                    (P.tupElem (intIndex $ aggIndex + 1) gav)
     return $ inject $ P.singleGenComp h ga combinedJoin
 
+-- | Change a scalar expression that only refers to the first tuple component of
+-- the input to refer directly to the input.
+unFst :: ScalarExpr -> ScalarExpr
+unFst (JBinOp op e1 e2)                          = JBinOp op (unFst e1) (unFst e2)
+unFst (JUnOp op e)                               = JUnOp op (unFst e)
+unFst (JTupElem First (JInput (TupleT [t1, _]))) = JInput t1
+unFst (JTupElem i (JInput ty))                   = JTupElem i (JInput ty)
+unFst (JTupElem idx e)                           = JTupElem idx (unFst e)
+unFst (JLit ty val)                              = JLit ty val
+unFst (JInput _)                                 = $impossible
+
 mergeNewAggrR :: AggrApp -> N.NonEmpty AggrApp -> JoinPredicate ScalarExpr -> Expr -> Expr -> RewriteC CL
 mergeNewAggrR a as p xs ys = do
     let xt  = elemT $ typeOf xs
+        yt  = elemT $ typeOf ys
         a1t = aggType a
         ats = map aggType $ N.toList as
         gt  = TupleT $ xt : ats ++ [a1t]
-        as' = as <> pure a
+        -- The argument expression of aggregate 'a' refers to the lower
+        -- GroupJoin output tuples. We have to eliminate references to the first
+        -- tuple component and change the type of the input accordingly.
+        a'  = a { aaArg = mapInput (const $ TupleT [xt, yt]) $ unFst (aaArg a) }
+        as' = as <> pure a'
         combinedJoin = GroupJoinP (ListT gt) p (NE as') xs ys
 
     ga <- freshNameT []

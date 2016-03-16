@@ -50,7 +50,7 @@ instance Num TupleIndex where
 
     abs x = x
 
-    x - y = fromMaybe (error "tupleindex substration") (x -. y)
+    x - y = fromMaybe (error "tupleindex substraction") (x -. y)
 
     signum First = First
     signum (Next _) = First
