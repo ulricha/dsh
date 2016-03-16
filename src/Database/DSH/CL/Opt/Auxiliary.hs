@@ -1,8 +1,8 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf            #-}
-{-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
 -- | Common tools for rewrites
 module Database.DSH.CL.Opt.Auxiliary
@@ -45,6 +45,7 @@ module Database.DSH.CL.Opt.Auxiliary
     , fromGuard
     , fromQual
     , fromGen
+    , isFilteringJoin
       -- * NL spine traversal
     , onetdSpineT
       -- * Path utilities
@@ -72,20 +73,21 @@ module Database.DSH.CL.Opt.Auxiliary
 
 import           Control.Arrow
 import           Data.Either
-import qualified Data.Foldable              as F
+import qualified Data.Foldable                  as F
 import           Data.List
-import qualified Data.Set                   as S
-import           Data.List.NonEmpty         (NonEmpty ((:|)))
-import           Data.Semigroup             hiding (First)
+import           Data.List.NonEmpty             (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty             as N
+import           Data.Semigroup                 hiding (First)
+import qualified Data.Set                       as S
 
 import           Language.KURE
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.RewriteM
-import           Database.DSH.Common.Impossible
 
 -- | A version of the CompM monad in which the state contains an additional
 -- rewrite. Use case: Returning a tuplify rewrite from a traversal over the
@@ -468,6 +470,16 @@ fromGen :: Monad m => Qual -> m (Ident, Expr)
 fromGen (BindQ x xs) = return (x, xs)
 fromGen (GuardQ _)   = fail "not a generator"
 
+-- | Filtering joins are joins that only remove tuples from their left input
+-- (i.e. SemiJoin, AntiJoin).
+isFilteringJoin :: Monad m => Prim2 -> m (JoinPredicate ScalarExpr -> Prim2, JoinPredicate ScalarExpr)
+isFilteringJoin joinOp =
+    case joinOp of
+        SemiJoin p -> return (SemiJoin, p)
+        AntiJoin p -> return (AntiJoin, p)
+        _          -> fail "not a pushable join operator"
+
+
 --------------------------------------------------------------------------------
 -- Path utilities
 
@@ -498,3 +510,4 @@ pattern TrueP = Lit PBoolT (ScalarV (BoolV True))
 pattern TupFirstP t e = AppE1 t (TupElem First) e
 pattern TupSecondP t e = AppE1 t (TupElem (Next First)) e
 pattern a :<-: b = BindQ a b
+

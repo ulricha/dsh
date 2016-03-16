@@ -16,6 +16,7 @@ import qualified Data.List.NonEmpty              as N
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
+import           Database.DSH.CL.Opt.ProjectionPullup
 import           Database.DSH.CL.Opt.PartialEval
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
@@ -27,48 +28,6 @@ updatePredicateLeft leftExprs p =
   where
     merge e c = c { jcLeft = e }
 
--- | Push a semijoin into a comprehension in its left input if the comprehension
--- has only one generator.
---
--- This rewrite helps in pushing filtering joins (semijoin, antijoin) as far
--- down as possible.
---
---    semijoin{ f(I) == ... && ... } [ g x | x <- xs, p1, ..., pn ] ys
--- => [ g x | x <- semijoin{ f(g(I)) == ... && ... } xs ys, p1, ..., pn ]
---
--- Note that this rewrite must not be used unconditionally. If the comprehension
--- has guards, those guards would in turn be pushed into the semijoin input by
--- rewrites in 'PredPushdown'. This would lead to a rewrite loop. However, the
--- rewrite is safe as a preparation for rewrites that push the filtering join
--- further into other operators.
-pushFilterjoinCompR :: RewriteC CL
-pushFilterjoinCompR = do
-    AppE2 ty joinOp (Comp _ h (BindQ x xs :* qs)) ys <- promoteT idR
-    (joinConst, joinPred) <- isFilteringJoin joinOp
-    guardM $ all isGuard qs
-
-    -- Extract all left join expressions and turn them into regular expressions
-    predInputName <- freshNameT []
-    leftPreds     <- mapM (fromScalarExpr predInputName . jcLeft) $ jpConjuncts joinPred
-
-    -- Inline the head expression into the join predicate
-    inlinedPreds  <- constT (return leftPreds)
-                     >>> mapT (extractT $ substR predInputName h)
-
-    -- Apply partial evaluation to the inlined predicate. This should increase
-    -- the chance of being able to rewrite the inlined predicate back into a
-    -- join predicate. The head expression that we inlined might have referred
-    -- to expressions that we can't turn into join predicates. Partial
-    -- evaluation (especially tuple fusion) should eliminate those.
-    evalPreds     <- constT (return inlinedPreds) >>> mapT (tryR partialEvalR)
-
-    -- Turn the join predicate back into a 'ScalarExpr'. If the inlined predicate
-    -- can't be transformed, the complete rewrite will fail.
-    leftPreds'    <- constT (return evalPreds) >>> mapT (promoteT $ toScalarExpr x)
-    let joinPred' = updatePredicateLeft leftPreds' joinPred
-
-    let e' = Comp ty h (BindQ x (AppE2 (typeOf xs) (joinConst joinPred') xs ys) :* qs)
-    return $ inject e'
 
 --------------------------------------------------------------------------------
 -- Push filtering joins into nesting operators
@@ -83,13 +42,6 @@ untuplifyJoinPredLeft :: JoinPredicate ScalarExpr -> JoinPredicate ScalarExpr
 untuplifyJoinPredLeft (JoinPred cs) = JoinPred $ fmap updateConjunct cs
   where
     updateConjunct jc = JoinConjunct (untuplifyScalarExpr (jcLeft jc)) (jcOp jc) (jcRight jc)
-
-isFilteringJoin :: Monad m => Prim2 -> m (JoinPredicate ScalarExpr -> Prim2, JoinPredicate ScalarExpr)
-isFilteringJoin joinOp =
-    case joinOp of
-        SemiJoin p -> return (SemiJoin, p)
-        AntiJoin p -> return (AntiJoin, p)
-        _          -> fail "not a pushable join operator"
 
 -- | If the left input of a filtering join is a NestJoin operator, push the join
 -- into the left NestJoin input to reduce the cardinality before sorting.
@@ -229,6 +181,6 @@ pushThroughRewritesR = pushFilterjoinNestjoinR
 joinPushdownR :: RewriteC CL
 joinPushdownR =
     readerT $ \cl -> case cl of
-        ExprCL AppE2{} -> (pushFilterjoinCompR >>> anytdR pushThroughRewritesR)
+        ExprCL AppE2{} -> (pullFromFilterJoinR >>> anytdR pushThroughRewritesR)
                           <+ pushThroughRewritesR
         _              -> fail "can't apply join pushdown rules"

@@ -23,6 +23,7 @@ import           Database.DSH.CL.Opt.PredPushdown
 import           Database.DSH.CL.Opt.Resugar
 import           Database.DSH.CL.Opt.JoinPushdown
 import           Database.DSH.CL.Opt.GroupJoin
+import           Database.DSH.CL.Opt.ProjectionPullup
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
@@ -82,6 +83,7 @@ descendR = readerT $ \cl -> case cl of
     -- before descending
     ExprCL _      -> repeatR partialEvalR
                      >+> repeatR normalizeExprR
+                     >+> pullProjectionR
                      >+> mergeGroupjoinR
                      >+> anyR descendR
 
