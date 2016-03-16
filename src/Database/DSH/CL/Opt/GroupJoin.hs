@@ -15,6 +15,7 @@ module Database.DSH.CL.Opt.GroupJoin
 
 import           Control.Arrow
 
+import           Data.List
 import           Data.List.NonEmpty             (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty             as N
 import           Data.Semigroup                 ((<>))
@@ -157,7 +158,7 @@ leftCompatible _ _ = False
 -- compatible.
 mergeGroupjoinR :: RewriteC CL
 mergeGroupjoinR = do
-    GroupJoinP _ p1 (NE (a1 :| [])) (GroupJoinP _ p2 (NE as) xs ys) ys' <- promoteT idR
+    GroupJoinP _ p1 (NE (a1 :| [])) (GroupJoinP ty p2 (NE as) xs ys) ys' <- promoteT idR
     guardM $ ys == ys'
 
     guardM $ and $ N.zipWith (\c1 c2 -> leftCompatible (jcLeft c1) (jcLeft c2)
@@ -166,12 +167,30 @@ mergeGroupjoinR = do
                              (jpConjuncts p1)
                              (jpConjuncts p2)
 
+    mergeExistingAggrR a1 as (elemT ty) p2 xs ys <+ mergeNewAggrR a1 as p2 xs ys
+
+-- FIXME this will never fire because the input type annotations in the
+-- aggregate expressions are not the same.
+mergeExistingAggrR :: AggrApp -> N.NonEmpty AggrApp -> Type -> JoinPredicate ScalarExpr -> Expr -> Expr -> RewriteC CL
+mergeExistingAggrR a as ty p xs ys = do
+    Just aggIndex <- return $ elemIndex a $ N.toList as
+    let combinedJoin = GroupJoinP (ListT ty) p (NE as) xs ys
+
+    ga <- freshNameT []
+    let gav = Var ty ga
+
+    let h = P.pair (P.tuple $ map (\i -> P.tupElem (intIndex i) gav) [1..length as + 1])
+                   (P.tupElem (intIndex $ aggIndex + 1) gav)
+    return $ inject $ P.singleGenComp h ga combinedJoin
+
+mergeNewAggrR :: AggrApp -> N.NonEmpty AggrApp -> JoinPredicate ScalarExpr -> Expr -> Expr -> RewriteC CL
+mergeNewAggrR a as p xs ys = do
     let xt  = elemT $ typeOf xs
-        a1t = aggType a1
+        a1t = aggType a
         ats = map aggType $ N.toList as
         gt  = TupleT $ xt : ats ++ [a1t]
-        as' = as <> pure a1
-        combinedJoin = GroupJoinP (ListT gt) p2 (NE as') xs ys
+        as' = as <> pure a
+        combinedJoin = GroupJoinP (ListT gt) p (NE as') xs ys
 
     ga <- freshNameT []
     let gav = Var gt ga
