@@ -7,6 +7,9 @@
 -- * Use same infrastructure to introduce GroupAggr
 -- * Special case: duplicate elimination -> CountDistinct
 
+-- | Introduce GroupJoin operators for combinations of NestJoin and aggregation
+-- of the groups created by NestJoin. This effectively fuses group creation and
+-- aggregation and avoids materialization of the groups.
 module Database.DSH.CL.Opt.GroupJoin
   ( groupjoinR
   , sidewaysR
@@ -76,7 +79,45 @@ traverseGuardsT genName t = readerT $ \qs -> case qs of
     QualsCL (S (BindQ _ _)) -> fail "end of qualifier list"
     _                       -> fail "not a qualifier list"
 
--- | Merge a NestJoin operator and an aggregate into a GroupJoin.
+-- | Merge a NestJoin operator and an aggregate into a GroupJoin. This rewrite
+-- searches for eligible aggregates both in the comprehension head as well as in
+-- any guards.
+--
+-- Unnesting from the head:
+--
+-- @
+-- [ f (a [ g y | y <- x.2 ])
+-- | x <- nestjoin{p} xs ys
+-- , qs
+-- ]
+-- => (given that qs contains no further generators and there are no further occurences of x.2)
+-- [ f[x.2/a [ g y | y <- x.2 ]]
+-- | x <- groupjoin{p, [a(g(I))]} xs ys
+-- , qs
+-- ]
+-- @
+--
+-- Unnesting from a guard:
+--
+-- @
+-- [ h
+-- | x <- nestjoin{p} xs ys
+-- , qs
+-- , f (a [ g y | y <- x.2 ])
+-- , qs'
+-- ]
+-- => (given that qs contains no further generators and there are no further occurences of x.2)
+-- [ h
+-- | x <- groupjoin{p, [a(g(I))]} xs ys
+-- , qs
+-- ]
+-- @
+--
+-- FIXME we propably do not need to restrict ourselves to one-generator
+-- comprehensions. GroupJoin does not change the shape of the list produced by
+-- NestJoin.
+--
+-- FIXME explicitly check that we have no further occurences of x.2
 groupjoinR :: RewriteC CL
 groupjoinR = do
     Comp ty _ qs <- promoteT idR
@@ -169,8 +210,8 @@ mergeGroupjoinR = do
 
     mergeExistingAggrR a1 as (elemT ty) p2 xs ys <+ mergeNewAggrR a1 as p2 xs ys
 
--- FIXME this will never fire because the input type annotations in the
--- aggregate expressions are not the same.
+-- | If the aggregate from the upper GroupJoin is already computed in the lower
+-- GroupJoin, reuse that one.
 mergeExistingAggrR :: AggrApp -> N.NonEmpty AggrApp -> Type -> JoinPredicate ScalarExpr -> Expr -> Expr -> RewriteC CL
 mergeExistingAggrR a as ty p xs ys = do
     -- The argument expression of aggregate 'a' refers to the lower
@@ -201,6 +242,8 @@ unFst (JTupElem idx e)                           = JTupElem idx (unFst e)
 unFst (JLit ty val)                              = JLit ty val
 unFst (JInput _)                                 = $impossible
 
+-- | If the aggregate computed by the upper GroupJoin does not exist in the
+-- lower GroupJoin, add it there and eliminate the upper GroupJoin.
 mergeNewAggrR :: AggrApp -> N.NonEmpty AggrApp -> JoinPredicate ScalarExpr -> Expr -> Expr -> RewriteC CL
 mergeNewAggrR a as p xs ys = do
     let xt  = elemT $ typeOf xs
