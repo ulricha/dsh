@@ -416,7 +416,7 @@ instance Pretty ScalarExpr where
     pretty (JBinOp op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2
     pretty (JUnOp op e)      = pretty op <+> parenthize e
     pretty (JLit _ v)        = pretty v
-    pretty (JInput t)        = text "I" <> text "::" <> pretty t
+    pretty (JInput t)        = text "I"
     pretty (JTupElem i e1)   =
         parenthize e1 <> dot <> int (tupleIndex i)
 

@@ -18,9 +18,6 @@ module Database.DSH.CL.Opt.ProjectionPullup
   , pullFromFilterJoinR
   ) where
 
-import           Database.DSH.Common.Pretty
-import           Debug.Trace
-
 import           Control.Arrow
 
 import qualified Data.List.NonEmpty              as N
@@ -147,7 +144,6 @@ updatePredicateRight rightExprs p =
 
 inlineJoinPredRightT :: Expr -> Ident -> JoinPredicate ScalarExpr -> TransformC CL (JoinPredicate ScalarExpr)
 inlineJoinPredRightT e x joinPred = do
-    trace (pp e ++ " " ++ pp x ++ " " ++ pp joinPred) $ return ()
     -- Extract all right join expressions and turn them into regular expressions
     predInputName  <- freshNameT []
     rightPreds     <- mapM (fromScalarExpr predInputName . jcRight) $ jpConjuncts joinPred
@@ -155,7 +151,6 @@ inlineJoinPredRightT e x joinPred = do
     -- Inline the head expression into the join predicate
     inlinedPreds  <- constT (return rightPreds)
                      >>> mapT (extractT $ substR predInputName e)
-    trace (pp $ NE inlinedPreds) $ return ()
 
     -- Apply partial evaluation to the inlined predicate. This should increase
     -- the chance of being able to rewrite the inlined predicate back into a
@@ -163,7 +158,6 @@ inlineJoinPredRightT e x joinPred = do
     -- to expressions that we can't turn into join predicates. Partial
     -- evaluation (especially tuple fusion) should eliminate those.
     evalPreds     <- constT (return inlinedPreds) >>> mapT (tryR $ repeatR $ anybuR partialEvalR)
-    trace (pp $ NE evalPreds) $ return ()
 
     -- Turn the join predicate back into a 'ScalarExpr'. If the inlined predicate
     -- can't be transformed, the complete rewrite will fail.
