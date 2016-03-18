@@ -34,7 +34,7 @@ import           Database.DSH.CL.Opt.PartialEval
 import qualified Database.DSH.CL.Primitives      as P
 
 pullProjectionR :: RewriteC CL
-pullProjectionR = pullFromNestjoinLeftR
+pullProjectionR = pullFromNestjoinRightR
 
 -- | Pull a projection (i.e. a single-generator comprehension without guards)
 -- from the right input of a NestJoin.
@@ -49,8 +49,8 @@ pullProjectionR = pullFromNestjoinLeftR
 --
 -- where x is fresh and p' is the predicate p with f inlined into the right
 -- sides.
-pullFromNestjoinLeftR :: RewriteC CL
-pullFromNestjoinLeftR = do
+pullFromNestjoinRightR :: RewriteC CL
+pullFromNestjoinRightR = do
     NestJoinP ty p xs (Comp _ h (S (y :<-: ys))) <- promoteT idR
 
     -- Tuple type of the pushed down NestJoin

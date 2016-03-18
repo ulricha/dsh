@@ -228,7 +228,7 @@ mergeExistingAggrR a as ty p xs ys = do
     let gav = Var ty ga
 
     let h = P.pair (P.tuple $ map (\i -> P.tupElem (intIndex i) gav) [1..length as + 1])
-                   (P.tupElem (intIndex $ aggIndex + 1) gav)
+                   (P.tupElem (intIndex $ aggIndex + 2) gav)
     return $ inject $ P.singleGenComp h ga combinedJoin
 
 -- | Change a scalar expression that only refers to the first tuple component of
