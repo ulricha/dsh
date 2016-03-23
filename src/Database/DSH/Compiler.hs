@@ -13,6 +13,7 @@ module Database.DSH.Compiler
     , codeQ
     , vectorPlanQ
     , showComprehensionsQ
+    , showResugaredQ
     , showComprehensionsOptQ
     , showDesugaredQ
     , showDesugaredOptQ
@@ -22,6 +23,8 @@ module Database.DSH.Compiler
     , showFlattenedOptQ
     , showVectorizedQ
     , showVectorizedOptQ
+      -- * Comprehension optimizers
+    , module Database.DSH.CL.Opt
     ) where
 
 import           Control.Arrow
@@ -125,6 +128,12 @@ showComprehensionsQ (Q q) = do
     let cl = toComprehensions q
     putStrLn $ decorate $ pp cl
 
+-- | Show resugared comprehensions (CL)
+showResugaredQ :: forall a. QA a => Q a -> IO ()
+showResugaredQ (Q q) = do
+    let cl = resugarComprehensions $ toComprehensions q
+    putStrLn $ decorate $ pp cl
+
 -- | Show optimized comprehensions (CL)
 showComprehensionsOptQ :: forall a. QA a => Q a -> IO ()
 showComprehensionsOptQ (Q q) = do
@@ -132,65 +141,65 @@ showComprehensionsOptQ (Q q) = do
     putStrLn $ decorate $ pp cl
 
 -- | Show unoptimized desugared iterators (CL)
-showDesugaredQ :: forall a. QA a => Q a -> IO ()
-showDesugaredQ (Q q) = do
+showDesugaredQ :: forall a. QA a => (CL.Expr -> CL.Expr) -> Q a -> IO ()
+showDesugaredQ clOpt (Q q) = do
     let nkl = desugarComprehensions
-              $ optimizeComprehensions
+              $ clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp nkl
 
 -- | Show optimized desugared iterators (CL)
-showDesugaredOptQ :: forall a. QA a => Q a -> IO ()
-showDesugaredOptQ (Q q) = do
+showDesugaredOptQ :: forall a. QA a => (CL.Expr -> CL.Expr) -> Q a -> IO ()
+showDesugaredOptQ clOpt (Q q) = do
     let nkl = optimizeNKL
               $ desugarComprehensions
-              $ optimizeComprehensions
+              $ clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp nkl
 
 -- | Show unoptimized lifted operators (FKL intermediate)
-showLiftedQ :: forall a. QA a => Q a -> IO ()
-showLiftedQ (Q q) = do
+showLiftedQ :: forall a. QA a => (CL.Expr -> CL.Expr) -> Q a -> IO ()
+showLiftedQ clOpt (Q q) = do
     let fkl = liftOperators
               $ optimizeNKL
               $ desugarComprehensions
-              $ optimizeComprehensions
+              $ clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 
 -- | Show optimized lifted operators (FKL intermediate)
-showLiftedOptQ :: forall a. QA a => Q a -> IO ()
-showLiftedOptQ (Q q) = do
+showLiftedOptQ :: forall a. QA a => (CL.Expr -> CL.Expr) -> Q a -> IO ()
+showLiftedOptQ clOpt (Q q) = do
     let fkl = optimizeFKL
               $ liftOperators
               $ optimizeNKL
               $ desugarComprehensions
-              $ optimizeComprehensions
+              $ clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 
 -- | Show unoptimized flattened query (FKL)
-showFlattenedQ :: forall a. QA a => Q a -> IO ()
-showFlattenedQ (Q q) = do
+showFlattenedQ :: forall a. QA a => (CL.Expr -> CL.Expr) -> Q a -> IO ()
+showFlattenedQ clOpt (Q q) = do
     let fkl = normalizeLifted
               $ optimizeFKL
               $ liftOperators
               $ optimizeNKL
               $ desugarComprehensions
-              $ optimizeComprehensions
+              $ clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 
 -- | Show optimized flattened query (FKL)
-showFlattenedOptQ :: forall a. QA a => Q a -> IO ()
-showFlattenedOptQ (Q q) = do
+showFlattenedOptQ :: forall a. QA a => (CL.Expr -> CL.Expr) -> Q a -> IO ()
+showFlattenedOptQ clOpt (Q q) = do
     let fkl = optimizeNormFKL
               $ normalizeLifted
               $ optimizeFKL
               $ liftOperators
               $ optimizeNKL
               $ desugarComprehensions
-              $ optimizeComprehensions
+              $ clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 

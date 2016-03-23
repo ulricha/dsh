@@ -2,6 +2,8 @@
 -- (CL).
 module Database.DSH.CL.Opt
   ( optimizeComprehensions
+  , resugarComprehensions
+  , identityComprehensions
   ) where
 
 import           Control.Arrow
@@ -117,5 +119,14 @@ optimizeR = resugarR >+>
 optimizeComprehensions :: Expr -> Expr
 optimizeComprehensions expr =
     case applyExpr (optimizeR >>> projectT) expr of
+        Left _      -> expr
+        Right expr' -> expr'
+
+identityComprehensions :: Expr -> Expr
+identityComprehensions = id
+
+resugarComprehensions :: Expr -> Expr
+resugarComprehensions expr =
+    case applyExpr (resugarR >>> projectT) expr of
         Left _      -> expr
         Right expr' -> expr'
