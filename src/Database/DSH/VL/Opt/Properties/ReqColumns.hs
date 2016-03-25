@@ -126,9 +126,9 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             cs ∪ childReqColumns
         UniqueS    -> ownReqColumns ∪ childReqColumns
 
-        Aggr aggrFun -> (VProp $ Just $ aggrReqCols aggrFun)
-                        ∪
-                        childReqColumns
+        Aggr aggrFuns -> (VProp $ Just $ L.nub $ concatMap aggrReqCols aggrFuns)
+                         ∪
+                         childReqColumns
 
         UnboxKey -> none ∪ childReqColumns
 

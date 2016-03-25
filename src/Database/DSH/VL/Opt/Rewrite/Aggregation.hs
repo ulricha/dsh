@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+
 module Database.DSH.VL.Opt.Rewrite.Aggregation
     ( groupingToAggregation
     ) where
@@ -19,6 +20,7 @@ import           Database.DSH.VL.Opt.Rewrite.Common
 aggregationRules :: VLRuleSet ()
 aggregationRules = [ inlineAggrSProject
                    , inlineAggrProject
+                   , mergeAggr
                    , flatGrouping
                    , mergeGroupAggrAggrS
                    -- , mergeNonEmptyAggrs
@@ -86,14 +88,25 @@ groupingToAggregation =
 -- | Merge a projection into a segmented aggregate operator.
 inlineAggrProject :: VLRule ()
 inlineAggrProject q =
-  $(dagPatMatch 'q "Aggr afun (Project proj (qi))"
+  $(dagPatMatch 'q "Aggr afuns (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
-        let afun' = mapAggrFun (mergeExpr env) $(v "afun")
+        let afun' = fmap (mapAggrFun (mergeExpr env)) $(v "afuns")
 
         return $ do
             logRewrite "Aggregation.Normalize.Aggr.Project" q
             void $ replaceWithNew q $ UnOp (Aggr afun') $(v "qi") |])
+
+-- | Merge two ungrouped aggregates on the same input
+mergeAggr :: VLRule ()
+mergeAggr q =
+  $(dagPatMatch 'q "R1 ((Aggr a1 (q1)) CartProductS (Aggr a2 (q2)))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+
+        return $ do
+          logRewrite "Aggregation.Merge" q
+          void $ replaceWithNew q $ UnOp (Aggr ($(v "a1") <> $(v "a2"))) $(v "q1") |])
 
 -- | Merge a projection into a segmented aggregate operator.
 inlineAggrSProject :: VLRule ()

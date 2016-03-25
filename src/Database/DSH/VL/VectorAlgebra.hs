@@ -53,7 +53,7 @@ class VectorAlgebra a where
     -- segment.
     vecUnsegment :: DVec a -> Build a (DVec a)
 
-    vecAggr :: AggrFun -> DVec a -> Build a (DVec a)
+    vecAggr :: N.NonEmpty AggrFun -> DVec a -> Build a (DVec a)
     vecAggrS :: AggrFun -> DVec a -> DVec a -> Build a (DVec a)
 
     vecWinFun :: WinFun -> FrameSpec -> DVec a -> Build a (DVec a)

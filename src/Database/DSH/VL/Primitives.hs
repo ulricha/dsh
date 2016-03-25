@@ -4,6 +4,8 @@
 
 module Database.DSH.VL.Primitives where
 
+import qualified Data.List.NonEmpty as N
+
 import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Lang      as L
 import qualified Database.DSH.Common.Type      as Ty
@@ -146,7 +148,7 @@ vlSortS :: [Expr] -> VLDVec -> Build VL (VLDVec, VLSVec)
 vlSortS sortExprs (VLDVec c1) = pairVec (UnOp (SortS sortExprs) c1) dvec svec
 
 vlAggr :: AggrFun -> VLDVec -> Build VL VLDVec
-vlAggr aFun (VLDVec c) = vec (UnOp (Aggr aFun) c) dvec
+vlAggr aFun (VLDVec c) = vec (UnOp (Aggr (aFun N.:| [])) c) dvec
 
 vlAggrS :: AggrFun -> VLDVec -> VLDVec -> Build VL VLDVec
 vlAggrS aFun (VLDVec c1) (VLDVec c2) = vec (BinOp (AggrS aFun) c1 c2) dvec
