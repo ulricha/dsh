@@ -71,6 +71,7 @@ redundantRulesBottomUp = [ sameInputAlign
                          , zipConstRight
                          , alignConstLeft
                          , alignConstRight
+                         , productConstLeft
                          , zipZipLeft
                          , alignWinLeft
                          , alignWinRight
@@ -94,6 +95,8 @@ redundantRulesBottomUp = [ sameInputAlign
                          , pullProjectUnboxSngRight
                          , pullProjectNestJoinLeft
                          , pullProjectNestJoinRight
+                         , pullProjectCartProductLeft
+                         , pullProjectCartProductRight
                          , pullProjectGroupJoinLeft
                          , pullProjectGroupJoinRight
                          , pullProjectReplicateScalarRight
@@ -466,6 +469,26 @@ alignConstLeft q =
 
         return $ do
             logRewrite "Redundant.Align.Constant.Left" q
+            let proj = map Constant vals ++ map Column [1..w2]
+            void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
+
+-- | This rewrite is valid because we statically know that both
+-- vectors have the same length.
+productConstLeft :: VLRule BottomUpProps
+productConstLeft q =
+  $(dagPatMatch 'q "R1 ((q1) CartProductS (q2))"
+    [| do
+        prop1               <- properties $(v "q1")
+        prop2               <- properties $(v "q2")
+        VProp UnitSegP      <- return $ segProp prop1
+        VProp UnitSegP      <- return $ segProp prop2
+        VProp True          <- return $ card1Prop prop1
+        VProp (ConstVec ps) <- constProp <$> properties $(v "q1")
+        w2                  <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
+        vals                <- mapM fromConst ps
+
+        return $ do
+            logRewrite "Redundant.CartProduct.Const.Left" q
             let proj = map Constant vals ++ map Column [1..w2]
             void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
 
@@ -925,6 +948,41 @@ pullProjectNestJoinRight q =
 
             joinNode <- insert $ BinOp (NestJoinS p') $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 joinNode
+            void $ replaceWithNew q $ UnOp (Project proj') r1Node
+
+            -- FIXME relink R2 and R3 parents
+            |])
+
+pullProjectCartProductLeft :: VLRule BottomUpProps
+pullProjectCartProductLeft q =
+  $(dagPatMatch 'q "R1 ((Project proj (q1)) CartProductS (q2))"
+    [| do
+        leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+        rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
+
+        return $ do
+            logRewrite "Redundant.Project.CartProduct.Left" q
+            let proj' = $(v "proj") ++ map Column [leftWidth + 1 .. leftWidth + rightWidth]
+
+            prodNode <- insert $ BinOp CartProductS $(v "q1") $(v "q2")
+            r1Node   <- insert $ UnOp R1 prodNode
+            void $ replaceWithNew q $ UnOp (Project proj') r1Node
+
+            -- FIXME relink R2 and R3 parents
+            |])
+
+pullProjectCartProductRight :: VLRule BottomUpProps
+pullProjectCartProductRight q =
+  $(dagPatMatch 'q "R1 ((q1) CartProductS (Project proj (q2)))"
+    [| do
+        leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+
+        return $ do
+            logRewrite "Redundant.Project.CartProduct.Right" q
+            let proj' = map Column [1..leftWidth] ++ map (shiftExprCols leftWidth) $(v "proj")
+
+            prodNode <- insert $ BinOp CartProductS $(v "q1") $(v "q2")
+            r1Node   <- insert $ UnOp R1 prodNode
             void $ replaceWithNew q $ UnOp (Project proj') r1Node
 
             -- FIXME relink R2 and R3 parents
