@@ -67,9 +67,21 @@ normalizeExprR = readerT $ \expr -> case expr of
 -- and [ not q | y <- ys, ps ]
 notExistsR :: RewriteC CL
 notExistsR = promoteT $ readerT $ \e -> case e of
+    -- Don't rewrite if we don't have any predicate. Predicates may be hidden in
+    -- nested comprehensions in the generator.
+    NotP (OrP (Comp _ (Lit _ (ScalarV (BoolV True))) (S (_ :<-: _)))) ->
+        fail "too early"
+
+    NotP (OrP (Comp ty (Lit _ (ScalarV (BoolV True))) ((y :<-: ys) :* S (GuardQ p)))) ->
+        return $ inject $ P.and $ Comp ty (P.not p) (S (y :<-: ys))
+
+    NotP (OrP (Comp ty (Lit _ (ScalarV (BoolV True))) ((y :<-: ys) :* qs))) -> do
+        ps <- constT $ T.mapM fromGuard qs
+        let p = foldl1 P.conj ps
+        return $ inject $ P.and $ Comp ty (P.not p) (S (y :<-: ys))
+
     -- With range predicates
     NotP (OrP (Comp t q (BindQ y ys :* ps))) -> do
-
         -- All remaining qualifiers have to be guards.
         void $ constT $ T.mapM fromGuard ps
 

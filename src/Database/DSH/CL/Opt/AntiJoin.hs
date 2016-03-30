@@ -198,11 +198,10 @@ mkClass12AntiJoinT (x, xs) (y, ys) ps qs nonCorrPreds = do
     return $ BindQ x (P.antijoin xs ys' qs)
 
 -- This rewrite implements plan 14 for Query Class 15 in Claussen et al.,
--- Optimizing Queries with Universal Quantification... (VLDB, 1995).  Class 15
+-- Optimizing Queries with Universal Quantification... (VLDB, 1995). Class 15
 -- contains queries in which the range predicate ranges over both relations,
 -- i.e. x and y occur free. The quantifier predicate on the other hand ranges
--- only over the inner relation:
--- p(x, y), q(y)
+-- only over the inner relation: p(x, y), q(y)
 mkClass15AntiJoinT :: (Ident, Expr)               -- ^ Generator variable and expression for the outer
                    -> (Ident, Expr)
                    -> JoinPredicate ScalarExpr
