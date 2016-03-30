@@ -79,7 +79,12 @@ postProcessR = repeatR postProcessLoopR >+> postProcessOnceR >+> postProcessLoop
 descendR :: RewriteC CL
 descendR = readerT $ \cl -> case cl of
 
-    ExprCL Comp{} -> optCompR
+    ExprCL Comp{} ->
+        repeatR (compNormEarlyR
+                 <+ predpushdownR
+                 <+ flatjoinsR
+                 <+ anyR descendR
+                ) >>> debugShow "after comp"
 
     -- On non-comprehensions, try to apply partial evaluation rules
     -- before descending
@@ -92,21 +97,8 @@ descendR = readerT $ \cl -> case cl of
     -- We are looking only for expressions. On non-expressions, simply descend.
     _             -> anyR descendR
 
-
--- | Optimize single comprehensions during a top-down traversal
-optCompR :: RewriteC CL
-optCompR = do
-    Comp{} <- promoteT idR
-    -- debugPretty "optCompR at" c
-
-    repeatR (compNormEarlyR
-             <+ predpushdownR
-             <+ flatjoinsR
-             <+ anyR descendR
-             ) >>> debugShow "after comp"
-
 applyOptimizationsR :: RewriteC CL
-applyOptimizationsR = descendR >+> anytdR loopInvariantR >+> anybuR buUnnestR
+applyOptimizationsR = repeatR descendR >+> anytdR loopInvariantR >+> anybuR buUnnestR
 
 optimizeR :: RewriteC CL
 optimizeR = resugarR >+>
