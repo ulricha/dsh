@@ -71,7 +71,6 @@ redundantRulesBottomUp = [ sameInputAlign
                          , zipConstRight
                          , alignConstLeft
                          , alignConstRight
-                         , productConstLeft
                          , zipZipLeft
                          , alignWinLeft
                          , alignWinRight
@@ -469,26 +468,6 @@ alignConstLeft q =
 
         return $ do
             logRewrite "Redundant.Align.Constant.Left" q
-            let proj = map Constant vals ++ map Column [1..w2]
-            void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
-
--- | This rewrite is valid because we statically know that both
--- vectors have the same length.
-productConstLeft :: VLRule BottomUpProps
-productConstLeft q =
-  $(dagPatMatch 'q "R1 ((q1) CartProductS (q2))"
-    [| do
-        prop1               <- properties $(v "q1")
-        prop2               <- properties $(v "q2")
-        VProp UnitSegP      <- return $ segProp prop1
-        VProp UnitSegP      <- return $ segProp prop2
-        VProp True          <- return $ card1Prop prop1
-        VProp (ConstVec ps) <- constProp <$> properties $(v "q1")
-        w2                  <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
-        vals                <- mapM fromConst ps
-
-        return $ do
-            logRewrite "Redundant.CartProduct.Const.Left" q
             let proj = map Constant vals ++ map Column [1..w2]
             void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
 
