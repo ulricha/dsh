@@ -46,7 +46,7 @@ compNormEarlyR = m_norm_1R
 buUnnestR :: RewriteC CL
 buUnnestR =
     zipCorrelatedR
-    <+ repeatR (nestjoinR >+> groupjoinR >+> anytdR mergeGroupjoinR)
+    <+ repeatR (nestjoinR >+> groupjoinR >+> anytdR optimizeGroupJoinR)
     -- If the inverse M-Norm-3 succeeds, try to unnest the new
     -- generator
     <+ (nestingGenR >>> pathR [CompQuals, QualsSingleton, BindQualExpr] nestjoinR)
@@ -86,7 +86,7 @@ descendR = readerT $ \cl -> case cl of
     ExprCL _      -> repeatR partialEvalR
                      >+> repeatR normalizeExprR
                      >+> pullProjectionR
-                     >+> mergeGroupjoinR
+                     >+> optimizeGroupJoinR
                      >+> anyR descendR
 
     -- We are looking only for expressions. On non-expressions, simply descend.

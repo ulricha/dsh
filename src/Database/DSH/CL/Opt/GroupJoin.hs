@@ -13,7 +13,7 @@
 module Database.DSH.CL.Opt.GroupJoin
   ( groupjoinR
   , sidewaysR
-  , mergeGroupjoinR
+  , optimizeGroupJoinR
   ) where
 
 import           Control.Arrow
@@ -264,3 +264,42 @@ mergeNewAggrR a as p xs ys = do
     let h = P.pair (P.tuple $ map (\i -> P.tupElem (intIndex i) gav) [1..length as + 1])
                    (P.tupElem (intIndex $ length as + 2) gav)
     return $ inject $ P.singleGenComp h ga combinedJoin
+
+--------------------------------------------------------------------------------
+
+-- | Rewrite a GroupJoin that expresses an existential quantifier over a short
+-- literal list into a regular disjunction expression.
+--
+-- @
+-- groupjoin{e L == R, [any(True)]} xs [v1, ..., vn]
+-- =>
+-- [ (x, e x == v1 || ... || e x == vn) | x <- xs ]
+-- @
+--
+-- For a short literal list, evaluating the simple expression will be
+-- considerably more efficient than a GroupJoin, i.e. an OUTER JOIN followed by
+-- GRP.
+--
+-- This rewrite is particularly helpful in TPC-H Q19.
+disjunctiveGroupJoinR :: RewriteC CL
+disjunctiveGroupJoinR = do
+    GroupJoinP _ (SingleJoinPredP ex Eq JInput{}) (NE (a :| [])) xs (LitListP (ListT litTy) (v:vs)) <- promoteT idR
+    AggrApp Or (JLit _ (ScalarV (BoolV True))) <- return a
+    guardM $ length vs < 10
+
+    x <- freshNameT []
+    ex' <- fromScalarExpr x ex
+    let xTy = elemT $ typeOf xs
+        resTy = TupleT [xTy, PBoolT]
+
+    let disjunct l = P.scalarBinOp (SBRelOp Eq) ex' (Lit litTy l)
+        disjunction = foldl' (\d l -> P.scalarBinOp (SBBoolOp Disj) (disjunct l) d) (disjunct v) vs
+        headExpr = P.pair (Var xTy x) disjunction
+
+    return $ inject $ Comp (ListT resTy) headExpr (S (x :<-: xs))
+
+--------------------------------------------------------------------------------
+
+optimizeGroupJoinR :: RewriteC CL
+optimizeGroupJoinR = do
+    mergeGroupjoinR <+ disjunctiveGroupJoinR

@@ -69,6 +69,8 @@ module Database.DSH.CL.Opt.Auxiliary
     , pattern TupFirstP
     , pattern TupSecondP
     , pattern (:<-:)
+    , pattern LitListP
+    , pattern SingleJoinPredP
     ) where
 
 import           Control.Arrow
@@ -509,3 +511,5 @@ pattern TrueP = Lit PBoolT (ScalarV (BoolV True))
 pattern TupFirstP t e = AppE1 t (TupElem First) e
 pattern TupSecondP t e = AppE1 t (TupElem (Next First)) e
 pattern a :<-: b = BindQ a b
+pattern LitListP ty vs = Lit ty (ListV vs)
+pattern SingleJoinPredP r o l <- JoinPred (JoinConjunct r o l :| [])

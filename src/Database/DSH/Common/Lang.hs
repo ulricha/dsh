@@ -273,8 +273,8 @@ mapInput f (JInput ty)       = JInput $ f ty
 
 instance Typed ScalarExpr where
     typeOf (JBinOp o e1 e2) = either error id $ inferBinOp (typeOf e1) (typeOf e2) o
-    typeOf (JUnOp o e)    = either error id $ inferUnOp (typeOf e) o
-    typeOf (JTupElem i e) = either error id $ inferTupleElem (typeOf e) i
+    typeOf (JUnOp o e)      = either error id $ inferUnOp (typeOf e) o
+    typeOf (JTupElem i e)   = either error id $ inferTupleElem (typeOf e) i
     typeOf (JLit t _)       = t
     typeOf (JInput t)       = t
 
