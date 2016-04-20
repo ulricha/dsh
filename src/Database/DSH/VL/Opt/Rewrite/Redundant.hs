@@ -94,6 +94,8 @@ redundantRulesBottomUp = [ sameInputAlign
                          , pullProjectUnboxSngRight
                          , pullProjectNestJoinLeft
                          , pullProjectNestJoinRight
+                         , pullProjectNestProductLeft
+                         , pullProjectNestProductRight
                          , pullProjectCartProductLeft
                          , pullProjectCartProductRight
                          , pullProjectGroupJoinLeft
@@ -894,6 +896,43 @@ pullProjectGroupJoinRight q =
                 as'        = NE $ mapAggrFun (mergeExpr env) <$> getNE as
 
             void $ replaceWithNew q $ BinOp (GroupJoin (p', as')) $(v "q1") $(v "q2") |])
+
+pullProjectNestProductLeft :: VLRule BottomUpProps
+pullProjectNestProductLeft q =
+  $(dagPatMatch 'q "R1 ((Project proj (q1)) NestProductS (q2))"
+    [| do
+        leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+        rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
+
+        return $ do
+            logRewrite "Redundant.Project.NestProduct.Left" q
+            let proj' = $(v "proj") ++ map Column [leftWidth + 1 .. leftWidth + rightWidth]
+
+            joinNode <- insert $ BinOp NestProductS $(v "q1") $(v "q2")
+            r1Node   <- insert $ UnOp R1 joinNode
+            void $ replaceWithNew q $ UnOp (Project proj') r1Node
+
+            -- FIXME relink R2 and R3 parents
+            |])
+
+pullProjectNestProductRight :: VLRule BottomUpProps
+pullProjectNestProductRight q =
+  $(dagPatMatch 'q "R1 ((q1) NestProductS (Project proj (q2)))"
+    [| do
+        leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+
+        return $ do
+            logRewrite "Redundant.Project.NestProduct.Right" q
+            let proj' = map Column [1..leftWidth] ++ map (shiftExprCols leftWidth) $(v "proj")
+
+            joinNode <- insert $ BinOp NestProductS $(v "q1") $(v "q2")
+            r1Node   <- insert $ UnOp R1 joinNode
+            void $ replaceWithNew q $ UnOp (Project proj') r1Node
+
+            -- FIXME relink R2 and R3 parents
+            |])
+
+
 
 pullProjectNestJoinLeft :: VLRule BottomUpProps
 pullProjectNestJoinLeft q =
