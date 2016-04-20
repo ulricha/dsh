@@ -1,7 +1,6 @@
 {-# LANGUAGE ExplicitForAll      #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell     #-}
 
 -- | Compilation, execution and introspection of queries
 module Database.DSH.Compiler
@@ -55,17 +54,17 @@ import           Database.DSH.VL.Opt.OptimizeVL
 --------------------------------------------------------------------------------
 
 -- | The frontend- and backend-independent part of the compiler.
-compileQ :: CL.Expr -> QueryPlan VL.VL VLDVec
-compileQ = optimizeComprehensions >>>
-           desugarComprehensions  >>>
-           optimizeNKL            >>>
-           flatTransform          >>>
-           specializeVectorOps
+compileQ :: (CL.Expr -> CL.Expr) -> CL.Expr -> QueryPlan VL.VL VLDVec
+compileQ clOpt = clOpt >>>
+                 desugarComprehensions  >>>
+                 optimizeNKL            >>>
+                 flatTransform          >>>
+                 specializeVectorOps
 
 -- | The frontend- and backend-independent part of the compiler. Compile a
 -- comprehension expression into optimized vector plans.
 compileOptQ :: CL.Expr -> QueryPlan VL.VL VLDVec
-compileOptQ = compileQ >>> optimizeVLDefault
+compileOptQ = compileQ optimizeComprehensions >>> optimizeVLDefault
 
 -- | Compile a query and execute it on a given backend connection.
 runQ :: forall a c.
@@ -74,7 +73,7 @@ runQ :: forall a c.
 runQ c (Q q) = do
     let ty = reify (undefined :: Rep a)
     let cl = toComprehensions q
-    let vl = compileQ cl
+    let vl = compileQ optimizeComprehensions cl
     let bp = generatePlan $ optimizeVLDefault vl
     let bc = generateCode bp
     frExp <$> execQueryBundle c bc ty
@@ -89,7 +88,7 @@ debugQ :: forall a c.(Backend c, QA a)
        -> IO ()
 debugQ prefix _ (Q q) = do
     let cl = toComprehensions q
-    let vl = compileQ cl
+    let vl = compileQ optimizeComprehensions cl
     let vlOpt = optimizeVLDefault vl
     exportPlan (prefix ++ "_vl") vl
     exportPlan (prefix ++ "_vl_opt") vlOpt
@@ -101,7 +100,7 @@ vectorPlanQ :: forall a. QA a
             => Q a
             -> QueryPlan VL.VL VLDVec
 vectorPlanQ (Q q) =
-    optimizeVLDefault $ compileQ $ toComprehensions q
+    optimizeVLDefault $ compileQ optimizeComprehensions $ toComprehensions q
 
 -- | Compile a query to the actual backend code that will be executed
 -- (for benchmarking purposes).
@@ -110,7 +109,7 @@ codeQ :: forall a c.(Backend c, QA a)
       -> Q a
       -> [BackendCode c]
 codeQ _ (Q q) =
-    let vl    = optimizeVLDefault $ compileQ $ toComprehensions q
+    let vl    = optimizeVLDefault $ compileQ optimizeComprehensions $ toComprehensions q
         plan  = generatePlan vl :: BackendPlan c
         shape = generateCode plan :: Shape (BackendCode c)
     in F.foldr (:) [] shape
@@ -204,23 +203,22 @@ showFlattenedOptQ clOpt (Q q) = do
     putStrLn $ decorate $ pp fkl
 
 fileId :: IO String
-fileId = sequence $ replicate 8 $ (randomRIO ('a', 'z'))
+fileId = replicateM 8 (randomRIO ('a', 'z'))
 
 -- | Show unoptimized vector plan (VL)
-showVectorizedQ :: forall a. QA a => Q a -> IO ()
-showVectorizedQ (Q q) = do
+showVectorizedQ :: forall a. QA a => (CL.Expr -> CL.Expr) -> Q a -> IO ()
+showVectorizedQ clOpt (Q q) = do
     let cl = toComprehensions q
-    let vl = compileQ cl
+    let vl = compileQ clOpt cl
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
     void $ runCommand $ printf "stack exec vldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
 
 -- | Show optimized vector plan (VL)
-showVectorizedOptQ :: forall a. QA a => Q a -> IO ()
-showVectorizedOptQ (Q q) = do
-    let cl = toComprehensions q
-    let vl = optimizeVLDefault $ compileQ cl
+showVectorizedOptQ :: forall a. QA a => (CL.Expr -> CL.Expr) -> Q a -> IO ()
+showVectorizedOptQ clOpt (Q q) = do
+    let vl = optimizeVLDefault $ compileQ clOpt $ toComprehensions q
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
