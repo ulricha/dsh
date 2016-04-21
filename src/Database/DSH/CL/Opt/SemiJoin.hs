@@ -21,7 +21,7 @@ existentialQualR :: RewriteC (NL Qual)
 existentialQualR = readerT $ \quals -> case quals of
     -- Special case: existential quantifier without a quantifier predicate
     -- [ ... | ..., x <- xs, or [ True | y <- ys, ps ], ... ]
-    BindQ x xs :* (GuardQ (OrP (Comp _ TrueP (BindQ y ys :* ps)))) :* qs -> do
+    BindQ x xs :* GuardQ (OrP (Comp _ TrueP (BindQ y ys :* ps))) :* qs -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
@@ -30,7 +30,7 @@ existentialQualR = readerT $ \quals -> case quals of
 
     -- Special case: existential quantifier without a quantifier predicate
     -- [ ... | ..., x <- xs, or [ True | y <- ys, ps ] ]
-    BindQ x xs :* (S (GuardQ (OrP (Comp _ TrueP (BindQ y ys :* ps))))) -> do
+    BindQ x xs :* S (GuardQ (OrP (Comp _ TrueP (BindQ y ys :* ps)))) -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
@@ -39,7 +39,7 @@ existentialQualR = readerT $ \quals -> case quals of
 
     -- Special case: Existential quantifier without a range predicate
     -- [ ... | ..., x <- xs, or [ q | y <- ys ], ... ]
-    BindQ x xs :* (GuardQ (OrP (Comp _ q (S (BindQ y ys))))) :* qs -> do
+    BindQ x xs :* GuardQ (OrP (Comp _ q (S (BindQ y ys)))) :* qs -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
@@ -48,7 +48,7 @@ existentialQualR = readerT $ \quals -> case quals of
 
     -- Special case: Existential quantifier without a range predicate
     -- [ ... | ..., x <- xs, or [ q | y <- ys ] ]
-    BindQ x xs :* (S (GuardQ (OrP (Comp _ q (S (BindQ y ys)))))) -> do
+    BindQ x xs :* S (GuardQ (OrP (Comp _ q (S (BindQ y ys))))) -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
@@ -57,7 +57,7 @@ existentialQualR = readerT $ \quals -> case quals of
 
     -- Existential quantifier with range and quantifier predicates
     -- [ ... | ..., x <- xs, or [ True | y <- ys, ps ], ... ]
-    BindQ x xs :* (GuardQ (OrP (Comp _ q (BindQ y ys :* ps)))) :* qs -> do
+    BindQ x xs :* GuardQ (OrP (Comp _ q (BindQ y ys :* ps))) :* qs -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
@@ -66,7 +66,7 @@ existentialQualR = readerT $ \quals -> case quals of
 
     -- Existential quantifier with range and quantifier predicates
     -- [ ... | ..., x <- xs, or [ True | y <- ys, ps ] ]
-    BindQ x xs :* (S (GuardQ (OrP (Comp _ q (BindQ y ys :* ps))))) -> do
+    BindQ x xs :* S (GuardQ (OrP (Comp _ q (BindQ y ys :* ps)))) -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
 
@@ -104,7 +104,7 @@ mkExistentialSemiJoinT (x, xs) (y, ys) mq mps = do
                                               allExprs
 
     let ys' = case innerGuards of
-          ige : iges -> let igs = fmap GuardQ $ fromListSafe ige iges
+          ige : iges -> let igs = GuardQ <$> fromListSafe ige iges
                         in Comp yst (Var yt y) (BindQ y ys :* igs)
           []         -> ys
 
@@ -121,5 +121,5 @@ existentialQualsR = onetdR existentialQualR
 
 semijoinR :: RewriteC CL
 semijoinR = do
-    Comp _ _ _ <- promoteT idR
+    Comp{} <- promoteT idR
     childR CompQuals (promoteR existentialQualsR)
