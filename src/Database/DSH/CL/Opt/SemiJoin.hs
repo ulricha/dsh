@@ -56,7 +56,7 @@ existentialQualR = readerT $ \quals -> case quals of
         return $ S semijoinGen
 
     -- Existential quantifier with range and quantifier predicates
-    -- [ ... | ..., x <- xs, or [ True | y <- ys, ps ], ... ]
+    -- [ ... | ..., x <- xs, or [ q | y <- ys, ps ], ... ]
     BindQ x xs :* GuardQ (OrP (Comp _ q (BindQ y ys :* ps))) :* qs -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
@@ -65,7 +65,7 @@ existentialQualR = readerT $ \quals -> case quals of
         return $ semijoinGen :* qs
 
     -- Existential quantifier with range and quantifier predicates
-    -- [ ... | ..., x <- xs, or [ True | y <- ys, ps ] ]
+    -- [ ... | ..., x <- xs, or [ q | y <- ys, ps ] ]
     BindQ x xs :* S (GuardQ (OrP (Comp _ q (BindQ y ys :* ps)))) -> do
         -- Generators have to be indepedent
         guardM $ x `notElem` freeVars ys
@@ -75,10 +75,10 @@ existentialQualR = readerT $ \quals -> case quals of
 
     _ -> fail "no match"
 
-mkExistentialSemiJoinT :: (Ident, Expr)
-                       -> (Ident, Expr)
-                       -> Maybe Expr
-                       -> Maybe (NL Qual)
+mkExistentialSemiJoinT :: (Ident, Expr)             -- ^ The outer generator
+                       -> (Ident, Expr)             -- ^ The inner generator
+                       -> Maybe Expr                -- ^ A quantifier predicate
+                       -> Maybe (NL Qual)           -- ^ Range predicates
                        -> TransformC (NL Qual) Qual
 mkExistentialSemiJoinT (x, xs) (y, ys) mq mps = do
     let yst = typeOf ys
