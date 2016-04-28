@@ -135,7 +135,7 @@ unnestWorkerT headComp (x, xs) = do
     -- (nestproduct).
     -- FIXME include all join predicates on the join operator
     nestOp <- case joinPredCandidates of
-        [] -> return NestProduct
+        [] -> fail "" -- return NestProduct
         p : ps -> do
             -- Split the join predicate
             p'  <- constT (return p) >>> splitJoinPredT x y

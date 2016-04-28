@@ -3,6 +3,7 @@
 module Database.DSH.CL.Opt
   ( optimizeComprehensions
   , resugarComprehensions
+  , normalizeComprehensions
   , identityComprehensions
   ) where
 
@@ -100,11 +101,17 @@ descendR = readerT $ \cl -> case cl of
 applyOptimizationsR :: RewriteC CL
 applyOptimizationsR = repeatR descendR >+> anytdR loopInvariantR >+> anybuR buUnnestR
 
+normalizeFlatR :: RewriteC CL
+normalizeFlatR = resugarR >+> normalizeOnceR >+> repeatR (repeatR descendR >+> anytdR loopInvariantR)
+
+-- | The complete optimization pipeline
 optimizeR :: RewriteC CL
 optimizeR = resugarR >+>
             normalizeOnceR >+>
             repeatR applyOptimizationsR >+>
             postProcessR
+
+--------------------------------------------------------------------------------
 
 -- | Apply the default set of unnesting and decorrelation rewrites to
 -- a CL query.
@@ -114,9 +121,18 @@ optimizeComprehensions expr =
         Left _      -> expr
         Right expr' -> expr'
 
+-- | CL optimizer: normalize and introduce flat joins.
+normalizeComprehensions :: Expr -> Expr
+normalizeComprehensions expr = 
+    case applyExpr (normalizeFlatR >>> projectT) expr of
+        Left _      -> expr
+        Right expr' -> expr'
+
+-- | Identity CL optimizer
 identityComprehensions :: Expr -> Expr
 identityComprehensions = id
 
+-- | CL optimizer: Resugar comprehensions
 resugarComprehensions :: Expr -> Expr
 resugarComprehensions expr =
     case applyExpr (resugarR >>> projectT) expr of

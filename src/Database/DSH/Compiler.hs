@@ -122,9 +122,9 @@ decorate msg = sepLine ++ msg ++ "\n" ++ sepLine
     sepLine = replicate 80 '-' ++ "\n"
 
 -- | Show unoptimized comprehensions (CL)
-showComprehensionsQ :: forall a.QA a => Q a -> IO ()
-showComprehensionsQ (Q q) = do
-    let cl = toComprehensions q
+showComprehensionsQ :: forall a.QA a => (CL.Expr -> CL.Expr) -> Q a -> IO ()
+showComprehensionsQ clOpt (Q q) = do
+    let cl = clOpt $ toComprehensions q
     putStrLn $ decorate $ pp cl
 
 -- | Show resugared comprehensions (CL)
