@@ -1,15 +1,16 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Support rewrites (partial evaluation, house cleaning)
 module Database.DSH.CL.Opt.PartialEval
   ( partialEvalR
   ) where
 
-import           Database.DSH.Common.Nat
-import           Database.DSH.Common.Lang
-import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
+import           Database.DSH.CL.Lang
+import           Database.DSH.CL.Opt.Auxiliary
+import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Nat
 
 --------------------------------------------------------------------------------
 -- Partial evaluation rules
@@ -35,10 +36,13 @@ tupleElemR = do
     AppE1 _ (TupElem i) (MkTuple _ es) <- promoteT idR
     return $ inject $ es !! (tupleIndex i - 1)
 
-doubleNegationR :: RewriteC CL
-doubleNegationR = do
-    UnOp _ (SUBoolOp Not) (UnOp _ (SUBoolOp Not) e) <- promoteT idR
-    return $ inject e
+negationR :: RewriteC CL
+negationR =
+    readerT $ \cl -> case cl of
+        ExprCL (NotP (NotP e)) -> return $ inject e
+        ExprCL (NotP TrueP)    -> return $ inject FalseP
+        ExprCL (NotP FalseP)   -> return $ inject TrueP
+        _                      -> fail "no negation to optimize"
 
 fromLiteral :: Expr -> TransformC CL Val
 fromLiteral (Lit _ val) = return val
@@ -76,7 +80,7 @@ appendEmptyRightR = do
 partialEvalR :: RewriteC CL
 partialEvalR =
     readerT $ \cl -> case cl of
-        ExprCL UnOp{}    -> doubleNegationR
+        ExprCL UnOp{}    -> negationR
         ExprCL AppE1{}   -> tupleElemR <+ literalSingletonR
         ExprCL MkTuple{} -> identityPairR <+ literalTupleR
         ExprCL AppE2{}   -> literalAppendR <+ appendEmptyLeftR <+ appendEmptyRightR
