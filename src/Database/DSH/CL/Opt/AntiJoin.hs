@@ -23,6 +23,13 @@ import qualified Database.DSH.CL.Primitives as P
 -- antijoin. We use the classification of queries in Claussen et al.: Optimizing
 -- Queries with Universal Quantification in Object-Oriented and
 -- Object-Relational Databases (VLDB 1995).
+--
+-- Universal quantification has the following general form:
+--
+-- [ f x | x <- xs, and [ q | y <- ys, p ] ]
+--
+-- where p is called the range predicate and q is called the quantifier
+-- predicate.
 
 negateRelOp :: BinRelOp -> BinRelOp
 negateRelOp op = case op of
