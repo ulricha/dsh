@@ -72,15 +72,24 @@ notExistsR = promoteT $ readerT $ \e -> case e of
     NotP (OrP (Comp _ (Lit _ (ScalarV (BoolV True))) (S (_ :<-: _)))) ->
         fail "too early"
 
+    -- not (or [ true | y <- ys, p ])
+    -- =>
+    -- and [ not p | y <- ys ]
     NotP (OrP (Comp ty (Lit _ (ScalarV (BoolV True))) ((y :<-: ys) :* S (GuardQ p)))) ->
         return $ inject $ P.and $ Comp ty (P.not p) (S (y :<-: ys))
 
+    -- not (or [ true | y <- ys, p1, ..., pn ])
+    -- =>
+    -- and [ not (p1 && ... && pn) | y <- ys ]
     NotP (OrP (Comp ty (Lit _ (ScalarV (BoolV True))) ((y :<-: ys) :* qs))) -> do
         ps <- constT $ T.mapM fromGuard qs
         let p = foldl1 P.conj ps
         return $ inject $ P.and $ Comp ty (P.not p) (S (y :<-: ys))
 
     -- With range predicates
+    -- not (or [ q | y <- ys, p1, ..., pn ])
+    -- =>
+    -- and [ not q | y <- ys, p1, ..., pn ]
     NotP (OrP (Comp t q (BindQ y ys :* ps))) -> do
         -- All remaining qualifiers have to be guards.
         void $ constT $ T.mapM fromGuard ps
@@ -88,6 +97,9 @@ notExistsR = promoteT $ readerT $ \e -> case e of
         return $ inject $ P.and $ Comp t (P.not q) (BindQ y ys :* ps)
 
     -- Without range predicates
+    -- not (or [ q | y <- ys ])
+    -- =>
+    -- and [ not q | y <- ys ]
     NotP (OrP (Comp t q (S (BindQ y ys)))) ->
         return $ inject $ P.and $ Comp t (P.not q) (S $ BindQ y ys)
 
