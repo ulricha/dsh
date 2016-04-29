@@ -123,7 +123,7 @@ optimizeComprehensions expr =
 
 -- | CL optimizer: normalize and introduce flat joins.
 normalizeComprehensions :: Expr -> Expr
-normalizeComprehensions expr = 
+normalizeComprehensions expr =
     case applyExpr (normalizeFlatR >>> projectT) expr of
         Left _      -> expr
         Right expr' -> expr'

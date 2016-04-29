@@ -80,16 +80,23 @@ quantifierPredicateT x y = readerT $ \q -> case q of
 
     _                          -> fail "can't handle predicate"
 
+--------------------------------------------------------------------------------
+-- Handle various forms of universal quantification: with range and quantifier
+-- predicates, just with a range predicate and just with a quantifier predicate.
+
 mkUniversalQuantOnlyAntiJoinT :: (Ident, Expr)
                               -> (Ident, Expr)
                               -> Expr
                               -> TransformC (NL Qual) Qual
 mkUniversalQuantOnlyAntiJoinT (x, xs) (y, ys) q = do
+    -- FIXME make sure that no other variables than x and y occur
     (qPred, nonCorrPreds) <- constT (return q) >>> injectT >>> quantifierPredicateT x y
 
     let yst = typeOf ys
         yt  = elemT yst
 
+    -- Separate non-correlating predicates and evaluate them on the inner
+    -- generator.
     let innerQuals = case nonCorrPreds of
                          p : ps -> BindQ y ys :* fmap GuardQ (fromListSafe p ps)
                          []     -> S $ BindQ y ys
@@ -102,42 +109,45 @@ mkUniversalQuantOnlyAntiJoinT (x, xs) (y, ys) q = do
 
     return $ BindQ x (P.antijoin xs ys' $ JoinPred qPred)
 
-universalQualR :: RewriteC (NL Qual)
-universalQualR = readerT $ \quals -> case quals of
-    -- Special case: no range predicate
-    -- [ ... | ..., x <- xs, and [ q | y <- ys ]]
-    BindQ x xs :* S (GuardQ (AndP (Comp _ q (S (BindQ y ys))))) -> do
-        -- Generators have to be indepedent
-        guardM $ x `notElem` freeVars ys
+mkUniversalRangeOnlyAntiJoinT :: (Ident, Expr)
+                              -> (Ident, Expr)
+                              -> NL Expr
+                              -> TransformC (NL Qual) Qual
+mkUniversalRangeOnlyAntiJoinT (x, xs) (y, ys) ps = do
+    -- Separate correlating and non-correlating predicates
+    let (corrPreds, nonCorrPreds) = partition ((== sort [x, y]) . sort . freeVars) $ toList ps
+    -- Further separate noncorrelating predicates into those that refer only to
+    -- the inner generator and those that refer to other (outer) generators
+    -- additionally.
+    let (innerPreds, mixedPreds) = partition ((== [y]) . freeVars) nonCorrPreds
 
-        antijoinGen <- mkUniversalQuantOnlyAntiJoinT (x, xs) (y, ys) q
-        return $ S antijoinGen
+    -- Fail if we encounter non-correlating predicates that are not limited to
+    -- the inner generator.
+    --
+    -- FIXME mixedPreds also covers predicates that only refer to x (i.e. the
+    -- outer generator). Those can probably be evaluated in the outer
+    -- comprehension.
+    guardM $ null mixedPreds
 
-    -- Special case: no range predicate
-    -- [ ... | ..., x <- xs, and [ q | y <- ys ], ... ]
-    BindQ x xs :* GuardQ (AndP (Comp _ q (S (BindQ y ys)))) :* qs -> do
-        -- Generators have to be indepedent
-        guardM $ x `notElem` freeVars ys
+    joinConjuncts <- constT (return corrPreds) >>> mapT (splitJoinPredT x y)
+    joinPred <- case joinConjuncts of
+        jp : jps -> return $ JoinPred $ jp :| jps
+        []       -> fail "no joinpred found"
 
-        antijoinGen <- mkUniversalQuantOnlyAntiJoinT (x, xs) (y, ys) q
-        return $ antijoinGen :* qs
+    let yst = typeOf ys
+        yt  = elemT yst
 
-    -- [ ... | ..., x <- xs, and [ q | y <- ys, ps ], ... ]
-    BindQ x xs :* GuardQ (AndP (Comp _ q (BindQ y ys :* ps))) :* qs -> do
-        -- Generators have to be indepedent
-        guardM $ x `notElem` freeVars ys
+    let innerQuals = case innerPreds of
+                         i : is -> BindQ y ys :* fmap GuardQ (fromListSafe i is)
+                         []     -> S $ BindQ y ys
 
-        antijoinGen <- mkUniversalRangeAntiJoinT (x, xs) (y, ys) ps q
-        return $ antijoinGen :* qs
+    -- Filter the inner source with the range
+    -- predicates. Additionally, filter it with the non-correlated
+    -- predicates extracted from the quantifier predicate.
+    -- [ y | y <- ys, ps ++ nonCorrPreds ]
+    let ys' = Comp yst (Var yt y) innerQuals
 
-    -- [ ... | ..., x <- xs, and [ q | y <- ys, ps ]]
-    BindQ x xs :* S (GuardQ (AndP (Comp _ q (BindQ y ys :* ps)))) -> do
-        -- Generators have to be indepedent
-        guardM $ x `notElem` freeVars ys
-
-        antijoinGen <- mkUniversalRangeAntiJoinT (x, xs) (y, ys) ps q
-        return $ S antijoinGen
-    _ -> fail "no and pattern"
+    return $ BindQ x (P.antijoin xs ys' joinPred)
 
 mkUniversalRangeAntiJoinT :: (Ident, Expr)
                      -> (Ident, Expr)
@@ -244,6 +254,64 @@ mkClass16AntiJoinT (x, xs) (y, ys) ps qs nonCorrPreds = do
 
     -- xs ▷_(p && not q) ys
     return $ BindQ x (P.antijoin xs ys' $ JoinPred $ ps <> qs)
+
+universalQualR :: RewriteC (NL Qual)
+universalQualR = readerT $ \quals -> case quals of
+    -- Special case: no range predicate
+    -- [ ... | ..., x <- xs, and [ q | y <- ys ]]
+    BindQ x xs :* S (GuardQ (AndP (Comp _ q (S (BindQ y ys))))) -> do
+        -- Generators have to be indepedent
+        guardM $ x `notElem` freeVars ys
+
+        antijoinGen <- mkUniversalQuantOnlyAntiJoinT (x, xs) (y, ys) q
+        return $ S antijoinGen
+
+    -- Special case: no range predicate
+    -- [ ... | ..., x <- xs, and [ q | y <- ys ], ... ]
+    BindQ x xs :* GuardQ (AndP (Comp _ q (S (BindQ y ys)))) :* qs -> do
+        -- Generators have to be indepedent
+        guardM $ x `notElem` freeVars ys
+
+        antijoinGen <- mkUniversalQuantOnlyAntiJoinT (x, xs) (y, ys) q
+        return $ antijoinGen :* qs
+
+    -- Special case: no quantifier predicate
+    -- [ ... | ..., x <- xs, and [ false | y <- ys ], ... ]
+    BindQ x xs :* S (GuardQ (AndP (Comp _ FalseP (BindQ y ys :* qs)))) -> do
+        -- Generators have to be indepedent
+        guardM $ x `notElem` freeVars ys
+        ps <- constT $ T.mapM fromGuard qs
+
+        antijoinGen <- mkUniversalRangeOnlyAntiJoinT (x, xs) (y, ys) ps
+        return $ S antijoinGen
+
+    -- Special case: no quantifier predicate
+    -- [ ... | ..., x <- xs, and [ false | y <- ys ], ... ]
+    BindQ x xs :* GuardQ (AndP (Comp _ FalseP (BindQ y ys :* qs))) :* qso -> do
+        -- Generators have to be indepedent
+        guardM $ x `notElem` freeVars ys
+        ps <- constT $ T.mapM fromGuard qs
+
+        antijoinGen <- mkUniversalRangeOnlyAntiJoinT (x, xs) (y, ys) ps
+        return $ antijoinGen :* qso
+
+    -- [ ... | ..., x <- xs, and [ q | y <- ys, ps ], ... ]
+    BindQ x xs :* GuardQ (AndP (Comp _ q (BindQ y ys :* ps))) :* qs -> do
+        -- Generators have to be indepedent
+        guardM $ x `notElem` freeVars ys
+
+        antijoinGen <- mkUniversalRangeAntiJoinT (x, xs) (y, ys) ps q
+        return $ antijoinGen :* qs
+
+    -- [ ... | ..., x <- xs, and [ q | y <- ys, ps ]]
+    BindQ x xs :* S (GuardQ (AndP (Comp _ q (BindQ y ys :* ps)))) -> do
+        -- Generators have to be indepedent
+        guardM $ x `notElem` freeVars ys
+
+        antijoinGen <- mkUniversalRangeAntiJoinT (x, xs) (y, ys) ps q
+        return $ S antijoinGen
+    _ -> fail "no and pattern"
+
 
 antijoinR :: RewriteC CL
 antijoinR = do

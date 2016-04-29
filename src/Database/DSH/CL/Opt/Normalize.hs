@@ -1,6 +1,6 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE QuasiQuotes         #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
 
 -- | Normalize patterns from source programs (not to be confused with
@@ -10,18 +10,19 @@ module Database.DSH.CL.Opt.Normalize
   , normalizeExprR
   ) where
 
-import           Control.Monad
 import           Control.Arrow
-import qualified Data.Foldable              as F
-import qualified Data.Traversable           as T
+import           Control.Monad
+import qualified Data.Foldable                  as F
+import           Data.List
 import           Data.Monoid
+import qualified Data.Traversable               as T
 
+import           Database.DSH.CL.Kure
+import           Database.DSH.CL.Lang
+import           Database.DSH.CL.Opt.Auxiliary
+import qualified Database.DSH.CL.Primitives     as P
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
-import           Database.DSH.CL.Lang
-import           Database.DSH.CL.Kure
-import qualified Database.DSH.CL.Primitives as P
-import           Database.DSH.CL.Opt.Auxiliary
 
 ------------------------------------------------------------------
 -- Simple normalization rewrites that are applied only at the start of
@@ -67,33 +68,18 @@ normalizeExprR = readerT $ \expr -> case expr of
 -- and [ not q | y <- ys, ps ]
 notExistsR :: RewriteC CL
 notExistsR = promoteT $ readerT $ \e -> case e of
-    -- Don't rewrite if we don't have any predicate. Predicates may be hidden in
-    -- nested comprehensions in the generator.
-    NotP (OrP (Comp _ (Lit _ (ScalarV (BoolV True))) (S (_ :<-: _)))) ->
-        fail "too early"
-
-    -- not (or [ true | y <- ys, p ])
+    -- No quantifier predicate:
+    -- not (or [ true | y <- ys, qs ])
     -- =>
-    -- and [ not p | y <- ys ]
-    NotP (OrP (Comp ty (Lit _ (ScalarV (BoolV True))) ((y :<-: ys) :* S (GuardQ p)))) ->
-        return $ inject $ P.and $ Comp ty (P.not p) (S (y :<-: ys))
+    -- and [ false | y <- ys, qs ]
+    NotP (OrP (Comp ty TrueP ((y :<-: ys) :* qs))) ->
+        return $ inject $ P.and $ Comp ty FalseP ((y :<-: ys) :* qs)
 
-    -- not (or [ true | y <- ys, p1, ..., pn ])
-    -- =>
-    -- and [ not (p1 && ... && pn) | y <- ys ]
-    NotP (OrP (Comp ty (Lit _ (ScalarV (BoolV True))) ((y :<-: ys) :* qs))) -> do
-        ps <- constT $ T.mapM fromGuard qs
-        let p = foldl1 P.conj ps
-        return $ inject $ P.and $ Comp ty (P.not p) (S (y :<-: ys))
-
-    -- With range predicates
+    -- Quantifier predicate, with range predicates
     -- not (or [ q | y <- ys, p1, ..., pn ])
     -- =>
     -- and [ not q | y <- ys, p1, ..., pn ]
-    NotP (OrP (Comp t q (BindQ y ys :* ps))) -> do
-        -- All remaining qualifiers have to be guards.
-        void $ constT $ T.mapM fromGuard ps
-
+    NotP (OrP (Comp t q (BindQ y ys :* ps))) ->
         return $ inject $ P.and $ Comp t (P.not q) (BindQ y ys :* ps)
 
     -- Without range predicates

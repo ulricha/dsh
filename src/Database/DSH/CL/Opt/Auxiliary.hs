@@ -24,6 +24,7 @@ module Database.DSH.CL.Opt.Auxiliary
     , isThetaJoinPred
     , isSemiJoinPred
     , isAntiJoinPred
+    , isFlatExpr
       -- * Free and bound variables
     , freeVars
     , boundVars
@@ -65,6 +66,7 @@ module Database.DSH.CL.Opt.Auxiliary
     , pattern EqP
     , pattern LengthP
     , pattern NullP
+    , pattern FalseP
     , pattern TrueP
     , pattern TupFirstP
     , pattern TupSecondP
@@ -508,6 +510,7 @@ pattern EqP e1 e2 <- BinOp _ (SBRelOp Eq) e1 e2
 pattern LengthP e <- AppE1 _ (Agg Length) e
 pattern NullP e <- AppE1 _ Null e
 pattern TrueP = Lit PBoolT (ScalarV (BoolV True))
+pattern FalseP = Lit PBoolT (ScalarV (BoolV False))
 pattern TupFirstP t e = AppE1 t (TupElem First) e
 pattern TupSecondP t e = AppE1 t (TupElem (Next First)) e
 pattern a :<-: b = BindQ a b
