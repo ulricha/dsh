@@ -60,7 +60,7 @@ postProcessCompR :: RewriteC CL
 postProcessCompR = do
     ExprCL Comp{} <- idR
     guardpushbackR
-        >+> repeatR introduceCartProductsR
+        -- >+> repeatR introduceCartProductsR
         >+> repeatR predpushdownR
 
 postProcessOnceR :: RewriteC CL
@@ -99,7 +99,7 @@ descendR = readerT $ \cl -> case cl of
     _             -> anyR descendR
 
 applyOptimizationsR :: RewriteC CL
-applyOptimizationsR = repeatR descendR >+> anytdR loopInvariantR >+> anybuR buUnnestR
+applyOptimizationsR = repeatR descendR >+> anytdR loopInvariantR >+> onetdR buUnnestR
 
 normalizeFlatR :: RewriteC CL
 normalizeFlatR = resugarR >+> normalizeOnceR >+> repeatR (repeatR descendR >+> anytdR loopInvariantR)
