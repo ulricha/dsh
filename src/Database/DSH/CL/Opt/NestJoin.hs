@@ -347,14 +347,12 @@ unnestQualsR localGenVars =
             return $ S $ BindQ x xs'
         _ -> fail "no match"
 
--- | Walk the spine of a qualifier list and try to apply a transformation
+-- | Walk the spine of a qualifier list and try to apply a rewrite
 -- top-down.
-descendSpineT :: (MonadCatch m, Walker c CL, ReadPath c CrumbC)
-                => Transform c m CL b
-                -> Transform c m CL b
-descendSpineT t = do
+descendSpineR :: MonadCatch m => Rewrite CompCtx m CL -> Rewrite CompCtx m CL
+descendSpineR r = do
     QualsCL{} <- idR
-    t <+ childT QualsTail t
+    r <+ childR QualsTail r
 
 -- | Trigger the search for unnesting opportunities in the qualifier
 -- list and tuplify comprehension head and remaining qualifiers on
@@ -368,8 +366,9 @@ descendSpineT t = do
 unnestGuardR :: [Expr] -> [Expr] -> TransformC CL (CL, [Expr], [Expr])
 unnestGuardR candGuards failedGuards = do
     Comp t _ qs      <- promoteT idR
+    -- Extract all generators
     let localGenVars = concatMap (either ((: []) . fst) (const []) . fromQual) $ toList qs
-    let unnestR = descendSpineT (promoteR $ unnestQualsR localGenVars) >>> projectT
+    let unnestR = descendSpineR (promoteR $ unnestQualsR localGenVars) >>> projectT
     ((tuplifyVarR, Just guardExpr), qs') <- statefulT (idR, Nothing) $ childT CompQuals unnestR
 
     h'               <- childT CompHead tuplifyVarR >>> projectT
