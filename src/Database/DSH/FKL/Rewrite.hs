@@ -217,6 +217,43 @@ boundforgetimprintR = do
                <+ forgetimprintsmallerR
 
 --------------------------------------------------------------------------------
+-- Chained dist patterns
+
+pattern DistP ty l e1 e2 = PApp2 ty Dist l e1 e2
+
+-- | A binding that is referenced across more than one iteration level will lead
+-- to a chain of dist operations due to nested environment lifting. This rewrite
+-- deals with one particular instance of this pattern:
+--
+-- @
+-- dist^1 (dist^0 x ys) zs
+-- @
+--
+-- In this case, a value @x@ is first distributed over the outer iteration
+-- context, resulting in a copy of @x@ for every element of @ys@. For each inner
+-- list of @zs@, the corresponding copy of @x@ is then copied again to match
+-- each element of said inner list. This multi-stage replication is not
+-- necessary, though: We are dealing with exactly one value that is to be
+-- replicated. We need a copy of that value @x@ for every element of an inner
+-- list of @zs@, keeping the nesting structure of @zs@ intact. We can achieve
+-- this in a more simple way by shortcutting the multi-stage replication:
+--
+-- @
+-- imprint_1 zs (dist^0 x (forget_1 zs))
+-- @
+--
+-- This rewrite is inspired by query 'cheaperSuppliersInRegionAvg2' when
+-- approached with a top-down unnesting approach.
+distChainR :: RewriteF (FKL Lifted ShapeExt)
+distChainR = do
+    ExprFKL (DistP _ Lifted (DistP _ NotLifted x _) zs) <- idR
+    zsName <- freshNameT []
+    let zsVar = Var (typeOf zs) zsName
+    return $ inject $ P.let_ zsName zs
+                             (P.imprint (Succ Zero) zsVar
+                                                    (P.fdist x (P.forget (Succ Zero) zsVar)))
+
+--------------------------------------------------------------------------------
 
 fklOptimizations :: ( Injection (ExprTempl l e) (FKL l e)
                     , Walker FlatCtx (FKL l e)
@@ -238,6 +275,7 @@ fklNormOptimizations = repeatR $ anybuR rewrites
                <+ boundforgetimprintR
                <+ nestedimprintR
                <+ forgetimprintsmallerR
+               <+ distChainR
 
 optimizeNormFKL :: FExpr -> FExpr
 optimizeNormFKL expr =
