@@ -30,9 +30,6 @@ traverseT :: [Ident] -> TransformC CL (Expr, PathC)
 traverseT localVars = readerT $ \expr -> case expr of
     -- We do not traverse into lambdas and comprehensions which are
     -- nested in our current comprehension.
-    --
-    -- FIXME technically, we could consider the generators of the
-    -- nested comprehension.
     ExprCL Comp{} -> fail "we don't traverse into comprehensions"
 
     ExprCL _      -> oneT $ searchInvariantExprT localVars
@@ -97,7 +94,7 @@ loopInvariantGuardR = do
     -- FIXME passing *all* generator variables in the current
     -- comprehension is too conservative. It would be sufficient to
     -- consider those preceding the guard that is under investigation.
-    let genVars = fmap fst $ catMaybes $ fromGen <$> toList qs
+    let genVars = compBoundVars qs
     (invExpr, invPath) <- childT CompQuals (invariantQualR genVars)
     pullCompInvariantR invExpr invPath (genVars ++ boundVars c)
 
