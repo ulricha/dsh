@@ -17,16 +17,17 @@ import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
 import           Database.DSH.CL.Opt.CompNormalization
 import           Database.DSH.CL.Opt.FlatJoin
+import           Database.DSH.CL.Opt.GroupJoin
+import           Database.DSH.CL.Opt.JoinPushdown
+import           Database.DSH.CL.Opt.LetFloating
 import           Database.DSH.CL.Opt.LoopInvariant
 import           Database.DSH.CL.Opt.NestJoin
 import           Database.DSH.CL.Opt.Normalize
 import           Database.DSH.CL.Opt.PartialEval
 import           Database.DSH.CL.Opt.PostProcess
 import           Database.DSH.CL.Opt.PredPushdown
-import           Database.DSH.CL.Opt.Resugar
-import           Database.DSH.CL.Opt.JoinPushdown
-import           Database.DSH.CL.Opt.GroupJoin
 import           Database.DSH.CL.Opt.ProjectionPullup
+import           Database.DSH.CL.Opt.Resugar
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
@@ -99,7 +100,7 @@ descendR = readerT $ \cl -> case cl of
     _             -> anyR descendR
 
 applyOptimizationsR :: RewriteC CL
-applyOptimizationsR = repeatR descendR >+> anytdR loopInvariantR >+> onetdR buUnnestR
+applyOptimizationsR = repeatR descendR >+> anytdR loopInvariantR >+> anybuR floatBindingsR >+> onetdR buUnnestR
 
 normalizeFlatR :: RewriteC CL
 normalizeFlatR = resugarR >+> normalizeOnceR >+> repeatR (repeatR descendR >+> anytdR loopInvariantR)
