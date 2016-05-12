@@ -11,9 +11,7 @@ module Database.DSH.CL.Opt.Normalize
   ) where
 
 import           Control.Arrow
-import           Control.Monad
 import qualified Data.Foldable                  as F
-import           Data.List
 import           Data.Monoid
 import qualified Data.Traversable               as T
 
@@ -204,9 +202,12 @@ referencedOnceR = logR "normalize.letonce" $ do
     return body'
 
 simpleExpr :: Expr -> Bool
-simpleExpr Table{} = True
-simpleExpr Var{}   = True
-simpleExpr _       = False
+simpleExpr Table{}                 = True
+simpleExpr Var{}                   = True
+simpleExpr (AppE1 _ (TupElem _) e) = simpleExpr e
+simpleExpr (BinOp _ _ e1 e2)       = simpleExpr e1 && simpleExpr e2
+simpleExpr (UnOp _ _ e)            = simpleExpr e
+simpleExpr _                       = False
 
 -- | Inline a let-binding that binds a simple expression.
 simpleBindingR :: RewriteC CL
