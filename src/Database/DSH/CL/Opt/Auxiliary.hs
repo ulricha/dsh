@@ -95,15 +95,15 @@ import           Database.DSH.Common.RewriteM
 -- | A version of the CompM monad in which the state contains an additional
 -- rewrite. Use case: Returning a tuplify rewrite from a traversal over the
 -- qualifier list so that it can be applied to the head expression.
-type TuplifyM = RewriteStateM (RewriteC CL)
+type TuplifyM = RewriteStateM (RewriteC CL) LogC
 
 -- | Run a translate on an expression without context
 applyExpr :: TransformC CL b -> Expr -> Either String b
-applyExpr f e = runRewriteM $ applyT f initialCtx (inject e)
+applyExpr f e = fst <$> runRewriteM (applyT f initialCtx (inject e))
 
 -- | Run a translate on any value which can be injected into CL
 applyInjectable :: Injection a CL => TransformC CL b -> a -> Either String b
-applyInjectable t e = runRewriteM $ applyT t initialCtx (inject e)
+applyInjectable t e = fst <$> runRewriteM (applyT t initialCtx (inject e))
 
 --------------------------------------------------------------------------------
 -- Rewrite join predicates into general expressions.

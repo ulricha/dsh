@@ -24,7 +24,7 @@ import qualified Database.DSH.NKL.Primitives    as P
 
 -- | Run a translate on an expression without context
 applyExpr :: [Ident] -> TransformN Expr b -> Expr -> Either String b
-applyExpr nameCtx f e = runRewriteM $ applyT f (initialCtx nameCtx) (inject e)
+applyExpr nameCtx f e = fst <$> runRewriteM (applyT f (initialCtx nameCtx) (inject e))
 
 --------------------------------------------------------------------------------
 -- Computation of free and bound variables

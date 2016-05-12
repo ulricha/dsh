@@ -42,9 +42,9 @@ import           Database.DSH.NKL.Lang
 --------------------------------------------------------------------------------
 -- Convenience type aliases
 
-type TransformN a b = Transform NestedCtx (RewriteM Int) a b
+type TransformN a b = Transform NestedCtx (RewriteM Int ()) a b
 type RewriteN a     = TransformN a a
-type LensN a b      = Lens NestedCtx (RewriteM Int) a b
+type LensN a b      = Lens NestedCtx (RewriteM Int ()) a b
 
 --------------------------------------------------------------------------------
 
@@ -107,11 +107,11 @@ freshNameT avoidNames = do
 
 -- | Run a stateful transform with an initial state and turn it into a regular
 -- (non-stateful) transform
-statefulT :: s -> Transform NestedCtx (RewriteStateM s) a b -> TransformN a (s, b)
+statefulT :: s -> Transform NestedCtx (RewriteStateM s ()) a b -> TransformN a (s, b)
 statefulT s = resultT (stateful s)
 
 -- | Turn a regular rewrite into a stateful rewrite
-liftstateT :: Transform NestedCtx (RewriteM Int) a b -> Transform NestedCtx (RewriteStateM s) a b
+liftstateT :: Transform NestedCtx (RewriteM Int ()) a b -> Transform NestedCtx (RewriteStateM s ()) a b
 liftstateT = resultT liftstate
 
 --------------------------------------------------------------------------------

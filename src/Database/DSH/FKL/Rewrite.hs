@@ -27,7 +27,7 @@ import qualified Database.DSH.FKL.Primitives  as P
 -- | Run a translate on an expression without context
 applyExpr :: (Injection (ExprTempl l e) (FKL l e))
           => TransformF (FKL l e) b -> ExprTempl l e -> Either String b
-applyExpr f e = runRewriteM $ applyT f initialCtx (inject e)
+applyExpr f e = fst <$> runRewriteM (applyT f initialCtx (inject e))
 
 --------------------------------------------------------------------------------
 -- Computation of free and bound variables

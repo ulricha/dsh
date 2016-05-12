@@ -1,6 +1,9 @@
 module Database.DSH.Common.Kure
-  ( -- * Debugging combinators
-    prettyR
+  ( -- * Logging
+    LogC
+  , logR
+    -- * Debugging combinators
+  , prettyR
   , debug
   , debugPretty
   , debugMsg
@@ -16,8 +19,25 @@ import Text.Printf
 #endif
 
 import Language.KURE
+import qualified Data.Sequence                as S
+
 import Database.DSH.Common.Pretty
+import Database.DSH.Common.RewriteM
 import Control.Arrow
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import qualified Text.PrettyPrint.ANSI.Leijen as P
+
+--------------------------------------------------------------------------------
+-- Rewrite logging
+
+type LogC = S.Seq String
+
+logR :: Pretty a => String -> Rewrite c (RewriteM s LogC) a
+logR rewriteName = do
+    e <- idR
+    let msg = char '=' P.<+> braces (text rewriteName) P.<$> pretty e
+    constT $ tell $ S.singleton $ pp msg
+    return e
 
 --------------------------------------------------------------------------------
 -- Simple debugging combinators
@@ -63,8 +83,8 @@ debugOpt stage origExpr mExpr =
     showOpt :: Pretty e => e -> String
     showOpt e = padSep (printf "Optimized Query (%s)" stage) ++ pp e ++ padSep ""
 #else
-debugOpt _stage origExpr mExpr =
-    either (const origExpr) id mExpr
+debugOpt _stage origExpr =
+    either (const origExpr) id
 #endif
 
 debugPipeR :: (Monad m, Pretty a) => Rewrite c m a -> Rewrite c m a

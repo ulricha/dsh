@@ -52,9 +52,9 @@ import           Database.DSH.FKL.Lang
 --------------------------------------------------------------------------------
 -- Convenience type aliases
 
-type TransformF a b = Transform FlatCtx (RewriteM Int) a b
+type TransformF a b = Transform FlatCtx (RewriteM Int ()) a b
 type RewriteF a     = TransformF a a
-type LensF a b      = Lens FlatCtx (RewriteM Int) a b
+type LensF a b      = Lens FlatCtx (RewriteM Int ()) a b
 
 --------------------------------------------------------------------------------
 
@@ -126,11 +126,11 @@ freshNameT avoidNames = do
 
 -- | Run a stateful transform with an initial state and turn it into a regular
 -- (non-stateful) transform
-statefulT :: s -> Transform FlatCtx (RewriteStateM s) a b -> TransformF a (s, b)
+statefulT :: s -> Transform FlatCtx (RewriteStateM s ()) a b -> TransformF a (s, b)
 statefulT s = resultT (stateful s)
 
 -- | Turn a regular rewrite into a stateful rewrite
-liftstateT :: Transform FlatCtx (RewriteM Int) a b -> Transform FlatCtx (RewriteStateM s) a b
+liftstateT :: Transform FlatCtx (RewriteM Int ()) a b -> Transform FlatCtx (RewriteStateM s ()) a b
 liftstateT = resultT liftstate
 
 --------------------------------------------------------------------------------
