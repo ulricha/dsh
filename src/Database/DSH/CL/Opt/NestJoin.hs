@@ -19,6 +19,7 @@ import qualified Data.Map as M
 import qualified Data.List.NonEmpty as N
 
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Kure
 
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
@@ -289,7 +290,7 @@ unnestFromHeadR = do
 -- | Store not only the tuplifying rewrite in the state, but also the
 -- rewritten guard expression.
 -- FIXME this is a rather ugly hack
-type GuardM = RewriteStateM (RewriteC CL, Maybe Expr) LogC
+type GuardM = RewriteStateM (RewriteC CL, Maybe Expr) RewriteLog
 
 -- | Search for an eligible nested comprehension in the current guard
 -- and unnest it. Returns the tuplifying rewrite for the outer

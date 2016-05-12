@@ -1,6 +1,6 @@
 module Database.DSH.Common.Kure
   ( -- * Logging
-    LogC
+    RewriteLog
   , logR
     -- * Debugging combinators
   , prettyR
@@ -30,12 +30,12 @@ import qualified Text.PrettyPrint.ANSI.Leijen as P
 --------------------------------------------------------------------------------
 -- Rewrite logging
 
-type LogC = S.Seq String
+type RewriteLog = S.Seq String
 
-logR :: Pretty a => String -> Rewrite c (RewriteM s LogC) a
+logR :: Pretty a => String -> Rewrite c (RewriteM s RewriteLog) a
 logR rewriteName = do
     e <- idR
-    let msg = char '=' P.<+> braces (text rewriteName) P.<$> pretty e
+    let msg = white (char '=' P.<+> braces (enclose space space (text rewriteName))) P.<$> pretty e
     constT $ tell $ S.singleton $ pp msg
     return e
 

@@ -48,13 +48,14 @@ import           Database.DSH.CL.Lang
 import qualified Database.DSH.Common.Lang     as L
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.RewriteM
+import           Database.DSH.Common.Kure
 
 --------------------------------------------------------------------------------
 -- Convenience type aliases
 
-type TransformC a b = Transform CompCtx (RewriteM Int LogC) a b
+type TransformC a b = Transform CompCtx (RewriteM Int RewriteLog) a b
 type RewriteC a     = TransformC a a
-type LensC a b      = Lens CompCtx (RewriteM Int LogC) a b
+type LensC a b      = Lens CompCtx (RewriteM Int RewriteLog) a b
 
 --------------------------------------------------------------------------------
 
@@ -139,7 +140,7 @@ withLocalPathT t = transform $ \c a -> applyT t (c { clPath = SnocPath [] }) a
 
 -- | Run a stateful transform with an initial state and turn it into a regular
 -- (non-stateful) transform
-statefulT :: s -> Transform CompCtx (RewriteStateM s LogC) a b -> TransformC a (s, b)
+statefulT :: s -> Transform CompCtx (RewriteStateM s RewriteLog) a b -> TransformC a (s, b)
 statefulT s = resultT (stateful s)
 
 -- | Turn a regular rewrite into a stateful rewrite

@@ -1,6 +1,6 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE QuasiQuotes         #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
 
 -- | Extract loop-invariant "complex" expressions from comprehensions
@@ -8,20 +8,23 @@ module Database.DSH.CL.Opt.LoopInvariant
   ( loopInvariantR
   ) where
 
-import           Data.Maybe
+import           Control.Arrow
 import           Data.List
+import           Data.Maybe
 
-import           Database.DSH.Common.Impossible
-import           Database.DSH.Common.Lang
-import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
-import qualified Database.DSH.CL.Primitives as P
+import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
+import qualified Database.DSH.CL.Primitives     as P
+import           Database.DSH.Common.Impossible
+import           Database.DSH.Common.Kure
+import           Database.DSH.Common.Lang
 
 -- | Extract complex loop-invariant expressions from comprehension
 -- heads and guards.
 loopInvariantR :: RewriteC CL
-loopInvariantR = loopInvariantGuardR <+ loopInvariantHeadR
+loopInvariantR =    (loopInvariantGuardR >>> logR "loopinvariant.guard")
+                 <+ (loopInvariantHeadR >>> logR "loopinvariant.head")
 
 --------------------------------------------------------------------------------
 -- Common code for searching loop-invariant expressions
