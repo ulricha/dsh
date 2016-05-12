@@ -7,6 +7,7 @@
 -- | Common tools for rewrites
 module Database.DSH.CL.Opt.Auxiliary
     ( applyExpr
+    , applyExprLog
     , applyInjectable
       -- * Monad rewrites with additional state
     , TuplifyM
@@ -91,19 +92,27 @@ import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.RewriteM
+import           Database.DSH.Common.Kure
 
 -- | A version of the CompM monad in which the state contains an additional
 -- rewrite. Use case: Returning a tuplify rewrite from a traversal over the
 -- qualifier list so that it can be applied to the head expression.
-type TuplifyM = RewriteStateM (RewriteC CL)
+type TuplifyM = RewriteStateM (RewriteC CL) RewriteLog
 
 -- | Run a translate on an expression without context
 applyExpr :: TransformC CL b -> Expr -> Either String b
-applyExpr f e = runRewriteM $ applyT f initialCtx (inject e)
+applyExpr f e = fst <$> runRewriteM (applyT f initialCtx (inject e))
+
+-- | Run a translate on an expression without context and return the log.
+applyExprLog :: TransformC CL b -> Expr -> Either String (b, String)
+applyExprLog f e =
+    case runRewriteM (applyT f initialCtx (inject e)) of
+        Left msg     -> Left msg
+        Right (b, l) -> Right (b, F.foldl' (\s m -> s ++ "\n\n" ++ m) "" l)
 
 -- | Run a translate on any value which can be injected into CL
 applyInjectable :: Injection a CL => TransformC CL b -> a -> Either String b
-applyInjectable t e = runRewriteM $ applyT t initialCtx (inject e)
+applyInjectable t e = fst <$> runRewriteM (applyT t initialCtx (inject e))
 
 --------------------------------------------------------------------------------
 -- Rewrite join predicates into general expressions.

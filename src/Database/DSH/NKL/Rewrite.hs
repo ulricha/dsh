@@ -24,7 +24,7 @@ import qualified Database.DSH.NKL.Primitives    as P
 
 -- | Run a translate on an expression without context
 applyExpr :: [Ident] -> TransformN Expr b -> Expr -> Either String b
-applyExpr nameCtx f e = runRewriteM $ applyT f (initialCtx nameCtx) (inject e)
+applyExpr nameCtx f e = fst <$> runRewriteM (applyT f (initialCtx nameCtx) (inject e))
 
 --------------------------------------------------------------------------------
 -- Computation of free and bound variables
@@ -117,7 +117,7 @@ inlineBindingR v s = readerT $ \expr -> case expr of
     -- If a let-binding shadows the name we substitute, only descend
     -- into the bound expression.
     Let _ n _ _ | n == v      -> promoteR $ letR idR (extractR $ inlineBindingR v s)
-    Let _ n _ _ | otherwise   ->
+                | otherwise   ->
         if n `elem` freeVars s
         -- If the let-bound name occurs free in the substitute,
         -- alpha-convert the binding to avoid capturing the name.
@@ -126,7 +126,7 @@ inlineBindingR v s = readerT $ \expr -> case expr of
 
     -- We don't inline into comprehensions to avoid conflicts with
     -- loop-invariant extraction.
-    Iterator _ _ _ _          -> idR
+    Iterator{}                -> idR
     _                         -> anyR $ inlineBindingR v s
 
 pattern ConcatP t xs <- AppE1 t Concat xs
@@ -147,19 +147,19 @@ countVarRefT :: Ident -> TransformN Expr (Sum Int)
 countVarRefT v = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
     Var _ n | n == v         -> return 1
-    Var _ _ | otherwise      -> return 0
+            | otherwise      -> return 0
 
     Let _ n _ _ | n == v     -> letT (constT $ return 0)
                                      (countVarRefT v)
                                      (\_ _ c1 c2 -> c1 + c2)
-    Let _ _ _ _ | otherwise  -> letT (countVarRefT v)
+                | otherwise  -> letT (countVarRefT v)
                                      (countVarRefT v)
                                      (\_ _ c1 c2 -> c1 + c2)
 
     Iterator _ _ x _ | v == x -> iteratorT (constT $ return 0)
                                            (countVarRefT v)
                                            (\_ c1 _ c2 -> c1 + c2)
-    Iterator _ _ _ _ | otherwise -> iteratorT (countVarRefT v)
+                     | otherwise -> iteratorT (countVarRefT v)
                                               (countVarRefT v)
                                               (\_ c1 _ c2 -> c1 + c2)
 
@@ -172,7 +172,7 @@ unusedBindingR :: RewriteN Expr
 unusedBindingR = do
     Let _ x _ e2 <- idR
     0            <- childT LetBody $ countVarRefT x
-    return $ e2
+    return e2
 
 -- | Inline a let-binding that is only referenced once.
 referencedOnceR :: RewriteN Expr
@@ -185,7 +185,7 @@ referencedOnceR = do
     -- reason, we check if the occurence was actually eliminated by
     -- inlining and fail otherwise.
     body' <- childT LetBody (inlineBindingR x e1)
-    0     <- (constT $ return body') >>> countVarRefT x
+    0     <- constT (return body') >>> countVarRefT x
     return body'
 
 simpleExpr :: Expr -> Bool

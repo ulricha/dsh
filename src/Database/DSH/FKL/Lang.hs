@@ -35,7 +35,7 @@ data ExprTempl l e = Table Type String L.BaseTableSchema
                    | Ext e
                    | Let Type L.Ident (ExprTempl l e) (ExprTempl l e)
                    | Var Type L.Ident
-                   | MkTuple Type l [(ExprTempl l e)]
+                   | MkTuple Type l [ExprTempl l e]
 
 data BroadcastExt = Broadcast Nat Type LExpr LExpr
 
@@ -176,7 +176,7 @@ instance Pretty Prim3 where
     pretty Combine = combinator $ text "combine"
 
 instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
-    pretty (MkTuple _ l es) = (prettyTuple $ map pretty es) <> pretty l
+    pretty (MkTuple _ l es) = prettyTuple (map pretty es) <> pretty l
     pretty (Var _ n) = text n
     pretty (Let _ x e1 e) = prettyLet (text x) (pretty e1) (pretty e)
     pretty (Table _ n _) = kw (text "table") <> parens (text n)
@@ -196,16 +196,14 @@ instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
 
     pretty (PApp3 _ f l e1 e2 e3) =
         pretty f <> pretty l
-        <+> (align $ (parenthize e1)
-                     </> (parenthize e2)
-                     </> (parenthize e3))
+        <+> align (parenthize e1 </> parenthize e2 </> parenthize e3)
     pretty (If _ e1 e2 e3) =
         let e1' = pretty e1
             e2' = pretty e2
             e3' = pretty e3
         in text "if" <+> e1'
-           </> (nest 2 $ text "then" <+> e2')
-           </> (nest 2 $ text "else" <+> e3')
+           </> nest 2 (text "then" <+> e2')
+           </> nest 2 (text "else" <+> e3')
 
     pretty (BinOp _ o l e1 e2)
         | L.isBinInfixOp o = prettyInfixBinOp (pretty o <> pretty l)
@@ -224,17 +222,17 @@ instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
 instance Pretty ShapeExt where
     pretty (Forget n _ e) =
         forget (text "forget")
-        <> (forget $ subscript $ intFromNat n)
-        <+> (parenthize e)
+        <> forget (subscript $ intFromNat n)
+        <+> parenthize e
 
     pretty (Imprint n _ e1 e2) =
-        prettyApp2 (forget (text "imprint") <> (forget $ subscript $ intFromNat n))
+        prettyApp2 (forget (text "imprint") <> forget (subscript $ intFromNat n))
                    (parenthize e1)
                    (parenthize e2)
 
 instance Pretty BroadcastExt where
     pretty (Broadcast n _ e1 e2) =
-        prettyApp2 (forget (text "broadcast") <> (forget $ subscript $ intFromNat n))
+        prettyApp2 (forget (text "broadcast") <> forget (subscript $ intFromNat n))
                    (parenthize e1)
                    (parenthize e2)
 

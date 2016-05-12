@@ -42,9 +42,9 @@ import           Database.DSH.NKL.Lang
 --------------------------------------------------------------------------------
 -- Convenience type aliases
 
-type TransformN a b = Transform NestedCtx (RewriteM Int) a b
+type TransformN a b = Transform NestedCtx (RewriteM Int ()) a b
 type RewriteN a     = TransformN a a
-type LensN a b      = Lens NestedCtx (RewriteM Int) a b
+type LensN a b      = Lens NestedCtx (RewriteM Int ()) a b
 
 --------------------------------------------------------------------------------
 
@@ -70,31 +70,31 @@ type AbsPathN = AbsolutePath CrumbN
 type PathN = Path CrumbN
 
 -- | The context for KURE-based NKL rewrites
-data NestedCtx = NestedCtx { nkl_bindings :: [Ident]
-                           , nkl_path     :: AbsPathN
+data NestedCtx = NestedCtx { nklBindings :: [Ident]
+                           , nklPath     :: AbsPathN
                            }
 
 instance ExtendPath NestedCtx CrumbN where
-    c@@n = c { nkl_path = nkl_path c @@ n }
+    c@@n = c { nklPath = nklPath c @@ n }
 
 instance ReadPath NestedCtx CrumbN where
-    absPath c = nkl_path c
+    absPath = nklPath
 
 initialCtx :: [Ident] -> NestedCtx
-initialCtx nameCtx = NestedCtx { nkl_bindings = nameCtx, nkl_path = mempty }
+initialCtx nameCtx = NestedCtx { nklBindings = nameCtx, nklPath = mempty }
 
 -- | Record a variable binding in the context
 bindVar :: Ident -> NestedCtx -> NestedCtx
-bindVar n ctx = ctx { nkl_bindings = n : nkl_bindings ctx }
+bindVar n ctx = ctx { nklBindings = n : nklBindings ctx }
 
 inScopeNames :: NestedCtx -> [Ident]
-inScopeNames = nkl_bindings
+inScopeNames = nklBindings
 
 boundIn :: Ident -> NestedCtx -> Bool
-boundIn n ctx = n `elem` (nkl_bindings ctx)
+boundIn n ctx = n `elem` nklBindings ctx
 
 freeIn :: Ident -> NestedCtx -> Bool
-freeIn n ctx = n `notElem` (nkl_bindings ctx)
+freeIn n ctx = n `notElem` nklBindings ctx
 
 -- | Generate a fresh name that is not bound in the current context.
 freshNameT :: [Ident] -> TransformN a Ident
@@ -107,12 +107,12 @@ freshNameT avoidNames = do
 
 -- | Run a stateful transform with an initial state and turn it into a regular
 -- (non-stateful) transform
-statefulT :: s -> Transform NestedCtx (RewriteStateM s) a b -> TransformN a (s, b)
-statefulT s t = resultT (stateful s) t
+statefulT :: s -> Transform NestedCtx (RewriteStateM s ()) a b -> TransformN a (s, b)
+statefulT s = resultT (stateful s)
 
 -- | Turn a regular rewrite into a stateful rewrite
-liftstateT :: Transform NestedCtx (RewriteM Int) a b -> Transform NestedCtx (RewriteStateM s) a b
-liftstateT t = resultT liftstate t
+liftstateT :: Transform NestedCtx (RewriteM Int ()) a b -> Transform NestedCtx (RewriteStateM s ()) a b
+liftstateT = resultT liftstate
 
 --------------------------------------------------------------------------------
 -- Congruence combinators for CL expressions

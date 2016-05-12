@@ -11,9 +11,7 @@ module Database.DSH.CL.Opt.Normalize
   ) where
 
 import           Control.Arrow
-import           Control.Monad
 import qualified Data.Foldable                  as F
-import           Data.List
 import           Data.Monoid
 import qualified Data.Traversable               as T
 
@@ -23,6 +21,7 @@ import           Database.DSH.CL.Opt.Auxiliary
 import qualified Database.DSH.CL.Primitives     as P
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Kure
 
 ------------------------------------------------------------------
 -- Simple normalization rewrites that are applied only at the start of
@@ -33,7 +32,7 @@ import           Database.DSH.Common.Lang
 
 -- | Split conjunctive predicates.
 splitConjunctsR :: RewriteC (NL Qual)
-splitConjunctsR = splitR <+ splitEndR
+splitConjunctsR = logR "normalize.splitconjunct" (splitR <+ splitEndR)
   where
     splitR :: RewriteC (NL Qual)
     splitR = do
@@ -67,7 +66,7 @@ normalizeExprR = readerT $ \expr -> case expr of
 -- =>
 -- and [ not q | y <- ys, ps ]
 notExistsR :: RewriteC CL
-notExistsR = promoteT $ readerT $ \e -> case e of
+notExistsR = logR "normalize.notexists" $ promoteT $ readerT $ \e -> case e of
     -- No quantifier predicate:
     -- not (or [ true | y <- ys, qs ])
     -- =>
@@ -95,7 +94,7 @@ notExistsR = promoteT $ readerT $ \e -> case e of
 -- length xs == 0 => null xs
 -- 0 == length xs => null xs
 zeroLengthR :: RewriteC CL
-zeroLengthR = promoteT $ readerT $ \e -> case e of
+zeroLengthR = logR "normalize.zerolength" $ promoteT $ readerT $ \e -> case e of
     EqP (LengthP xs) (Lit _ (ScalarV (IntV 0))) -> return $ inject $ P.null xs
     EqP (Lit _ (ScalarV (IntV 0))) (LengthP xs) -> return $ inject $ P.null xs
     _                                 -> fail "no match"
@@ -103,7 +102,7 @@ zeroLengthR = promoteT $ readerT $ \e -> case e of
 -- null [ _ | x <- xs, p1, p2, ... ]
 -- => and [ not (p1 && p2 && ...) | x <- xs ]
 comprehensionNullR :: RewriteC CL
-comprehensionNullR = do
+comprehensionNullR = logR "normalize.compnull" $ do
     NullP (Comp _ _ (BindQ x xs :* guards)) <- promoteT idR
 
     -- We need exactly one generator and at least one guard.
@@ -119,7 +118,7 @@ comprehensionNullR = do
 -- =>
 -- or [ ps | x <- xs ]
 notNullR :: RewriteC CL
-notNullR = do
+notNullR = logR "normalize.notnull" $ do
     NotP (AndP (Comp _ (NotP p) (S (BindQ x xs)))) <- promoteT idR
     return $ inject $ P.or (Comp (ListT PBoolT) p (S (BindQ x xs)))
 
@@ -183,14 +182,14 @@ countVarRefT v = readerT $ \expr -> case expr of
 
 -- | Remove a let-binding that is not referenced.
 unusedBindingR :: RewriteC CL
-unusedBindingR = do
+unusedBindingR = logR "normalize.letunused" $ do
     Let _ x _ e2 <- promoteT idR
     0            <- childT LetBody $ countVarRefT x
     return $ inject e2
 
 -- | Inline a let-binding that is only referenced once.
 referencedOnceR :: RewriteC CL
-referencedOnceR = do
+referencedOnceR = logR "normalize.letonce" $ do
     Let _ x e1 _ <- promoteT idR
     1            <- childT LetBody $ countVarRefT x
 
@@ -203,13 +202,16 @@ referencedOnceR = do
     return body'
 
 simpleExpr :: Expr -> Bool
-simpleExpr Table{} = True
-simpleExpr Var{}   = True
-simpleExpr _       = False
+simpleExpr Table{}                 = True
+simpleExpr Var{}                   = True
+simpleExpr (AppE1 _ (TupElem _) e) = simpleExpr e
+simpleExpr (BinOp _ _ e1 e2)       = simpleExpr e1 && simpleExpr e2
+simpleExpr (UnOp _ _ e)            = simpleExpr e
+simpleExpr _                       = False
 
 -- | Inline a let-binding that binds a simple expression.
 simpleBindingR :: RewriteC CL
-simpleBindingR = do
+simpleBindingR = logR "normalize.letsimple" $ do
     Let _ x e1 _ <- promoteT idR
     guardM $ simpleExpr e1
     childR LetBody $ substR x e1

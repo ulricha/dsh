@@ -10,6 +10,7 @@ import           Control.Arrow
 import qualified Data.Map                      as M
 import qualified Data.Set                      as S
 
+import           Database.DSH.Common.Kure
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
@@ -49,5 +50,5 @@ mkFlatJoin comp guard guardsToTry leftOverGuards = do
         return (C ty h qs, guardsToTry', leftOverGuards')
 
 flatjoinsR :: RewriteC CL
-flatjoinsR = mergeGuardsIterR mkFlatJoin
+flatjoinsR = logR "flatjoin" $ mergeGuardsIterR mkFlatJoin
 

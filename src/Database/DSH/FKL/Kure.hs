@@ -52,9 +52,9 @@ import           Database.DSH.FKL.Lang
 --------------------------------------------------------------------------------
 -- Convenience type aliases
 
-type TransformF a b = Transform FlatCtx (RewriteM Int) a b
+type TransformF a b = Transform FlatCtx (RewriteM Int ()) a b
 type RewriteF a     = TransformF a a
-type LensF a b      = Lens FlatCtx (RewriteM Int) a b
+type LensF a b      = Lens FlatCtx (RewriteM Int ()) a b
 
 --------------------------------------------------------------------------------
 
@@ -89,31 +89,31 @@ type AbsPathF = AbsolutePath CrumbF
 type PathF = Path CrumbF
 
 -- | The context for KURE-based FKL rewrites
-data FlatCtx = FlatCtx { fkl_path     :: AbsPathF
-                       , fkl_bindings :: [Ident]
+data FlatCtx = FlatCtx { fklPath     :: AbsPathF
+                       , fklBindings :: [Ident]
                        }
 
 instance ExtendPath FlatCtx CrumbF where
-    c@@n = c { fkl_path = fkl_path c @@ n }
+    c@@n = c { fklPath = fklPath c @@ n }
 
 instance ReadPath FlatCtx CrumbF where
-    absPath c = fkl_path c
+    absPath = fklPath
 
 initialCtx :: FlatCtx
-initialCtx = FlatCtx { fkl_path = mempty, fkl_bindings = [] }
+initialCtx = FlatCtx { fklPath = mempty, fklBindings = [] }
 
 -- | Record a variable binding in the context
 bindVar :: Ident -> FlatCtx -> FlatCtx
-bindVar n ctx = ctx { fkl_bindings = n : fkl_bindings ctx }
+bindVar n ctx = ctx { fklBindings = n : fklBindings ctx }
 
 inScopeNames :: FlatCtx -> [Ident]
-inScopeNames = fkl_bindings
+inScopeNames = fklBindings
 
 boundIn :: Ident -> FlatCtx -> Bool
-boundIn n ctx = n `elem` (fkl_bindings ctx)
+boundIn n ctx = n `elem` fklBindings ctx
 
 freeIn :: Ident -> FlatCtx -> Bool
-freeIn n ctx = n `notElem` (fkl_bindings ctx)
+freeIn n ctx = n `notElem` fklBindings ctx
 
 -- | Generate a fresh name that is not bound in the current context.
 freshNameT :: [Ident] -> TransformF a Ident
@@ -126,12 +126,12 @@ freshNameT avoidNames = do
 
 -- | Run a stateful transform with an initial state and turn it into a regular
 -- (non-stateful) transform
-statefulT :: s -> Transform FlatCtx (RewriteStateM s) a b -> TransformF a (s, b)
-statefulT s t = resultT (stateful s) t
+statefulT :: s -> Transform FlatCtx (RewriteStateM s ()) a b -> TransformF a (s, b)
+statefulT s = resultT (stateful s)
 
 -- | Turn a regular rewrite into a stateful rewrite
-liftstateT :: Transform FlatCtx (RewriteM Int) a b -> Transform FlatCtx (RewriteStateM s) a b
-liftstateT t = resultT liftstate t
+liftstateT :: Transform FlatCtx (RewriteM Int ()) a b -> Transform FlatCtx (RewriteStateM s ()) a b
+liftstateT = resultT liftstate
 
 --------------------------------------------------------------------------------
 -- Congruence combinators for FKL lexpressions

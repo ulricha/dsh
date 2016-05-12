@@ -1,13 +1,14 @@
 {-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes            #-}
 
 -- | Infrastructure for KURE-based rewrites on CL expressions
 module Database.DSH.CL.Kure
     ( -- * Re-export relevant KURE modules
       module Language.KURE
     , module Language.KURE.Lens
+
 
       -- * The KURE monad
     , RewriteM, RewriteStateM, TransformC, RewriteC, LensC, freshName, freshNameT
@@ -35,24 +36,25 @@ module Database.DSH.CL.Kure
 
 
 import           Control.Monad
-import qualified Data.Map as M
-import qualified Data.Foldable as F
-import           Text.PrettyPrint.ANSI.Leijen(text)
+import qualified Data.Foldable                as F
+import qualified Data.Map                     as M
+import           Text.PrettyPrint.ANSI.Leijen (text)
 
 import           Language.KURE
 import           Language.KURE.Lens
 
-import           Database.DSH.Common.Pretty
-import qualified Database.DSH.Common.Lang as L
-import           Database.DSH.Common.RewriteM
 import           Database.DSH.CL.Lang
+import qualified Database.DSH.Common.Lang     as L
+import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.RewriteM
+import           Database.DSH.Common.Kure
 
 --------------------------------------------------------------------------------
 -- Convenience type aliases
 
-type TransformC a b = Transform CompCtx (RewriteM Int) a b
+type TransformC a b = Transform CompCtx (RewriteM Int RewriteLog) a b
 type RewriteC a     = TransformC a a
-type LensC a b      = Lens CompCtx (RewriteM Int) a b
+type LensC a b      = Lens CompCtx (RewriteM Int RewriteLog) a b
 
 --------------------------------------------------------------------------------
 
@@ -137,11 +139,11 @@ withLocalPathT t = transform $ \c a -> applyT t (c { clPath = SnocPath [] }) a
 
 -- | Run a stateful transform with an initial state and turn it into a regular
 -- (non-stateful) transform
-statefulT :: s -> Transform CompCtx (RewriteStateM s) a b -> TransformC a (s, b)
+statefulT :: s -> Transform CompCtx (RewriteStateM s RewriteLog) a b -> TransformC a (s, b)
 statefulT s = resultT (stateful s)
 
 -- | Turn a regular rewrite into a stateful rewrite
-liftstateT :: Transform CompCtx (RewriteM Int) a b -> Transform CompCtx (RewriteStateM s) a b
+liftstateT :: Transform CompCtx (RewriteM Int w) a b -> Transform CompCtx (RewriteStateM s w) a b
 liftstateT = resultT liftstate
 
 --------------------------------------------------------------------------------

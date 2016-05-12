@@ -54,7 +54,7 @@ resugarRulesR = readerT $ \expr -> case expr of
                                <+ concatCompSingletonLitR
                                <+ concatNestedCompR
     ExprCL Comp{}           -> guardGeneratorsR
-    ExprCL _                -> partialEvalR
+    ExprCL _                -> partialEvalNoLogR
     _                       -> fail "no resugaring rule applies"
 
 -- | Resugar a comprehension.

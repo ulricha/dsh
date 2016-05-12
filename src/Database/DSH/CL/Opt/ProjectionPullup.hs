@@ -23,6 +23,7 @@ import           Control.Arrow
 import qualified Data.List.NonEmpty              as N
 
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Kure
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
@@ -31,7 +32,7 @@ import           Database.DSH.CL.Opt.PartialEval
 import qualified Database.DSH.CL.Primitives      as P
 
 pullProjectionR :: RewriteC CL
-pullProjectionR = pullFromNestjoinRightR
+pullProjectionR = logR "projectionpu.nestjoin.right" pullFromNestjoinRightR
 
 -- | Pull a projection (i.e. a single-generator comprehension without guards)
 -- from the right input of a NestJoin.
@@ -96,7 +97,7 @@ pullFromNestjoinRightR = do
 -- loop. However, the rewrite is safe as a preparation for rewrites that push
 -- the filtering join further into other operators.
 pullFromFilterJoinR :: RewriteC CL
-pullFromFilterJoinR = do
+pullFromFilterJoinR = logR "projectionpu.filterjoin" $ do
     AppE2 ty joinOp (Comp _ h (BindQ x xs :* qs)) ys <- promoteT idR
     (joinConst, joinPred) <- isFilteringJoin joinOp
     guardM $ all isGuard qs
@@ -129,7 +130,7 @@ inlineJoinPredLeftT e x joinPred = do
     -- join predicate. The head expression that we inlined might have referred
     -- to expressions that we can't turn into join predicates. Partial
     -- evaluation (especially tuple fusion) should eliminate those.
-    evalPreds     <- constT (return inlinedPreds) >>> mapT (tryR $ repeatR $ anybuR partialEvalR)
+    evalPreds     <- constT (return inlinedPreds) >>> mapT (tryR $ repeatR $ anybuR partialEvalNoLogR)
 
     -- Turn the join predicate back into a 'ScalarExpr'. If the inlined predicate
     -- can't be transformed, the complete rewrite will fail.
@@ -157,7 +158,7 @@ inlineJoinPredRightT e x joinPred = do
     -- join predicate. The head expression that we inlined might have referred
     -- to expressions that we can't turn into join predicates. Partial
     -- evaluation (especially tuple fusion) should eliminate those.
-    evalPreds     <- constT (return inlinedPreds) >>> mapT (tryR $ repeatR $ anybuR partialEvalR)
+    evalPreds     <- constT (return inlinedPreds) >>> mapT (tryR $ repeatR $ anybuR partialEvalNoLogR)
 
     -- Turn the join predicate back into a 'ScalarExpr'. If the inlined predicate
     -- can't be transformed, the complete rewrite will fail.

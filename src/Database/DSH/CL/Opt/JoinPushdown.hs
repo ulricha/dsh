@@ -19,6 +19,7 @@ import           Database.DSH.CL.Opt.ProjectionPullup
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Kure
 
 --------------------------------------------------------------------------------
 -- Push filtering joins into nesting operators
@@ -164,10 +165,10 @@ pushFilterjoinSortR = do
 --------------------------------------------------------------------------------
 
 pushThroughRewritesR :: RewriteC CL
-pushThroughRewritesR = pushFilterjoinNestjoinR
-                       <+ pushFilterjoinSortR
-                       <+ pushFilterjoinNestproductR
-                       <+ pushFilterjoinGroupJoinR
+pushThroughRewritesR =    logR "joinpd.nestjoin"    pushFilterjoinNestjoinR
+                       <+ logR "joinpd.sort"        pushFilterjoinSortR
+                       <+ logR "joinpd.nestproduct" pushFilterjoinNestproductR
+                       <+ logR "joinpd.groupjoin"   pushFilterjoinGroupJoinR
 
 joinPushdownR :: RewriteC CL
 joinPushdownR =

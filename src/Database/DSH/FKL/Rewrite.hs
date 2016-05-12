@@ -27,7 +27,7 @@ import qualified Database.DSH.FKL.Primitives  as P
 -- | Run a translate on an expression without context
 applyExpr :: (Injection (ExprTempl l e) (FKL l e))
           => TransformF (FKL l e) b -> ExprTempl l e -> Either String b
-applyExpr f e = runRewriteM $ applyT f initialCtx (inject e)
+applyExpr f e = fst <$> runRewriteM (applyT f initialCtx (inject e))
 
 --------------------------------------------------------------------------------
 -- Computation of free and bound variables
@@ -85,13 +85,13 @@ countVarRefT :: Walker FlatCtx (FKL l e) => Ident -> TransformF (FKL l e) (Sum I
 countVarRefT v = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
     ExprFKL (Var _ n) | n == v         -> return 1
-    ExprFKL (Var _ _) | otherwise      -> return 0
+                      | otherwise      -> return 0
     ExprFKL Table{}                    -> return 0
     ExprFKL Const{}                    -> return 0
 
     ExprFKL (Let _ n _ _) | n == v     -> childT LetBody (countVarRefT v)
 
-    ExprFKL Let{}         | otherwise  -> allT (countVarRefT v)
+                          | otherwise  -> allT (countVarRefT v)
 
     _                                  -> allT (countVarRefT v)
 

@@ -4,12 +4,13 @@ module Database.DSH.CL.Opt
   ( optimizeComprehensions
   , resugarComprehensions
   , normalizeComprehensions
-  , identityComprehensions
+  , CLOptimizer
   ) where
 
 import           Control.Arrow
 
 import           Database.DSH.Common.Kure
+import           Database.DSH.Common.Pretty
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
@@ -90,7 +91,7 @@ descendR = readerT $ \cl -> case cl of
 
     -- On non-comprehensions, try to apply partial evaluation rules
     -- before descending
-    ExprCL _      -> repeatR partialEvalR
+    ExprCL _      -> repeatR partialEvalLogR
                      >+> repeatR normalizeExprR
                      >+> pullProjectionR
                      >+> optimizeGroupJoinR
@@ -103,39 +104,36 @@ applyOptimizationsR :: RewriteC CL
 applyOptimizationsR = repeatR descendR >+> anytdR loopInvariantR >+> anybuR floatBindingsR >+> onetdR buUnnestR
 
 normalizeFlatR :: RewriteC CL
-normalizeFlatR = resugarR >+> normalizeOnceR >+> repeatR (repeatR descendR >+> anytdR loopInvariantR)
+normalizeFlatR = normalizeOnceR >+> repeatR (repeatR descendR >+> anytdR loopInvariantR)
 
 -- | The complete optimization pipeline
 optimizeR :: RewriteC CL
-optimizeR = resugarR >+>
-            normalizeOnceR >+>
-            repeatR applyOptimizationsR >+>
-            postProcessR
+optimizeR = normalizeOnceR >+> repeatR applyOptimizationsR >+> postProcessR
 
 --------------------------------------------------------------------------------
 
+-- | A optimizer that transforms a CL expression. Returns the potentially
+-- modified expression and a rewriting log.
+type CLOptimizer = Expr -> (Expr, String)
+
+mkOptimizer :: RewriteC CL -> CLOptimizer
+mkOptimizer opt expr =
+    case applyExprLog (resugarR >>> opt >>> projectT) expr of
+        Left _                    -> (expr, "")
+        Right (expr', rewriteLog) ->
+            case applyExpr (resugarR >>> projectT) expr of
+                Left _        -> (expr, "")
+                Right exprSug -> (expr', pp (exprSug::Expr) ++ "\n" ++ rewriteLog)
+
 -- | Apply the default set of unnesting and decorrelation rewrites to
 -- a CL query.
-optimizeComprehensions :: Expr -> Expr
-optimizeComprehensions expr =
-    case applyExpr (optimizeR >>> projectT) expr of
-        Left _      -> expr
-        Right expr' -> expr'
+optimizeComprehensions :: CLOptimizer
+optimizeComprehensions = mkOptimizer optimizeR
 
 -- | CL optimizer: normalize and introduce flat joins.
-normalizeComprehensions :: Expr -> Expr
-normalizeComprehensions expr =
-    case applyExpr (normalizeFlatR >>> projectT) expr of
-        Left _      -> expr
-        Right expr' -> expr'
-
--- | Identity CL optimizer
-identityComprehensions :: Expr -> Expr
-identityComprehensions = id
+normalizeComprehensions :: CLOptimizer
+normalizeComprehensions = mkOptimizer normalizeFlatR
 
 -- | CL optimizer: Resugar comprehensions
-resugarComprehensions :: Expr -> Expr
-resugarComprehensions expr =
-    case applyExpr (resugarR >>> projectT) expr of
-        Left _      -> expr
-        Right expr' -> expr'
+resugarComprehensions :: CLOptimizer
+resugarComprehensions = mkOptimizer idR

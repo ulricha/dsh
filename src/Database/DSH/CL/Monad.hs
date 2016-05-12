@@ -15,8 +15,8 @@ module Database.DSH.CL.Monad
     , liftstate
     ) where
 
-import Control.Applicative
 import Control.Monad
+import Data.Monoid
 
 import Language.KURE
 
@@ -25,91 +25,94 @@ import Database.DSH.Common.Lang(Ident)
 --------------------------------------------------------------------------------
 -- | The rewriting monad. Currently, it only provides fresh names
 -- FIXME Figure out how to define a MonadCatch instance and use StateT s KureM
-newtype CompM s a = CompM { compM :: s -> (s, Either String a) }
+newtype CompM s w a = CompM { compM :: s -> (s, Either String (a, w)) }
 
-type CompSM s = CompM (Int, s)
+type CompSM s w = CompM (Int, s) w
 
-runCompM :: CompM Int a -> Either String a
+runCompM :: CompM Int w a -> Either String (a, w)
 runCompM m = snd (compM m 0)
 
-runCompM' :: s -> CompM s a -> (s, Either String a)
+runCompM' :: s -> CompM s w a -> (s, Either String (a, w))
 runCompM' s m = compM m s
 
-instance Monad (CompM s) where
+instance Monoid w => Monad (CompM s w) where
     return = returnM
     (>>=)  = bindM
     fail   = failM
 
-instance Functor (CompM s) where
+instance Monoid w => Functor (CompM s w) where
     fmap = liftM
 
-instance Applicative (CompM s) where
+instance Monoid w => Applicative (CompM s w) where
     pure  = return
     (<*>) = ap
 
-returnM :: a -> CompM s a
-returnM a = CompM (\n -> (n, Right a))
+returnM :: Monoid w => a -> CompM s w a
+returnM a = CompM (\n -> (n, Right (a, mempty)))
 {-# INLINE returnM #-}
 
-bindM :: CompM s a -> (a -> CompM s b) -> CompM s b
+bindM :: Monoid w => CompM s w a -> (a -> CompM s w b) -> CompM s w b
 bindM (CompM f) gg = CompM $ \ n -> case f n of
                                     (n', Left msg) -> (n', Left msg)
-                                    (n', Right a)  -> compM (gg a) n'
+                                    (n', Right (a, w))  ->
+                                        case compM (gg a) n' of
+                                            (n'', Left msg') -> (n'', Left msg')
+                                            (n'', Right (b, w')) -> (n'', Right (b, w <> w'))
 {-# INLINE bindM #-}
 
-failM :: String -> CompM s a
+failM :: String -> CompM s w a
 failM msg = CompM (\n -> (n, Left msg))
 {-# INLINE failM #-}
 
-instance MonadCatch (CompM s) where
+instance Monoid w => MonadCatch (CompM s w) where
     catchM = catchCompM
 
-catchCompM :: CompM s a -> (String -> CompM s a) -> CompM s a
+catchCompM :: CompM s w a -> (String -> CompM s w a) -> CompM s w a
 catchCompM (CompM st) f = CompM $ \ n -> case st n of
                                         (n', Left msg) -> compM (f msg) n'
                                         (n', Right a)  -> (n', Right a)
 {-# INLINE catchCompM #-}
 
-suggestName :: CompM Int Ident
-suggestName = CompM (\n -> ((n+1), Right ("v" ++ show n)))
+suggestName :: Monoid w => CompM Int w Ident
+suggestName = CompM (\n -> (n+1, Right ("v" ++ show n, mempty)))
 
 -- | Generate a fresh name, taking the list of in-scope names as parameter. We
 -- assume that every name is bound. Therefore, a name that is not bound is
 -- assumed to be fresh.
-freshName :: [Ident] -> CompM Int Ident
+freshName :: Monoid w => [Ident] -> CompM Int w Ident
 freshName vs = do v <- suggestName
                   if v `elem` vs
                     then freshName vs
                     else return v
 
-suggestName' :: CompSM s Ident
-suggestName' = CompM (\(n, s) -> ((n+1, s), Right ("v" ++ show n)))
+suggestName' :: Monoid w => CompSM s w Ident
+suggestName' = CompM (\(n, s) -> ((n+1, s), Right ("v" ++ show n, mempty)))
 
-freshNameS :: [Ident] -> CompSM s Ident
+freshNameS :: Monoid w => [Ident] -> CompSM s w Ident
 freshNameS vs = do v <- suggestName'
                    if v `elem` vs
                      then freshNameS vs
                      else return v
 
-get :: CompSM s s
-get = CompM $ \(i, s) -> ((i, s), Right s)
+get :: Monoid w => CompSM s w s
+get = CompM $ \(i, s) -> ((i, s), Right (s, mempty))
 {-# INLINE get #-}
 
-put :: s -> CompSM s ()
-put s = CompM $ \(i, _) -> ((i, s), Right ())
+put :: Monoid w => s -> CompSM s w ()
+put s = CompM $ \(i, _) -> ((i, s), Right ((), mempty))
 {-# INLINE put #-}
 
-modify :: (s -> s) -> CompSM s ()
-modify f = CompM $ \(i, s) -> ((i, f s), Right ())
+modify :: Monoid w => (s -> s) -> CompSM s w ()
+modify f = CompM $ \(i, s) -> ((i, f s), Right ((), mempty))
 {-# INLINE modify #-}
 
-stateful :: s -> CompSM s a -> CompM Int (s, a)
+stateful :: s -> CompSM s w a -> CompM Int w (s, a)
 stateful s ma = CompM $ \i ->
                case runCompM' (i, s) ma of
                    ((i', _), Left msg) -> (i', Left msg)
-                   ((i', s'), Right a) -> (i', Right (s', a))
+                   ((i', s'), Right (a, w)) -> (i', Right ((s', a), w))
 
-liftstate :: CompM Int a -> CompSM s a
+liftstate :: CompM Int w a -> CompSM s w a
 liftstate ma = CompM $ \(i, s) -> let (i', a) = runCompM' i ma
                                   in ((i', s), a)
 

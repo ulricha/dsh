@@ -26,6 +26,7 @@ import           Data.Semigroup                 ((<>))
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Kure
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
@@ -119,7 +120,7 @@ traverseGuardsT genName t = readerT $ \qs -> case qs of
 --
 -- FIXME explicitly check that we have no further occurences of x.2
 groupjoinR :: RewriteC CL
-groupjoinR = do
+groupjoinR = logR "groupjoin.construct" $ do
     Comp ty _ qs <- promoteT idR
 
     -- We need one NestJoin generator on a comprehension
@@ -170,7 +171,7 @@ mkGroupJoin agg p xs ys =
 -- Basic idea: Execute the GroupJoin only for those elements of ys that will
 -- actually find a join partner in the NestJoin.
 sidewaysR :: RewriteC CL
-sidewaysR = do
+sidewaysR = logR "groupjoin.sideways" $ do
     NestJoinP ty1 p1 xs (GroupJoinP ty2 p2 as ys zs) <- promoteT idR
     JoinConjunct c1 Eq c2 :| [] <- return $ jpConjuncts p1
     let semiPred = JoinPred $ JoinConjunct c2 Eq c1 :| []
@@ -198,7 +199,7 @@ leftCompatible _ _ = False
 -- | Merge two group joins into one if their join predicates and left inputs are
 -- compatible.
 mergeGroupjoinR :: RewriteC CL
-mergeGroupjoinR = do
+mergeGroupjoinR = logR "groupjoin.merge" $ do
     GroupJoinP _ p1 (NE (a1 :| [])) (GroupJoinP ty p2 (NE as) xs ys) ys' <- promoteT idR
     guardM $ ys == ys'
 
@@ -282,7 +283,7 @@ mergeNewAggrR a as p xs ys = do
 --
 -- This rewrite is particularly helpful in TPC-H Q19.
 disjunctiveGroupJoinR :: RewriteC CL
-disjunctiveGroupJoinR = do
+disjunctiveGroupJoinR = logR "groupjoin.disjunctive" $ do
     GroupJoinP _ (SingleJoinPredP ex Eq JInput{}) (NE (a :| [])) xs (LitListP (ListT litTy) (v:vs)) <- promoteT idR
     AggrApp Or (JLit _ (ScalarV (BoolV True))) <- return a
     guardM $ length vs < 10
