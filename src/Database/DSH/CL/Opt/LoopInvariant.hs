@@ -8,7 +8,6 @@ module Database.DSH.CL.Opt.LoopInvariant
   ( loopInvariantR
   ) where
 
-import           Control.Arrow
 import           Data.List
 import           Data.Maybe
 
@@ -35,8 +34,16 @@ traverseT localVars = readerT $ \expr -> case expr of
     -- nested in our current comprehension.
     ExprCL Comp{} -> fail "we don't traverse into comprehensions"
 
-    ExprCL _      -> oneT $ searchInvariantExprT localVars
-    _             -> fail "we only consider expressions"
+    -- Search in let-bindings. We need to check whether the binding generates
+    -- transitive dependencies on generator variables.
+    ExprCL (Let _ x e1 _) -> let localVars' = if not $ null $ freeVars e1 `intersect` localVars
+                                              then localVars ++ [x]
+                                              else localVars
+                             in childT LetBind (searchInvariantExprT localVars)
+                                <+
+                                childT LetBody (searchInvariantExprT localVars')
+    ExprCL _             -> oneT $ searchInvariantExprT localVars
+    _                    -> fail "we only consider expressions"
 
 -- | Collect a path to a complex expression
 complexPathT :: [Ident] -> TransformC CL (Expr, PathC)
