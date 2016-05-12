@@ -36,7 +36,7 @@ import           Database.DSH.Common.Impossible
 
 -- | M-Norm-1: Eliminate comprehensions with empty generators
 m_norm_1R :: RewriteC CL
-m_norm_1R = do
+m_norm_1R = logR "compnorm.M-Norm-1" $ do
     Comp t _ _ <- promoteT idR
     matches <- childT CompQuals $ onetdT (promoteT $ patternT <+ patternEndT)
     guardM matches
@@ -57,7 +57,7 @@ m_norm_1R = do
 -- [ h | qs, x <- [v], qs' ]
 -- => [ h[v/x] | qs, qs'[v/x] ]
 m_norm_2R :: RewriteC CL
-m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
+m_norm_2R = logR "compnorm.M-Norm-2" $ normSingletonCompR <+ normCompR
 
   where
     -- This rewrite is a bit annoying: If it triggers, we can remove a
@@ -115,7 +115,7 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
 -- [ h | qs, x <- [ h' | qs'' ], qs' ]
 -- => [ h[h'/x] | qs, qs'', qs'[h'/x] ]
 m_norm_3R :: RewriteC CL
-m_norm_3R = do
+m_norm_3R = logR "compnorm.M-Norm-3" $ do
     Comp t _ _ <- promoteT idR
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR normQualifiersR) >>> projectT
     h'                  <- childT CompHead (tryR tuplifyHeadR) >>> projectT
@@ -190,7 +190,7 @@ qualsguardpushbackR = innermostR $ readerT $ \quals -> case quals of
 -- | Push all guards to the end of the qualifier list to bring
 -- generators closer together.
 guardpushbackR :: RewriteC CL
-guardpushbackR = do
+guardpushbackR = logR "compnorm.guardpushback" $ do
     Comp t h _ <- promoteT idR
     qs' <- childT CompQuals (promoteR qualsguardpushbackR) >>> projectT
     return $ inject $ Comp t h qs'
@@ -201,7 +201,7 @@ guardpushbackR = do
 -- preparation, we push guards towards the front of the qualifier
 -- list.
 invariantguardR :: RewriteC CL
-invariantguardR =
+invariantguardR = logR "compnorm.invariantguard" $
     tryR guardpushfrontR
     >>>
     promoteR (readerT $ \expr -> case expr of
@@ -218,14 +218,14 @@ ifgeneratorqualsR = anytdR $ readerT $ \quals -> case quals of
 
 -- | Transform an 'if' conditional in a generator into a guard.
 ifgeneratorR :: RewriteC CL
-ifgeneratorR = do
+ifgeneratorR = logR "compnorm.ifgenerator" $ do
     Comp t h _ <- promoteT idR
     qs' <- childT CompQuals (promoteR ifgeneratorqualsR) >>> projectT
     return $ inject $ Comp t h qs'
 
 -- | Eliminate comprehensions that do not perform work.
 identityCompR :: RewriteC CL
-identityCompR = do
+identityCompR = logR " compnorm.identitycomp" $ do
     Comp _ (Var _ x) (S (BindQ x' xs)) <- promoteT idR
     guardM $ x == x'
     return $ inject xs

@@ -23,8 +23,8 @@ import           Database.DSH.Common.Lang
 -- | Extract complex loop-invariant expressions from comprehension
 -- heads and guards.
 loopInvariantR :: RewriteC CL
-loopInvariantR =    (loopInvariantGuardR >>> logR "loopinvariant.guard")
-                 <+ (loopInvariantHeadR >>> logR "loopinvariant.head")
+loopInvariantR =    logR "loopinvariant.guard" loopInvariantGuardR
+                 <+ logR "loopinvariant.head" loopInvariantHeadR
 
 --------------------------------------------------------------------------------
 -- Common code for searching loop-invariant expressions

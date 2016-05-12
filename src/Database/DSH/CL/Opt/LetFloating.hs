@@ -17,6 +17,7 @@ import           Database.DSH.CL.Opt.Auxiliary
 import qualified Database.DSH.CL.Primitives     as P
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Kure
 
 --------------------------------------------------------------------------------
 -- Unary applications
@@ -183,7 +184,9 @@ floatCompR = do
 --------------------------------------------------------------------------------
 
 floatNonBindingR :: RewriteC Expr
-floatNonBindingR = floatAppE1R
+floatNonBindingR = logR "float.nonbinding" floatRewrite
+  where
+    floatRewrite =    floatAppE1R
                    <+ floatUnOpR
                    <+ floatAppE2LeftR
                    <+ floatAppE2RightR
@@ -195,7 +198,7 @@ floatNonBindingR = floatAppE1R
                    <+ floatTupleR
 
 floatBindingR :: RewriteC CL
-floatBindingR = floatCompR
+floatBindingR = logR "float.binding" floatCompR
 
 floatBindingsR :: RewriteC CL
 floatBindingsR = readerT $ \e -> case e of

@@ -30,7 +30,8 @@ import           Database.DSH.CL.Opt.Auxiliary
 import           Database.DSH.CL.Opt.CompNormalization
 
 nestjoinR :: RewriteC CL
-nestjoinR = unnestFromGuardR <+ unnestFromHeadR
+nestjoinR =    logR "nestjoin.guard" unnestFromGuardR
+            <+ logR "nestjoin.head" unnestFromHeadR
 
 --------------------------------------------------------------------------------
 -- Common code for unnesting from a comprehension head and from
@@ -458,7 +459,7 @@ containsComplexExprT = onetdT isComplexExprT
 -- Note: This rule is actually a special case of the inverse M-Norm-3
 -- rule provided above.
 zipCorrelatedR :: RewriteC CL
-zipCorrelatedR = do
+zipCorrelatedR = logR "nestjoin.zipcorrelated" $ do
     Comp to (Comp ti e (S (BindQ y f))) (S (BindQ x xs)) <- promoteT idR
 
     let fvs = freeVars e
@@ -504,7 +505,7 @@ zipCorrelatedR = do
 -- application will lead into a rewriting loop. It **must** be
 -- combined with a rewrite that makes progress on g and xs.
 nestingGenR :: RewriteC CL
-nestingGenR = do
+nestingGenR = logR "nestjoin.nestinggen" $ do
     Comp  to (Comp ti e (S (BindQ y g))) (S (BindQ x xs)) <- promoteT idR
 
     -- Generator expression g should depend on x (otherwise we could

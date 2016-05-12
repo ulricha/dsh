@@ -16,6 +16,7 @@ import           Database.DSH.CL.Opt.Auxiliary
 import qualified Database.DSH.CL.Primitives    as P
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Kure
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
 
@@ -232,4 +233,4 @@ pushDownPredsR comp guard guardsToTry leftOverGuards = do
 
 -- | Push down all guards in a qualifier list, if possible.
 predpushdownR :: RewriteC CL
-predpushdownR = mergeGuardsIterR pushDownPredsR
+predpushdownR = logR "predpushdown" $ mergeGuardsIterR pushDownPredsR

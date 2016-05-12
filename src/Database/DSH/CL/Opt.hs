@@ -91,7 +91,7 @@ descendR = readerT $ \cl -> case cl of
 
     -- On non-comprehensions, try to apply partial evaluation rules
     -- before descending
-    ExprCL _      -> repeatR partialEvalR
+    ExprCL _      -> repeatR partialEvalLogR
                      >+> repeatR normalizeExprR
                      >+> pullProjectionR
                      >+> optimizeGroupJoinR

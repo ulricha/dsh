@@ -5,6 +5,7 @@ module Database.DSH.CL.Opt.PostProcess
 import           Control.Arrow
 
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Kure
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
@@ -65,7 +66,7 @@ cartProductR =
         _ -> fail "no match"
 
 introduceCartProductsR :: RewriteC CL
-introduceCartProductsR = do
+introduceCartProductsR = logR "postprocess.cartproduct" $ do
     Comp t _ _          <- promoteT idR
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR cartProductR) >>> projectT
     ExprCL h'           <- childT CompHead tuplifyHeadR

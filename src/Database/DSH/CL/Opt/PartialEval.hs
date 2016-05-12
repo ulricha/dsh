@@ -3,12 +3,14 @@
 
 -- | Support rewrites (partial evaluation, house cleaning)
 module Database.DSH.CL.Opt.PartialEval
-  ( partialEvalR
+  ( partialEvalLogR
+  , partialEvalNoLogR
   ) where
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
+import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 
@@ -77,11 +79,17 @@ appendEmptyRightR = do
     AppE2 _ Append xs (Lit _ (ListV [])) <- promoteT idR
     return $ inject xs
 
-partialEvalR :: RewriteC CL
-partialEvalR =
+partialEvalR :: (RewriteC CL -> RewriteC CL) -> RewriteC CL
+partialEvalR logFun = logFun $
     readerT $ \cl -> case cl of
         ExprCL UnOp{}    -> negationR
         ExprCL AppE1{}   -> tupleElemR <+ literalSingletonR
         ExprCL MkTuple{} -> identityPairR <+ literalTupleR
         ExprCL AppE2{}   -> literalAppendR <+ appendEmptyLeftR <+ appendEmptyRightR
         _                -> fail "can't apply partial evaluation rules"
+
+partialEvalLogR :: RewriteC CL
+partialEvalLogR = partialEvalR (logR "partialeval")
+
+partialEvalNoLogR :: RewriteC CL
+partialEvalNoLogR = partialEvalR id

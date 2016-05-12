@@ -32,12 +32,14 @@ import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 type RewriteLog = S.Seq String
 
-logR :: Pretty a => String -> Rewrite c (RewriteM s RewriteLog) a
-logR rewriteName = do
+logR :: Pretty a => String -> Rewrite c (RewriteM s RewriteLog) a -> Rewrite c (RewriteM s RewriteLog) a
+logR rewriteName r = do
     e <- idR
-    let msg = white (char '=' P.<+> braces (enclose space space (text rewriteName))) P.<$> pretty e
+    e' <- r
+    let ruleMsg = white (char '=' P.<+> braces (enclose space space (text rewriteName)))
+        msg     = pretty e P.<$> ruleMsg P.<$> pretty e'
     constT $ tell $ S.singleton $ pp msg
-    return e
+    return e'
 
 --------------------------------------------------------------------------------
 -- Simple debugging combinators
