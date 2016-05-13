@@ -124,7 +124,7 @@ decorate msg = sepLine ++ msg ++ "\n" ++ sepLine
 -- | Show comprehensions with an optional optimizer (CL)
 showComprehensionsQ :: forall a.QA a => CLOptimizer -> Q a -> IO ()
 showComprehensionsQ clOpt (Q q) = do
-    let cl = clOpt $ toComprehensions q
+    let cl = fst $ clOpt $ toComprehensions q
     putStrLn $ decorate $ pp cl
 
 -- | Show comprehensions with an optional optimizer and display the rewriting
@@ -138,7 +138,7 @@ showComprehensionsLogQ clOpt (Q q) = do
 -- | Show optimized comprehensions (CL)
 showComprehensionsOptQ :: forall a. QA a => Q a -> IO ()
 showComprehensionsOptQ (Q q) = do
-    let cl = optimizeComprehensions $ toComprehensions q
+    let cl = fst $ optimizeComprehensions $ toComprehensions q
     putStrLn $ decorate $ pp cl
 
 -- | Show unoptimized desugared iterators (CL)
