@@ -118,12 +118,13 @@ type CLOptimizer = Expr -> (Expr, String)
 
 mkOptimizer :: RewriteC CL -> CLOptimizer
 mkOptimizer opt expr =
-    case applyExprLog (resugarR >>> opt >>> projectT) expr of
+    case applyExprLog ((resugarR >+> opt) >>> projectT) expr of
         Left _                    -> (expr, "")
         Right (expr', rewriteLog) ->
-            case applyExpr (resugarR >>> projectT) expr of
-                Left _        -> (expr, "")
-                Right exprSug -> (expr', pp (exprSug::Expr) ++ "\n" ++ rewriteLog)
+            case applyExpr (resugarR) expr of
+                Left _        -> (expr', rewriteLog)
+                Right (ExprCL exprSug) -> (expr', pp (exprSug::Expr) ++ "\n" ++ rewriteLog)
+                _ -> undefined
 
 -- | Apply the default set of unnesting and decorrelation rewrites to
 -- a CL query.
