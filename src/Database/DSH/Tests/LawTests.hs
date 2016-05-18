@@ -2,18 +2,16 @@ module Database.DSH.Tests.LawTests
     ( tests_laws
     ) where
 
-
-
-import           Test.Framework            (Test, testGroup)
 import           Test.QuickCheck
 import           Test.QuickCheck.Monadic
+import           Test.Tasty
 
 import qualified Database.DSH              as Q
 import           Database.DSH.Backend
 import           Database.DSH.Compiler
 import           Database.DSH.Tests.Common
 
-tests_laws :: Backend c => c -> Test
+tests_laws :: Backend c => c -> TestTree
 tests_laws conn = testGroup "List Laws"
     [ testPropertyConn conn "takedrop" prop_takedrop
     , testPropertyConn conn "reverse id" prop_reverse_identity
