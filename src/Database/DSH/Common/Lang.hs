@@ -20,12 +20,6 @@ import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 
-instance ToJSON a => ToJSON (N.NonEmpty a) where
-    toJSON (n N.:| nl) = toJSON (n, nl)
-
-instance FromJSON a => FromJSON (N.NonEmpty a) where
-    parseJSON doc = parseJSON doc >>= \(n, nl) -> return $ n N.:| nl
-
 -----------------------------------------------------------------------------
 -- Common types for backend expressions
 
@@ -416,7 +410,7 @@ instance Pretty ScalarExpr where
     pretty (JBinOp op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2
     pretty (JUnOp op e)      = pretty op <+> parenthize e
     pretty (JLit _ v)        = pretty v
-    pretty (JInput t)        = text "I"
+    pretty (JInput _)        = text "I"
     pretty (JTupElem i e1)   =
         parenthize e1 <> dot <> int (tupleIndex i)
 
