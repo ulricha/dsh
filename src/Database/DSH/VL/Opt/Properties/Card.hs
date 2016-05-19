@@ -64,7 +64,7 @@ inferCardOneBinOp c1 c2 op =
     AppendS -> Right $ VPropTriple False False False
     Align -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProductS -> return $ VPropTriple False False False
-    NestProductS -> return $ VPropTriple False False False
+    ReplicateVector -> return $ VPropPair False False
     ThetaJoinS _ -> return $ VPropTriple False False False
     NestJoinS _ -> return $ VPropTriple False False False
     GroupJoin _ -> return $ VProp False

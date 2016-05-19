@@ -59,7 +59,6 @@ module Database.DSH.CL.Opt.Auxiliary
     , pattern SemiJoinP
     , pattern NestJoinP
     , pattern GroupJoinP
-    , pattern NestProductP
     , pattern AndP
     , pattern OrP
     , pattern SortP
@@ -510,7 +509,6 @@ pattern GuardP p             <- AppE1 _ Guard p
 pattern SemiJoinP ty p xs ys = AppE2 ty (SemiJoin p) xs ys
 pattern NestJoinP ty p xs ys = AppE2 ty (NestJoin p) xs ys
 pattern GroupJoinP ty p as xs ys = AppE2 ty (GroupJoin p as) xs ys
-pattern NestProductP ty xs ys = AppE2 ty NestProduct xs ys
 pattern AndP xs              <- AppE1 _ (Agg And) xs
 pattern OrP xs              <- AppE1 _ (Agg Or) xs
 pattern SortP ty xs          = AppE1 ty Sort xs

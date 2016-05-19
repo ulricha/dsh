@@ -43,9 +43,8 @@ compNormEarlyR = m_norm_1R
                  <+ ifgeneratorR
                  <+ identityCompR
 
--- | Nestjoin/Nestproduct rewrites are applied bottom-up. Innermost
--- nesting opportunities must be dealt with first in order to produce
--- trees of nesting operators.
+-- | Nestjoin rewrites are applied bottom-up. Innermost nesting opportunities
+-- must be dealt with first in order to produce trees of nesting operators.
 buUnnestR :: RewriteC CL
 buUnnestR =
     zipCorrelatedR

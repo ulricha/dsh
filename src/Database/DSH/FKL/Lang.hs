@@ -67,7 +67,6 @@ data Prim1 = Concat
 data Prim2 = Append
            | Zip
            | CartProduct
-           | NestProduct
            | ThetaJoin (L.JoinPredicate L.ScalarExpr)
            | NestJoin (L.JoinPredicate L.ScalarExpr)
            | GroupJoin (L.JoinPredicate L.ScalarExpr) (L.NE L.AggrApp)
@@ -80,7 +79,6 @@ isJoinOp :: Prim2 -> Bool
 isJoinOp op =
     case op of
         CartProduct -> True
-        NestProduct -> True
         ThetaJoin{} -> True
         NestJoin{}  -> True
         GroupJoin{} -> True
@@ -165,7 +163,6 @@ instance Pretty Prim2 where
     pretty Append          = combinator $ text "append"
     pretty Zip             = combinator $ text "zip"
     pretty CartProduct     = join $ text "cartproduct"
-    pretty NestProduct     = join $ text "nestproduct"
     pretty (ThetaJoin p)   = join $ text $ printf "thetajoin{%s}" (pp p)
     pretty (NestJoin p)    = join $ text $ printf "nestjoin{%s}" (pp p)
     pretty (GroupJoin p a) = join $ text $ printf "groupjoin{%s, %s}" (pp p) (pp a)

@@ -164,7 +164,7 @@ opDotLabel tm i (BinOp AppendS _ _) = labelToDoc i "AppendS" empty (lookupTags i
 opDotLabel tm i (BinOp Align _ _) = labelToDoc i "Align" empty (lookupTags i tm)
 opDotLabel tm i (BinOp ZipS _ _) = labelToDoc i "ZipS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp CartProductS _ _) = labelToDoc i "CartProductS" empty (lookupTags i tm)
-opDotLabel tm i (BinOp NestProductS _ _) = labelToDoc i "NestProductS" empty (lookupTags i tm)
+opDotLabel tm i (BinOp ReplicateVector _ _) = labelToDoc i "ReplicateVector" empty (lookupTags i tm)
 opDotLabel tm i (BinOp (ThetaJoinS p) _ _) =
   labelToDoc i "ThetaJoinS" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (NestJoinS p) _ _) =
@@ -179,7 +179,7 @@ opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "Combine" empty (lookupTags
 
 opDotColor :: VL -> DotColor
 opDotColor (BinOp CartProductS _ _)    = DCRed
-opDotColor (BinOp NestProductS _ _)    = DCRed
+opDotColor (BinOp ReplicateVector _ _) = DCRed
 opDotColor (BinOp (ThetaJoinS _) _ _)  = DCGreen
 opDotColor (BinOp (NestJoinS _) _ _)   = DCGreen
 opDotColor (BinOp (SemiJoinS _) _ _)   = DCGreen

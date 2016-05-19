@@ -44,7 +44,7 @@ allVarPathsT x = do
 -- Push a guard into a branch of a join operator
 
 -- | Try to push predicate into the left input of a binary operator
--- which produces tuples: equijoin, nestjoin, nestproduct
+-- which produces tuples: equijoin, nestjoin
 pushLeftTupleR :: Ident -> Expr -> RewriteC CL
 pushLeftTupleR x p = do
     AppE2 t op xs ys <- promoteT idR
@@ -187,8 +187,6 @@ pushPredicateR x p =
         -- For nesting operators, a guard can only refer to the left
         -- input, i.e. the original outer generator.
 
-        -- FIXME why commented out?
-        -- ExprCL (AppE2 _ (Prim2 (NestProduct _ _) _) _ _) -> pushLeftTupleR p
         ExprCL NestJoinP{}                 -> pushLeftTupleR x p
         ExprCL GroupJoinP{}                -> pushLeftTupleR x p
 

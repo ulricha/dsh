@@ -61,7 +61,6 @@ redundantRulesBottomUp = [ sameInputAlign
                          , alignProjectRight
                          , distLiftProjectLeft
                          , distLiftProjectRight
-                         , distLiftNestProduct
                          , distLiftNestJoin
                          , distLiftStacked
                          , distLiftSelect
@@ -94,8 +93,8 @@ redundantRulesBottomUp = [ sameInputAlign
                          , pullProjectUnboxSngRight
                          , pullProjectNestJoinLeft
                          , pullProjectNestJoinRight
-                         , pullProjectNestProductLeft
-                         , pullProjectNestProductRight
+                         , pullProjectReplicateVecLeft
+                         , pullProjectReplicateVecRight
                          , pullProjectCartProductLeft
                          , pullProjectCartProductRight
                          , pullProjectGroupJoinLeft
@@ -158,31 +157,6 @@ unreferencedReplicateNest q =
                         [ Column i | i <- [1..w2] ]
 
           void $ replaceWithNew q $ UnOp (Project padProj) $(v "q2") |])
-
--- | Remove a ReplicateNest if the outer vector is aligned with a
--- NestProduct that uses the same outer vector.
--- FIXME try to generalize to NestProductS
-distLiftNestProduct :: VLRule BottomUpProps
-distLiftNestProduct q =
-  $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestProductS (qi))))"
-    [| do
-        predicate $ $(v "qo") == $(v "qo1")
-
-        -- Only allow the rewrite if both product inputs are flat (i.e. unit
-        -- segment). This is equivalent to the old flat NestProduct rewrite.
-        VProp UnitSegP <- segProp <$> properties $(v "qo1")
-        VProp UnitSegP <- segProp <$> properties $(v "qi")
-
-        w1 <- vectorWidth . vectorTypeProp <$> properties $(v "qo")
-        w2 <- vectorWidth . vectorTypeProp <$> properties $(v "qi")
-
-        return $ do
-            logRewrite "Redundant.ReplicateNest.NestProduct" q
-            -- Preserve the original schema
-            let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
-            prodNode <- insert $ BinOp NestProductS $(v "qo") $(v "qi")
-            r1Node   <- insert $ UnOp R1 prodNode
-            void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
 -- | Remove a ReplicateNest if the outer vector is aligned with a
 -- NestJoin that uses the same outer vector.
@@ -897,42 +871,28 @@ pullProjectGroupJoinRight q =
 
             void $ replaceWithNew q $ BinOp (GroupJoin (p', as')) $(v "q1") $(v "q2") |])
 
-pullProjectNestProductLeft :: VLRule BottomUpProps
-pullProjectNestProductLeft q =
-  $(dagPatMatch 'q "R1 ((Project proj (q1)) NestProductS (q2))"
-    [| do
-        leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
-        rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
+pullProjectReplicateVecLeft :: VLRule BottomUpProps
+pullProjectReplicateVecLeft q =
+  $(dagPatMatch 'q "R1 ((Project proj (q1)) ReplicateVector (q2))"
+    [| return $ do
+            logRewrite "Redundant.Project.ReplicateVector.Left" q
+            repNode <- insert $ BinOp ReplicateVector $(v "q1") $(v "q2")
+            r1Node  <- insert $ UnOp R1 repNode
+            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node
 
-        return $ do
-            logRewrite "Redundant.Project.NestProduct.Left" q
-            let proj' = $(v "proj") ++ map Column [leftWidth + 1 .. leftWidth + rightWidth]
-
-            joinNode <- insert $ BinOp NestProductS $(v "q1") $(v "q2")
-            r1Node   <- insert $ UnOp R1 joinNode
-            void $ replaceWithNew q $ UnOp (Project proj') r1Node
-
-            -- FIXME relink R2 and R3 parents
+            -- FIXME relink R2 parents
             |])
 
-pullProjectNestProductRight :: VLRule BottomUpProps
-pullProjectNestProductRight q =
-  $(dagPatMatch 'q "R1 ((q1) NestProductS (Project proj (q2)))"
-    [| do
-        leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+pullProjectReplicateVecRight :: VLRule BottomUpProps
+pullProjectReplicateVecRight q =
+  $(dagPatMatch 'q "R1 ((q1) ReplicateVector (Project _ (q2)))"
+    [| return $ do
+            logRewrite "Redundant.Project.ReplicateVector.Right" q
+            repNode <- insert $ BinOp ReplicateVector $(v "q1") $(v "q2")
+            void $ replaceWithNew q $ UnOp R1 repNode
 
-        return $ do
-            logRewrite "Redundant.Project.NestProduct.Right" q
-            let proj' = map Column [1..leftWidth] ++ map (shiftExprCols leftWidth) $(v "proj")
-
-            joinNode <- insert $ BinOp NestProductS $(v "q1") $(v "q2")
-            r1Node   <- insert $ UnOp R1 joinNode
-            void $ replaceWithNew q $ UnOp (Project proj') r1Node
-
-            -- FIXME relink R2 and R3 parents
+            -- FIXME relink R2 parents
             |])
-
-
 
 pullProjectNestJoinLeft :: VLRule BottomUpProps
 pullProjectNestJoinLeft q =

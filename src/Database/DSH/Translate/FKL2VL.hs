@@ -165,7 +165,6 @@ papp2 f Lifted =
         Append          -> V.appendL
         Zip             -> V.zipL
         CartProduct     -> V.cartProductL
-        NestProduct     -> V.nestProductL
         ThetaJoin p     -> V.thetaJoinL p
         NestJoin p      -> V.nestJoinL p
         GroupJoin p (NE as) -> V.groupJoinL p (NE $ fmap translateAggrFun as)
@@ -178,7 +177,6 @@ papp2 f NotLifted =
         Append          -> V.append
         Zip             -> V.zip
         CartProduct     -> V.cartProduct
-        NestProduct     -> V.nestProduct
         ThetaJoin p     -> V.thetaJoin p
         NestJoin p      -> V.nestJoin p
         GroupJoin p (NE as) -> V.groupJoin p (NE $ fmap translateAggrFun as)

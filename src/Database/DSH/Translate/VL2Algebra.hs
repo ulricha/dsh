@@ -179,8 +179,13 @@ translateBinOp b c1 c2 = case b of
     V.ReplicateNest -> do
         (v, p) <- vecReplicateNest (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec p)
+
     V.ReplicateScalar -> do
         (v, p) <- vecReplicateScalar (toDVec c1) (toDVec c2)
+        return $ RLPair (fromDVec v) (fromRVec p)
+
+    V.ReplicateVector -> do
+        (v, p) <- vecReplicateVector (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec p)
 
     V.AppKey -> do
@@ -217,10 +222,6 @@ translateBinOp b c1 c2 = case b of
 
     V.CartProductS -> do
         (v, p1, p2) <- vecCartProductS (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
-
-    V.NestProductS -> do
-        (v, p1, p2) <- vecNestProductS (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.ThetaJoinS p -> do

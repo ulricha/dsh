@@ -86,6 +86,8 @@ class VectorAlgebra a where
 
     vecReplicateScalar :: DVec a -> DVec a -> Build a (DVec a, RVec a)
 
+    vecReplicateVector :: DVec a -> DVec a -> Build a (DVec a, RVec a)
+
     -- | Apply a sorting vector to a data vector
     vecAppSort   :: SVec a -> DVec a -> Build a (DVec a, SVec a)
 
@@ -113,7 +115,6 @@ class VectorAlgebra a where
     vecZipS :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
     vecCartProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-    vecNestProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecThetaJoinS :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecNestJoinS :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
     vecSemiJoinS :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)

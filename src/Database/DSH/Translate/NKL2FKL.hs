@@ -69,7 +69,6 @@ prim2 p =
         N.Append          -> P.append
         N.Zip             -> P.zip
         N.CartProduct     -> P.cartProduct
-        N.NestProduct     -> P.nestProduct
         N.ThetaJoin jp    -> P.thetaJoin jp
         N.NestJoin jp     -> P.nestJoin jp
         N.GroupJoin jp as -> P.groupJoin jp as

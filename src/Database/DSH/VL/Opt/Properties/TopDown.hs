@@ -70,7 +70,7 @@ seed (BinOp op _ _) =
         AntiJoinS _     -> vPropPairSeed
         NestJoinS _     -> vPropTripleSeed
         GroupJoin _     -> vPropSeed
-        NestProductS    -> vPropTripleSeed
+        ReplicateVector -> vPropPairSeed
 
 seed (TerOp op _ _ _) =
     case op of
