@@ -13,18 +13,18 @@ module Database.DSH.Tests.Common
     , filterNullChar
     ) where
 
-import qualified Data.Text                            as T
-import qualified Data.Time.Calendar                   as C
-import qualified Data.Decimal                         as D
+import qualified Data.Decimal            as D
+import qualified Data.Text               as T
+import qualified Data.Time.Calendar      as C
 
-import           Test.Framework
-import           Test.Framework.Providers.QuickCheck2
-import           Test.HUnit                           (Assertion, assertEqual)
+import           Test.HUnit              (Assertion, assertEqual)
 import           Test.QuickCheck
 import           Test.QuickCheck.Monadic
+import           Test.Tasty
+import           Test.Tasty.QuickCheck
 
 
-import qualified Database.DSH                         as Q
+import qualified Database.DSH            as Q
 import           Database.DSH.Backend
 import           Database.DSH.Compiler
 
@@ -104,5 +104,5 @@ makeEqAssertion msg q expRes conn = do
     assertEqual msg expRes actualRes
 
 testPropertyConn :: (Show a, Arbitrary a, Backend c)
-                 => c -> TestName -> (a -> c -> Property) -> Test
+                 => c -> TestName -> (a -> c -> Property) -> TestTree
 testPropertyConn conn name t = testProperty name (\a -> t a conn)

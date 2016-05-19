@@ -12,11 +12,11 @@ module Database.DSH.Tests.ComprehensionTests
 import           Data.List
 import           GHC.Exts
 
-import           Test.Framework                       (Test, testGroup)
-import           Test.Framework.Providers.HUnit
-import           Test.Framework.Providers.QuickCheck2 (testProperty)
 import           Test.HUnit                           (Assertion)
 import           Test.QuickCheck
+import           Test.Tasty
+import qualified Test.Tasty.HUnit                     as TH
+import           Test.Tasty.QuickCheck
 
 import qualified Database.DSH                         as Q
 import           Database.DSH.Backend
@@ -26,7 +26,7 @@ import qualified Database.DSH.Tests.DSHComprehensions as C
 {-# ANN module "HLint: ignore Use camelCase" #-}
 {-# ANN module "HLint: ignore Avoid lambda" #-}
 
-tests_comprehensions :: Backend c => c -> Test
+tests_comprehensions :: Backend c => c -> TestTree
 tests_comprehensions conn = testGroup "Comprehensions"
     [ testProperty "cartprod" (\a -> prop_cartprod a conn)
     , testProperty "eqjoin" (\a -> prop_eqjoin a conn)
@@ -70,56 +70,56 @@ tests_comprehensions conn = testGroup "Comprehensions"
     , testProperty "njg7" (\a -> prop_njg7 a conn)
     ]
 
-tests_lifted_joins :: Backend c => c -> Test
+tests_lifted_joins :: Backend c => c -> TestTree
 tests_lifted_joins conn = testGroup "Lifted Joins"
     [ testProperty "lifted semijoin" (\a -> prop_liftsemijoin a conn)
     , testProperty "lifted antijoin" (\a -> prop_liftantijoin a conn)
     , testProperty "lifted thetajoin" (\a -> prop_liftthetajoin a conn)
     ]
 
-tests_join_hunit :: Backend c => c -> Test
+tests_join_hunit :: Backend c => c -> TestTree
 tests_join_hunit conn = testGroup "HUnit joins"
-    [ testCase "heqjoin_nested1" (heqjoin_nested1 conn)
-    , testCase "hsemijoin" (hsemijoin conn)
-    , testCase "hsemijoin_range" (hsemijoin_range conn)
-    , testCase "hsemijoin_quant" (hsemijoin_quant conn)
-    , testCase "hsemijoin_not_null" (hsemijoin_not_null conn)
-    , testCase "hantijoin" (hantijoin conn)
-    , testCase "hantijoin_range" (hantijoin_range conn)
-    , testCase "hantijoin_null" (hantijoin_null conn)
-    , testCase "hantijoin_class12" (hantijoin_class12 conn)
-    , testCase "hantijoin_class15" (hantijoin_class15 conn)
-    , testCase "hantijoin_class16" (hantijoin_class16 conn)
-    , testCase "hfrontguard" (hfrontguard conn)
+    [ TH.testCase "heqjoin_nested1" (heqjoin_nested1 conn)
+    , TH.testCase "hsemijoin" (hsemijoin conn)
+    , TH.testCase "hsemijoin_range" (hsemijoin_range conn)
+    , TH.testCase "hsemijoin_quant" (hsemijoin_quant conn)
+    , TH.testCase "hsemijoin_not_null" (hsemijoin_not_null conn)
+    , TH.testCase "hantijoin" (hantijoin conn)
+    , TH.testCase "hantijoin_range" (hantijoin_range conn)
+    , TH.testCase "hantijoin_null" (hantijoin_null conn)
+    , TH.testCase "hantijoin_class12" (hantijoin_class12 conn)
+    , TH.testCase "hantijoin_class15" (hantijoin_class15 conn)
+    , TH.testCase "hantijoin_class16" (hantijoin_class16 conn)
+    , TH.testCase "hfrontguard" (hfrontguard conn)
     ]
 
-tests_nest_head_hunit :: Backend c => c -> Test
+tests_nest_head_hunit :: Backend c => c -> TestTree
 tests_nest_head_hunit conn = testGroup "HUnit head nesting"
-    [ testCase "hnj1" (hnj1 conn)
-    , testCase "hnj2" (hnj2 conn)
-    , testCase "hnj3" (hnj3 conn)
-    , testCase "hnj4" (hnj4 conn)
-    , testCase "hnj5" (hnj5 conn)
-    , testCase "hnj6" (hnj6 conn)
-    , testCase "hnj7" (hnj7 conn)
-    , testCase "hnj8" (hnj8 conn)
-    , testCase "hnj9" (hnj9 conn)
-    , testCase "hnj10" (hnj10 conn)
-    , testCase "hnj11" (hnj11 conn)
-    , testCase "hnj12" (hnj12 conn)
-    , testCase "hnp1" (hnp1 conn)
-    , testCase "hnp2" (hnp2 conn)
-    , testCase "hnp3" (hnp3 conn)
-    , testCase "hnp4" (hnp4 conn)
+    [ TH.testCase "hnj1" (hnj1 conn)
+    , TH.testCase "hnj2" (hnj2 conn)
+    , TH.testCase "hnj3" (hnj3 conn)
+    , TH.testCase "hnj4" (hnj4 conn)
+    , TH.testCase "hnj5" (hnj5 conn)
+    , TH.testCase "hnj6" (hnj6 conn)
+    , TH.testCase "hnj7" (hnj7 conn)
+    , TH.testCase "hnj8" (hnj8 conn)
+    , TH.testCase "hnj9" (hnj9 conn)
+    , TH.testCase "hnj10" (hnj10 conn)
+    , TH.testCase "hnj11" (hnj11 conn)
+    , TH.testCase "hnj12" (hnj12 conn)
+    , TH.testCase "hnp1" (hnp1 conn)
+    , TH.testCase "hnp2" (hnp2 conn)
+    , TH.testCase "hnp3" (hnp3 conn)
+    , TH.testCase "hnp4" (hnp4 conn)
     ]
 
-tests_nest_guard_hunit :: Backend c => c -> Test
+tests_nest_guard_hunit :: Backend c => c -> TestTree
 tests_nest_guard_hunit conn = testGroup "HUnit guard nesting"
-    [ testCase "hnjg1" (hnjg1 conn)
-    , testCase "hnjg2" (hnjg2 conn)
-    , testCase "hnjg3" (hnjg3 conn)
-    , testCase "hnjg4" (hnjg4 conn)
-    , testCase "hnjg5" (hnjg5 conn)
+    [ TH.testCase "hnjg1" (hnjg1 conn)
+    , TH.testCase "hnjg2" (hnjg2 conn)
+    , TH.testCase "hnjg3" (hnjg3 conn)
+    , TH.testCase "hnjg4" (hnjg4 conn)
+    , TH.testCase "hnjg5" (hnjg5 conn)
     ]
 
 ---------------------------------------------------------------------------------

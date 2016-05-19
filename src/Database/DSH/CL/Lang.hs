@@ -48,7 +48,7 @@ instance Pretty a => Pretty (NL a) where
     pretty = pretty . toList
 
 instance Functor NL where
-    fmap f (a :* as) = (f a) :* (fmap f as)
+    fmap f (a :* as) = f a :* fmap f as
     fmap f (S a)     = S (f a)
 
 instance F.Foldable NL where
@@ -56,8 +56,8 @@ instance F.Foldable NL where
     foldr f z (S a)     = f a z
 
 instance T.Traversable NL where
-    traverse f (a :* as) = (:*) <$> (f a) <*> (T.traverse f as)
-    traverse f (S a)     = S <$> (f a)
+    traverse f (a :* as) = (:*) <$> f a <*> T.traverse f as
+    traverse f (S a)     = S <$> f a
 
 toList :: NL a -> [a]
 toList (a :* as) = a : toList as
@@ -68,9 +68,9 @@ fromList [] = Nothing
 fromList as = Just $ aux as
   where
     aux :: [a] -> NL a
-    aux (x : []) = S x
-    aux (x : xs) = x :* aux xs
-    aux []       = $impossible
+    aux [x]    = S x
+    aux (x:xs) = x :* aux xs
+    aux []     = $impossible
 
 fromListSafe :: a -> [a] -> NL a
 fromListSafe a [a1]      = a :* S a1
@@ -189,7 +189,7 @@ instance Pretty Expr where
         parenthize e1 <> dot <> int (tupleIndex n)
     pretty (MkTuple _ es)     = prettyTuple $ map pretty es
     pretty (Table _ n _)      = kw (text "table") <> parens (text n)
-    pretty (AppE1 _ p1 e)     = pretty p1 <+> (parenthize e)
+    pretty (AppE1 _ p1 e)     = pretty p1 <+> parenthize e
     pretty (AppE2 _ p2 e1 e2)
         | isJoinOp p2 = prettyJoin (pretty p2) (parenthize e1) (parenthize e2)
         | otherwise   = prettyApp2 (pretty p2) (parenthize e1) (parenthize e2)
@@ -210,10 +210,10 @@ instance Pretty Expr where
 parenthize :: Expr -> Doc
 parenthize e =
     case e of
-        Var _ _               -> pretty e
-        Lit _ _               -> pretty e
-        Table _ _ _           -> pretty e
-        Comp _ _ _            -> pretty e
+        Var{}                 -> pretty e
+        Lit{}                 -> pretty e
+        Table{}               -> pretty e
+        Comp{}                -> pretty e
         AppE1 _ (TupElem _) _ -> pretty e
         _                     -> parens $ pretty e
 

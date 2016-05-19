@@ -21,22 +21,22 @@ module Database.DSH.Tests.CombinatorTests
     ) where
 
 
-import qualified Data.Decimal                   as D
+import qualified Data.Decimal              as D
 import           Data.Either
 import           Data.List
 import           Data.Maybe
-import qualified Data.Scientific                as S
-import           Data.Text                      (Text)
-import qualified Data.Time.Calendar             as C
+import qualified Data.Scientific           as S
+import           Data.Text                 (Text)
+import qualified Data.Time.Calendar        as C
 import           Data.Word
 import           GHC.Exts
 
-import           Test.Framework                 (Test, testGroup)
-import           Test.Framework.Providers.HUnit
-import           Test.HUnit                     (Assertion)
+import           Test.HUnit                (Assertion)
 import           Test.QuickCheck
+import           Test.Tasty
+import qualified Test.Tasty.HUnit          as TH
 
-import qualified Database.DSH                   as Q
+import qualified Database.DSH              as Q
 import           Database.DSH.Backend
 import           Database.DSH.Tests.Common
 
@@ -94,7 +94,7 @@ Q.deriveDSH ''D6
 
 -}
 
-typeTests :: Backend c => c -> Test
+typeTests :: Backend c => c -> TestTree
 typeTests conn = testGroup "Supported Types"
   [ testPropertyConn conn "()"                        prop_unit
   , testPropertyConn conn "Bool"                      prop_bool
@@ -127,7 +127,7 @@ typeTests conn = testGroup "Supported Types"
 -}
   ]
 
-booleanTests :: Backend c => c -> Test
+booleanTests :: Backend c => c -> TestTree
 booleanTests conn = testGroup "Equality, Boolean Logic and Ordering"
     [ testPropertyConn conn "&&"                              prop_infix_and
     , testPropertyConn conn "||"                              prop_infix_or
@@ -148,7 +148,7 @@ booleanTests conn = testGroup "Equality, Boolean Logic and Ordering"
     , testPropertyConn conn "max_double"                      prop_max_double
     ]
 
-tupleTests :: Backend c => c -> Test
+tupleTests :: Backend c => c -> TestTree
 tupleTests conn = testGroup "Tuples"
     [ testPropertyConn conn "fst"          prop_fst
     , testPropertyConn conn "snd"          prop_snd
@@ -164,7 +164,7 @@ tupleTests conn = testGroup "Tuples"
     , testPropertyConn conn "agg tuple"    prop_agg_tuple
     ]
 
-numericTests :: Backend c => c -> Test
+numericTests :: Backend c => c -> TestTree
 numericTests conn = testGroup "Numerics"
     [ testPropertyConn conn "add_integer"         prop_add_integer
     , testPropertyConn conn "add_integer_sums"    prop_add_integer_sums
@@ -192,7 +192,7 @@ numericTests conn = testGroup "Numerics"
     , testPropertyConn conn "rem"                 prop_rem
     ]
 
-maybeTests :: Backend c => c -> Test
+maybeTests :: Backend c => c -> TestTree
 maybeTests conn = testGroup "Maybe"
     [ testPropertyConn conn "maybe"       prop_maybe
     , testPropertyConn conn "just"        prop_just
@@ -206,7 +206,7 @@ maybeTests conn = testGroup "Maybe"
     , testPropertyConn conn "mapMaybe"    prop_mapMaybe
     ]
 
-eitherTests :: Backend c => c -> Test
+eitherTests :: Backend c => c -> TestTree
 eitherTests conn = testGroup "Either"
     [ testPropertyConn conn "left"             prop_left
     , testPropertyConn conn "right"            prop_right
@@ -218,7 +218,7 @@ eitherTests conn = testGroup "Either"
     , testPropertyConn conn "partitionEithers" prop_partitionEithers
     ]
 
-listTests :: Backend c => c -> Test
+listTests :: Backend c => c -> TestTree
 listTests conn = testGroup "Lists"
     [ testPropertyConn conn "singleton" prop_singleton
     , testPropertyConn conn "head"                         prop_head
@@ -298,7 +298,7 @@ listTests conn = testGroup "Lists"
     , testPropertyConn conn "number"                       prop_number
     ]
 
-liftedTests :: Backend c => c -> Test
+liftedTests :: Backend c => c -> TestTree
 liftedTests conn = testGroup "Lifted operations"
     [ testPropertyConn conn "Lifted &&"                             prop_infix_map_and
     , testPropertyConn conn "Lifted ||"                             prop_infix_map_or
@@ -389,15 +389,15 @@ liftedTests conn = testGroup "Lifted operations"
     , testPropertyConn conn "map rem"                               prop_map_rem
     ]
 
-distTests :: Backend c => c -> Test
+distTests :: Backend c => c -> TestTree
 distTests conn = testGroup "Value replication"
     [ testPropertyConn conn "dist scalar" prop_dist_scalar
     , testPropertyConn conn "dist list1" prop_dist_list1
     , testPropertyConn conn "dist list2" prop_dist_list2
-    , testCase "dist lift" (test_dist_lift conn)
+    , TH.testCase "dist lift" (test_dist_lift conn)
     ]
 
-otherTests :: Backend c => c -> Test
+otherTests :: Backend c => c -> TestTree
 otherTests conn = testGroup "Combinations of operators"
     [ testPropertyConn conn "map elem + sort" prop_elem_sort
     , testPropertyConn conn "filter elem + sort" prop_elem_sort2
@@ -405,10 +405,10 @@ otherTests conn = testGroup "Combinations of operators"
     , testPropertyConn conn "map (length . nub)" prop_map_nub_length
     ]
 
-hunitCombinatorTests :: Backend c => c -> Test
+hunitCombinatorTests :: Backend c => c -> TestTree
 hunitCombinatorTests conn = testGroup "HUnit combinators"
-    [ testCase "hnegative_sum"     (hnegative_sum conn)
-    , testCase "hnegative_map_sum" (hnegative_map_sum conn)
+    [ TH.testCase "hnegative_sum"     (hnegative_sum conn)
+    , TH.testCase "hnegative_map_sum" (hnegative_map_sum conn)
     ]
 
 -- * Supported Types
@@ -506,13 +506,13 @@ prop_infix_and :: Backend c => (Bool,Bool) -> c -> Property
 prop_infix_and = makePropEq (uncurryQ (Q.&&)) (uncurry (&&))
 
 prop_infix_map_and :: Backend c => (Bool, [Bool]) -> c -> Property
-prop_infix_map_and = makePropEq (\x -> Q.map ((Q.fst x) Q.&&) $ Q.snd x) (\(x,xs) -> map (x &&) xs)
+prop_infix_map_and = makePropEq (\x -> Q.map (Q.fst x Q.&&) $ Q.snd x) (\(x,xs) -> map (x &&) xs)
 
 prop_infix_or :: Backend c => (Bool,Bool) -> c -> Property
 prop_infix_or = makePropEq (uncurryQ (Q.||)) (uncurry (||))
 
 prop_infix_map_or :: Backend c => (Bool, [Bool]) -> c -> Property
-prop_infix_map_or = makePropEq (\x -> Q.map ((Q.fst x) Q.||) $ Q.snd x) (\(x,xs) -> map (x ||) xs)
+prop_infix_map_or = makePropEq (\x -> Q.map (Q.fst x Q.||) $ Q.snd x) (\(x,xs) -> map (x ||) xs)
 
 prop_not :: Backend c => Bool -> c -> Property
 prop_not = makePropEq Q.not not
@@ -524,13 +524,13 @@ prop_eq :: Backend c => (Integer,Integer) -> c -> Property
 prop_eq = makePropEq (uncurryQ (Q.==)) (uncurry (==))
 
 prop_map_eq :: Backend c => (Integer, [Integer]) -> c -> Property
-prop_map_eq = makePropEq (\x -> Q.map ((Q.fst x) Q.==) $ Q.snd x) (\(x,xs) -> map (x ==) xs)
+prop_map_eq = makePropEq (\x -> Q.map (Q.fst x Q.==) $ Q.snd x) (\(x,xs) -> map (x ==) xs)
 
 prop_neq :: Backend c => (Integer,Integer) -> c -> Property
 prop_neq = makePropEq (uncurryQ (Q./=)) (uncurry (/=))
 
 prop_map_neq :: Backend c => (Integer, [Integer]) -> c -> Property
-prop_map_neq = makePropEq (\x -> Q.map ((Q.fst x) Q./=) $ Q.snd x) (\(x,xs) -> map (x /=) xs)
+prop_map_neq = makePropEq (\x -> Q.map (Q.fst x Q./=) $ Q.snd x) (\(x,xs) -> map (x /=) xs)
 
 prop_cond :: Backend c => Bool -> c -> Property
 prop_cond = makePropEq (\b -> Q.cond b 0 1) (\b -> if b then (0 :: Integer) else 1)
@@ -564,8 +564,8 @@ prop_map_cond_tuples = makePropEq (Q.map (\b -> Q.cond b
                                             else (1, 11)))
 
 prop_concatmapcond :: Backend c => [Integer] -> c -> Property
-prop_concatmapcond l1 =
-    makePropEq q n l1
+prop_concatmapcond =
+    makePropEq q n
         where q l = Q.concatMap (\x -> Q.cond ((Q.>) x (Q.toQ 0)) (x Q.<| el) el) l
               n l = concatMap (\x -> if x > 0 then [x] else []) l
               el = Q.toQ []
@@ -574,25 +574,25 @@ prop_lt :: Backend c => (Integer, Integer) -> c -> Property
 prop_lt = makePropEq (uncurryQ (Q.<)) (uncurry (<))
 
 prop_map_lt :: Backend c => (Integer, [Integer]) -> c -> Property
-prop_map_lt = makePropEq (\x -> Q.map ((Q.fst x) Q.<) $ Q.snd x) (\(x,xs) -> map (x <) xs)
+prop_map_lt = makePropEq (\x -> Q.map (Q.fst x Q.<) $ Q.snd x) (\(x,xs) -> map (x <) xs)
 
 prop_lte :: Backend c => (Integer, Integer) -> c -> Property
 prop_lte = makePropEq (uncurryQ (Q.<=)) (uncurry (<=))
 
 prop_map_lte :: Backend c => (Integer, [Integer]) -> c -> Property
-prop_map_lte = makePropEq (\x -> Q.map ((Q.fst x) Q.<=) $ Q.snd x) (\(x,xs) -> map (x <=) xs)
+prop_map_lte = makePropEq (\x -> Q.map (Q.fst x Q.<=) $ Q.snd x) (\(x,xs) -> map (x <=) xs)
 
 prop_gt :: Backend c => (Integer, Integer) -> c -> Property
 prop_gt = makePropEq (uncurryQ (Q.>)) (uncurry (>))
 
 prop_map_gt :: Backend c => (Integer, [Integer]) -> c -> Property
-prop_map_gt = makePropEq (\x -> Q.map ((Q.fst x) Q.>) $ Q.snd x) (\(x,xs) -> map (x >) xs)
+prop_map_gt = makePropEq (\x -> Q.map (Q.fst x Q.>) $ Q.snd x) (\(x,xs) -> map (x >) xs)
 
 prop_gte :: Backend c => (Integer, Integer) -> c -> Property
 prop_gte = makePropEq (uncurryQ (Q.>=)) (uncurry (>=))
 
 prop_map_gte :: Backend c => (Integer, [Integer]) -> c -> Property
-prop_map_gte = makePropEq (\x -> Q.map ((Q.fst x) Q.>=) $ Q.snd x) (\(x,xs) -> map (x >=) xs)
+prop_map_gte = makePropEq (\x -> Q.map (Q.fst x Q.>=) $ Q.snd x) (\(x,xs) -> map (x >=) xs)
 
 prop_min_integer :: Backend c => (Integer,Integer) -> c -> Property
 prop_min_integer = makePropEq (uncurryQ Q.min) (uncurry min)
@@ -621,7 +621,7 @@ prop_isNothing :: Backend c => Maybe Integer -> c -> Property
 prop_isNothing = makePropEq Q.isNothing isNothing
 
 prop_fromJust :: Backend c => Integer -> c -> Property
-prop_fromJust i conn = makePropEq Q.fromJust fromJust (Just i) conn
+prop_fromJust i = makePropEq Q.fromJust fromJust (Just i)
 
 prop_fromMaybe :: Backend c => (Integer,Maybe Integer) -> c -> Property
 prop_fromMaybe = makePropEq (uncurryQ Q.fromMaybe) (uncurry fromMaybe)
@@ -670,14 +670,14 @@ prop_cons :: Backend c => (Integer, [Integer]) -> c -> Property
 prop_cons = makePropEq (uncurryQ (Q.<|)) (uncurry (:))
 
 prop_map_cons :: Backend c => (Integer, [[Integer]]) -> c -> Property
-prop_map_cons = makePropEq (\x -> Q.map ((Q.fst x) Q.<|) $ Q.snd x)
+prop_map_cons = makePropEq (\x -> Q.map (Q.fst x Q.<|) $ Q.snd x)
                          (\(x,xs) -> map (x:) xs)
 
 prop_snoc :: Backend c => ([Integer], Integer) -> c -> Property
 prop_snoc = makePropEq (uncurryQ (Q.|>)) (\(a,b) -> a ++ [b])
 
 prop_map_snoc :: Backend c => ([Integer], [Integer]) -> c -> Property
-prop_map_snoc = makePropEq (\z -> Q.map ((Q.fst z) Q.|>) (Q.snd z)) (\(a,b) -> map (\z -> a ++ [z]) b)
+prop_map_snoc = makePropEq (\z -> Q.map (Q.fst z Q.|>) (Q.snd z)) (\(a,b) -> map (\z -> a ++ [z]) b)
 
 prop_singleton :: Backend c => Integer -> c -> Property
 prop_singleton = makePropEq Q.singleton (: [])
@@ -713,8 +713,8 @@ prop_map_the ps conn =
     in makePropEq (Q.map Q.head) (map the) xss conn
 
 prop_map_tail :: Backend c => [NonEmptyList Integer] -> c -> Property
-prop_map_tail ps conn =
-    makePropEq (Q.map Q.tail) (map tail) (map getNonEmpty ps) conn
+prop_map_tail ps =
+    makePropEq (Q.map Q.tail) (map tail) (map getNonEmpty ps)
 
 prop_index :: Backend c => ([Integer], NonNegative Integer)  -> c -> Property
 prop_index (l, NonNegative i) conn =
@@ -745,21 +745,20 @@ prop_index_nest (l, NonNegative i) conn =
 
 prop_map_index2 :: Backend c => (NonEmptyList Integer, [NonNegative Integer]) -> c -> Property
 prop_map_index2 (nl, is) =
-    makePropEq (\z -> Q.map (\i -> (Q.fst z) Q.!! i) (Q.snd z))
-               (\z -> map (\i -> (fst z) !! i) (map fromIntegral $ snd z))
+    makePropEq (\z -> Q.map (\i -> Q.fst z Q.!! i) (Q.snd z))
+               (\z -> map (\i -> (fst z) !! fromIntegral i) $ snd z)
                (l, is')
   where
     l   = getNonEmpty nl
-    is' = map (`mod` fromIntegral (length l)) $ map getNonNegative is
+    is' = map ((`mod` fromIntegral (length l)) . getNonNegative) is
 
 prop_map_index :: Backend c => ([Integer], [NonNegative Integer])  -> c -> Property
 prop_map_index (l, is) conn =
     and [i < 3 * fromIntegral (length l) | NonNegative i <-  is]
     ==>
-    makePropEq (\z -> Q.map (((Q.fst z) Q.++ (Q.fst z) Q.++ (Q.fst z)) Q.!!)
+    makePropEq (\z -> Q.map ((Q.fst z Q.++ Q.fst z Q.++ Q.fst z) Q.!!)
                             (Q.snd z))
-               (\(a,b) -> map ((a ++ a ++ a) !!)
-                              (map fromIntegral b))
+               (\(a,b) -> map (((a ++ a ++ a) !!) . fromIntegral) b)
                (l, map getNonNegative is)
                conn
 
