@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
--- | This module defines the kinds of vectors that occur in VL
+-- | This module defines the kinds of vectors that occur in SL
 -- programs.
 module Database.DSH.Common.Vector
     ( DBCol
@@ -12,12 +12,12 @@ module Database.DSH.Common.Vector
     , vectorNodes
     , updateVector
     , ADVec(..)
-    , VLDVec(..)
+    , SLDVec(..)
     , NDVec
-    , VLRVec(..)
-    , VLKVec(..)
-    , VLSVec(..)
-    , VLFVec(..)
+    , SLRVec(..)
+    , SLKVec(..)
+    , SLSVec(..)
+    , SLFVec(..)
     ) where
 
 import           Data.Aeson.TH
@@ -25,7 +25,7 @@ import qualified Data.Vector                 as V
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.VL.Lang
+import           Database.DSH.SL.Lang
 
 type ColName = String
 
@@ -72,36 +72,36 @@ instance DagVector NDVec where
 --------------------------------------------------------------------------------
 -- Abstract vector types for vectorization
 
--- | A VL data vector references an operator in a VL DAG.
-newtype VLDVec = VLDVec AlgNode
+-- | A SL data vector references an operator in a SL DAG.
+newtype SLDVec = SLDVec AlgNode
     deriving (Show, Read)
 
-instance DagVector VLDVec where
-    vectorNodes (VLDVec q) = [q]
+instance DagVector SLDVec where
+    vectorNodes (SLDVec q) = [q]
 
-    updateVector n1 n2 (VLDVec q)
-        | q == n1   = VLDVec n2
-        | otherwise = VLDVec q
+    updateVector n1 n2 (SLDVec q)
+        | q == n1   = SLDVec n2
+        | otherwise = SLDVec q
 
 -- | Replication vectors. A @NRVec@ simply references a node in an
 -- algebra Dag.
-newtype VLRVec = VLRVec AlgNode
+newtype SLRVec = SLRVec AlgNode
 
 -- | Rekeying vectors. A @NKVec@ simply references a node in an algebra
 -- Dag.
-newtype VLKVec = VLKVec AlgNode
+newtype SLKVec = SLKVec AlgNode
 
 -- | Filtering vectors. A @NFVec@ simply references a node in an algebra
 -- Dag.
-newtype VLFVec = VLFVec AlgNode
+newtype SLFVec = SLFVec AlgNode
 
 -- | Sorting vectors. A @NSVec@ simply references a node in an algebra
 -- Dag.
-newtype VLSVec = VLSVec AlgNode
+newtype SLSVec = SLSVec AlgNode
 
 $(deriveJSON defaultOptions ''ADVec)
-$(deriveJSON defaultOptions ''VLRVec)
-$(deriveJSON defaultOptions ''VLKVec)
-$(deriveJSON defaultOptions ''VLSVec)
-$(deriveJSON defaultOptions ''VLFVec)
-$(deriveJSON defaultOptions ''VLDVec)
+$(deriveJSON defaultOptions ''SLRVec)
+$(deriveJSON defaultOptions ''SLKVec)
+$(deriveJSON defaultOptions ''SLSVec)
+$(deriveJSON defaultOptions ''SLFVec)
+$(deriveJSON defaultOptions ''SLDVec)
