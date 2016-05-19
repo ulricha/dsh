@@ -159,6 +159,9 @@ vlUnboxKey (VLDVec c) = vec (UnOp UnboxKey c) kvec
 vlReplicateNest :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
 vlReplicateNest (VLDVec c1) (VLDVec c2) = pairVec (BinOp ReplicateNest c1 c2) dvec rvec
 
+vlReplicateVector :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
+vlReplicateVector (VLDVec c1) (VLDVec c2) = pairVec (BinOp ReplicateVector c1 c2) dvec rvec
+
 vlReplicateScalar :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec)
 vlReplicateScalar (VLDVec c1) (VLDVec c2) = pairVec (BinOp ReplicateScalar c1 c2) dvec rvec
 
@@ -241,9 +244,6 @@ vlGroupJoin joinPred afuns (VLDVec c1) (VLDVec c2) =
     vec (BinOp (GroupJoin (joinPred', afuns)) c1 c2) dvec
   where
     joinPred' = toVLJoinPred joinPred
-
-vlNestProductS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLRVec, VLRVec)
-vlNestProductS (VLDVec c1) (VLDVec c2) = tripleVec (BinOp NestProductS c1 c2) dvec rvec rvec
 
 vlSemiJoinS :: L.JoinPredicate L.ScalarExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, VLFVec)
 vlSemiJoinS joinPred (VLDVec c1) (VLDVec c2) =

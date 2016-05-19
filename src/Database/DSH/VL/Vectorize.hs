@@ -52,14 +52,6 @@ cartProduct (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     return $ VShape dv $ LTuple [lyt1', lyt2']
 cartProduct _ _ = $impossible
 
-nestProduct :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-nestProduct (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-  (dvi, rv1, rv2) <- vlNestProductS dv1 dv2
-  lyt1'           <- repLayout rv1 lyt1
-  lyt2'           <- repLayout rv2 lyt2
-  return $ VShape dv1 (LTuple [lyt1, LNest dvi (LTuple [lyt1', lyt2'])])
-nestProduct _ _ = $impossible
-
 thetaJoin :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 thetaJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     (dv, rv1, rv2) <- vlThetaJoinS joinPred dv1 dv2
@@ -212,13 +204,8 @@ distSingleton dv1 lyt1 dv2 = do
 
 dist ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 dist (SShape dv lyt) (VShape dv1 _)    = distSingleton dv lyt dv1
-dist (VShape dv lyt) (VShape dvo lyto) = do
-    let leftWidth  = columnsInLayout lyto
-        rightWidth = columnsInLayout lyt
-        innerProj  = map Column [leftWidth+1..leftWidth+rightWidth]
-
-    (prodVec, _, rv) <- vlNestProductS dvo dv
-    innerVec         <- vlProject innerProj prodVec
+dist (VShape dv lyt) (VShape dvo _) = do
+    (prodVec, rv)    <- vlReplicateVector dvo dv
 
     -- The outer vector does not have columns, it only describes the
     -- shape.
@@ -227,7 +214,7 @@ dist (VShape dv lyt) (VShape dvo lyto) = do
     -- Replicate any inner vectors
     lyt'             <- repLayout rv lyt
 
-    return $ VShape outerVec (LNest innerVec lyt')
+    return $ VShape outerVec (LNest prodVec lyt')
 dist _ _ = $impossible
 
 only :: Shape VLDVec -> Build VL (Shape VLDVec)
@@ -334,15 +321,6 @@ cartProductL (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do
     lyt2'        <- repLayout rv2 lyt2
     return $ VShape dvo1 (LNest dv $ LTuple [lyt1', lyt2'])
 cartProductL _ _ = $impossible
-
-nestProductL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-nestProductL (VShape dvo1 (LNest dvi1 lyt1)) (VShape _dvo2 (LNest dvi2 lyt2)) = do
-    (dvi, rv1, rv2) <- vlNestProductS dvi1 dvi2
-    lyt1'           <- repLayout rv1 lyt1
-    lyt2'           <- repLayout rv2 lyt2
-    let lyt  = LTuple [lyt1', lyt2']
-    return $ VShape dvo1 (LNest dvi1 (LTuple [lyt1, LNest dvi lyt]))
-nestProductL _ _ = $impossible
 
 thetaJoinL :: L.JoinPredicate L.ScalarExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 thetaJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do

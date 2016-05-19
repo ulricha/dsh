@@ -274,10 +274,9 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols1
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
-      NestProductS -> do
-          (cols1, _, _)       <- fromPropTriple ownReqColumns
-          (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols1
-          (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
+      ReplicateVector -> do
+          (cols1, _)       <- fromPropPair ownReqColumns
+          (,) <$> (childReqColumns1 ∪ VProp cols1) <*> pure none
 
       UnboxSng -> do
           cols1                       <- fst <$> fromPropPair ownReqColumns

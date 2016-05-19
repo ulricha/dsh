@@ -136,6 +136,7 @@ $(deriveJSON defaultOptions ''UnOp)
 
 data BinOp = ReplicateNest
            | ReplicateScalar
+           | ReplicateVector
 
            | AppKey
            | AppSort
@@ -149,7 +150,6 @@ data BinOp = ReplicateNest
            | AppendS
            | ZipS
            | CartProductS
-           | NestProductS
            | ThetaJoinS (L.JoinPredicate Expr)
            | SemiJoinS (L.JoinPredicate Expr)
            | AntiJoinS (L.JoinPredicate Expr)

@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | Deal with nested comprehensions by introducing explicit nesting
--- operators (NestJoin, NestProduct).
+-- operators (NestJoin).
 module Database.DSH.CL.Opt.NestJoin
   ( nestjoinR
   , zipCorrelatedR
@@ -131,13 +131,9 @@ unnestWorkerT headComp (x, xs) = do
     let (joinPredCandidates, nonJoinPreds) = partition (isThetaJoinPred x y)
                                                        (hGuards headComp)
 
-    -- Determine which operator to use to implement the nesting. If
-    -- there is a join predicate, we use a nestjoin. Only if there is
-    -- no matching join predicate, we use a nested cartesian product
-    -- (nestproduct).
     -- FIXME include all join predicates on the join operator
     nestOp <- case joinPredCandidates of
-        [] -> fail "" -- return NestProduct
+        [] -> fail "no useable join predicate"
         p : ps -> do
             -- Split the join predicate
             p'  <- constT (return p) >>> splitJoinPredT x y
@@ -218,9 +214,6 @@ unnestWorkerT headComp (x, xs) = do
 --             ]
 -- | x <- xs △_jp [ y | y <- ys, p3 y ]
 -- ]
---
--- In the absence of a proper join predicate, we use the Nestproduct
--- operator ▽ instead of NestJoin.
 --
 -- Predicates on the inner comprehension that only refer to y can be
 -- safely evaluated before joining. Note that predicates on the inner
@@ -306,7 +299,7 @@ unnestGuardT localGenVars (x, xs) guardExpr = do
     -- Forbid the generator of a comprehension we want to unnest to
     -- depend on *any* generator in the current outer
     -- comprehension. This is to prevent that the right input of a
-    -- NestProduct that could be constructed depends on *any*
+    -- NestJoin that could be constructed depends on *any*
     -- preceding generator. See lablog (31.07.14) for a more elaborate
     -- explanation.
     guardM $ null $ localGenVars `intersect` freeVars (snd $ hGen headComp)
