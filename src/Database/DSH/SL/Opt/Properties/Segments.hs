@@ -8,6 +8,7 @@ module Database.DSH.SL.Opt.Properties.Segments where
 import Control.Monad.Except
 
 import Database.DSH.SL.Lang
+import Database.DSH.Common.VectorLang
 
 import Database.DSH.SL.Opt.Properties.Types
 import Database.DSH.SL.Opt.Properties.Common

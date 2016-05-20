@@ -5,18 +5,19 @@
 -- | Constructor functions for Segment Language primitives
 module Database.DSH.SL.Primitives where
 
-import qualified Data.List.NonEmpty as N
+import qualified Data.List.NonEmpty             as N
 
+import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Nat
-import qualified Database.DSH.Common.Lang      as L
-import qualified Database.DSH.Common.Type      as Ty
+import qualified Database.DSH.Common.Type       as Ty
 import           Database.DSH.Common.Vector
+import           Database.DSH.Common.VectorLang
 
 import           Database.DSH.Common.Impossible
 
 import           Database.Algebra.Dag.Build
 import           Database.Algebra.Dag.Common
-import           Database.DSH.SL.Lang          hiding (DBCol)
+import           Database.DSH.SL.Lang
 
 --------------------------------------------------------------------------------
 -- Construct different types of vectors from algebraic nodes

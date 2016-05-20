@@ -1,19 +1,20 @@
 module Database.DSH.SL.Render.Dot(renderSLDot) where
 
-import qualified Data.Foldable                as F
-import qualified Data.IntMap                  as Map
+import qualified Data.Foldable                  as F
+import qualified Data.IntMap                    as Map
 import           Data.List
-import qualified Data.List.NonEmpty           as N
-import           Prelude                      hiding ((<$>))
+import qualified Data.List.NonEmpty             as N
+import           Prelude                        hiding ((<$>))
 
 import           Text.PrettyPrint.ANSI.Leijen
 
-import qualified Database.Algebra.Dag         as Dag
-import           Database.Algebra.Dag.Common  as C
+import qualified Database.Algebra.Dag           as Dag
+import           Database.Algebra.Dag.Common    as C
 
-import qualified Database.DSH.Common.Lang     as L
+import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.SL.Lang
 
 nodeToDoc :: AlgNode -> Doc

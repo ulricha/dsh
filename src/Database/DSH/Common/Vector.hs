@@ -25,7 +25,7 @@ import qualified Data.Vector                 as V
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.SL.Lang
+import           Database.DSH.Common.VectorLang
 
 type ColName = String
 

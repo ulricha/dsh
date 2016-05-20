@@ -8,6 +8,7 @@ import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Opt
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.SL.Lang
 import           Database.DSH.SL.Opt.Properties.Types
 import           Database.DSH.SL.Opt.Properties.VectorType

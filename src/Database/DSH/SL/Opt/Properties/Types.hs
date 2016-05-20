@@ -5,7 +5,7 @@ import           Text.PrettyPrint.ANSI.Leijen
 
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Pretty
-import           Database.DSH.SL.Lang
+import           Database.DSH.Common.VectorLang
 
 data VectorProp a = VProp a
                   | VPropPair a a

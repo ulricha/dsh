@@ -15,6 +15,7 @@ import qualified Data.Sequence                         as S
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.SL.Lang
 import           Database.DSH.SL.Opt.Properties.Common
 import           Database.DSH.SL.Opt.Properties.Types

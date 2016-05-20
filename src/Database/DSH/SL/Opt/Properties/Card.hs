@@ -2,10 +2,11 @@
 
 module Database.DSH.SL.Opt.Properties.Card where
 
-import Database.DSH.SL.Lang
+import           Database.DSH.Common.VectorLang
+import           Database.DSH.SL.Lang
 
-import Database.DSH.SL.Opt.Properties.Types
-import Database.DSH.SL.Opt.Properties.Common
+import           Database.DSH.SL.Opt.Properties.Common
+import           Database.DSH.SL.Opt.Properties.Types
 
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Card"

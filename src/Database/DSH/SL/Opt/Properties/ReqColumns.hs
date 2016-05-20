@@ -6,6 +6,7 @@ import qualified Data.List                            as L
 import qualified Data.List.NonEmpty                   as N
 
 import qualified Database.DSH.Common.Lang             as Lang
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.SL.Lang
 import           Database.DSH.SL.Opt.Properties.Types
 

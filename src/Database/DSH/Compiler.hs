@@ -26,8 +26,6 @@ module Database.DSH.Compiler
     , module Database.DSH.CL.Opt
     ) where
 
-import Debug.Trace
-
 import           Control.Arrow
 import           Control.Monad
 import qualified Data.Foldable                      as F

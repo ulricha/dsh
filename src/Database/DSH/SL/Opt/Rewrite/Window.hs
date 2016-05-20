@@ -12,6 +12,7 @@ import           Database.Algebra.Dag.Common
 
 import qualified Database.DSH.Common.Lang                  as L
 import           Database.DSH.Common.Opt
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.SL.Lang
 import           Database.DSH.SL.Opt.Properties.ReqColumns
 import           Database.DSH.SL.Opt.Properties.Types

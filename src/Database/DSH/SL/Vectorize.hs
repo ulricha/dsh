@@ -20,8 +20,8 @@ import           Database.DSH.Common.Nat
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Vector
-import           Database.DSH.SL.Lang           (AggrFun (..), Expr (..), SL ())
-import qualified Database.DSH.SL.Lang           as SL
+import           Database.DSH.Common.VectorLang
+import           Database.DSH.SL.Lang           (SL ())
 import           Database.DSH.SL.Primitives
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
@@ -519,7 +519,7 @@ fromTuple _             = $impossible
 --
 -- 'toColumns' receives the element type of the list and all element values of
 -- the list.
-toColumns :: Type -> [L.Val] -> Build SL ([ScalarType], [SL.Column], Layout SLDVec)
+toColumns :: Type -> [L.Val] -> Build SL ([ScalarType], [Column], Layout SLDVec)
 toColumns (ListT t) ls    = do
     (v, lyt) <- toVector t ls
     return ([], [], LNest v lyt)
@@ -533,10 +533,10 @@ toColumns (ScalarT t) vs  = return ([t], [S.fromList $ map scalarVal vs], LCol)
 
 -- | Divide columns into segments according to the length of the original inner
 -- lists.
-chopSegments :: [Int] -> [SL.Column] -> [SL.Segment]
+chopSegments :: [Int] -> [Column] -> [Segment]
 chopSegments (l:ls) cols =
     let (seg, cols') = unzip $ map (S.splitAt l) cols
-    in SL.Seg seg l : chopSegments ls cols'
+    in Seg seg l : chopSegments ls cols'
 chopSegments []     _    = []
 
 -- | Encode all inner list values for a list type constructor in a vector.
@@ -551,22 +551,22 @@ toVector t ls = do
         innerLens  = map length innerLists
     (tys, cols, lyt) <- toColumns t allElems
     let segs = chopSegments innerLens cols
-    litNode <- vlLit (tys, SL.SegFrame $ length allElems, SL.Segs segs)
+    litNode <- vlLit (tys, SegFrame $ length allElems, Segs segs)
     return (litNode, lyt)
 
 -- | Shred a literal value into flat vectors.
 shredLiteral ::  Type -> L.Val -> Build SL (Shape SLDVec)
 shredLiteral (ScalarT t) v = do
     (_, cols, _) <- toColumns (ScalarT t) [v]
-    litNode <- vlLit ([t], SL.SegFrame 1, SL.UnitSeg cols)
+    litNode <- vlLit ([t], SegFrame 1, UnitSeg cols)
     return $ SShape litNode LCol
 shredLiteral (TupleT t)  v  = do
     (tys, cols, lyt) <- toColumns (TupleT t) [v]
-    litNode <- vlLit (tys, SL.SegFrame 1, SL.UnitSeg cols)
+    litNode <- vlLit (tys, SegFrame 1, UnitSeg cols)
     return $ SShape litNode lyt
 shredLiteral (ListT t) (L.ListV es) = do
     (tys, cols, lyt) <- toColumns t es
-    litNode <- vlLit (tys, SL.SegFrame $ length es, SL.UnitSeg cols)
+    litNode <- vlLit (tys, SegFrame $ length es, UnitSeg cols)
     return $ VShape litNode lyt
 shredLiteral _ _ = $impossible
 
