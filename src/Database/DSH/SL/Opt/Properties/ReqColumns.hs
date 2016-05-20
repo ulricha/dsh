@@ -124,7 +124,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             let cols'     = VProp $ Just $ filter (/= (w + 1)) cols
             cs <- (VProp $ Just $ winReqCols wfun) ∪ cols'
             cs ∪ childReqColumns
-        UniqueS    -> ownReqColumns ∪ childReqColumns
+        Unique    -> ownReqColumns ∪ childReqColumns
 
         Aggr aggrFuns -> (VProp $ Just $ L.nub $ concatMap aggrReqCols aggrFuns)
                          ∪
@@ -143,13 +143,13 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
         -- Numbering operators add one column at the end. We have to
         -- determine the column index of the new column and remove it
         -- from the set of required columns
-        NumberS    -> do
+        Number    -> do
             VTDataVec w <- fromProp $ vectorTypeProp childBUProps
             (Just cols)   <- fromProp ownReqColumns
             let cols'     = filter (/= w) cols
             VProp (Just cols') ∪ childReqColumns
 
-        ReverseS   -> do
+        Reverse   -> do
             cols <- fst <$> fromPropPair ownReqColumns
             VProp cols ∪ childReqColumns
 
@@ -168,14 +168,14 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
                                                    ++
                                                    concatMap aggrReqCols (N.toList as))
 
-        SortS exprs -> do
+        Sort exprs -> do
             cols <- fst <$> fromPropPair ownReqColumns
             ownReqColumns' <- VProp cols
                               ∪
                               (VProp $ Just $ L.nub $ concatMap reqExprCols exprs)
             childReqColumns ∪ ownReqColumns'
 
-        GroupS exprs -> do
+        Group exprs -> do
             (_, colsi, _) <- fromPropTriple ownReqColumns
             ownReqColumns' <- VProp colsi
                               ∪
@@ -221,7 +221,7 @@ inferReqColumnsBinOp :: BottomUpProps
                      -> Either String (VectorProp ReqCols, VectorProp ReqCols)
 inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 childReqColumns2 op =
   case op of
-      AggrS aggrFun   -> do
+      AggrSeg aggrFun   -> do
           fromLeft  <- childReqColumns1 ∪ none
           fromRight <- (VProp $ Just $ aggrReqCols aggrFun)
                        ∪
@@ -258,7 +258,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromRight <- childReqColumns2 ∪ VProp cols
           return (na, fromRight)
 
-      AppendS -> do
+      Append -> do
           (cols, _, _) <- fromPropTriple ownReqColumns
           fromLeft     <- (VProp cols) ∪ childReqColumns1
           fromRight    <- (VProp cols) ∪ childReqColumns2
@@ -269,7 +269,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
-      CartProductS -> do
+      CartProduct -> do
           (cols1, _, _)       <- fromPropTriple ownReqColumns
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols1
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
@@ -283,14 +283,14 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
           (,) <$> (childReqColumns1 ∪ leftReqCols) <*> (childReqColumns2 ∪ rightReqCols)
 
-      ThetaJoinS p -> do
+      ThetaJoin p -> do
           (cols1, _, _)               <- fromPropTriple ownReqColumns
           (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
           leftReqCols'                <- (VProp $ Just $ reqLeftPredCols p) ∪ leftReqCols
           rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
           (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
 
-      NestJoinS p -> do
+      NestJoin p -> do
           (cols1, _, _)               <- fromPropTriple ownReqColumns
           (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
           leftReqCols'                <- (VProp $ Just $ reqLeftPredCols p) ∪ leftReqCols
@@ -316,14 +316,14 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           rightReqCols <- prcols ∪ arcols
           return (leftReqCols', rightReqCols)
 
-      ZipS -> do
+      Zip -> do
           (cols, _, _) <- fromPropTriple ownReqColumns
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
       -- For a semijoin, we only require the columns used in the join argument
       -- from the right input.
-      SemiJoinS p -> do
+      SemiJoin p -> do
           cols1     <- fst <$> fromPropPair ownReqColumns
           fromLeft  <- ((VProp $ Just $ reqLeftPredCols p) ∪ VProp cols1) >>= (∪ childReqColumns1)
           fromRight <- (VProp $ Just $ reqRightPredCols p) ∪ childReqColumns2
@@ -331,7 +331,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
 
       -- For a antijoin, we only require the columns used in the join argument
       -- from the right input.
-      AntiJoinS p -> do
+      AntiJoin p -> do
           cols1     <- fst <$> fromPropPair ownReqColumns
           fromLeft  <- ((VProp $ Just $ reqLeftPredCols p) ∪ VProp cols1) >>= (∪ childReqColumns1)
           fromRight <- (VProp $ Just $ reqRightPredCols p) ∪ childReqColumns2

@@ -33,28 +33,28 @@ seed :: SL -> TopDownProps
 seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
     case op of
-        Nest               -> vPropPairSeed
-        WinFun _           -> vPropSeed
-        ReverseS           -> vPropPairSeed
-        UniqueS            -> vPropSeed
-        UnboxKey           -> vPropSeed
-        Segment            -> vPropSeed
-        Unsegment          -> vPropSeed
-        Select     _       -> vPropPairSeed
-        SortS _            -> vPropPairSeed
-        GroupS _           -> vPropTripleSeed
-        Project      _     -> vPropSeed
-        Aggr _             -> vPropSeed
-        GroupAggr (_, _)   -> vPropSeed
-        R1                 -> vPropSeed
-        R2                 -> vPropSeed
-        R3                 -> vPropSeed
-        NumberS            -> vPropSeed
+        Nest             -> vPropPairSeed
+        WinFun _         -> vPropSeed
+        Reverse          -> vPropPairSeed
+        Unique           -> vPropSeed
+        UnboxKey         -> vPropSeed
+        Segment          -> vPropSeed
+        Unsegment        -> vPropSeed
+        Select     _     -> vPropPairSeed
+        Sort _           -> vPropPairSeed
+        Group _          -> vPropTripleSeed
+        Project      _   -> vPropSeed
+        Aggr _           -> vPropSeed
+        GroupAggr (_, _) -> vPropSeed
+        R1               -> vPropSeed
+        R2               -> vPropSeed
+        R3               -> vPropSeed
+        Number           -> vPropSeed
 
 seed (BinOp op _ _) =
     case op of
-        AppendS         -> vPropTripleSeed
-        ZipS            -> vPropTripleSeed
+        Append          -> vPropTripleSeed
+        Zip             -> vPropTripleSeed
         ReplicateNest   -> vPropPairSeed
         ReplicateScalar -> vPropPairSeed
         AppKey          -> vPropPairSeed
@@ -62,13 +62,13 @@ seed (BinOp op _ _) =
         AppFilter       -> vPropPairSeed
         AppRep          -> vPropPairSeed
         UnboxSng        -> vPropPairSeed
-        AggrS _         -> vPropSeed
+        AggrSeg _       -> vPropSeed
         Align           -> vPropSeed
-        CartProductS    -> vPropTripleSeed
-        ThetaJoinS _    -> vPropTripleSeed
-        SemiJoinS _     -> vPropPairSeed
-        AntiJoinS _     -> vPropPairSeed
-        NestJoinS _     -> vPropTripleSeed
+        CartProduct     -> vPropTripleSeed
+        ThetaJoin _     -> vPropTripleSeed
+        SemiJoin _      -> vPropPairSeed
+        AntiJoin _      -> vPropPairSeed
+        NestJoin _      -> vPropTripleSeed
         GroupJoin _     -> vPropSeed
         ReplicateVector -> vPropPairSeed
 

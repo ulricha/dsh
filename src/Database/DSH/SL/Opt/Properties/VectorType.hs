@@ -36,12 +36,12 @@ inferVectorTypeUnOp s op =
     WinFun _ -> do
         VTDataVec w <- unpack s
         return $ VProp $ VTDataVec $ w + 1
-    UniqueS -> VProp <$> unpack s
+    Unique -> VProp <$> unpack s
     Aggr _ -> Right $ VProp $ VTDataVec 1
     UnboxKey -> Right $ VProp $ VTNA
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
-    ReverseS -> liftM2 VPropPair (unpack s) (Right VTNA)
+    Reverse -> liftM2 VPropPair (unpack s) (Right VTNA)
     R1 ->
       case s of
         VPropPair s1 _ -> Right $ VProp s1
@@ -60,16 +60,16 @@ inferVectorTypeUnOp s op =
     Project valProjs -> Right $ VProp $ VTDataVec $ length valProjs
 
     Select _ -> VPropPair <$> unpack s <*> (Right VTNA)
-    SortS _  -> liftM2 VPropPair (unpack s) (Right VTNA)
+    Sort _  -> liftM2 VPropPair (unpack s) (Right VTNA)
 
-    GroupS es ->
+    Group es ->
       case s of
         VProp t@(VTDataVec _) ->
           Right $ VPropTriple (VTDataVec $ length es) t VTNA
         _                                                    ->
           Left "Input of GroupS is not a value vector"
     GroupAggr (g, as) -> Right $ VProp $ VTDataVec (length g + N.length as)
-    NumberS -> do
+    Number -> do
         VTDataVec w <- unpack s
         return $ VProp $ VTDataVec (w + 1)
 
@@ -86,7 +86,7 @@ reqValVectors _ _ _ e =
 inferVectorTypeBinOp :: VectorProp VectorType -> VectorProp VectorType -> BinOp -> Either String (VectorProp VectorType)
 inferVectorTypeBinOp s1 s2 op =
   case op of
-    AggrS _ -> return $ VProp $ VTDataVec 1
+    AggrSeg _ -> return $ VProp $ VTDataVec 1
 
     ReplicateNest -> do
         VTDataVec w1 <- unpack s1
@@ -101,7 +101,7 @@ inferVectorTypeBinOp s1 s2 op =
     AppSort -> liftM2 VPropPair (unpack s2) (Right VTNA)
     AppFilter -> liftM2 VPropPair (unpack s2) (Right VTNA)
     AppKey -> liftM2 VPropPair (unpack s2) (Right VTNA)
-    AppendS ->
+    Append ->
       case (s1, s2) of
         (VProp (VTDataVec w1), VProp (VTDataVec w2)) | w1 == w2 ->
           Right $ VPropTriple (VTDataVec w1) VTNA VTNA
@@ -114,17 +114,17 @@ inferVectorTypeBinOp s1 s2 op =
       case (s1, s2) of
         (VProp (VTDataVec w1), VProp (VTDataVec w2)) -> Right $ VProp $ VTDataVec $ w1 + w2
         _                                                -> Left "Inputs of Align are not VTDataVecs"
-    ZipS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ZipL"
-    CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "CartProductS"
+    Zip -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ZipL"
+    CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "CartProductS"
     ReplicateVector -> reqValVectors s1 s2 (\w1 _ -> VPropPair (VTDataVec w1 ) VTNA) "ReplicateVector"
     UnboxSng -> reqValVectors s1 s2 (\w1 w2 -> VPropPair (VTDataVec $ w1 + w2) VTNA) "UnboxSng"
-    ThetaJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ThetaJoinS"
-    NestJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestJoinS"
+    ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ThetaJoinS"
+    NestJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestJoinS"
     GroupJoin (_, as) -> do
         VTDataVec w <- unpack s1
         return $ VProp $ VTDataVec (w + length (getNE as))
-    SemiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
-    AntiJoinS _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
+    SemiJoin _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
+    AntiJoin _ -> liftM2 VPropPair (unpack s1) (Right VTNA)
 
 inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)
 inferVectorTypeTerOp _ s2 s3 op =

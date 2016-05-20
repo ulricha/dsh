@@ -37,12 +37,12 @@ class SegmentAlgebra a where
     vecTableRef :: String -> L.BaseTableSchema -> Build a (DVec a)
 
     -- | Perform duplicate elimination per segment.
-    vecUniqueS :: DVec a -> Build a (DVec a)
+    vecUnique :: DVec a -> Build a (DVec a)
 
     -- | /Materialize/ vector positions per segment. The operator adds
     -- an item column that contains the dense positions of the
     -- vector's elements in each segment.
-    vecNumberS :: DVec a -> Build a (DVec a)
+    vecNumber :: DVec a -> Build a (DVec a)
 
     vecUnboxKey :: DVec a -> Build a (KVec a)
 
@@ -56,21 +56,21 @@ class SegmentAlgebra a where
     vecUnsegment :: DVec a -> Build a (DVec a)
 
     vecAggr :: N.NonEmpty AggrFun -> DVec a -> Build a (DVec a)
-    vecAggrS :: AggrFun -> DVec a -> DVec a -> Build a (DVec a)
+    vecAggrSeg :: AggrFun -> DVec a -> DVec a -> Build a (DVec a)
 
     vecWinFun :: WinFun -> FrameSpec -> DVec a -> Build a (DVec a)
 
     -- | Reverse each segment of a vector individually.
-    vecReverseS :: DVec a -> Build a (DVec a, SVec a)
+    vecReverse :: DVec a -> Build a (DVec a, SVec a)
 
     -- | Filter a vector by applying a scalar boolean predicate.
     vecSelect:: Expr -> DVec a -> Build a (DVec a, FVec a)
 
     -- | Per-segment sorting of a vector.
-    vecSortS :: [Expr] -> DVec a -> Build a (DVec a, SVec a)
+    vecSort :: [Expr] -> DVec a -> Build a (DVec a, SVec a)
 
     -- | Per-segment grouping of a vector
-    vecGroupS :: [Expr] -> DVec a -> Build a (DVec a, DVec a, SVec a)
+    vecGroup :: [Expr] -> DVec a -> Build a (DVec a, DVec a, SVec a)
 
     -- | The VL aggregation operator groups every segment of the input vector by the
     -- given columns and then performs the list of aggregations described by the
@@ -104,7 +104,7 @@ class SegmentAlgebra a where
 
     vecUnboxSng :: DVec a -> DVec a -> Build a (DVec a, KVec a)
 
-    vecAppendS :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
+    vecAppend :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
     -- | Align two vectors positionally. However, in contrast to
     -- 'vecZip', these are not arbitrary vectors, but vectors which
@@ -114,13 +114,13 @@ class SegmentAlgebra a where
 
     -- | Positionally align two vectors per segment: @map zip xss
     -- yss@.
-    vecZipS :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
+    vecZip :: DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)
 
-    vecCartProductS :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-    vecThetaJoinS :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-    vecNestJoinS :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
-    vecSemiJoinS :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
-    vecAntiJoinS :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
+    vecCartProduct :: DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecThetaJoin :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecNestJoin :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec a, RVec a)
+    vecSemiJoin :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
+    vecAntiJoin :: L.JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, FVec a)
     vecGroupJoin :: L.JoinPredicate Expr -> L.NE AggrFun -> DVec a -> DVec a -> Build a (DVec a)
 
     vecCombine :: DVec a -> DVec a -> DVec a -> Build a (DVec a, KVec a, KVec a)

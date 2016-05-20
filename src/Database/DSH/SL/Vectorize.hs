@@ -31,14 +31,14 @@ import           Database.DSH.SL.Primitives
 
 binOp :: L.ScalarBinOp -> Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 binOp o (SShape dv1 _) (SShape dv2 _) = do
-    (dv, _, _) <- vlCartProductS dv1 dv2
+    (dv, _, _) <- vlCartProduct dv1 dv2
     dv'        <- vlProject [BinApp o (Column 1) (Column 2)] dv
     return $ SShape dv' LCol
 binOp _ _ _ = $impossible
 
 zip ::  Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 zip (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, fv1, fv2) <- vlZipS dv1 dv2
+    (dv, fv1, fv2) <- vlZip dv1 dv2
     lyt1'          <- rekeyOuter fv1 lyt1
     lyt2'          <- rekeyOuter fv2 lyt2
     return $ VShape dv $ LTuple [lyt1', lyt2']
@@ -46,7 +46,7 @@ zip _ _ = $impossible
 
 cartProduct :: Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 cartProduct (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, rv1, rv2) <- vlCartProductS dv1 dv2
+    (dv, rv1, rv2) <- vlCartProduct dv1 dv2
     lyt1'          <- repLayout rv1 lyt1
     lyt2'          <- repLayout rv2 lyt2
     return $ VShape dv $ LTuple [lyt1', lyt2']
@@ -54,7 +54,7 @@ cartProduct _ _ = $impossible
 
 thetaJoin :: L.JoinPredicate L.ScalarExpr -> Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 thetaJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, rv1, rv2) <- vlThetaJoinS joinPred dv1 dv2
+    (dv, rv1, rv2) <- vlThetaJoin joinPred dv1 dv2
     lyt1'          <- repLayout rv1 lyt1
     lyt2'          <- repLayout rv2 lyt2
     return $ VShape dv $ LTuple [lyt1', lyt2']
@@ -62,7 +62,7 @@ thetaJoin _ _ _ = $impossible
 
 nestJoin :: L.JoinPredicate L.ScalarExpr -> Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 nestJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, rv1, rv2) <- vlNestJoinS joinPred dv1 dv2
+    (dv, rv1, rv2) <- vlNestJoin joinPred dv1 dv2
     lyt1'          <- repLayout rv1 lyt1
     lyt2'          <- repLayout rv2 lyt2
     return $ VShape dv1 (LTuple [lyt1, LNest dv (LTuple [lyt1', lyt2'])])
@@ -79,31 +79,31 @@ groupJoin _ _ _ _ = $impossible
 
 semiJoin :: L.JoinPredicate L.ScalarExpr -> Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 semiJoin joinPred (VShape dv1 lyt1) (VShape dv2 _) = do
-    (dv, fv) <- vlSemiJoinS joinPred dv1 dv2
+    (dv, fv) <- vlSemiJoin joinPred dv1 dv2
     lyt1'    <- filterLayout fv lyt1
     return $ VShape dv lyt1'
 semiJoin _ _ _ = $impossible
 
 antiJoin :: L.JoinPredicate L.ScalarExpr -> Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 antiJoin joinPred (VShape dv1 lyt1) (VShape dv2 _) = do
-    (dv, fv) <- vlAntiJoinS joinPred dv1 dv2
+    (dv, fv) <- vlAntiJoin joinPred dv1 dv2
     lyt1'    <- filterLayout fv lyt1
     return $ VShape dv lyt1'
 antiJoin _ _ _ = $impossible
 
 nub ::  Shape SLDVec -> Build SL (Shape SLDVec)
-nub (VShape dv lyt) = VShape <$> vlUniqueS dv <*> pure lyt
+nub (VShape dv lyt) = VShape <$> vlUnique dv <*> pure lyt
 nub _ = $impossible
 
 number ::  Shape SLDVec -> Build SL (Shape SLDVec)
 number (VShape q lyt) =
-    VShape <$> vlNumberS q <*> pure (LTuple [lyt, LCol])
+    VShape <$> vlNumber q <*> pure (LTuple [lyt, LCol])
 number _ = $impossible
 
 append ::  Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 append (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     -- Append the current vectors
-    (dv12, kv1, kv2) <- vlAppendS dv1 dv2
+    (dv12, kv1, kv2) <- vlAppend dv1 dv2
     -- Propagate position changes to descriptors of any inner vectors
     lyt1'       <- rekeyOuter kv1 lyt1
     lyt2'       <- rekeyOuter kv2 lyt2
@@ -114,7 +114,7 @@ append _ _ = $impossible
 
 reverse ::  Shape SLDVec -> Build SL (Shape SLDVec)
 reverse (VShape dv lyt) = do
-    (dv', sv) <- vlReverseS dv
+    (dv', sv) <- vlReverse dv
     lyt'      <- sortLayout sv lyt
     return (VShape dv' lyt')
 reverse _ = $impossible
@@ -127,7 +127,7 @@ sort (VShape dv (LTuple [xl, sl])) = do
         sortExprs = map Column [leftWidth+1..leftWidth+rightWidth]
 
     -- Sort by all sorting columns from the right tuple component
-    (dv', sv) <- vlSortS sortExprs dv
+    (dv', sv) <- vlSort sortExprs dv
 
     -- After sorting, discard the sorting criteria columns
     dv''      <- vlProject (map Column [1..leftWidth]) dv'
@@ -143,7 +143,7 @@ group (VShape dv (LTuple [lyt1, lyt2])) = do
 
         groupExprs = map Column [leftWidth+1..leftWidth+rightWidth]
 
-    (dvo, dvi, sv) <- vlGroupS groupExprs dv
+    (dvo, dvi, sv) <- vlGroup groupExprs dv
 
     -- Discard the grouping columns in the inner vector
     dvi'           <- vlProject (map Column [1..leftWidth]) dvi
@@ -248,7 +248,7 @@ ifList (SShape qb lytb) (VShape q1 lyt1) (VShape q2 lyt2) = do
     lyt2'                <- filterLayout falsefv lyt2
     lyt'                 <- appendLayout lyt1' lyt2'
 
-    (bothBranches, _, _) <- vlAppendS trueVec' falseVec'
+    (bothBranches, _, _) <- vlAppend trueVec' falseVec'
 
     return $ VShape bothBranches lyt'
 ifList qb (SShape q1 lyt1) (SShape q2 lyt2) = do
@@ -308,7 +308,7 @@ combineL _ _ _ = $impossible
 
 zipL ::  Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 zipL (VShape d1 (LNest q1 lyt1)) (VShape _ (LNest q2 lyt2)) = do
-    (q', r1, r2) <- vlZipS q1 q2
+    (q', r1, r2) <- vlZip q1 q2
     lyt1'        <- rekeyLayout r1 lyt1
     lyt2'        <- rekeyLayout r2 lyt2
     return $ VShape d1 (LNest q' $ LTuple [lyt1', lyt2'])
@@ -316,7 +316,7 @@ zipL _ _ = $impossible
 
 cartProductL :: Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 cartProductL (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do
-    (dv, rv1, rv2) <- vlCartProductS dvi1 dvi2
+    (dv, rv1, rv2) <- vlCartProduct dvi1 dvi2
     lyt1'        <- repLayout rv1 lyt1
     lyt2'        <- repLayout rv2 lyt2
     return $ VShape dvo1 (LNest dv $ LTuple [lyt1', lyt2'])
@@ -324,7 +324,7 @@ cartProductL _ _ = $impossible
 
 thetaJoinL :: L.JoinPredicate L.ScalarExpr -> Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 thetaJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do
-    (dvi, rv1, rv2) <- vlThetaJoinS joinPred dvi1 dvi2
+    (dvi, rv1, rv2) <- vlThetaJoin joinPred dvi1 dvi2
     lyt1'           <- repLayout rv1 lyt1
     lyt2'           <- repLayout rv2 lyt2
     return $ VShape dvo1 (LNest dvi $ LTuple [lyt1', lyt2'])
@@ -333,7 +333,7 @@ thetaJoinL _ _ _ = $impossible
 -- △^L :: [[a]] -> [[b]] -> [[(a, [(a, b)])]]
 nestJoinL :: L.JoinPredicate L.ScalarExpr -> Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 nestJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do
-    (dv, rv1, rv2) <- vlNestJoinS joinPred dvi1 dvi2
+    (dv, rv1, rv2) <- vlNestJoin joinPred dvi1 dvi2
     lyt1'          <- repLayout rv1 lyt1
     lyt2'          <- repLayout rv2 lyt2
     let lyt  = LTuple [lyt1', lyt2']
@@ -352,25 +352,25 @@ groupJoinL _ _ _ _ = $impossible
 
 semiJoinL :: L.JoinPredicate L.ScalarExpr -> Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 semiJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 _)) = do
-    (dv, fv) <- vlSemiJoinS joinPred dvi1 dvi2
+    (dv, fv) <- vlSemiJoin joinPred dvi1 dvi2
     lyt1'    <- filterLayout fv lyt1
     return $ VShape dvo1 (LNest dv lyt1')
 semiJoinL _ _ _ = $impossible
 
 antiJoinL :: L.JoinPredicate L.ScalarExpr -> Shape SLDVec -> Shape SLDVec -> Build SL (Shape SLDVec)
 antiJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 _)) = do
-    (dv, fv) <- vlAntiJoinS joinPred dvi1 dvi2
+    (dv, fv) <- vlAntiJoin joinPred dvi1 dvi2
     lyt1'    <- filterLayout fv lyt1
     return $ VShape dvo1 (LNest dv lyt1')
 antiJoinL _ _ _ = $impossible
 
 nubL ::  Shape SLDVec -> Build SL (Shape SLDVec)
-nubL (VShape d (LNest q lyt)) =  VShape d <$> (LNest <$> vlUniqueS q <*> pure lyt)
+nubL (VShape d (LNest q lyt)) =  VShape d <$> (LNest <$> vlUnique q <*> pure lyt)
 nubL _ = $impossible
 
 numberL ::  Shape SLDVec -> Build SL (Shape SLDVec)
 numberL (VShape d (LNest q lyt)) =
-    VShape d <$> (LNest <$> vlNumberS q
+    VShape d <$> (LNest <$> vlNumber q
                         <*> pure (LTuple [lyt, LCol]))
 numberL _ = $impossible
 
@@ -380,7 +380,7 @@ appendL _ _ = $impossible
 
 reverseL ::  Shape SLDVec -> Build SL (Shape SLDVec)
 reverseL (VShape dvo (LNest dvi lyt)) = do
-    (dv, sv) <- vlReverseS dvi
+    (dv, sv) <- vlReverse dvi
     lyt'     <- sortLayout sv lyt
     return (VShape dvo (LNest dv lyt'))
 reverseL _ = $impossible
@@ -393,7 +393,7 @@ sortL (VShape dvo (LNest dvi (LTuple [xl, sl]))) = do
         sortExprs = map Column [leftWidth+1..leftWidth+rightWidth]
 
     -- Sort by all sorting columns from the right tuple component
-    (sortedVec, sv) <- vlSortS sortExprs dvi
+    (sortedVec, sv) <- vlSort sortExprs dvi
 
     -- After sorting, discard the sorting criteria columns
     resVec          <- vlProject (map Column [1..leftWidth]) sortedVec
@@ -408,7 +408,7 @@ groupL (VShape dvo (LNest dvi (LTuple [xl, gl]))) = do
 
         groupExprs = map Column [leftWidth+1..leftWidth+rightWidth]
 
-    (dvo', dvi', rv) <- vlGroupS groupExprs dvi
+    (dvo', dvi', rv) <- vlGroup groupExprs dvi
 
     -- Discard the grouping columns in the inner vector
     dvi''            <- vlProject (map Column [1..leftWidth]) dvi'
@@ -426,7 +426,7 @@ concatL _ = $impossible
 
 lengthL ::  Shape SLDVec -> Build SL (Shape SLDVec)
 lengthL (VShape q (LNest qi _)) = do
-    ls  <- vlAggrS AggrCount q qi
+    ls  <- vlAggrSeg AggrCount q qi
     lsu <- fst <$> vlUnboxSng q ls
     return $ VShape lsu LCol
 lengthL _ = $impossible
@@ -437,7 +437,7 @@ outer (VShape q _)        = return q
 
 aggrL :: (Expr -> AggrFun) -> Shape SLDVec -> Build SL (Shape SLDVec)
 aggrL afun (VShape d (LNest q LCol)) = do
-    qr <- vlAggrS (afun (Column 1)) d q
+    qr <- vlAggrSeg (afun (Column 1)) d q
     qu <- fst <$> vlUnboxSng d qr
     return $ VShape qu LCol
 aggrL _ _ = $impossible
@@ -591,14 +591,14 @@ boxVectors [VShape q1 lyt1]           = do
     return (dvo, [LNest dvi lyt1])
 boxVectors (SShape dv1 lyt1 : shapes) = do
     (dv, lyts)      <- boxVectors shapes
-    (dv', rv1, rv2) <- vlCartProductS dv1 dv
+    (dv', rv1, rv2) <- vlCartProduct dv1 dv
     lyt1'           <- repLayout rv1 lyt1
     lyts'           <- mapM (repLayout rv2) lyts
     return (dv', lyt1' : lyts')
 boxVectors (VShape dv1 lyt1 : shapes) = do
     (dv, lyts)      <- boxVectors shapes
     (dvo, dvi)      <- vlNest dv1
-    (dv', rv1, rv2) <- vlCartProductS dvo dv
+    (dv', rv1, rv2) <- vlCartProduct dvo dv
     lyt1'           <- repLayout rv1 (LNest dvi lyt1)
     lyts'           <- mapM (repLayout rv2) lyts
     return (dv', lyt1' : lyts')
@@ -679,7 +679,7 @@ appendLayout LCol LCol = return LCol
 -- Append two nested vectors
 appendLayout (LNest dv1 lyt1) (LNest dv2 lyt2) = do
     -- Append the current vectors
-    (dv12, kv1, kv2) <- vlAppendS dv1 dv2
+    (dv12, kv1, kv2) <- vlAppend dv1 dv2
     -- Propagate position changes to descriptors of any inner vectors
     lyt1'       <- rekeyOuter kv1 lyt1
     lyt2'       <- rekeyOuter kv2 lyt2

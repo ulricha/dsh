@@ -136,23 +136,23 @@ scalarExpr expr = offsetExpr $ aux expr
 ----------------------------------------------------------------------------------
 -- DAG constructor functions for SL operators
 
-vlUniqueS :: SLDVec -> Build SL SLDVec
-vlUniqueS (SLDVec c) = vec (UnOp UniqueS c) dvec
+vlUnique :: SLDVec -> Build SL SLDVec
+vlUnique (SLDVec c) = vec (UnOp Unique c) dvec
 
-vlNumberS :: SLDVec -> Build SL SLDVec
-vlNumberS (SLDVec c) = vec (UnOp NumberS c) dvec
+vlNumber :: SLDVec -> Build SL SLDVec
+vlNumber (SLDVec c) = vec (UnOp Number c) dvec
 
-vlGroupS :: [Expr] -> SLDVec -> Build SL (SLDVec, SLDVec, SLSVec)
-vlGroupS groupExprs (SLDVec c) = tripleVec (UnOp (GroupS groupExprs) c) dvec dvec svec
+vlGroup :: [Expr] -> SLDVec -> Build SL (SLDVec, SLDVec, SLSVec)
+vlGroup groupExprs (SLDVec c) = tripleVec (UnOp (Group groupExprs) c) dvec dvec svec
 
-vlSortS :: [Expr] -> SLDVec -> Build SL (SLDVec, SLSVec)
-vlSortS sortExprs (SLDVec c1) = pairVec (UnOp (SortS sortExprs) c1) dvec svec
+vlSort :: [Expr] -> SLDVec -> Build SL (SLDVec, SLSVec)
+vlSort sortExprs (SLDVec c1) = pairVec (UnOp (Sort sortExprs) c1) dvec svec
 
 vlAggr :: AggrFun -> SLDVec -> Build SL SLDVec
 vlAggr aFun (SLDVec c) = vec (UnOp (Aggr (aFun N.:| [])) c) dvec
 
-vlAggrS :: AggrFun -> SLDVec -> SLDVec -> Build SL SLDVec
-vlAggrS aFun (SLDVec c1) (SLDVec c2) = vec (BinOp (AggrS aFun) c1 c2) dvec
+vlAggrSeg :: AggrFun -> SLDVec -> SLDVec -> Build SL SLDVec
+vlAggrSeg aFun (SLDVec c1) (SLDVec c2) = vec (BinOp (AggrSeg aFun) c1 c2) dvec
 
 vlUnboxKey :: SLDVec -> Build SL SLKVec
 vlUnboxKey (SLDVec c) = vec (UnOp UnboxKey c) kvec
@@ -184,8 +184,8 @@ vlAppRep (SLRVec c1) (SLDVec c2) = pairVec (BinOp AppRep c1 c2) dvec rvec
 vlNest :: SLDVec -> Build SL (SLDVec, SLDVec)
 vlNest (SLDVec c)= pairVec (UnOp Nest c) dvec dvec
 
-vlAppendS :: SLDVec -> SLDVec -> Build SL (SLDVec, SLKVec, SLKVec)
-vlAppendS (SLDVec c1) (SLDVec c2) = tripleVec (BinOp AppendS c1 c2) dvec kvec kvec
+vlAppend :: SLDVec -> SLDVec -> Build SL (SLDVec, SLKVec, SLKVec)
+vlAppend (SLDVec c1) (SLDVec c2) = tripleVec (BinOp Append c1 c2) dvec kvec kvec
 
 vlSegment :: SLDVec -> Build SL SLDVec
 vlSegment (SLDVec c) = vec (UnOp Segment c) dvec
@@ -220,23 +220,23 @@ vlProject projs (SLDVec c) = dvec $ insert $ UnOp (Project projs) c
 vlAlign :: SLDVec -> SLDVec -> Build SL SLDVec
 vlAlign (SLDVec c1) (SLDVec c2) = vec (BinOp Align c1 c2) dvec
 
-vlZipS :: SLDVec -> SLDVec -> Build SL (SLDVec, SLKVec, SLKVec)
-vlZipS (SLDVec c1) (SLDVec c2) =
-    tripleVec (BinOp ZipS c1 c2) dvec kvec kvec
+vlZip :: SLDVec -> SLDVec -> Build SL (SLDVec, SLKVec, SLKVec)
+vlZip (SLDVec c1) (SLDVec c2) =
+    tripleVec (BinOp Zip c1 c2) dvec kvec kvec
 
-vlCartProductS :: SLDVec -> SLDVec -> Build SL (SLDVec, SLRVec, SLRVec)
-vlCartProductS (SLDVec c1) (SLDVec c2) =
-    tripleVec (BinOp CartProductS c1 c2) dvec rvec rvec
+vlCartProduct :: SLDVec -> SLDVec -> Build SL (SLDVec, SLRVec, SLRVec)
+vlCartProduct (SLDVec c1) (SLDVec c2) =
+    tripleVec (BinOp CartProduct c1 c2) dvec rvec rvec
 
-vlThetaJoinS :: L.JoinPredicate L.ScalarExpr -> SLDVec -> SLDVec -> Build SL (SLDVec, SLRVec, SLRVec)
-vlThetaJoinS joinPred (SLDVec c1) (SLDVec c2) =
-    tripleVec (BinOp (ThetaJoinS joinPred') c1 c2) dvec rvec rvec
+vlThetaJoin :: L.JoinPredicate L.ScalarExpr -> SLDVec -> SLDVec -> Build SL (SLDVec, SLRVec, SLRVec)
+vlThetaJoin joinPred (SLDVec c1) (SLDVec c2) =
+    tripleVec (BinOp (ThetaJoin joinPred') c1 c2) dvec rvec rvec
   where
     joinPred' = toSLJoinPred joinPred
 
-vlNestJoinS :: L.JoinPredicate L.ScalarExpr -> SLDVec -> SLDVec -> Build SL (SLDVec, SLRVec, SLRVec)
-vlNestJoinS joinPred (SLDVec c1) (SLDVec c2) =
-    tripleVec (BinOp (NestJoinS joinPred') c1 c2) dvec rvec rvec
+vlNestJoin :: L.JoinPredicate L.ScalarExpr -> SLDVec -> SLDVec -> Build SL (SLDVec, SLRVec, SLRVec)
+vlNestJoin joinPred (SLDVec c1) (SLDVec c2) =
+    tripleVec (BinOp (NestJoin joinPred') c1 c2) dvec rvec rvec
   where
     joinPred' = toSLJoinPred joinPred
 
@@ -246,17 +246,17 @@ vlGroupJoin joinPred afuns (SLDVec c1) (SLDVec c2) =
   where
     joinPred' = toSLJoinPred joinPred
 
-vlSemiJoinS :: L.JoinPredicate L.ScalarExpr -> SLDVec -> SLDVec -> Build SL (SLDVec, SLFVec)
-vlSemiJoinS joinPred (SLDVec c1) (SLDVec c2) =
-    pairVec (BinOp (SemiJoinS joinPred') c1 c2) dvec fvec
+vlSemiJoin :: L.JoinPredicate L.ScalarExpr -> SLDVec -> SLDVec -> Build SL (SLDVec, SLFVec)
+vlSemiJoin joinPred (SLDVec c1) (SLDVec c2) =
+    pairVec (BinOp (SemiJoin joinPred') c1 c2) dvec fvec
   where
     joinPred' = toSLJoinPred joinPred
 
-vlAntiJoinS :: L.JoinPredicate L.ScalarExpr -> SLDVec -> SLDVec -> Build SL (SLDVec, SLFVec)
-vlAntiJoinS joinPred (SLDVec c1) (SLDVec c2) =
-    pairVec (BinOp (AntiJoinS joinPred') c1 c2) dvec fvec
+vlAntiJoin :: L.JoinPredicate L.ScalarExpr -> SLDVec -> SLDVec -> Build SL (SLDVec, SLFVec)
+vlAntiJoin joinPred (SLDVec c1) (SLDVec c2) =
+    pairVec (BinOp (AntiJoin joinPred') c1 c2) dvec fvec
   where
     joinPred' = toSLJoinPred joinPred
 
-vlReverseS :: SLDVec -> Build SL (SLDVec, SLSVec)
-vlReverseS (SLDVec c) = pairVec (UnOp ReverseS c) dvec svec
+vlReverse :: SLDVec -> Build SL (SLDVec, SLSVec)
+vlReverse (SLDVec c) = pairVec (UnOp Reverse c) dvec svec

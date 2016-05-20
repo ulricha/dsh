@@ -35,7 +35,7 @@ flatInputs s1       s2       = throwError $ "Properties.Segments: inconsistent i
 inferSegmentsUnOp :: VectorProp SegP -> UnOp -> Either String (VectorProp SegP)
 inferSegmentsUnOp c op =
   case op of
-    UniqueS     -> pure c
+    Unique     -> pure c
     Aggr _      -> pure $ VProp UnitSegP
     WinFun _    -> pure c
     UnboxKey    -> pure c
@@ -43,12 +43,12 @@ inferSegmentsUnOp c op =
     Unsegment   -> pure $ VProp UnitSegP
     Nest        -> pure $ VPropPair UnitSegP SegdP
     Project _   -> pure c
-    ReverseS    -> [ VPropPair f SegNAP | f <- unp c ]
+    Reverse    -> [ VPropPair f SegNAP | f <- unp c ]
     Select _    -> [ VPropPair f SegNAP | f <- unp c ]
-    SortS _     -> [ VPropPair f SegNAP | f <- unp c ]
-    GroupS _    -> [ VPropTriple f SegdP SegNAP | f <- unp c ]
+    Sort _     -> [ VPropPair f SegNAP | f <- unp c ]
+    Group _    -> [ VPropTriple f SegdP SegNAP | f <- unp c ]
     GroupAggr _ -> pure c
-    NumberS     -> pure c
+    Number     -> pure c
     R1          ->
       case c of
         VProp _           -> throwError "Properties.Segments: not a pair/triple"
@@ -67,7 +67,7 @@ inferSegmentsUnOp c op =
 inferSegmentsBinOp :: VectorProp SegP -> VectorProp SegP -> BinOp -> Either String (VectorProp SegP)
 inferSegmentsBinOp c1 c2 op =
   case op of
-    AggrS _         -> pure $ VProp SegdP
+    AggrSeg _       -> pure $ VProp SegdP
     ReplicateNest   -> pure $ VPropPair SegdP SegNAP
     ReplicateScalar -> [ VPropPair f SegNAP | f <- unp c2 ]
     AppKey          -> pure $ VPropPair SegdP SegNAP
@@ -75,16 +75,16 @@ inferSegmentsBinOp c1 c2 op =
     AppFilter       -> pure $ VPropPair SegdP SegNAP
     AppRep          -> pure $ VPropPair SegdP SegNAP
     UnboxSng        -> [ VPropPair f SegNAP | f <- unp c1 ]
-    AppendS         -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
+    Append          -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
     Align           -> join [ VProp <$> flatInputs f1 f2 | f1 <- unp c1, f2 <- unp c2 ]
-    CartProductS    -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
+    CartProduct     -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
     ReplicateVector -> pure $ VPropPair SegdP SegNAP
-    ThetaJoinS _    -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
-    NestJoinS _     -> pure $ VPropTriple SegdP SegNAP SegNAP
+    ThetaJoin  _    -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
+    NestJoin  _     -> pure $ VPropTriple SegdP SegNAP SegNAP
     GroupJoin _     -> join [ VProp <$> flatInputs f1 f2 | f1 <- unp c1, f2 <- unp c2 ]
-    SemiJoinS _     -> join [ VPropPair <$> flatInputs f1 f2 <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
-    AntiJoinS _     -> join [ VPropPair <$> flatInputs f1 f2 <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
-    ZipS            -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
+    SemiJoin _      -> join [ VPropPair <$> flatInputs f1 f2 <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
+    AntiJoin _      -> join [ VPropPair <$> flatInputs f1 f2 <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
+    Zip             -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
 
 inferSegmentsTerOp :: VectorProp SegP -> VectorProp SegP -> VectorProp SegP -> TerOp -> Either String (VectorProp SegP)
 inferSegmentsTerOp c1 _ _ op =

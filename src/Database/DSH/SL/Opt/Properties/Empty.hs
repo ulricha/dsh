@@ -27,22 +27,22 @@ inferEmptyNullOp op =
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
-    Nest             -> VPropPair False <$> unp e
-    WinFun _         -> Right e
-    UniqueS          -> Right e
-    Aggr _           -> Right $ VProp False
-    UnboxKey         -> Right e
-    Segment          -> Right e
-    Unsegment        -> Right e
-    ReverseS         -> let ue = unp e in liftM2 VPropPair ue ue
-    Project _        -> Right e
-    Select _         -> let ue = unp e in liftM2 VPropPair ue ue
-    SortS _          -> let ue = unp e in liftM2 VPropPair ue ue
-    GroupS _         -> let ue = unp e in liftM3 VPropTriple ue ue ue
+    Nest      -> VPropPair False <$> unp e
+    WinFun _  -> Right e
+    Unique    -> Right e
+    Aggr _    -> Right $ VProp False
+    UnboxKey  -> Right e
+    Segment   -> Right e
+    Unsegment -> Right e
+    Reverse   -> let ue = unp e in liftM2 VPropPair ue ue
+    Project _ -> Right e
+    Select _  -> let ue = unp e in liftM2 VPropPair ue ue
+    Sort _    -> let ue = unp e in liftM2 VPropPair ue ue
+    Group _   -> let ue = unp e in liftM3 VPropTriple ue ue ue
 
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr (_, _) -> Right $ VProp False
-    NumberS          -> Right e
+    Number          -> Right e
 
     R1 ->
       case e of
@@ -63,20 +63,20 @@ inferEmptyUnOp e op =
 inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferEmptyBinOp e1 e2 op =
   case op of
-    ReplicateNest -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    ReplicateNest   -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     ReplicateScalar -> mapUnp e1 e2 (\_ ue2 -> VPropPair ue2 ue2)
     UnboxSng -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    AppendS -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
-    AggrS _ -> return $ VProp False
+    Append -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
+    AggrSeg _ -> return $ VProp False
     Align -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    ZipS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
-    CartProductS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
+    Zip -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
+    CartProduct -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     ReplicateVector -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     GroupJoin _ -> VProp <$> unp e1
-    ThetaJoinS _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
-    NestJoinS _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
-    SemiJoinS _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
-    AntiJoinS _ -> mapUnp e1 e2 (\ue1 _ -> (\p -> VPropPair p p) ue1)
+    ThetaJoin _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
+    NestJoin _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
+    SemiJoin _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
+    AntiJoin _ -> mapUnp e1 e2 (\ue1 _ -> (\p -> VPropPair p p) ue1)
     AppKey -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     AppFilter -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     AppSort -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
