@@ -74,9 +74,9 @@ groupingToAggregation =
 -- -- | If we can infer that all segments (if there are any) are not
 -- -- empty, we can employ a simplified version of the aggregate operator
 -- -- that does not add default values for empty segments.
--- nonEmptyAggrS :: SLRule BottomUpProps
--- nonEmptyAggrS q =
---   $(dagPatMatch 'q "(_) AggrS aggrFun (q2)"
+-- nonEmptyAggrSeg :: SLRule BottomUpProps
+-- nonEmptyAggrSeg q =
+--   $(dagPatMatch 'q "(_) AggrSeg aggrFun (q2)"
 --     [| do
 --         VProp True <- nonEmptyProp <$> properties $(v "q2")
 
@@ -113,15 +113,9 @@ mergeAggr q =
           void $ replaceWithNew q $ UnOp (Aggr ($(v "a1") <> $(v "a2"))) $(v "q1") |])
 
 -- | Merge a projection into a segmented aggregate operator.
-<<<<<<< HEAD:src/Database/DSH/SL/Opt/Rewrite/Aggregation.hs
-inlineAggrSProject :: SLRule ()
-inlineAggrSProject q =
-  $(dagPatMatch 'q "(qo) AggrS afun (Project proj (qi))"
-=======
-inlineAggrSegProject :: VLRule ()
+inlineAggrSegProject :: SLRule ()
 inlineAggrSegProject q =
   $(dagPatMatch 'q "(qo) AggrSeg afun (Project proj (qi))"
->>>>>>> master:src/Database/DSH/VL/Opt/Rewrite/Aggregation.hs
     [| do
         let env = zip [1..] $(v "proj")
         let afun' = mapAggrFun (mergeExpr env) $(v "afun")
@@ -163,15 +157,9 @@ flatGrouping q =
 -- down through segment propagation operators.
 --
 -- Testcase: TPC-H Q11, Q15
-<<<<<<< HEAD:src/Database/DSH/SL/Opt/Rewrite/Aggregation.hs
-mergeGroupAggrAggrS :: SLRule ()
-mergeGroupAggrAggrS q =
-  $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) AggrS afun (R2 (qg1=GroupS groupExprs (q2)))))"
-=======
-mergeGroupAggrAggrSeg :: VLRule ()
+mergeGroupAggrAggrSeg :: SLRule ()
 mergeGroupAggrAggrSeg q =
   $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) AggrSeg afun (R2 (qg1=Group groupExprs (q2)))))"
->>>>>>> master:src/Database/DSH/VL/Opt/Rewrite/Aggregation.hs
     [| do
         predicate $ $(v "q1") == $(v "q2")
         let (groupExprs', afuns) = $(v "args")
