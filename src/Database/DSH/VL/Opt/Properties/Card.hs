@@ -19,7 +19,7 @@ inferCardOneNullOp op =
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferCardOneUnOp c op =
   case op of
-    UniqueS -> Right c
+    Unique -> Right c
     Aggr _ -> Right $ VProp True
     WinFun _ -> Right c
     UnboxKey -> Right c
@@ -27,10 +27,10 @@ inferCardOneUnOp c op =
     Unsegment -> Right c
     Nest -> unp c >>= (\uc -> return $ VPropPair True uc)
     Project _  -> Right c
-    ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)
     Select _ -> Right $ VPropPair False False
-    SortS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    GroupS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
+    Sort _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    Group _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
     R1 ->
       case c of
         VProp _           -> Left "Properties.Card: not a pair/triple"
@@ -47,12 +47,12 @@ inferCardOneUnOp c op =
         _                 -> Left "Properties.Card: not a triple"
     GroupAggr ([], _) -> Right $ VProp True
     GroupAggr (_, _)  -> Right c
-    NumberS -> Right c
+    Number -> Right c
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
   case op of
-    AggrS _ -> return $ VProp False
+    AggrSeg _ -> return $ VProp False
     ReplicateNest -> return $ VPropPair False False
     ReplicateScalar -> unp c2 >>= (\uc -> return $ VPropPair uc uc)
     AppKey -> return $ VPropPair False False
@@ -61,16 +61,16 @@ inferCardOneBinOp c1 c2 op =
     AppRep -> return $ VPropPair False False
     UnboxSng -> return $ VPropPair False False
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
-    AppendS -> Right $ VPropTriple False False False
+    Append -> Right $ VPropTriple False False False
     Align -> VProp <$> ((||) <$> unp c1 <*> unp c2)
-    CartProductS -> return $ VPropTriple False False False
-    NestProductS -> return $ VPropTriple False False False
-    ThetaJoinS _ -> return $ VPropTriple False False False
-    NestJoinS _ -> return $ VPropTriple False False False
+    CartProduct -> return $ VPropTriple False False False
+    NestProduct -> return $ VPropTriple False False False
+    ThetaJoin _ -> return $ VPropTriple False False False
+    NestJoin _ -> return $ VPropTriple False False False
     GroupJoin _ -> return $ VProp False
-    SemiJoinS _ -> return $ VPropPair False False
-    AntiJoinS _ -> return $ VPropPair False False
-    ZipS -> do
+    SemiJoin _ -> return $ VPropPair False False
+    AntiJoin _ -> return $ VPropPair False False
+    Zip -> do
       c <- (||) <$> unp c1 <*> unp c2
       return $ VPropTriple c c c
 

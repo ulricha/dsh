@@ -129,7 +129,7 @@ inferConstVecUnOp c op =
       cols <- unp c >>= fromDBV
       return $ VProp $ ConstVec (cols ++ [NonConstPL])
 
-    UniqueS -> return c
+    Unique -> return c
 
     Aggr _ -> return $ VProp $ ConstVec [NonConstPL]
 
@@ -143,7 +143,7 @@ inferConstVecUnOp c op =
       constCols <- unp c >>= fromDBV
       return $ VProp $ ConstVec constCols
 
-    ReverseS -> do
+    Reverse -> do
       cs <- unp c >>= fromDBV
       return $ VPropPair (ConstVec cs) CNA
 
@@ -160,15 +160,15 @@ inferConstVecUnOp c op =
       let pl = [ NonConstPL | _ <- [1 .. length g + N.length as] ]
       return $ VProp $ ConstVec pl
 
-    NumberS -> do
+    Number -> do
       cols <- unp c >>= fromDBV
       return $ VProp $ ConstVec (cols ++ [NonConstPL])
 
-    SortS _ -> do
+    Sort _ -> do
       cs <- unp c >>= fromDBV
       return $ VPropPair (ConstVec cs) CNA
 
-    GroupS es -> do
+    Group es -> do
       cs <- unp c >>= fromDBV
       return $ VPropTriple (ConstVec (map (const NonConstPL) es))
                            (ConstVec (map (const NonConstPL) cs))
@@ -194,7 +194,7 @@ inferConstVecBinOp c1 c2 op =
   case op of
     -- FIXME use cardinality property to infer the length if possible
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
-    AggrS _ -> return $ VProp $ ConstVec [NonConstPL]
+    AggrSeg _ -> return $ VProp $ ConstVec [NonConstPL]
 
     ReplicateNest -> do
       cols1 <- unp c1 >>= fromDBV
@@ -227,7 +227,7 @@ inferConstVecBinOp c1 c2 op =
       cols2 <- unp c2 >>= fromDBV
       return $ VPropPair (ConstVec (cols1 ++ cols2)) CNA
 
-    AppendS -> do
+    Append -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
 
@@ -241,19 +241,19 @@ inferConstVecBinOp c1 c2 op =
       let cols = cols1 ++ cols2
       return $ VProp $ ConstVec cols
 
-    ZipS -> do
+    Zip -> do
       cols1 <- unp c1 >>= fromDBV
       cols2  <- unp c2 >>= fromDBV
       let cols = cols1 ++ cols2
       return $ VPropTriple (ConstVec cols) CNA CNA
 
-    CartProductS -> do
+    CartProduct -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
       return $ VPropTriple (ConstVec constCols) CNA CNA
 
-    NestProductS -> do
+    NestProduct -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
@@ -264,23 +264,23 @@ inferConstVecBinOp c1 c2 op =
       let constCols = cols1 ++ [NonConstPL]
       return $ VProp (ConstVec constCols)
 
-    ThetaJoinS _ -> do
+    ThetaJoin _ -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
       return $ VPropTriple (ConstVec constCols) CNA CNA
 
-    NestJoinS _ -> do
+    NestJoin _ -> do
       cols1 <- unp c1 >>= fromDBV
       cols2 <- unp c2 >>= fromDBV
       let constCols = cols1 ++ cols2
       return $ VPropTriple (ConstVec constCols) CNA CNA
 
-    SemiJoinS _ -> do
+    SemiJoin _ -> do
       cols1 <- unp c1 >>= fromDBV
       return $ VPropPair (ConstVec cols1) CNA
 
-    AntiJoinS _ -> do
+    AntiJoin _ -> do
       cols1 <- unp c1 >>= fromDBV
       return $ VPropPair (ConstVec cols1) CNA
 

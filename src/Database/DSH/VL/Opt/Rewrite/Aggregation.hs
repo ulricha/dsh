@@ -18,11 +18,11 @@ import           Database.DSH.VL.Opt.Properties.Types
 import           Database.DSH.VL.Opt.Rewrite.Common
 
 aggregationRules :: VLRuleSet ()
-aggregationRules = [ inlineAggrSProject
+aggregationRules = [ inlineAggrSegProject
                    , inlineAggrProject
                    , mergeAggr
                    , flatGrouping
-                   , mergeGroupAggrAggrS
+                   , mergeGroupAggrAggrSeg
                    -- , mergeNonEmptyAggrs
                    , mergeGroupAggr
                    , mergeGroupWithGroupAggrLeft
@@ -32,7 +32,7 @@ aggregationRules = [ inlineAggrSProject
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
 aggregationRulesBottomUp = [ {- nonEmptyAggr
-                           , nonEmptyAggrS -}
+                           , nonEmptyAggrSeg -}
                              countDistinct
                            ]
 
@@ -74,14 +74,14 @@ groupingToAggregation =
 -- -- | If we can infer that all segments (if there are any) are not
 -- -- empty, we can employ a simplified version of the aggregate operator
 -- -- that does not add default values for empty segments.
--- nonEmptyAggrS :: VLRule BottomUpProps
--- nonEmptyAggrS q =
---   $(dagPatMatch 'q "(_) AggrS aggrFun (q2)"
+-- nonEmptyAggrSeg :: VLRule BottomUpProps
+-- nonEmptyAggrSeg q =
+--   $(dagPatMatch 'q "(_) AggrSeg aggrFun (q2)"
 --     [| do
 --         VProp True <- nonEmptyProp <$> properties $(v "q2")
 
 --         return $ do
---             logRewrite "Aggregation.NonEmpty.AggrS" q
+--             logRewrite "Aggregation.NonEmpty.AggrSeg" q
 --             let aggrOp = UnOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q2")
 --             void $ replaceWithNew q aggrOp |])
 
@@ -104,7 +104,7 @@ inlineAggrProject q =
 -- Fix2: perform the merge on relational algebra.
 mergeAggr :: VLRule ()
 mergeAggr q =
-  $(dagPatMatch 'q "R1 ((Aggr a1 (q1)) CartProductS (Aggr a2 (q2)))"
+  $(dagPatMatch 'q "R1 ((Aggr a1 (q1)) CartProduct (Aggr a2 (q2)))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
@@ -113,22 +113,22 @@ mergeAggr q =
           void $ replaceWithNew q $ UnOp (Aggr ($(v "a1") <> $(v "a2"))) $(v "q1") |])
 
 -- | Merge a projection into a segmented aggregate operator.
-inlineAggrSProject :: VLRule ()
-inlineAggrSProject q =
-  $(dagPatMatch 'q "(qo) AggrS afun (Project proj (qi))"
+inlineAggrSegProject :: VLRule ()
+inlineAggrSegProject q =
+  $(dagPatMatch 'q "(qo) AggrSeg afun (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
         let afun' = mapAggrFun (mergeExpr env) $(v "afun")
 
         return $ do
-            logRewrite "Aggregation.Normalize.AggrS.Project" q
-            void $ replaceWithNew q $ BinOp (AggrS afun') $(v "qo") $(v "qi") |])
+            logRewrite "Aggregation.Normalize.AggrSeg.Project" q
+            void $ replaceWithNew q $ BinOp (AggrSeg afun') $(v "qo") $(v "qi") |])
 
 -- | We rewrite a combination of GroupS and aggregation operators into a single
 -- GroupAggr operator.
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng ((_) AggrS afun (R2 (qg1=GroupS groupExprs (q1)))))"
+  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng ((_) AggrSeg afun (R2 (qg1=Group groupExprs (q1)))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -157,9 +157,9 @@ flatGrouping q =
 -- down through segment propagation operators.
 --
 -- Testcase: TPC-H Q11, Q15
-mergeGroupAggrAggrS :: VLRule ()
-mergeGroupAggrAggrS q =
-  $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) AggrS afun (R2 (qg1=GroupS groupExprs (q2)))))"
+mergeGroupAggrAggrSeg :: VLRule ()
+mergeGroupAggrAggrSeg q =
+  $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) AggrSeg afun (R2 (qg1=Group groupExprs (q2)))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         let (groupExprs', afuns) = $(v "args")
@@ -221,7 +221,7 @@ mergeGroupAggr q =
 -- only the grouping expressions are duplicated.
 mergeGroupWithGroupAggrLeft :: VLRule ()
 mergeGroupWithGroupAggrLeft q =
-  $(dagPatMatch 'q "(R1 (GroupS ges (q1))) Align (GroupAggr args (q2))"
+  $(dagPatMatch 'q "(R1 (Group ges (q1))) Align (GroupAggr args (q2))"
     [| do
         let (ges', afuns) = $(v "args")
 
@@ -250,7 +250,7 @@ mergeGroupWithGroupAggrLeft q =
 -- 'Aggregation.Normalize.MergeGroup.Left'.
 mergeGroupWithGroupAggrRight :: VLRule ()
 mergeGroupWithGroupAggrRight q =
-  $(dagPatMatch 'q "(GroupAggr args (q1)) Align (R1 (GroupS ges (q2)))"
+  $(dagPatMatch 'q "(GroupAggr args (q1)) Align (R1 (Group ges (q2)))"
     [| do
         let (ges', afuns) = $(v "args")
 
@@ -279,7 +279,7 @@ mergeGroupWithGroupAggrRight q =
 -- into one groupjoin operator.
 groupJoin :: VLRule ()
 groupJoin q =
-  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((qo1) AggrS a (R1 ((qo2) NestJoinS p (qi)))))"
+  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((qo1) AggrSeg a (R1 ((qo2) NestJoin p (qi)))))"
     [| do
         predicate $ $(v "qo1") == $(v "qo")
         predicate $ $(v "qo2") == $(v "qo")
@@ -291,12 +291,12 @@ groupJoin q =
 
 countDistinct :: VLRule BottomUpProps
 countDistinct q =
-  $(dagPatMatch 'q "(q1) AggrS a (UniqueS (q2))"
+  $(dagPatMatch 'q "(q1) AggrSeg a (Unique (q2))"
     [| do
         AggrCount           <- return $(v "a")
         VProp (VTDataVec 1) <- vectorTypeProp <$> properties $(v "q2")
 
         return $ do
             logRewrite "CountDistinct" q
-            void $ replaceWithNew q $ BinOp (AggrS (AggrCountDistinct (Column 1))) $(v "q1") $(v "q2")
+            void $ replaceWithNew q $ BinOp (AggrSeg (AggrCountDistinct (Column 1))) $(v "q1") $(v "q2")
         |])

@@ -38,7 +38,7 @@ aggrToWinFun (AggrCountDistinct _) = Nothing
 -- Turn a running aggregate based on a self-join into a window operator.
 runningAggWinUnbounded :: VLRule BottomUpProps
 runningAggWinUnbounded q =
-  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((_) AggrS afun (R1 ((qn=NumberS (q1)) NestJoinS p (NumberS (q2))))))"
+  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((_) AggrSeg afun (R1 ((qn=Number (q1)) NestJoin p (Number (q2))))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         predicate $ $(v "qo") == $(v "q1")
@@ -70,7 +70,7 @@ runningAggWinUnbounded q =
 
 runningAggWinUnboundedGroupJoin :: VLRule BottomUpProps
 runningAggWinUnboundedGroupJoin q =
-  $(dagPatMatch 'q "(qn=NumberS (q1)) GroupJoin args (NumberS (q2))"
+  $(dagPatMatch 'q "(qn=Number (q1)) GroupJoin args (Number (q2))"
     [| do
         let (joinPred, afuns) = $(v "args")
         afun :| [] <- return $ L.getNE afuns
@@ -100,7 +100,7 @@ runningAggWinUnboundedGroupJoin q =
 -- FIXME merge with runningAggWinUnbounded
 runningAggWinBounded :: VLRule BottomUpProps
 runningAggWinBounded q =
-  $(dagPatMatch 'q "(qn=NumberS (q1)) GroupJoin args (NumberS (q2))"
+  $(dagPatMatch 'q "(qn=Number (q1)) GroupJoin args (Number (q2))"
     [| do
         let (joinPred, afuns) = $(v "args")
         afun :| [] <- return $ L.getNE afuns

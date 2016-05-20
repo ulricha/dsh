@@ -36,14 +36,14 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectAppFilter
                  , pullProjectAppSort
                  , pullProjectUnboxKey
-                 , pullProjectAggrS
+                 , pullProjectAggrSeg
                  , pullProjectSort
                  , scalarConditional
-                 , pushAggrSSelect
-                 , pushAggrSThetaJoinRight
+                 , pushAggrSegSelect
+                 , pushAggrSegThetaJoinRight
                  , pushUnboxSngSelect
-                 , pushAggrSAlign
-                 , pushAggrSReplicateScalar
+                 , pushAggrSegAlign
+                 , pushAggrSegReplicateScalar
                  , pushUnboxSngAlign
                  , pushUnboxSngReplicateScalar
                  ]
@@ -161,10 +161,10 @@ unreferencedReplicateNest q =
 
 -- | Remove a ReplicateNest if the outer vector is aligned with a
 -- NestProduct that uses the same outer vector.
--- FIXME try to generalize to NestProductS
+-- FIXME try to generalize to NestProduct
 distLiftNestProduct :: VLRule BottomUpProps
 distLiftNestProduct q =
-  $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestProductS (qi))))"
+  $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestProduct (qi))))"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
 
@@ -180,16 +180,16 @@ distLiftNestProduct q =
             logRewrite "Redundant.ReplicateNest.NestProduct" q
             -- Preserve the original schema
             let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
-            prodNode <- insert $ BinOp NestProductS $(v "qo") $(v "qi")
+            prodNode <- insert $ BinOp NestProduct $(v "qo") $(v "qi")
             r1Node   <- insert $ UnOp R1 prodNode
             void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
 -- | Remove a ReplicateNest if the outer vector is aligned with a
 -- NestJoin that uses the same outer vector.
--- FIXME try to generalize to NestJoinS
+-- FIXME try to generalize to NestJoin
 distLiftNestJoin :: VLRule BottomUpProps
 distLiftNestJoin q =
-  $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestJoinS p (qi))))"
+  $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestJoin p (qi))))"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
 
@@ -205,7 +205,7 @@ distLiftNestJoin q =
             logRewrite "Redundant.ReplicateNest.NestJoin" q
             -- Preserve the original schema
             let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
-            prodNode <- insert $ BinOp (NestJoinS $(v "p")) $(v "qo") $(v "qi")
+            prodNode <- insert $ BinOp (NestJoin $(v "p")) $(v "qo") $(v "qi")
             r1Node   <- insert $ UnOp R1 prodNode
             void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
@@ -348,7 +348,7 @@ sameInputAlign q =
 -- same.
 sameInputZip :: VLRule BottomUpProps
 sameInputZip q =
-  $(dagPatMatch 'q "R1 ((q1) ZipS (q2))"
+  $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         w <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
@@ -409,7 +409,7 @@ alignProjectLeft q =
 
 zipProjectLeft :: VLRule BottomUpProps
 zipProjectLeft q =
-  $(dagPatMatch 'q "R1 ((Project ps1 (q1)) ZipS (q2))"
+  $(dagPatMatch 'q "R1 ((Project ps1 (q1)) Zip (q2))"
     [| do
         w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
         w2 <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
@@ -419,7 +419,7 @@ zipProjectLeft q =
           -- Take the projection expressions from the left and the
           -- shifted columns from the right.
           let proj = $(v "ps1") ++ [ Column $ c + w1 | c <- [1 .. w2]]
-          zipNode <- insert $ BinOp ZipS $(v "q1") $(v "q2")
+          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
           r1Node  <- insert $ UnOp R1 zipNode
           void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
@@ -440,7 +440,7 @@ alignProjectRight q =
 
 zipProjectRight :: VLRule BottomUpProps
 zipProjectRight q =
-  $(dagPatMatch 'q "R1 ((q1) ZipS (Project p2 (q2)))"
+  $(dagPatMatch 'q "R1 ((q1) Zip (Project p2 (q2)))"
     [| do
         w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
@@ -450,7 +450,7 @@ zipProjectRight q =
           -- the right projection. Since expressions are applied after
           -- the zip, their column references have to be shifted.
           let proj = [Column c | c <- [1..w1]] ++ [ mapExprCols (+ w1) e | e <- $(v "p2") ]
-          zipNode <- insert $ BinOp ZipS $(v "q1") $(v "q2")
+          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
           r1Node  <- insert $ UnOp R1 zipNode
           void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
@@ -492,12 +492,12 @@ alignConstRight q =
 -- non-constant vector would need to be discarded. In general, we can only
 -- determine equal length for the special case of length one.
 --
--- Since we use ZipS here, we have to ensure that the constant is in the same
+-- Since we use Zip here, we have to ensure that the constant is in the same
 -- segment as the entry from the non-constant tuple. At the moment, we can
 -- guarantee this only for unit-segment vectors.
 zipConstLeft :: VLRule BottomUpProps
 zipConstLeft q =
-  $(dagPatMatch 'q "R1 ((q1) ZipS (q2))"
+  $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
     [| do
 
         prop1               <- properties $(v "q1")
@@ -520,7 +520,7 @@ zipConstLeft q =
 
 zipConstRight :: VLRule BottomUpProps
 zipConstRight q =
-  $(dagPatMatch 'q "R1 ((q1) ZipS (q2))"
+  $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
     [| do
         prop1               <- properties $(v "q1")
         VProp card1         <- return $ card1Prop prop1
@@ -543,7 +543,7 @@ zipConstRight q =
 
 zipZipLeft :: VLRule BottomUpProps
 zipZipLeft q =
-  $(dagPatMatch 'q "(q1) ZipS (qz=(q11) [ZipS | Align] (_))"
+  $(dagPatMatch 'q "(q1) Zip (qz=(q11) [Zip | Align] (_))"
      [| do
          predicate $ $(v "q1") == $(v "q11")
 
@@ -574,7 +574,7 @@ alignWinRight q =
 
 zipWinRight :: VLRule BottomUpProps
 zipWinRight q =
-  $(dagPatMatch 'q "R1 ((q1) ZipS (qw=WinFun _ (q2)))"
+  $(dagPatMatch 'q "R1 ((q1) Zip (qw=WinFun _ (q2)))"
      [| do
          predicate $ $(v "q1") == $(v "q2")
 
@@ -595,7 +595,7 @@ zipWinRight q =
 -- FIXME this should be solved properly for the general case.
 zipWinRight2 :: VLRule BottomUpProps
 zipWinRight2 q =
-  $(dagPatMatch 'q "R1 ((q1) ZipS (qw=WinFun _ (WinFun _ (q2))))"
+  $(dagPatMatch 'q "R1 ((q1) Zip (qw=WinFun _ (WinFun _ (q2))))"
      [| do
          predicate $ $(v "q1") == $(v "q2")
 
@@ -630,7 +630,7 @@ alignWinLeft q =
 -- remove the Zip operator.
 zipWinLeft :: VLRule BottomUpProps
 zipWinLeft q =
-  $(dagPatMatch 'q "R1 ((qw=WinFun _ (q1)) ZipS (q2))"
+  $(dagPatMatch 'q "R1 ((qw=WinFun _ (q1)) Zip (q2))"
      [| do
          predicate $ $(v "q1") == $(v "q2")
 
@@ -695,9 +695,9 @@ alignGroupJoinLeft q =
             let proj = map Column $ [1..w+aggCount] ++ [1..w]
             void $ replaceWithNew q $ UnOp (Project proj) $(v "gj") |])
 
--- | If the right (outer) input of Unbox is a NumberS operator and the
+-- | If the right (outer) input of Unbox is a Number operator and the
 -- number output is not required, eliminate it from the outer
--- input. This is correct because NumberS does not change the vertical
+-- input. This is correct because Number does not change the vertical
 -- shape of the vector.
 --
 -- The motivation is to eliminate zip operators that align with the
@@ -711,7 +711,7 @@ alignGroupJoinLeft q =
 -- the vertical shape.
 unboxNumber :: VLRule Properties
 unboxNumber q =
-  $(dagPatMatch 'q "R1 ((NumberS (qo)) UnboxSng (qi))"
+  $(dagPatMatch 'q "R1 ((Number (qo)) UnboxSng (qi))"
     [| do
         VProp (Just reqCols) <- reqColumnsProp . td <$> properties q
         VProp (VTDataVec wo) <- vectorTypeProp . bu <$> properties $(v "qo")
@@ -803,13 +803,13 @@ alignUnboxSngLeft q =
 -- input) must be aligned as well.
 alignCartProdRight :: VLRule BottomUpProps
 alignCartProdRight q =
-  $(dagPatMatch 'q "(q11) Align (R1 ((q12) CartProductS (q2)))"
+  $(dagPatMatch 'q "(q11) Align (R1 ((q12) CartProduct (q2)))"
     [| do
         VProp True <- card1Prop <$> properties $(v "q2")
         return $ do
             logRewrite "Redundant.Align.CartProduct.Card1.Right" q
             alignNode <- insert $ BinOp Align $(v "q11") $(v "q12")
-            prodNode  <- insert $ BinOp CartProductS alignNode $(v "q2")
+            prodNode  <- insert $ BinOp CartProduct alignNode $(v "q2")
             void $ replaceWithNew q $ UnOp R1 prodNode |])
 
 --------------------------------------------------------------------------------
@@ -899,7 +899,7 @@ pullProjectGroupJoinRight q =
 
 pullProjectNestProductLeft :: VLRule BottomUpProps
 pullProjectNestProductLeft q =
-  $(dagPatMatch 'q "R1 ((Project proj (q1)) NestProductS (q2))"
+  $(dagPatMatch 'q "R1 ((Project proj (q1)) NestProduct (q2))"
     [| do
         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
         rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
@@ -908,7 +908,7 @@ pullProjectNestProductLeft q =
             logRewrite "Redundant.Project.NestProduct.Left" q
             let proj' = $(v "proj") ++ map Column [leftWidth + 1 .. leftWidth + rightWidth]
 
-            joinNode <- insert $ BinOp NestProductS $(v "q1") $(v "q2")
+            joinNode <- insert $ BinOp NestProduct $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 joinNode
             void $ replaceWithNew q $ UnOp (Project proj') r1Node
 
@@ -917,7 +917,7 @@ pullProjectNestProductLeft q =
 
 pullProjectNestProductRight :: VLRule BottomUpProps
 pullProjectNestProductRight q =
-  $(dagPatMatch 'q "R1 ((q1) NestProductS (Project proj (q2)))"
+  $(dagPatMatch 'q "R1 ((q1) NestProduct (Project proj (q2)))"
     [| do
         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
@@ -925,7 +925,7 @@ pullProjectNestProductRight q =
             logRewrite "Redundant.Project.NestProduct.Right" q
             let proj' = map Column [1..leftWidth] ++ map (shiftExprCols leftWidth) $(v "proj")
 
-            joinNode <- insert $ BinOp NestProductS $(v "q1") $(v "q2")
+            joinNode <- insert $ BinOp NestProduct $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 joinNode
             void $ replaceWithNew q $ UnOp (Project proj') r1Node
 
@@ -936,7 +936,7 @@ pullProjectNestProductRight q =
 
 pullProjectNestJoinLeft :: VLRule BottomUpProps
 pullProjectNestJoinLeft q =
-  $(dagPatMatch 'q "R1 ((Project proj (q1)) NestJoinS p (q2))"
+  $(dagPatMatch 'q "R1 ((Project proj (q1)) NestJoin p (q2))"
     [| do
         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
         rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
@@ -946,7 +946,7 @@ pullProjectNestJoinLeft q =
             let proj' = $(v "proj") ++ map Column [leftWidth + 1 .. leftWidth + rightWidth]
                 p'    = inlineJoinPredLeft (zip [1..] $(v "proj")) $(v "p")
 
-            joinNode <- insert $ BinOp (NestJoinS p') $(v "q1") $(v "q2")
+            joinNode <- insert $ BinOp (NestJoin p') $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 joinNode
             void $ replaceWithNew q $ UnOp (Project proj') r1Node
 
@@ -955,7 +955,7 @@ pullProjectNestJoinLeft q =
 
 pullProjectNestJoinRight :: VLRule BottomUpProps
 pullProjectNestJoinRight q =
-  $(dagPatMatch 'q "R1 ((q1) NestJoinS p (Project proj (q2)))"
+  $(dagPatMatch 'q "R1 ((q1) NestJoin p (Project proj (q2)))"
     [| do
         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
@@ -964,7 +964,7 @@ pullProjectNestJoinRight q =
             let proj' = map Column [1..leftWidth] ++ map (shiftExprCols leftWidth) $(v "proj")
                 p'    = inlineJoinPredRight (zip [1..] $(v "proj")) $(v "p")
 
-            joinNode <- insert $ BinOp (NestJoinS p') $(v "q1") $(v "q2")
+            joinNode <- insert $ BinOp (NestJoin p') $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 joinNode
             void $ replaceWithNew q $ UnOp (Project proj') r1Node
 
@@ -973,7 +973,7 @@ pullProjectNestJoinRight q =
 
 pullProjectCartProductLeft :: VLRule BottomUpProps
 pullProjectCartProductLeft q =
-  $(dagPatMatch 'q "R1 ((Project proj (q1)) CartProductS (q2))"
+  $(dagPatMatch 'q "R1 ((Project proj (q1)) CartProduct (q2))"
     [| do
         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
         rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
@@ -982,7 +982,7 @@ pullProjectCartProductLeft q =
             logRewrite "Redundant.Project.CartProduct.Left" q
             let proj' = $(v "proj") ++ map Column [leftWidth + 1 .. leftWidth + rightWidth]
 
-            prodNode <- insert $ BinOp CartProductS $(v "q1") $(v "q2")
+            prodNode <- insert $ BinOp CartProduct $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 prodNode
             void $ replaceWithNew q $ UnOp (Project proj') r1Node
 
@@ -991,7 +991,7 @@ pullProjectCartProductLeft q =
 
 pullProjectCartProductRight :: VLRule BottomUpProps
 pullProjectCartProductRight q =
-  $(dagPatMatch 'q "R1 ((q1) CartProductS (Project proj (q2)))"
+  $(dagPatMatch 'q "R1 ((q1) CartProduct (Project proj (q2)))"
     [| do
         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
@@ -999,7 +999,7 @@ pullProjectCartProductRight q =
             logRewrite "Redundant.Project.CartProduct.Right" q
             let proj' = map Column [1..leftWidth] ++ map (shiftExprCols leftWidth) $(v "proj")
 
-            prodNode <- insert $ BinOp CartProductS $(v "q1") $(v "q2")
+            prodNode <- insert $ BinOp CartProduct $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 prodNode
             void $ replaceWithNew q $ UnOp (Project proj') r1Node
 
@@ -1009,7 +1009,7 @@ pullProjectCartProductRight q =
 
 pullProjectNumber :: VLRule BottomUpProps
 pullProjectNumber q =
-  $(dagPatMatch 'q "NumberS (Project proj (q1))"
+  $(dagPatMatch 'q "Number (Project proj (q1))"
     [| do
          w <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
 
@@ -1019,17 +1019,17 @@ pullProjectNumber q =
              -- We have to preserve the numbering column in the
              -- pulled-up projection.
              let proj' = $(v "proj") ++ [Column $ w + 1]
-             numberNode <- insert $ UnOp NumberS $(v "q1")
+             numberNode <- insert $ UnOp Number $(v "q1")
              void $ replaceWithNew q $ UnOp (Project proj') numberNode |])
 
 pullProjectSort :: VLRule ()
 pullProjectSort q =
-  $(dagPatMatch 'q "R1 (SortS ses (Project ps (q1)))"
+  $(dagPatMatch 'q "R1 (Sort ses (Project ps (q1)))"
     [| return $ do
            logRewrite "Redundant.Project.Sort" q
            let env = zip [1..] $(v "ps")
            let ses' = map (mergeExpr env) $(v "ses")
-           sortNode <- insert $ UnOp (SortS ses') $(v "q1")
+           sortNode <- insert $ UnOp (Sort ses') $(v "q1")
            r1Node   <- insert (UnOp R1 sortNode)
            void $ replaceWithNew q $ UnOp (Project $(v "ps")) r1Node |])
 
@@ -1136,14 +1136,14 @@ pullProjectUnboxKey q =
            logRewrite "Redundant.Project.UnboxKey" q
            void $ replaceWithNew q $ UnOp UnboxKey $(v "q1") |])
 
--- | Any projections on the left input of AggrS are irrelevant, as
+-- | Any projections on the left input of AggrSeg are irrelevant, as
 -- only the segment information are required from the vector.
-pullProjectAggrS :: VLRule ()
-pullProjectAggrS q =
-  $(dagPatMatch 'q "(Project _ (q1)) AggrS args (q2)"
+pullProjectAggrSeg :: VLRule ()
+pullProjectAggrSeg q =
+  $(dagPatMatch 'q "(Project _ (q1)) AggrSeg args (q2)"
     [| return $ do
-           logRewrite "Redundant.Project.AggrS" q
-           void $ replaceWithNew q $ BinOp (AggrS $(v "args")) $(v "q1") $(v "q2") |])
+           logRewrite "Redundant.Project.AggrSeg" q
+           void $ replaceWithNew q $ BinOp (AggrSeg $(v "args")) $(v "q1") $(v "q2") |])
 
 --------------------------------------------------------------------------------
 -- Rewrites that deal with nested structures and propagation vectors.
@@ -1182,10 +1182,10 @@ pullProjectAggrS q =
 -- tuples in 'ys', but only with those that survive the (outer) join with 'xs'.
 -- As usual, a proper join tree should give the engine the freedom to re-arrange
 -- the joins and drive them in a pipelined manner.
--- FIXME Generalize to NestJoinS
+-- FIXME Generalize to NestJoin
 nestJoinChain :: VLRule BottomUpProps
 nestJoinChain q =
-  $(dagPatMatch 'q "R1 ((R3 (lj=(xs) NestJoinS _ (ys))) AppRep (R1 ((ys1) NestJoinS p (zs))))"
+  $(dagPatMatch 'q "R1 ((R3 (lj=(xs) NestJoin _ (ys))) AppRep (R1 ((ys1) NestJoin p (zs))))"
    [| do
        predicate $ $(v "ys") == $(v "ys1")
 
@@ -1225,7 +1225,7 @@ nestJoinChain q =
          -- result of the left join.
          unsegmentLeft <- insert $ UnOp Unsegment leftJoinR1
 
-         rightJoin     <- insert $ BinOp (NestJoinS p') unsegmentLeft $(v "zs")
+         rightJoin     <- insert $ BinOp (NestJoin p') unsegmentLeft $(v "zs")
          rightJoinR1   <- insert $ UnOp R1 rightJoin
 
          -- Because the original produced only the columns of ys and
@@ -1242,7 +1242,7 @@ shiftJoinPredCols leftOffset rightOffset (JoinConjunct leftExpr op rightExpr) =
 
 notReqNumber :: VLRule Properties
 notReqNumber q =
-  $(dagPatMatch 'q "NumberS (q1)"
+  $(dagPatMatch 'q "Number (q1)"
     [| do
         w <- vectorWidth . vectorTypeProp . bu <$> properties $(v "q1")
         VProp (Just reqCols) <- reqColumnsProp . td <$> properties $(v "q")
@@ -1264,7 +1264,7 @@ notReqNumber q =
 -- product operators' inputs into a join.
 selectCartProd :: VLRule BottomUpProps
 selectCartProd q =
-  $(dagPatMatch 'q "R1 (Select p (R1 ((q1) CartProductS (q2))))"
+  $(dagPatMatch 'q "R1 (Select p (R1 ((q1) CartProduct (q2))))"
     [| do
         wl <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
         BinApp (SBRelOp op) (Column lc) (Column rc) <- return $(v "p")
@@ -1277,14 +1277,14 @@ selectCartProd q =
         return $ do
             logRewrite "Redundant.Relational.Join" q
             let joinPred = singlePred $ JoinConjunct (Column lc) op (Column $ rc - wl)
-            joinNode <- insert $ BinOp (ThetaJoinS joinPred) $(v "q1") $(v "q2")
+            joinNode <- insert $ BinOp (ThetaJoin joinPred) $(v "q1") $(v "q2")
             void $ replaceWithNew q $ UnOp R1 joinNode |])
 
 --------------------------------------------------------------------------------
 -- Early aggregation of segments. We try to aggregate segments as early as
 -- possible by pushing down segment aggregation operators through segment
 -- propagation operators. Aggregating early means that the cardinality of inner
--- vectors is reduced. Ideally, we will be able to merge the AggrS operator with
+-- vectors is reduced. Ideally, we will be able to merge the AggrSeg operator with
 -- nesting operators (Group, NestJoin) and thereby avoid the materialization of
 -- inner segments altogether.
 --
@@ -1293,28 +1293,28 @@ selectCartProd q =
 
 -- | If segments are aggregated after they have been filtered due to an outer
 -- selection, we can aggregate early before filtering the segments.
-pushAggrSSelect :: VLRule ()
-pushAggrSSelect q =
-  $(dagPatMatch 'q "(R1 (qs1=Select _ (qo))) AggrS af (R1 ((q2=R2 (qs2=Select _ (_))) AppFilter (qi)))"
+pushAggrSegSelect :: VLRule ()
+pushAggrSegSelect q =
+  $(dagPatMatch 'q "(R1 (qs1=Select _ (qo))) AggrSeg af (R1 ((q2=R2 (qs2=Select _ (_))) AppFilter (qi)))"
     [| do
         predicate $ $(v "qs1") == $(v "qs2")
 
         return $ do
-            logRewrite "Redundant.AggrS.Push.Select" q
-            aggNode <- insert $ BinOp (AggrS $(v "af")) $(v "qo") $(v "qi")
+            logRewrite "Redundant.AggrSeg.Push.Select" q
+            aggNode <- insert $ BinOp (AggrSeg $(v "af")) $(v "qo") $(v "qi")
             appNode <- insert $ BinOp AppFilter $(v "q2") aggNode
             void $ replaceWithNew q $ UnOp R1 appNode |])
 
 -- | Aggregate segments from a right join input before they are replicated as a
 -- consequence of a ThetaJoin operator.
-pushAggrSThetaJoinRight :: VLRule ()
-pushAggrSThetaJoinRight q =
-    $(dagPatMatch 'q "(R1 (qj1)) AggrS args (R1 ((qr3=R3 (qj2=(_) ThetaJoinS _ (qo2))) AppRep (qi)))"
+pushAggrSegThetaJoinRight :: VLRule ()
+pushAggrSegThetaJoinRight q =
+    $(dagPatMatch 'q "(R1 (qj1)) AggrSeg args (R1 ((qr3=R3 (qj2=(_) ThetaJoin _ (qo2))) AppRep (qi)))"
       [| do
           predicate $ $(v "qj1") == $(v "qj2")
           return $ do
-              logRewrite "Redundant.AggrS.Push.ThetaJoin.Right" q
-              aggNode <- insert $ BinOp (AggrS $(v "args")) $(v "qo2") $(v "qi")
+              logRewrite "Redundant.AggrSeg.Push.ThetaJoin.Right" q
+              aggNode <- insert $ BinOp (AggrSeg $(v "args")) $(v "qo2") $(v "qi")
               repNode <- insert $ BinOp AppRep $(v "qr3") aggNode
               void $ replaceWithNew q $ UnOp R1 repNode
       |])
@@ -1338,7 +1338,7 @@ pushUnboxSngSelect q =
 -- improvement because the replication join is no longer necessary.
 pushUnboxSngThetaJoinRight :: VLRule BottomUpProps
 pushUnboxSngThetaJoinRight q =
-    $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qj1=(qo1) ThetaJoinS p (qo2))) UnboxSng (R1 ((R3 (qj2)) AppRep (qi))))"
+    $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qj1=(qo1) ThetaJoin p (qo2))) UnboxSng (R1 ((R3 (qj2)) AppRep (qi))))"
       [| do
           predicate $ $(v "qj1") == $(v "qj2")
           w1 <- vectorWidth . vectorTypeProp <$> properties $(v "qo1")
@@ -1349,7 +1349,7 @@ pushUnboxSngThetaJoinRight q =
               -- Insert unboxing in the right input of the join.
               unboxNode   <- insert $ BinOp UnboxSng $(v "qo2") $(v "qi")
               r1UnboxNode <- insert $ UnOp R1 unboxNode
-              joinNode    <- insert $ BinOp (ThetaJoinS $(v "p")) $(v "qo1") r1UnboxNode
+              joinNode    <- insert $ BinOp (ThetaJoin $(v "p")) $(v "qo1") r1UnboxNode
               r1JoinNode  <- insert $ UnOp R1 joinNode
               replace q r1JoinNode
 
@@ -1365,23 +1365,23 @@ pushUnboxSngThetaJoinRight q =
 --------------------------------------------------------------------------------
 -- Normalization rules for segment aggregation
 
-pushAggrSAlign :: VLRule ()
-pushAggrSAlign q =
-  $(dagPatMatch 'q "((_) Align (q1)) AggrS af (q2)"
+pushAggrSegAlign :: VLRule ()
+pushAggrSegAlign q =
+  $(dagPatMatch 'q "((_) Align (q1)) AggrSeg af (q2)"
     [| return $ do
-           logRewrite "Redundant.AggrS.Push.Align" q
-           void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
+           logRewrite "Redundant.AggrSeg.Push.Align" q
+           void $ replaceWithNew q $ BinOp (AggrSeg $(v "af")) $(v "q1") $(v "q2") |])
 
-pushAggrSReplicateScalar :: VLRule ()
-pushAggrSReplicateScalar q =
-  $(dagPatMatch 'q "(R1 ((_) ReplicateScalar (q1))) AggrS af (q2)"
+pushAggrSegReplicateScalar :: VLRule ()
+pushAggrSegReplicateScalar q =
+  $(dagPatMatch 'q "(R1 ((_) ReplicateScalar (q1))) AggrSeg af (q2)"
     [| return $ do
-           logRewrite "Redundant.AggrS.Push.ReplicateScalar" q
-           void $ replaceWithNew q $ BinOp (AggrS $(v "af")) $(v "q1") $(v "q2") |])
+           logRewrite "Redundant.AggrSeg.Push.ReplicateScalar" q
+           void $ replaceWithNew q $ BinOp (AggrSeg $(v "af")) $(v "q1") $(v "q2") |])
 
 -- | Apply a singleton unbox operator before an align operator. By unboxing
 -- early, we hope to be able to eliminate unboxing (e.g. by combining it with an
--- AggrS and Group operator).
+-- AggrSeg and Group operator).
 --
 -- Note: We could either push into the left or right align input. For no good
 -- reason, we choose the right side. When we deal with a self-align, this will

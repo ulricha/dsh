@@ -203,42 +203,42 @@ translateBinOp b c1 c2 = case b of
         (v, k) <- vecUnboxSng (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromKVec k)
 
-    V.AppendS -> do
-        (v, r1, r2) <- vecAppendS (toDVec c1) (toDVec c2)
+    V.Append -> do
+        (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
 
-    V.AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
+    V.AggrSeg a -> fromDVec <$> vecAggrSeg a (toDVec c1) (toDVec c2)
 
     V.Align -> fromDVec <$> vecAlign (toDVec c1) (toDVec c2)
 
-    V.ZipS -> do
-        (v, r1 ,r2) <- vecZipS (toDVec c1) (toDVec c2)
+    V.Zip -> do
+        (v, r1 ,r2) <- vecZip (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
 
-    V.CartProductS -> do
-        (v, p1, p2) <- vecCartProductS (toDVec c1) (toDVec c2)
+    V.CartProduct -> do
+        (v, p1, p2) <- vecCartProduct (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
-    V.NestProductS -> do
-        (v, p1, p2) <- vecNestProductS (toDVec c1) (toDVec c2)
+    V.NestProduct -> do
+        (v, p1, p2) <- vecNestProduct (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
-    V.ThetaJoinS p -> do
-        (v, p1, p2) <- vecThetaJoinS p (toDVec c1) (toDVec c2)
+    V.ThetaJoin p -> do
+        (v, p1, p2) <- vecThetaJoin p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
-    V.NestJoinS p -> do
-        (v, p1, p2) <- vecNestJoinS p (toDVec c1) (toDVec c2)
+    V.NestJoin p -> do
+        (v, p1, p2) <- vecNestJoin p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
     V.GroupJoin (p, as) -> fromDVec <$> vecGroupJoin p as (toDVec c1) (toDVec c2)
 
-    V.SemiJoinS p -> do
-        (v, r) <- vecSemiJoinS p (toDVec c1) (toDVec c2)
+    V.SemiJoin p -> do
+        (v, r) <- vecSemiJoin p (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromFVec r)
 
-    V.AntiJoinS p -> do
-        (v, r) <- vecAntiJoinS p (toDVec c1) (toDVec c2)
+    V.AntiJoin p -> do
+        (v, r) <- vecAntiJoin p (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromFVec r)
 
 translateUnOp :: VectorAlgebra a
@@ -246,8 +246,8 @@ translateUnOp :: VectorAlgebra a
               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
               -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateUnOp unop c = case unop of
-    V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
-    V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)
+    V.Unique          -> fromDVec <$> vecUnique (toDVec c)
+    V.Number          -> fromDVec <$> vecNumber (toDVec c)
     V.UnboxKey         -> fromKVec <$> vecUnboxKey (toDVec c)
     V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
     V.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
@@ -256,15 +256,15 @@ translateUnOp unop c = case unop of
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
         return $ RLPair (fromDVec d) (fromFVec r)
-    V.SortS es         -> do
-        (d, p) <- vecSortS es (toDVec c)
+    V.Sort es         -> do
+        (d, p) <- vecSort es (toDVec c)
         return $ RLPair (fromDVec d) (fromSVec p)
-    V.GroupS es -> do
-        (qo, qi, p) <- vecGroupS es (toDVec c)
+    V.Group es -> do
+        (qo, qi, p) <- vecGroup es (toDVec c)
         return $ RTriple (fromDVec qo) (fromDVec qi) (fromSVec p)
     V.Project cols -> fromDVec <$> vecProject cols (toDVec c)
-    V.ReverseS      -> do
-        (d, p) <- vecReverseS (toDVec c)
+    V.Reverse      -> do
+        (d, p) <- vecReverse (toDVec c)
         return $ RLPair (fromDVec d) (fromSVec p)
     V.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
 

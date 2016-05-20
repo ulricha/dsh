@@ -124,11 +124,11 @@ data UnOp = UnboxKey
 
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
           | Aggr (N.NonEmpty AggrFun)
-          | NumberS
-          | UniqueS
-          | ReverseS
-          | SortS [Expr]
-          | GroupS [Expr]
+          | Number
+          | Unique
+          | Reverse
+          | Sort [Expr]
+          | Group [Expr]
           | WinFun (WinFun, FrameSpec)
     deriving (Eq, Ord, Show)
 
@@ -145,15 +145,15 @@ data BinOp = ReplicateNest
            | UnboxSng
            | Align
 
-           | AggrS AggrFun
-           | AppendS
-           | ZipS
-           | CartProductS
-           | NestProductS
-           | ThetaJoinS (L.JoinPredicate Expr)
-           | SemiJoinS (L.JoinPredicate Expr)
-           | AntiJoinS (L.JoinPredicate Expr)
-           | NestJoinS (L.JoinPredicate Expr)
+           | AggrSeg AggrFun
+           | Append
+           | Zip
+           | CartProduct
+           | NestProduct
+           | ThetaJoin (L.JoinPredicate Expr)
+           | SemiJoin (L.JoinPredicate Expr)
+           | AntiJoin (L.JoinPredicate Expr)
+           | NestJoin (L.JoinPredicate Expr)
            | GroupJoin (L.JoinPredicate Expr, L.NE AggrFun)
     deriving (Eq, Ord, Show)
 
