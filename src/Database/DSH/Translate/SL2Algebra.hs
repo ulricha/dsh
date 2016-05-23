@@ -9,7 +9,6 @@ module Database.DSH.Translate.SL2Algebra
 
 import qualified Data.IntMap                          as IM
 import           Data.List
-import qualified Data.Map                             as M
 import qualified Data.Traversable                     as T
 
 import           Control.Monad.State
@@ -27,7 +26,7 @@ import           Database.DSH.SL.SegmentAlgebra
 
 -- FIXME the vector types d r k f s are determined by the algebra a.
 -- The only type variable necessary should be a.
-type Cache d r k f s = M.Map AlgNode (Res d r k f s)
+type Cache d r k f s = IM.IntMap (Res d r k f s)
 
 -- | A layer on top of the DAG builder monad that caches the
 -- translation result of SL nodes.
@@ -36,7 +35,7 @@ type VecBuild a d r k f s = StateT (Cache d r k f s) (B.Build a)
 runVecBuild :: SegmentAlgebra a
             => VecBuild a (DVec a) (RVec a) (KVec a) (FVec a) (SVec a) r
             -> (D.AlgebraDag a, r, NodeMap [Tag])
-runVecBuild c = B.runBuild $ fst <$> runStateT c M.empty
+runVecBuild c = B.runBuild $ fst <$> runStateT c IM.empty
 
 data Res d r k f s
     = RRVec r
@@ -49,12 +48,10 @@ data Res d r k f s
     deriving Show
 
 fromDict :: SegmentAlgebra a => AlgNode -> VecBuild a d r k f s (Maybe (Res d r k f s))
-fromDict n = do
-    dict <- get
-    return $ M.lookup n dict
+fromDict n = gets (IM.lookup n)
 
 insertTranslation :: SegmentAlgebra a => AlgNode -> Res d r k f s -> VecBuild a d r k f s ()
-insertTranslation n res = modify (M.insert n res)
+insertTranslation n res = modify (IM.insert n res)
 
 --------------------------------------------------------------------------------
 -- Wrappers and unwrappers for vector references
