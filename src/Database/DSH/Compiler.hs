@@ -54,7 +54,7 @@ import           Database.DSH.SL.Opt.OptimizeSL
 --------------------------------------------------------------------------------
 
 -- | The frontend- and backend-independent part of the compiler.
-compileQ :: CLOptimizer -> CL.Expr -> QueryPlan SL.SL SLDVec
+compileQ :: CLOptimizer -> CL.Expr -> QueryPlan SL.SL DVec
 compileQ clOpt = (fst . clOpt) >>>
                  desugarComprehensions  >>>
                  optimizeNKL            >>>
@@ -63,7 +63,7 @@ compileQ clOpt = (fst . clOpt) >>>
 
 -- | The frontend- and backend-independent part of the compiler. Compile a
 -- comprehension expression into optimized vector plans.
-compileOptQ :: CL.Expr -> QueryPlan SL.SL SLDVec
+compileOptQ :: CL.Expr -> QueryPlan SL.SL DVec
 compileOptQ = compileQ optimizeComprehensions >>> optimizeSLDefault
 
 -- | Compile a query and execute it on a given backend connection.
@@ -98,7 +98,7 @@ debugQ prefix _ (Q q) = do
 
 vectorPlanQ :: forall a. QA a
             => Q a
-            -> QueryPlan SL.SL SLDVec
+            -> QueryPlan SL.SL DVec
 vectorPlanQ (Q q) =
     optimizeSLDefault $ compileQ optimizeComprehensions $ toComprehensions q
 

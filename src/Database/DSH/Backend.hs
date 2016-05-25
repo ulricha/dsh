@@ -56,7 +56,7 @@ class (RelationalVector (BackendCode c), Row (BackendRow c)) => Backend c where
 
     -- | Implement vector operations using the backend-specific
     -- algebra.
-    generatePlan  :: QueryPlan SL SLDVec -> BackendPlan c
+    generatePlan  :: QueryPlan SL DVec -> BackendPlan c
 
     -- | Optimize the algebra plan and generate serialized backend
     -- code

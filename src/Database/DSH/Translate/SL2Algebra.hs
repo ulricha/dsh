@@ -1,5 +1,5 @@
-{-# LANGUAGE TemplateHaskell  #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell  #-}
 
 module Database.DSH.Translate.SL2Algebra
     ( VecBuild
@@ -7,22 +7,23 @@ module Database.DSH.Translate.SL2Algebra
     , vl2Algebra
     ) where
 
-import qualified Data.IntMap                          as IM
+import qualified Data.IntMap                    as IM
 import           Data.List
-import qualified Data.Traversable                     as T
+import qualified Data.Traversable               as T
 
 import           Control.Monad.State
 
-import qualified Database.Algebra.Dag                 as D
-import qualified Database.Algebra.Dag.Build           as B
+import qualified Database.Algebra.Dag           as D
+import qualified Database.Algebra.Dag.Build     as B
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.QueryPlan
-import           Database.DSH.Translate.FKL2SL        ()
-import           Database.DSH.Common.Vector
-import qualified Database.DSH.SL.Lang                 as V
+import qualified Database.DSH.Common.Vector as V
+import qualified Database.DSH.Common.VectorLang as VL
+import qualified Database.DSH.SL.Lang           as SL
 import           Database.DSH.SL.SegmentAlgebra
+import           Database.DSH.Translate.FKL2SL  ()
 
 -- FIXME the vector types d r k f s are determined by the algebra a.
 -- The only type variable necessary should be a.
@@ -94,17 +95,17 @@ toSVec _         = error "toSVec: Not a filtering vector"
 --------------------------------------------------------------------------------
 
 -- | Refresh vectors in a shape from the cache.
-refreshShape :: SegmentAlgebra a => Shape SLDVec -> VecBuild a d r k f s (Shape d)
+refreshShape :: SegmentAlgebra a => Shape V.DVec -> VecBuild a d r k f s (Shape d)
 refreshShape shape = T.mapM refreshVec shape
   where
-    refreshVec (SLDVec n) = do
+    refreshVec (V.DVec n) = do
         mv <- fromDict n
         case mv of
             Just v -> return $ toDVec v
             Nothing -> $impossible
 
 translate :: SegmentAlgebra a
-          => NodeMap V.SL
+          => NodeMap SL.SL
           -> AlgNode
           -> VecBuild a (DVec a) (RVec a) (KVec a) (FVec a) (SVec a) (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translate vlNodes n = do
@@ -135,17 +136,17 @@ translate vlNodes n = do
             insertTranslation n r'
             return r'
 
-getSL :: AlgNode -> NodeMap V.SL -> V.SL
+getSL :: AlgNode -> NodeMap SL.SL -> SL.SL
 getSL n vlNodes = case IM.lookup n vlNodes of
     Just op -> op
     Nothing -> error $ "getSL: node " ++ (show n) ++ " not in SL nodes map " ++ (pp vlNodes)
 
-pp :: NodeMap V.SL -> String
+pp :: NodeMap SL.SL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
 vl2Algebra :: SegmentAlgebra a
-           => NodeMap V.SL
-           -> Shape SLDVec
+           => NodeMap SL.SL
+           -> Shape V.DVec
            -> VecBuild a (DVec a) (RVec a) (KVec a) (FVec a) (SVec a) (Shape (DVec a))
 vl2Algebra vlNodes plan = do
     mapM_ (translate vlNodes) roots
@@ -156,134 +157,134 @@ vl2Algebra vlNodes plan = do
     roots = shapeNodes plan
 
 translateTerOp :: SegmentAlgebra a
-               => V.TerOp
+               => SL.TerOp
                -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
                -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
                -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
                -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateTerOp t c1 c2 c3 =
     case t of
-        V.Combine -> do
+        SL.Combine -> do
             (d, r1, r2) <- vecCombine (toDVec c1) (toDVec c2) (toDVec c3)
             return $ RTriple (fromDVec d) (fromKVec r1) (fromKVec r2)
 
 translateBinOp :: SegmentAlgebra a
-               => V.BinOp
+               => SL.BinOp
                -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
                -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
                -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateBinOp b c1 c2 = case b of
-    V.ReplicateNest -> do
+    SL.ReplicateNest -> do
         (v, p) <- vecReplicateNest (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec p)
 
-    V.ReplicateScalar -> do
+    SL.ReplicateScalar -> do
         (v, p) <- vecReplicateScalar (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec p)
 
-    V.ReplicateVector -> do
+    SL.ReplicateVector -> do
         (v, p) <- vecReplicateVector (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec p)
 
-    V.AppKey -> do
+    SL.AppKey -> do
         (v, k) <- vecAppKey (toKVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromKVec k)
 
-    V.AppSort -> do
+    SL.AppSort -> do
         (v, s) <- vecAppSort (toSVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromSVec s)
 
-    V.AppRep -> do
+    SL.AppRep -> do
         (v, r) <- vecAppRep (toRVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec r)
 
-    V.AppFilter -> do
+    SL.AppFilter -> do
         (v, f) <- vecAppFilter (toFVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromFVec f)
 
-    V.UnboxSng -> do
+    SL.UnboxSng -> do
         (v, k) <- vecUnboxSng (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromKVec k)
 
-    V.Append -> do
+    SL.Append -> do
         (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
 
-    V.AggrSeg a -> fromDVec <$> vecAggrSeg a (toDVec c1) (toDVec c2)
+    SL.AggrSeg a -> fromDVec <$> vecAggrSeg a (toDVec c1) (toDVec c2)
 
-    V.Align -> fromDVec <$> vecAlign (toDVec c1) (toDVec c2)
+    SL.Align -> fromDVec <$> vecAlign (toDVec c1) (toDVec c2)
 
-    V.Zip -> do
+    SL.Zip -> do
         (v, r1 ,r2) <- vecZip (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
 
-    V.CartProduct -> do
+    SL.CartProduct -> do
         (v, p1, p2) <- vecCartProduct (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
-    V.ThetaJoin p -> do
+    SL.ThetaJoin p -> do
         (v, p1, p2) <- vecThetaJoin p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
-    V.NestJoin p -> do
+    SL.NestJoin p -> do
         (v, p1, p2) <- vecNestJoin p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec p1) (fromRVec p2)
 
-    V.GroupJoin (p, as) -> fromDVec <$> vecGroupJoin p as (toDVec c1) (toDVec c2)
+    SL.GroupJoin (p, as) -> fromDVec <$> vecGroupJoin p as (toDVec c1) (toDVec c2)
 
-    V.SemiJoin p -> do
+    SL.SemiJoin p -> do
         (v, r) <- vecSemiJoin p (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromFVec r)
 
-    V.AntiJoin p -> do
+    SL.AntiJoin p -> do
         (v, r) <- vecAntiJoin p (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromFVec r)
 
 translateUnOp :: SegmentAlgebra a
-              => V.UnOp
+              => SL.UnOp
               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
               -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
 translateUnOp unop c = case unop of
-    V.Unique          -> fromDVec <$> vecUnique (toDVec c)
-    V.Number          -> fromDVec <$> vecNumber (toDVec c)
-    V.UnboxKey         -> fromKVec <$> vecUnboxKey (toDVec c)
-    V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
-    V.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
-    V.Segment          -> fromDVec <$> vecSegment (toDVec c)
-    V.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
-    V.Select e         -> do
+    SL.Unique          -> fromDVec <$> vecUnique (toDVec c)
+    SL.Number          -> fromDVec <$> vecNumber (toDVec c)
+    SL.UnboxKey         -> fromKVec <$> vecUnboxKey (toDVec c)
+    SL.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
+    SL.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
+    SL.Segment          -> fromDVec <$> vecSegment (toDVec c)
+    SL.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
+    SL.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
         return $ RLPair (fromDVec d) (fromFVec r)
-    V.Sort es         -> do
+    SL.Sort es         -> do
         (d, p) <- vecSort es (toDVec c)
         return $ RLPair (fromDVec d) (fromSVec p)
-    V.Group es -> do
+    SL.Group es -> do
         (qo, qi, p) <- vecGroup es (toDVec c)
         return $ RTriple (fromDVec qo) (fromDVec qi) (fromSVec p)
-    V.Project cols -> fromDVec <$> vecProject cols (toDVec c)
-    V.Reverse      -> do
+    SL.Project cols -> fromDVec <$> vecProject cols (toDVec c)
+    SL.Reverse      -> do
         (d, p) <- vecReverse (toDVec c)
         return $ RLPair (fromDVec d) (fromSVec p)
-    V.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
+    SL.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
 
-    V.Nest -> do
+    SL.Nest -> do
         (qo, qi) <- vecNest (toDVec c)
         return $ RLPair (fromDVec qo) (fromDVec qi)
 
-    V.R1            -> case c of
+    SL.R1            -> case c of
         (RLPair c1 _)     -> return c1
         (RTriple c1 _ _) -> return c1
         _                -> error "R1: Not a tuple"
-    V.R2            -> case c of
+    SL.R2            -> case c of
         (RLPair _ c2)     -> return c2
         (RTriple _ c2 _) -> return c2
         _                -> error "R2: Not a tuple"
-    V.R3            -> case c of
+    SL.R3            -> case c of
         (RTriple _ _ c3) -> return c3
         _                -> error "R3: Not a tuple"
 
 translateNullary :: SegmentAlgebra a
-                 => V.NullOp
+                 => SL.NullOp
                  -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
-translateNullary (V.Lit (tys, frame, segs))      = fromDVec <$> vecLit tys frame segs
-translateNullary (V.TableRef (n, schema)) = fromDVec <$> vecTableRef n schema
+translateNullary (SL.Lit (tys, frame, segs))      = fromDVec <$> vecLit tys frame segs
+translateNullary (SL.TableRef (n, schema)) = fromDVec <$> vecTableRef n schema

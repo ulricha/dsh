@@ -20,10 +20,10 @@ import           Database.DSH.SL.Opt.Properties.TopDown
 import           Database.DSH.SL.Opt.Properties.Types
 
   -- Type abbreviations for convenience
-type SLRewrite p = Rewrite SL (Shape SLDVec) p
-type SLRule p = Rule SL p (Shape SLDVec)
-type SLRuleSet p = RuleSet SL p (Shape SLDVec)
-type SLMatch p = Match SL p (Shape SLDVec)
+type SLRewrite p = Rewrite SL (Shape DVec) p
+type SLRule p = Rule SL p (Shape DVec)
+type SLRuleSet p = RuleSet SL p (Shape DVec)
+type SLMatch p = Match SL p (Shape DVec)
 
 inferBottomUp :: SLRewrite (NodeMap BottomUpProps)
 inferBottomUp = do

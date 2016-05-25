@@ -12,12 +12,12 @@ module Database.DSH.Common.Vector
     , vectorNodes
     , updateVector
     , ADVec(..)
-    , SLDVec(..)
+    , DVec(..)
     , NDVec
-    , SLRVec(..)
-    , SLKVec(..)
-    , SLSVec(..)
-    , SLFVec(..)
+    , RVec(..)
+    , KVec(..)
+    , SVec(..)
+    , FVec(..)
     ) where
 
 import           Data.Aeson.TH
@@ -71,36 +71,36 @@ instance DagVector NDVec where
 --------------------------------------------------------------------------------
 -- Abstract vector types for vectorization
 
--- | A SL data vector references an operator in a SL DAG.
-newtype SLDVec = SLDVec AlgNode
+-- | A  data vector references an operator in a  DAG.
+newtype DVec = DVec AlgNode
     deriving (Show, Read)
 
-instance DagVector SLDVec where
-    vectorNodes (SLDVec q) = [q]
+instance DagVector DVec where
+    vectorNodes (DVec q) = [q]
 
-    updateVector n1 n2 (SLDVec q)
-        | q == n1   = SLDVec n2
-        | otherwise = SLDVec q
+    updateVector n1 n2 (DVec q)
+        | q == n1   = DVec n2
+        | otherwise = DVec q
 
 -- | Replication vectors. A @NRVec@ simply references a node in an
 -- algebra Dag.
-newtype SLRVec = SLRVec AlgNode
+newtype RVec = RVec AlgNode
 
 -- | Rekeying vectors. A @NKVec@ simply references a node in an algebra
 -- Dag.
-newtype SLKVec = SLKVec AlgNode
+newtype KVec = KVec AlgNode
 
 -- | Filtering vectors. A @NFVec@ simply references a node in an algebra
 -- Dag.
-newtype SLFVec = SLFVec AlgNode
+newtype FVec = FVec AlgNode
 
 -- | Sorting vectors. A @NSVec@ simply references a node in an algebra
 -- Dag.
-newtype SLSVec = SLSVec AlgNode
+newtype SVec = SVec AlgNode
 
 $(deriveJSON defaultOptions ''ADVec)
-$(deriveJSON defaultOptions ''SLRVec)
-$(deriveJSON defaultOptions ''SLKVec)
-$(deriveJSON defaultOptions ''SLSVec)
-$(deriveJSON defaultOptions ''SLFVec)
-$(deriveJSON defaultOptions ''SLDVec)
+$(deriveJSON defaultOptions ''RVec)
+$(deriveJSON defaultOptions ''KVec)
+$(deriveJSON defaultOptions ''SVec)
+$(deriveJSON defaultOptions ''FVec)
+$(deriveJSON defaultOptions ''DVec)
