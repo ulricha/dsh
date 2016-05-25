@@ -13,7 +13,7 @@ import           Database.DSH.Common.Lang
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Vector
-import qualified Database.DSH.Common.VectorLang as VL
+import qualified Database.DSH.Common.VectorLang as SL
 import           Database.DSH.FKL.Lang
 import qualified Database.DSH.SL.Lang           as SL
 import           Database.DSH.SL.Primitives
@@ -58,11 +58,11 @@ fkl2SL expr =
             lift $ V.binOpL o s1 s2
         UnOp _ o NotLifted e1 -> do
             SShape p1 lyt <- fkl2SL e1
-            p              <- lift $ vlUnExpr o p1
+            p              <- lift $ slUnExpr o p1
             return $ SShape p lyt
         UnOp _ o Lifted e1 -> do
             VShape p1 lyt <- fkl2SL e1
-            p                  <- lift $ vlUnExpr o p1
+            p                  <- lift $ slUnExpr o p1
             return $ VShape p lyt
         If _ eb e1 e2 -> do
             eb' <- fkl2SL eb
@@ -100,33 +100,33 @@ papp3 Combine Lifted    = V.combineL
 papp3 Combine NotLifted = V.combine
 
 aggL :: Type -> AggrFun -> Shape SLDVec -> Build SL.SL (Shape SLDVec)
-aggL t Sum     = V.aggrL (VL.AggrSum $ typeToScalarType $ elemT t)
-aggL _ Avg     = V.aggrL VL.AggrAvg
-aggL _ Maximum = V.aggrL VL.AggrMax
-aggL _ Minimum = V.aggrL VL.AggrMin
-aggL _ Or      = V.aggrL VL.AggrAny
-aggL _ And     = V.aggrL VL.AggrAll
+aggL t Sum     = V.aggrL (SL.AggrSum $ typeToScalarType $ elemT t)
+aggL _ Avg     = V.aggrL SL.AggrAvg
+aggL _ Maximum = V.aggrL SL.AggrMax
+aggL _ Minimum = V.aggrL SL.AggrMin
+aggL _ Or      = V.aggrL SL.AggrAny
+aggL _ And     = V.aggrL SL.AggrAll
 aggL _ Length  = V.lengthL
 
 agg :: Type -> AggrFun -> Shape SLDVec -> Build SL.SL (Shape SLDVec)
-agg t Sum     = V.aggr (VL.AggrSum $ typeToScalarType t)
-agg _ Avg     = V.aggr VL.AggrAvg
-agg _ Maximum = V.aggr VL.AggrMax
-agg _ Minimum = V.aggr VL.AggrMin
-agg _ Or      = V.aggr VL.AggrAny
-agg _ And     = V.aggr VL.AggrAll
+agg t Sum     = V.aggr (SL.AggrSum $ typeToScalarType t)
+agg _ Avg     = V.aggr SL.AggrAvg
+agg _ Maximum = V.aggr SL.AggrMax
+agg _ Minimum = V.aggr SL.AggrMin
+agg _ Or      = V.aggr SL.AggrAny
+agg _ And     = V.aggr SL.AggrAll
 agg _ Length  = V.length_
 
-translateAggrFun :: AggrApp -> VL.AggrFun
+translateAggrFun :: AggrApp -> SL.AggrFun
 translateAggrFun a = case aaFun a of
     Sum     -> let t = typeToScalarType $ typeOf $ aaArg a
-               in VL.AggrSum t e
-    Avg     -> VL.AggrAvg e
-    Maximum -> VL.AggrMax e
-    Minimum -> VL.AggrMin e
-    Or      -> VL.AggrAny e
-    And     -> VL.AggrAll e
-    Length  -> VL.AggrCount
+               in SL.AggrSum t e
+    Avg     -> SL.AggrAvg e
+    Maximum -> SL.AggrMax e
+    Minimum -> SL.AggrMin e
+    Or      -> SL.AggrAny e
+    And     -> SL.AggrAll e
+    Length  -> SL.AggrCount
   where
     e = scalarExpr $ aaArg a
 
@@ -210,7 +210,7 @@ insertTopProjections g = g >>= traverseShape
     insertProj lyt q describe = do
         let width = columnsInLayout lyt
             cols  = [1 .. width]
-        qp   <- insert $ Alg.UnOp (SL.Project $ map VL.Column cols) q
+        qp   <- insert $ Alg.UnOp (SL.Project $ map SL.Column cols) q
         lyt' <- traverseLayout lyt
         return $ describe (SLDVec qp) lyt'
 
