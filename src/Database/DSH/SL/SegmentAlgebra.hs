@@ -86,8 +86,12 @@ class SegmentAlgebra a where
 
     vecReplicateNest :: DVec a -> DVec a -> Build a (DVec a, RVec a)
 
+    -- | Replicate the single scalar value in the left input vector to all elements
+    -- of the right input vector.
     vecReplicateScalar :: DVec a -> DVec a -> Build a (DVec a, RVec a)
 
+    -- | For each element of the right input vector create a corresponding segment
+    -- with a copy of the left input vector.
     vecReplicateVector :: DVec a -> DVec a -> Build a (DVec a, RVec a)
 
     -- | Apply a sorting vector to a data vector

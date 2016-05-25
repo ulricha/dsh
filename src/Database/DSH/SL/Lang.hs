@@ -4,8 +4,8 @@
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
--- | Definition of the Segment Language: The Segment Language defines operations
--- over flat segment vectors.
+-- | Definition of the Segment Language (SL): The Segment Language defines
+-- operations over flat segment vectors.
 module Database.DSH.SL.Lang where
 
 import           Data.Aeson.TH
