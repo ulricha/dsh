@@ -184,6 +184,8 @@ Library
                      Database.DSH.SL.Vectorize
                      Database.DSH.SL.Primitives
 
+                     Database.DSH.VSL.Lang
+
                      Database.DSH.SL.Opt.Properties.BottomUp
                      Database.DSH.SL.Opt.Properties.Card
                      Database.DSH.SL.Opt.Properties.Segments
