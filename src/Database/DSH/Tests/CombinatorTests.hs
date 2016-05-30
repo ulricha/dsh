@@ -109,7 +109,8 @@ typeTests conn = testGroup "Supported Types"
   , testPropertyConn conn "[[Integer]]"               prop_list_integer_2
   , testPropertyConn conn "[[[Integer]]]"             prop_list_integer_3
   , testPropertyConn conn "[(Integer, Integer)]"      prop_list_tuple_integer
-  , testPropertyConn conn "([], [])"                  prop_tuple_list_integer
+  , testPropertyConn conn "([], [])"                  prop_tuple_list_integer2
+  , testPropertyConn conn "([], [], [])"              prop_tuple_list_integer3
   , testPropertyConn conn "(,[])"                     prop_tuple_integer_list
   , testPropertyConn conn "(,[],)"                    prop_tuple_integer_list_integer
   , testPropertyConn conn "Maybe Integer"             prop_maybe_integer
@@ -455,8 +456,11 @@ prop_list_tuple_integer = makePropEq id id
 prop_maybe_integer :: Backend c => Maybe Integer -> c -> Property
 prop_maybe_integer = makePropEq id id
 
-prop_tuple_list_integer :: Backend c => ([Integer], [Integer]) -> c -> Property
-prop_tuple_list_integer = makePropEq id id
+prop_tuple_list_integer2 :: Backend c => ([Integer], [Integer]) -> c -> Property
+prop_tuple_list_integer2 = makePropEq id id
+
+prop_tuple_list_integer3 :: Backend c => ([Integer], [Integer], [Integer]) -> c -> Property
+prop_tuple_list_integer3 = makePropEq id id
 
 prop_tuple_integer_list :: Backend c => (Integer, [Integer]) -> c -> Property
 prop_tuple_integer_list = makePropEq id id
