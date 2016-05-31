@@ -1,7 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections   #-}
 
-module Database.DSH.Translate.FKL2SL (specializeVectorOps) where
+module Database.DSH.Translate.FKL2SL
+    ( vectorize
+    ) where
 
 import           Control.Monad.Reader
 
@@ -214,7 +216,7 @@ insertTopProjections g = g >>= traverseShape
         return $ describe (DVec qp) lyt'
 
 -- | Compile a FKL expression into a query plan of vector operators (SL)
-specializeVectorOps :: FExpr -> QueryPlan SL.SL DVec
-specializeVectorOps e = mkQueryPlan opMap shape tagMap
+vectorize :: FExpr -> QueryPlan SL.SL DVec
+vectorize e = mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild (insertTopProjections $ runReaderT (fkl2SL e) [])

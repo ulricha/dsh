@@ -22,6 +22,7 @@ module Database.DSH.Compiler
     , showFlattenedOptQ
     , showVectorizedQ
     , showVectorizedOptQ
+    , showDelayedQ
       -- * Comprehension optimizers
     , module Database.DSH.CL.Opt
     ) where
@@ -45,11 +46,13 @@ import           Database.DSH.Execute
 import           Database.DSH.FKL.Rewrite
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.NKL.Rewrite
-import           Database.DSH.Translate.CL2NKL
-import           Database.DSH.Translate.FKL2SL
-import           Database.DSH.Translate.NKL2FKL
 import qualified Database.DSH.SL.Lang               as SL
 import           Database.DSH.SL.Opt.OptimizeSL
+import           Database.DSH.Translate.CL2NKL
+import           Database.DSH.Translate.FKL2SL
+import           Database.DSH.Translate.FKL2VSL
+import           Database.DSH.Translate.NKL2FKL
+import qualified Database.DSH.VSL.Lang              as VSL
 
 --------------------------------------------------------------------------------
 
@@ -59,7 +62,15 @@ compileQ clOpt = (fst . clOpt) >>>
                  desugarComprehensions  >>>
                  optimizeNKL            >>>
                  flatTransform          >>>
-                 specializeVectorOps
+                 vectorize
+
+-- | The frontend- and backend-independent part of the compiler.
+compileDelayedQ :: CLOptimizer -> CL.Expr -> QueryPlan VSL.VSL DVec
+compileDelayedQ clOpt = (fst . clOpt) >>>
+                 desugarComprehensions  >>>
+                 optimizeNKL            >>>
+                 flatTransform          >>>
+                 vectorizeDelayed
 
 -- | The frontend- and backend-independent part of the compiler. Compile a
 -- comprehension expression into optimized vector plans.
@@ -212,6 +223,16 @@ showVectorizedQ :: forall a. QA a => CLOptimizer -> Q a -> IO ()
 showVectorizedQ clOpt (Q q) = do
     let cl = toComprehensions q
     let vl = compileQ clOpt cl
+    h <- fileId
+    let fileName = "q_vl_" ++ h
+    exportPlan fileName vl
+    void $ runCommand $ printf "stack exec vldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+
+-- | Show unoptimized vector plan (SL)
+showDelayedQ :: forall a. QA a => CLOptimizer -> Q a -> IO ()
+showDelayedQ clOpt (Q q) = do
+    let cl = toComprehensions q
+    let vl = compileDelayedQ clOpt cl
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl

@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.Translate.FKL2VSL where
+module Database.DSH.Translate.FKL2VSL
+    ( vectorizeDelayed
+    )where
 
 import           Control.Monad.Reader
 
@@ -206,7 +208,7 @@ traverseLayout (LNest v l) = finalizeShape v l LNest
 --------------------------------------------------------------------------------
 
 -- | Compile a FKL expression into a query plan of vector operators (SL)
-specializeVectorOps :: FExpr -> QueryPlan VSL DVec
-specializeVectorOps e = mkQueryPlan opMap shape tagMap
+vectorizeDelayed :: FExpr -> QueryPlan VSL DVec
+vectorizeDelayed e = mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild $ runReaderT (fkl2SL e) [] >>= finalizeResultVectors
