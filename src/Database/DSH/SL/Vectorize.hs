@@ -306,7 +306,7 @@ combineL (VShape qo (LNest qb LCol))
     return $ VShape qo (LNest qi' lyt')
 combineL _ _ _ = $impossible
 
-zipL ::  Shape DVec -> Shape DVec -> Build SL (Shape DVec)
+zipL :: Shape DVec -> Shape DVec -> Build SL (Shape DVec)
 zipL (VShape d1 (LNest q1 lyt1)) (VShape _ (LNest q2 lyt2)) = do
     (q', r1, r2) <- slZip q1 q2
     lyt1'        <- rekeyLayout r1 lyt1
@@ -464,13 +464,6 @@ tupElemL i (VShape q (LTuple lyts)) = do
     return $ VShape proj lyt'
 tupElemL _ _ = $impossible
 
-projectColumns :: TupleIndex -> [Layout DVec] -> (Layout DVec, [DBCol])
-projectColumns i lyts =
-    let (prefixLyts, lyt : _) = splitAt (tupleIndex i - 1) lyts
-        lytWidth              = columnsInLayout lyt
-        prefixWidth           = sum $ map columnsInLayout prefixLyts
-    in (lyt, [ c + prefixWidth | c <- [1..lytWidth] ])
-
 singleton :: Shape DVec -> Build SL (Shape DVec)
 singleton (VShape q lyt) = do
     (dvo, dvi) <- slNest q
@@ -603,40 +596,6 @@ boxVectors (VShape dv1 lyt1 : shapes) = do
     lyts'           <- mapM (repLayout rv2) lyts
     return (dv', lyt1' : lyts')
 boxVectors s = error $ show s
-
---------------------------------------------------------------------------------
--- Compile-time operations that implement higher-lifted primitives.
-
--- | Remove the 'n' outer layers of nesting from a nested list
--- (Prins/Palmer: 'extract').
-forget :: Nat -> Shape DVec -> Shape DVec
-forget Zero _                               = $impossible
-forget (Succ Zero) (VShape _ (LNest q lyt)) = VShape q lyt
-forget (Succ n)    (VShape _ lyt)           = extractInnerVec n lyt
-forget _           _                        = $impossible
-
-extractInnerVec :: Nat -> Layout DVec -> Shape DVec
-extractInnerVec (Succ Zero) (LNest _ (LNest q lyt)) = VShape q lyt
-extractInnerVec (Succ n)    (LNest _ lyt)           = extractInnerVec n lyt
-extractInnerVec _           _                       = $impossible
-
--- | Prepend the 'n' outer layers of nesting from the first input to
--- the second input (Prins/Palmer: 'insert').
-imprint :: Nat -> Shape DVec -> Shape DVec -> Shape DVec
-imprint (Succ Zero) (VShape d _) (VShape vi lyti) =
-    VShape d (LNest vi lyti)
-imprint (Succ n) (VShape d lyt) (VShape vi lyti)  =
-    VShape d (implantInnerVec n lyt vi lyti)
-imprint _          _                   _          =
-    $impossible
-
-implantInnerVec :: Nat -> Layout DVec -> DVec -> Layout DVec -> Layout DVec
-implantInnerVec (Succ Zero) (LNest d _)   vi lyti   =
-    LNest d $ LNest vi lyti
-implantInnerVec (Succ n)      (LNest d lyt) vi lyti =
-    LNest d $ implantInnerVec n lyt vi lyti
-implantInnerVec _          _            _  _        =
-    $impossible
 
 --------------------------------------------------------------------------------
 -- Vectorization Helper Functions

@@ -84,19 +84,19 @@ instance DagVector DVec where
 
 -- | Replication vectors. A @NRVec@ simply references a node in an
 -- algebra Dag.
-newtype RVec = RVec AlgNode
+newtype RVec = RVec AlgNode deriving (Show)
 
 -- | Rekeying vectors. A @NKVec@ simply references a node in an algebra
 -- Dag.
-newtype KVec = KVec AlgNode
+newtype KVec = KVec AlgNode deriving (Show)
 
 -- | Filtering vectors. A @NFVec@ simply references a node in an algebra
 -- Dag.
-newtype FVec = FVec AlgNode
+newtype FVec = FVec AlgNode deriving (Show)
 
 -- | Sorting vectors. A @NSVec@ simply references a node in an algebra
 -- Dag.
-newtype SVec = SVec AlgNode
+newtype SVec = SVec AlgNode deriving (Show)
 
 $(deriveJSON defaultOptions ''ADVec)
 $(deriveJSON defaultOptions ''RVec)

@@ -10,9 +10,10 @@ import           Data.Aeson.TH
 import           Data.Monoid
 import qualified Data.Sequence                  as S
 
+import           Database.DSH.Common.Impossible
 import qualified Database.DSH.Common.Lang       as L
-import           Database.DSH.Common.Type
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Type
 
 --------------------------------------------------------------------------------
 -- Scalar expressions and aggregate functions
@@ -158,3 +159,10 @@ scalarExpr expr = offsetExpr $ aux expr
     aux (L.JLit _ v)         = Expr $ Constant $ pVal v
     aux (L.JInput _)         = Offset 0
 
+--------------------------------------------------------------------------------
+-- Type conversion
+
+typeToScalarType :: Type -> ScalarType
+typeToScalarType ListT{}     = $impossible
+typeToScalarType TupleT{}    = $impossible
+typeToScalarType (ScalarT t) = t

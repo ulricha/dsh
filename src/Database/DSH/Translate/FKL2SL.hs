@@ -27,7 +27,6 @@ type Env = [(String, Shape DVec)]
 
 type EnvBuild = ReaderT Env (Build SL.SL)
 
--- FIXME might need those when let-expressions have been introduced.
 lookupEnv :: String -> EnvBuild (Shape DVec)
 lookupEnv n = ask >>= \env -> case lookup n env of
     Just r -> return r
@@ -83,11 +82,11 @@ fkl2SL expr =
             lift $ papp3 p l arg1' arg2' arg3'
         Ext (Forget n _ arg) -> do
             arg' <- fkl2SL arg
-            return $ V.forget n arg'
+            return $ forget n arg'
         Ext (Imprint n _ arg1 arg2) -> do
             arg1' <- fkl2SL arg1
             arg2' <- fkl2SL arg2
-            return $ V.imprint n arg1' arg2'
+            return $ imprint n arg1' arg2'
         MkTuple _ Lifted args -> do
             args' <- mapM fkl2SL args
             lift $ V.tupleL args'

@@ -33,7 +33,7 @@ data NullOp = Lit ([ScalarType], SegFrame, Segments)
 
 $(deriveJSON defaultOptions ''NullOp)
 
-data UnOp = UnboxKey
+data UnOp = SegmentMergeMap
           | Segment
           | Unsegment
           | Nest
@@ -48,7 +48,7 @@ data UnOp = UnboxKey
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
           | Aggr (N.NonEmpty AggrFun)
           | Number
-          | Unique
+          | Distinct
           | Reverse
           | Sort [Expr]
           | Group [Expr]
@@ -59,12 +59,12 @@ data UnOp = UnboxKey
           -- | Update a segment map to statically refer to the unit segment.
           -- Used as the update operation for unit delayed vectors for which we
           -- need only the outermost segment map.
-          | UnitProp
+          | UnitMap
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''UnOp)
 
-data BinOp = ReplicateNest
+data BinOp = ReplicateSeg
            | ReplicateScalar
 
            | AppKey
@@ -73,16 +73,29 @@ data BinOp = ReplicateNest
            | AppRep
 
            | UnboxSng
+           | UnboxDefault (N.NonEmpty Expr)
            | Align
 
            | AggrSeg AggrFun
            | Append
            | Zip
            | CartProduct
+
            | ThetaJoinMM (L.JoinPredicate Expr)
-           | SemiJoin (L.JoinPredicate Expr)
-           | AntiJoin (L.JoinPredicate Expr)
-           | GroupJoin (L.JoinPredicate Expr, L.NE AggrFun)
+           | ThetaJoinMU (L.JoinPredicate Expr)
+           | ThetaJoinUM (L.JoinPredicate Expr)
+
+           | AntiJoinMM (L.JoinPredicate Expr)
+           | AntiJoinMU (L.JoinPredicate Expr)
+           | AntiJoinUM (L.JoinPredicate Expr)
+
+           | SemiJoinMM (L.JoinPredicate Expr)
+           | SemiJoinMU (L.JoinPredicate Expr)
+           | SemiJoinUM (L.JoinPredicate Expr)
+
+           | GroupJoinMM (L.JoinPredicate Expr, L.NE AggrFun)
+           | GroupJoinMU (L.JoinPredicate Expr, L.NE AggrFun)
+           | GroupJoinUM (L.JoinPredicate Expr, L.NE AggrFun)
 
            -- Operators overloaded on the vector representation
            -- M: materialized
@@ -97,9 +110,14 @@ data BinOp = ReplicateNest
            -- Produces a materialized data vector as well as a replication
            -- vector for any inner vectors
            | Materialize
+           -- | Materialize a delayed vector according to a segment map in which
+           -- every entry points to the unit segment.
+           -- Produces a materialized data vector as well as a replication
+           -- vector for any inner vectors
+           | MaterializeUnit
            -- | Update a segment map by combining it with another segment map
            -- from the left (form the composition of two index space transforms)
-           | UpdateSegMap
+           | UpdateMap
            -- | 
            | RepMap
     deriving (Eq, Ord, Show)

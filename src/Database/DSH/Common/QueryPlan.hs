@@ -16,6 +16,8 @@ import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Vector
+import           Database.DSH.Common.Impossible
+import           Database.DSH.Common.Nat
 
 -- | A Layout describes the tuple structure of values encoded by
 -- one particular query from a bundle.
@@ -77,6 +79,15 @@ columnsInLayout LCol          = 1
 columnsInLayout (LNest _ _)   = 0
 columnsInLayout (LTuple lyts) = sum $ map columnsInLayout lyts
 
+-- | Index into a tuple layout and return the indexed element layout as well as
+-- a projection that keeps only the corresponding payload columns.
+projectColumns :: TupleIndex -> [Layout a] -> (Layout a, [DBCol])
+projectColumns i lyts =
+    let (prefixLyts, lyt : _) = splitAt (tupleIndex i - 1) lyts
+        lytWidth              = columnsInLayout lyt
+        prefixWidth           = sum $ map columnsInLayout prefixLyts
+    in (lyt, [ c + prefixWidth | c <- [1..lytWidth] ])
+
 -- | A query plan consists of a DAG over some algebra and information about the
 -- shape of the query.
 data QueryPlan a v = QueryPlan
@@ -105,3 +116,38 @@ exportPlan :: (ToJSON a, ToJSON v) => String -> QueryPlan a v -> IO ()
 exportPlan prefix plan = do
     BL.writeFile (prefix ++ ".plan") (encode $ queryDag plan)
     BL.writeFile (prefix ++ ".shape") (encode $ queryShape plan)
+
+--------------------------------------------------------------------------------
+-- Compile-time operations that implement higher-lifted primitives.
+
+-- | Remove the 'n' outer layers of nesting from a nested list
+-- (Prins/Palmer: 'extract').
+forget :: Nat -> Shape v -> Shape v
+forget Zero _                               = $impossible
+forget (Succ Zero) (VShape _ (LNest q lyt)) = VShape q lyt
+forget (Succ n)    (VShape _ lyt)           = extractInnerVec n lyt
+forget _           _                        = $impossible
+
+extractInnerVec :: Nat -> Layout v -> Shape v
+extractInnerVec (Succ Zero) (LNest _ (LNest q lyt)) = VShape q lyt
+extractInnerVec (Succ n)    (LNest _ lyt)           = extractInnerVec n lyt
+extractInnerVec _           _                       = $impossible
+
+-- | Prepend the 'n' outer layers of nesting from the first input to
+-- the second input (Prins/Palmer: 'insert').
+imprint :: Nat -> Shape v -> Shape v -> Shape v
+imprint (Succ Zero) (VShape d _) (VShape vi lyti) =
+    VShape d (LNest vi lyti)
+imprint (Succ n) (VShape d lyt) (VShape vi lyti)  =
+    VShape d (implantInnerVec n lyt vi lyti)
+imprint _          _                   _          =
+    $impossible
+
+implantInnerVec :: Nat -> Layout v -> v -> Layout v -> Layout v
+implantInnerVec (Succ Zero) (LNest d _)   vi lyti   =
+    LNest d $ LNest vi lyti
+implantInnerVec (Succ n)      (LNest d lyt) vi lyti =
+    LNest d $ implantInnerVec n lyt vi lyti
+implantInnerVec _          _            _  _        =
+    $impossible
+

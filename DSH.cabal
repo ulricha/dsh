@@ -176,6 +176,7 @@ Library
                      Database.DSH.Translate.CL2NKL
                      Database.DSH.Translate.FKL2SL
                      Database.DSH.Translate.NKL2FKL
+                     Database.DSH.Translate.FKL2VSL
                      Database.DSH.Translate.SL2Algebra
 
                      Database.DSH.SL.Lang
@@ -185,6 +186,11 @@ Library
                      Database.DSH.SL.Primitives
 
                      Database.DSH.VSL.Lang
+                     Database.DSH.VSL.Vectorize
+                     Database.DSH.VSL.Dot
+                     Database.DSH.VSL.Construct
+                     Database.DSH.VSL.VirtSegAlgebra
+
 
                      Database.DSH.SL.Opt.Properties.BottomUp
                      Database.DSH.SL.Opt.Properties.Card

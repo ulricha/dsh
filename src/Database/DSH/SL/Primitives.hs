@@ -8,7 +8,6 @@ module Database.DSH.SL.Primitives where
 import qualified Data.List.NonEmpty             as N
 
 import qualified Database.DSH.Common.Lang       as L
-import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Type       as Ty
 import           Database.DSH.Common.Vector
 import           Database.DSH.Common.VectorLang
@@ -68,11 +67,6 @@ tripleVec op mkVec1 mkVec2 mkVec3 = do
 
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (a, b) = (a, f b)
-
-typeToScalarType :: Ty.Type -> Ty.ScalarType
-typeToScalarType Ty.ListT{}     = $impossible
-typeToScalarType Ty.TupleT{}    = $impossible
-typeToScalarType (Ty.ScalarT t) = t
 
 ----------------------------------------------------------------------------------
 -- DAG constructor functions for SL operators
