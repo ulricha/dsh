@@ -33,8 +33,7 @@ data NullOp = Lit ([ScalarType], SegFrame, Segments)
 
 $(deriveJSON defaultOptions ''NullOp)
 
-data UnOp = SegmentMergeMap
-          | Segment
+data UnOp = Segment
           | Unsegment
           | Nest
 
@@ -60,6 +59,9 @@ data UnOp = SegmentMergeMap
           -- Used as the update operation for unit delayed vectors for which we
           -- need only the outermost segment map.
           | UnitMap
+          -- From a vector v, generate a *merge map* that maps all segments of
+          -- the key domain of v to the segment identifier domain of v.
+          | MergeMap
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''UnOp)
@@ -110,11 +112,6 @@ data BinOp = ReplicateSeg
            -- Produces a materialized data vector as well as a replication
            -- vector for any inner vectors
            | Materialize
-           -- | Materialize a delayed vector according to a segment map in which
-           -- every entry points to the unit segment.
-           -- Produces a materialized data vector as well as a replication
-           -- vector for any inner vectors
-           | MaterializeUnit
            -- | Update a segment map by combining it with another segment map
            -- from the left (form the composition of two index space transforms)
            | UpdateMap

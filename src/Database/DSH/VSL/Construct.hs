@@ -87,8 +87,8 @@ append dv1 dv2 = bindOp3 $ BinOp VSL.Append (extract dv1) (extract dv2)
 segment :: DVec -> VSLBuild DVec
 segment dv = bindOp $ UnOp VSL.Segment (extract dv)
 
-segmentmergemap :: DVec -> VSLBuild RVec
-segmentmergemap v = bindOp $ UnOp VSL.SegmentMergeMap (extract v)
+mergemap :: DVec -> VSLBuild RVec
+mergemap v = bindOp $ UnOp VSL.MergeMap (extract v)
 
 unsegment :: DVec -> VSLBuild DVec
 unsegment dv = bindOp $ UnOp VSL.Unsegment (extract dv)
@@ -134,9 +134,6 @@ unitmap m = bindOp $ UnOp VSL.UnitMap (extract m)
 
 materialize :: RVec -> DVec -> VSLBuild (DVec, RVec)
 materialize r v = bindOp2 $ BinOp VSL.Materialize (extract r) (extract v)
-
-materializeunit :: RVec -> DVec -> VSLBuild (DVec, RVec)
-materializeunit r v = bindOp2 $ BinOp VSL.MaterializeUnit (extract r) (extract v)
 
 nestjoinMM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
 nestjoinMM p v1 v2 = bindOp3 $ BinOp (VSL.NestJoinMM p') (extract v1) (extract v2)

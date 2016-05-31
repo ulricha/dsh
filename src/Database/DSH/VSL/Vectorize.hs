@@ -170,7 +170,7 @@ concatL :: Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 concatL (VShape dvo (LNest dvi l)) = do
     -- Generate a segment map that merges segments of inner vectors and maps
     -- them to the segment identifiers of 'dvi'
-    mm <- C.segmentmergemap (dvPhysVec dvi)
+    mm <- C.mergemap (dvPhysVec dvi)
     -- Combine the segment map of the middle vector with the merge map
     mm' <- case dvSegMap dvi of
         IDMap -> return mm
@@ -570,8 +570,8 @@ branchVec :: (Expr -> Expr)
 branchVec p (SShape dvb LCol) (VShape dv1 l1) = do
     let leftWidth = columnsInLayout l1
     VShape (MatVec v) _ <- dist (SShape dvb LCol) (VShape dv1 l1)
-    (v, r)              <- C.select (p $ Column 1) v
-    vp                  <- C.project [ Column c | c <- [2..leftWidth+1] ] v
+    (v', r)             <- C.select (p $ Column 1) v
+    vp                  <- C.project [ Column c | c <- [2..leftWidth+1] ] v'
     l1'                 <- updateLayoutMaps (RMap r) l1
     return (vp, l1')
 

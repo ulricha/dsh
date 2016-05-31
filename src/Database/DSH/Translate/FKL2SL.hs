@@ -99,7 +99,7 @@ papp3 Combine Lifted    = V.combineL
 papp3 Combine NotLifted = V.combine
 
 aggL :: Type -> AggrFun -> Shape DVec -> Build SL.SL (Shape DVec)
-aggL t Sum     = V.aggrL (VL.AggrSum $ typeToScalarType $ elemT t)
+aggL t Sum     = V.aggrL (VL.AggrSum $ VL.typeToScalarType $ elemT t)
 aggL _ Avg     = V.aggrL VL.AggrAvg
 aggL _ Maximum = V.aggrL VL.AggrMax
 aggL _ Minimum = V.aggrL VL.AggrMin
@@ -108,7 +108,7 @@ aggL _ And     = V.aggrL VL.AggrAll
 aggL _ Length  = V.lengthL
 
 agg :: Type -> AggrFun -> Shape DVec -> Build SL.SL (Shape DVec)
-agg t Sum     = V.aggr (VL.AggrSum $ typeToScalarType t)
+agg t Sum     = V.aggr (VL.AggrSum $ VL.typeToScalarType t)
 agg _ Avg     = V.aggr VL.AggrAvg
 agg _ Maximum = V.aggr VL.AggrMax
 agg _ Minimum = V.aggr VL.AggrMin
@@ -118,7 +118,7 @@ agg _ Length  = V.length_
 
 translateAggrFun :: AggrApp -> VL.AggrFun
 translateAggrFun a = case aaFun a of
-    Sum     -> let t = typeToScalarType $ typeOf $ aaArg a
+    Sum     -> let t = VL.typeToScalarType $ typeOf $ aaArg a
                in VL.AggrSum t e
     Avg     -> VL.AggrAvg e
     Maximum -> VL.AggrMax e
