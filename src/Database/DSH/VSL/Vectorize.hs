@@ -138,7 +138,7 @@ aggrL :: (Expr -> AggrFun) -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 aggrL afun (VShape dvo (LNest dvi LCol)) = do
     let a = afun (Column 1)
     -- Aggregate the physical segments without considering the segment map.
-    va      <- C.aggr a (dvPhysVec dvi)
+    va      <- C.aggrseg a (dvPhysVec dvi)
     -- To unbox, we need to materialize the inner vector. Crucially, we
     -- materialize *after* aggregation.
     (vm, _) <- materializeShape (dvi { dvPhysVec = va }) LCol

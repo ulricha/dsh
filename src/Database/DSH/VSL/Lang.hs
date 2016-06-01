@@ -46,6 +46,7 @@ data UnOp = Segment
 
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
           | Aggr (N.NonEmpty AggrFun)
+          | AggrSeg AggrFun
           | Number
           | Distinct
           | Reverse
@@ -73,7 +74,6 @@ data BinOp = ReplicateSeg
            | UnboxDefault (N.NonEmpty Expr)
            | Align
 
-           | AggrSeg AggrFun
            | Append
            | Zip
            | CartProduct
