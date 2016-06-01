@@ -23,6 +23,7 @@ module Database.DSH.Compiler
     , showVectorizedQ
     , showVectorizedOptQ
     , showDelayedQ
+    , showDelayedOptQ
       -- * Comprehension optimizers
     , module Database.DSH.CL.Opt
     ) where
