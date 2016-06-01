@@ -138,7 +138,7 @@ aggrL :: (Expr -> AggrFun) -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 aggrL afun (VShape dvo (LNest dvi LCol)) = do
     let a = afun (Column 1)
     -- Aggregate the physical segments without considering the segment map.
-    va      <- C.aggr a (dvPhysVec dvi)
+    va      <- C.aggrseg a (dvPhysVec dvi)
     -- To unbox, we need to materialize the inner vector. Crucially, we
     -- materialize *after* aggregation.
     (vm, _) <- materializeShape (dvi { dvPhysVec = va }) LCol
@@ -148,13 +148,13 @@ aggrL afun (VShape dvo (LNest dvi LCol)) = do
 defaultUnboxOp :: AggrFun -> DVec -> DVec -> VSLBuild (DVec, RVec)
 defaultUnboxOp (AggrSum t _)         = C.unboxdefault (pure $ sumDefault t)
   where
-    sumDefault T.IntT = Constant $ L.IntV 0
-    sumDefault T.DecimalT = Constant $ L.DecimalV 0
-    sumDefault T.DoubleT = Constant $ L.DoubleV 0
-defaultUnboxOp (AggrAny _)           = C.unboxdefault (pure $ Constant $ L.BoolV False)
-defaultUnboxOp (AggrAll _)           = C.unboxdefault (pure $ Constant $ L.BoolV True)
-defaultUnboxOp AggrCount             = C.unboxdefault (pure $ Constant $ L.IntV 0)
-defaultUnboxOp (AggrCountDistinct _) = C.unboxdefault (pure $ Constant $ L.IntV 0)
+    sumDefault T.IntT = L.IntV 0
+    sumDefault T.DecimalT = L.DecimalV 0
+    sumDefault T.DoubleT = L.DoubleV 0
+defaultUnboxOp (AggrAny _)           = C.unboxdefault (pure $ L.BoolV False)
+defaultUnboxOp (AggrAll _)           = C.unboxdefault (pure $ L.BoolV True)
+defaultUnboxOp AggrCount             = C.unboxdefault (pure $ L.IntV 0)
+defaultUnboxOp (AggrCountDistinct _) = C.unboxdefault (pure $ L.IntV 0)
 defaultUnboxOp _                     = C.unboxsng
 
 --------------------------------------------------------------------------------
@@ -588,7 +588,7 @@ dist (SShape dv1 l1) (VShape dv2 _) = do
     return $ VShape (dv2 { dvPhysVec = outerVec }) innerLyt
 dist (VShape (DelayedVec IDMap v1) l1) (VShape dv2 _) = do
     outerVec <- C.project [] (dvPhysVec dv2)
-    innerMap <- UnitMap <$> C.repunit (dvPhysVec dv2)
+    innerMap <- UnitMap <$> C.unitmap (dvPhysVec dv2)
     return $ VShape (dv2 { dvPhysVec = outerVec }) (LNest (DelayedVec innerMap v1) l1)
 dist _ _ = error "VSL.Vectorize.dist"
 
@@ -632,7 +632,7 @@ updateLayoutMaps newMap = go
 
 updateSegMap :: SegMap -> SegMap -> VSLBuild SegMap
 updateSegMap (RMap mapUpdate) (RMap oldMap) = RMap <$> C.updatemap mapUpdate oldMap
-updateSegMap (RMap mapUpdate) (UnitMap _)   = UnitMap <$> C.unitmap mapUpdate
+updateSegMap (RMap mapUpdate) (UnitMap _)   = UnitMap <$> C.updateunit mapUpdate
 updateSegMap (RMap mapUpdate) IDMap         = pure $ RMap mapUpdate
 updateSegMap _ _ = error "updateSegMap"
 

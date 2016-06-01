@@ -191,7 +191,6 @@ Library
                      Database.DSH.VSL.Construct
                      Database.DSH.VSL.VirtSegAlgebra
 
-
                      Database.DSH.SL.Opt.Properties.BottomUp
                      Database.DSH.SL.Opt.Properties.Card
                      Database.DSH.SL.Opt.Properties.Segments
@@ -210,6 +209,25 @@ Library
                      Database.DSH.SL.Opt.Rewrite.Aggregation
                      Database.DSH.SL.Opt.Rewrite.Window
                      Database.DSH.SL.Opt.Rewrite.Unused
+
+                     Database.DSH.VSL.Opt.Properties.BottomUp
+                     Database.DSH.VSL.Opt.Properties.Card
+                     Database.DSH.VSL.Opt.Properties.Segments
+                     Database.DSH.VSL.Opt.Properties.Common
+                     Database.DSH.VSL.Opt.Properties.Const
+                     Database.DSH.VSL.Opt.Properties.Empty
+                     Database.DSH.VSL.Opt.Properties.ReqColumns
+                     Database.DSH.VSL.Opt.Properties.TopDown
+                     Database.DSH.VSL.Opt.Properties.Types
+                     Database.DSH.VSL.Opt.Properties.VectorType
+                     Database.DSH.VSL.Opt.OptimizeVSL
+                     Database.DSH.VSL.Opt.Rewrite.Common
+                     Database.DSH.VSL.Opt.Rewrite.Expressions
+                     Database.DSH.VSL.Opt.Rewrite.PruneEmpty
+                     Database.DSH.VSL.Opt.Rewrite.Redundant
+                     Database.DSH.VSL.Opt.Rewrite.Aggregation
+                     Database.DSH.VSL.Opt.Rewrite.Window
+                     Database.DSH.VSL.Opt.Rewrite.Unused
 
                      Database.DSH.Tests.Common
                      Database.DSH.Tests.ComprehensionTests
