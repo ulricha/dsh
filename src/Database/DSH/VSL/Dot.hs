@@ -122,15 +122,15 @@ renderColumns cols = renderData $ transpose $ map F.toList $ F.toList cols
 
 -- | Create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VSL -> Doc
-opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "WinAggr"
+opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "winaggr"
     (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
     (lookupTags i tm)
-opDotLabel tm i (NullaryOp (Lit (tys, frame, segs))) = labelToDoc i "LIT"
+opDotLabel tm i (NullaryOp (Lit (tys, frame, segs))) = labelToDoc i "lit"
         (bracketList renderColumnType tys <> comma
         <$> text "frame: " <> int (frameLen frame) <> comma
         <$> renderSegments segs) (lookupTags i tm)
 opDotLabel tm i (NullaryOp (TableRef (n, schema))) =
-    labelToDoc i "TableScan"
+    labelToDoc i "table"
                  (text n <> text "\n"
                   <> align (bracketList (\c -> renderCol c <> text "\n")
                                         (N.toList $ L.tableCols schema)))
@@ -206,6 +206,7 @@ opDotColor (BinOp (ThetaJoinMM _) _ _) = DCGreen
 opDotColor (BinOp (ThetaJoinMU _) _ _) = DCSeaGreen
 opDotColor (BinOp (ThetaJoinUM _) _ _) = DCSeaGreen
 opDotColor (BinOp (NestJoinMM _) _ _)  = DCGreen
+opDotColor (BinOp (NestJoinMU _) _ _)  = DCSeaGreen
 opDotColor (BinOp (SemiJoinMM _) _ _)  = DCGreen
 opDotColor (BinOp (SemiJoinMU _) _ _)  = DCSeaGreen
 opDotColor (BinOp (SemiJoinUM _) _ _)  = DCSeaGreen
