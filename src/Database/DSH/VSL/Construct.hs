@@ -75,8 +75,8 @@ aggrseg aFun v = bindOp $ UnOp (VSL.AggrSeg aFun) (extract v)
 unboxsng :: DVec -> DVec -> VSLBuild (DVec, RVec)
 unboxsng dvo dvi = bindOp2 $ BinOp VSL.UnboxSng (extract dvo) (extract dvi)
 
-unboxdefault :: N.NonEmpty Expr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-unboxdefault defaultProj vo vi = bindOp2 $ BinOp (VSL.UnboxDefault defaultProj) (extract vo) (extract vi)
+unboxdefault :: N.NonEmpty L.ScalarVal -> DVec -> DVec -> VSLBuild (DVec, RVec)
+unboxdefault defaultVals vo vi = bindOp2 $ BinOp (VSL.UnboxDefault defaultVals) (extract vo) (extract vi)
 
 nest :: DVec -> VSLBuild (DVec, DVec)
 nest dv = bindOp2 $ UnOp VSL.Nest (extract dv)

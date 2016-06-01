@@ -77,7 +77,7 @@ data BinOp = ReplicateSeg
            | ReplicateScalar
 
            | UnboxSng
-           | UnboxDefault (N.NonEmpty Expr)
+           | UnboxDefault (N.NonEmpty L.ScalarVal)
            | Align
 
            | Append

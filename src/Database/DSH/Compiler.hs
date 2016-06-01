@@ -48,6 +48,7 @@ import           Database.DSH.Frontend.Internals
 import           Database.DSH.NKL.Rewrite
 import qualified Database.DSH.SL.Lang               as SL
 import           Database.DSH.SL.Opt.OptimizeSL
+import           Database.DSH.VSL.Opt.OptimizeVSL
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2SL
 import           Database.DSH.Translate.FKL2VSL
@@ -228,6 +229,15 @@ showVectorizedQ clOpt (Q q) = do
     exportPlan fileName vl
     void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
 
+-- | Show optimized vector plan (SL)
+showVectorizedOptQ :: forall a. QA a => CLOptimizer -> Q a -> IO ()
+showVectorizedOptQ clOpt (Q q) = do
+    let vl = optimizeSLDefault $ compileQ clOpt $ toComprehensions q
+    h <- fileId
+    let fileName = "q_vl_" ++ h
+    exportPlan fileName vl
+    void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+
 -- | Show unoptimized vector plan (SL)
 showDelayedQ :: forall a. QA a => CLOptimizer -> Q a -> IO ()
 showDelayedQ clOpt (Q q) = do
@@ -238,11 +248,13 @@ showDelayedQ clOpt (Q q) = do
     exportPlan fileName vl
     void $ runCommand $ printf "stack exec vsldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
 
--- | Show optimized vector plan (SL)
-showVectorizedOptQ :: forall a. QA a => CLOptimizer -> Q a -> IO ()
-showVectorizedOptQ clOpt (Q q) = do
-    let vl = optimizeSLDefault $ compileQ clOpt $ toComprehensions q
+
+-- | Show unoptimized vector plan (SL)
+showDelayedOptQ :: forall a. QA a => CLOptimizer -> Q a -> IO ()
+showDelayedOptQ clOpt (Q q) = do
+    let cl = toComprehensions q
+    let vl = optimizeVSLDefault $ compileDelayedQ clOpt cl
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
-    void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+    void $ runCommand $ printf "stack exec vsldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName

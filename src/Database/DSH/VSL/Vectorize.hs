@@ -148,13 +148,13 @@ aggrL afun (VShape dvo (LNest dvi LCol)) = do
 defaultUnboxOp :: AggrFun -> DVec -> DVec -> VSLBuild (DVec, RVec)
 defaultUnboxOp (AggrSum t _)         = C.unboxdefault (pure $ sumDefault t)
   where
-    sumDefault T.IntT = Constant $ L.IntV 0
-    sumDefault T.DecimalT = Constant $ L.DecimalV 0
-    sumDefault T.DoubleT = Constant $ L.DoubleV 0
-defaultUnboxOp (AggrAny _)           = C.unboxdefault (pure $ Constant $ L.BoolV False)
-defaultUnboxOp (AggrAll _)           = C.unboxdefault (pure $ Constant $ L.BoolV True)
-defaultUnboxOp AggrCount             = C.unboxdefault (pure $ Constant $ L.IntV 0)
-defaultUnboxOp (AggrCountDistinct _) = C.unboxdefault (pure $ Constant $ L.IntV 0)
+    sumDefault T.IntT = L.IntV 0
+    sumDefault T.DecimalT = L.DecimalV 0
+    sumDefault T.DoubleT = L.DoubleV 0
+defaultUnboxOp (AggrAny _)           = C.unboxdefault (pure $ L.BoolV False)
+defaultUnboxOp (AggrAll _)           = C.unboxdefault (pure $ L.BoolV True)
+defaultUnboxOp AggrCount             = C.unboxdefault (pure $ L.IntV 0)
+defaultUnboxOp (AggrCountDistinct _) = C.unboxdefault (pure $ L.IntV 0)
 defaultUnboxOp _                     = C.unboxsng
 
 --------------------------------------------------------------------------------
