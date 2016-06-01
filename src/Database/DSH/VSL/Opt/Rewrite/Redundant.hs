@@ -71,6 +71,8 @@ redundantRulesBottomUp = [ sameInputAlign
                          , alignWinRightPush
                          , alignUnboxSngRight
                          , alignUnboxSngLeft
+                         , alignUnboxDefaultRight
+                         , alignUnboxDefaultLeft
                          , alignCartProdRight
                          , alignGroupJoinLeft
                          , alignGroupJoinRight
@@ -81,6 +83,7 @@ redundantRulesBottomUp = [ sameInputAlign
                          , pullProjectNumber
                          , constDist
                          , pullProjectUnboxSngLeft
+                         , pullProjectUnboxDefaultLeft
                          , pullProjectUnboxSngRight
                          , pullProjectNestJoinLeft
                          , pullProjectNestJoinRight
@@ -760,6 +763,71 @@ alignUnboxSngLeft q =
              -- intact.
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qu") |])
 
+-- | If singleton scalar elements in an inner vector (with singleton
+-- segments) are unboxed using an outer vector and then aligned with
+-- the same outer vector, we can eliminate the align, because the
+-- positional alignment is implicitly performed by the UnboxSng
+-- operator. We exploit the fact that UnboxSng is only a
+-- specialized join which nevertheless produces payload columns from
+-- both inputs.
+alignUnboxDefaultRight :: VSLRule BottomUpProps
+alignUnboxDefaultRight q =
+  $(dagPatMatch 'q "(q11) Align (qu=R1 ((q12) UnboxDefault _ (q2)))"
+     [| do
+         predicate $ $(v "q11") == $(v "q12")
+
+         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q11")
+         rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
+
+         return $ do
+             logRewrite "Redundant.Align.UnboxDefault.Right" q
+
+
+             -- Keep the original schema intact by duplicating columns
+             -- from the left input (UnboxDefault produces columns from
+             -- its left and right inputs).
+             let outputCols = -- Two times the left input columns
+                              [1..leftWidth] ++ [1..leftWidth]
+                              -- Followed by the right input columns
+                              ++ [ leftWidth+1..rightWidth+leftWidth ]
+                 proj       = map Column outputCols
+
+             -- Keep only the unboxing operator, together with a
+             -- projection that keeps the original output schema
+             -- intact.
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qu") |])
+
+-- | See Align.UnboxDefault.Right
+alignUnboxDefaultLeft :: VSLRule BottomUpProps
+alignUnboxDefaultLeft q =
+  $(dagPatMatch 'q "(qu=R1 ((q11) UnboxDefault _ (q2))) Align (q12)"
+     [| do
+         predicate $ $(v "q11") == $(v "q12")
+
+         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q11")
+         rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
+
+         return $ do
+             logRewrite "Redundant.Align.UnboxDefault.Left" q
+
+
+             -- Keep the original schema intact by duplicating columns
+             -- from the left input (UnboxDefault produces columns from
+             -- its left and right inputs).
+             let outputCols = -- The left (outer) columns
+                              [1..leftWidth]
+                              -- Followed by the right (inner) input columns
+                              ++ [ leftWidth+1..rightWidth+leftWidth ]
+                              -- Followed by the left (outer columns) again
+                              -- (originally produced by Align)
+                              ++ [1..leftWidth]
+                 proj       = map Column outputCols
+
+             -- Keep only the unboxing operator, together with a
+             -- projection that keeps the original output schema
+             -- intact.
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qu") |])
+
 -- | A CartProduct output is aligned with some other vector. If one of
 -- the CartProduct inputs has cardinality one, the other CartProduct
 -- input determines the length of the result vector. From the original
@@ -975,11 +1043,24 @@ pullProjectSort q =
            r1Node   <- insert (UnOp R1 sortNode)
            void $ replaceWithNew q $ UnOp (Project $(v "ps")) r1Node |])
 
--- Motivation: In order to eliminate or pull up sorting operations in
--- SL rewrites or subsequent stages, payload columns which might
--- induce sort order should be available as long as possible. We
--- assume that the cost of having unrequired columns around is
--- negligible (best case: column store).
+pullProjectUnboxDefaultLeft :: VSLRule BottomUpProps
+pullProjectUnboxDefaultLeft q =
+  $(dagPatMatch 'q "R1 ((Project proj (q1)) UnboxDefault vs (q2))"
+    [| do
+         leftWidth  <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+         rightWidth <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
+
+         return $ do
+           logRewrite "Redundant.Project.UnboxSng" q
+
+           -- Employ projection expressions on top of the unboxing
+           -- operator, add right input columns.
+           let proj' = $(v "proj") ++ map Column [ leftWidth + 1 .. leftWidth + rightWidth ]
+           unboxNode <- insert $ BinOp (UnboxDefault $(v "vs")) $(v "q1") $(v "q2")
+           r1Node    <- insert $ UnOp R1 unboxNode
+
+           void $ replaceWithNew q $ UnOp (Project proj') r1Node |])
+
 
 pullProjectUnboxSngLeft :: VSLRule BottomUpProps
 pullProjectUnboxSngLeft q =
