@@ -12,8 +12,6 @@ import qualified Database.DSH.Common.Type       as Ty
 import           Database.DSH.Common.Vector
 import           Database.DSH.Common.VectorLang
 
-import           Database.DSH.Common.Impossible
-
 import           Database.Algebra.Dag.Build
 import           Database.Algebra.Dag.Common
 import           Database.DSH.SL.Lang

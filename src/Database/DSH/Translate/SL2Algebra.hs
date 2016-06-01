@@ -33,7 +33,7 @@ type Cache d r k f s = IM.IntMap (Res d r k f s)
 type VecBuild a d r k f s = StateT (Cache d r k f s) (B.Build a)
 
 runVecBuild :: SegmentAlgebra a
-            => VecBuild a (DVec a) (RVec a) (KVec a) (FVec a) (SVec a) r
+            => VecBuild a (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a) r
             -> (D.AlgebraDag a, r, NodeMap [Tag])
 runVecBuild c = B.runBuild $ fst <$> runStateT c IM.empty
 
@@ -73,7 +73,7 @@ fromSVec v = RSVec v
 
 toDVec :: Res d r k f s -> d
 toDVec (RDVec v) = v
-toDVec _         = error "toDVec: Not a NDVec"
+toDVec _         = error "toDVec: Not a RDVec"
 
 toRVec :: Res d r k f s -> r
 toRVec (RRVec p) = p
@@ -106,7 +106,7 @@ refreshShape shape = T.mapM refreshVec shape
 translate :: SegmentAlgebra a
           => NodeMap SL.SL
           -> AlgNode
-          -> VecBuild a (DVec a) (RVec a) (KVec a) (FVec a) (SVec a) (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
+          -> VecBuild a (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a) (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
 translate vlNodes n = do
     r <- fromDict n
 
@@ -146,7 +146,7 @@ pp m = intercalate ",\n" $ map show $ IM.toList m
 vl2Algebra :: SegmentAlgebra a
            => NodeMap SL.SL
            -> Shape V.DVec
-           -> VecBuild a (DVec a) (RVec a) (KVec a) (FVec a) (SVec a) (Shape (DVec a))
+           -> VecBuild a (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a) (Shape (SLDVec a))
 vl2Algebra vlNodes plan = do
     mapM_ (translate vlNodes) roots
 
@@ -157,10 +157,10 @@ vl2Algebra vlNodes plan = do
 
 translateTerOp :: SegmentAlgebra a
                => SL.TerOp
-               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
-               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
-               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
-               -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
+               -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
+               -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
+               -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
+               -> B.Build a (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
 translateTerOp t c1 c2 c3 =
     case t of
         SL.Combine -> do
@@ -169,9 +169,9 @@ translateTerOp t c1 c2 c3 =
 
 translateBinOp :: SegmentAlgebra a
                => SL.BinOp
-               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
-               -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
-               -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
+               -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
+               -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
+               -> B.Build a (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
 translateBinOp b c1 c2 = case b of
     SL.ReplicateNest -> do
         (v, p) <- vecReplicateNest (toDVec c1) (toDVec c2)
@@ -241,8 +241,8 @@ translateBinOp b c1 c2 = case b of
 
 translateUnOp :: SegmentAlgebra a
               => SL.UnOp
-              -> Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a)
-              -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
+              -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
+              -> B.Build a (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
 translateUnOp unop c = case unop of
     SL.Unique          -> fromDVec <$> vecUnique (toDVec c)
     SL.Number          -> fromDVec <$> vecNumber (toDVec c)
@@ -284,6 +284,6 @@ translateUnOp unop c = case unop of
 
 translateNullary :: SegmentAlgebra a
                  => SL.NullOp
-                 -> B.Build a (Res (DVec a) (RVec a) (KVec a) (FVec a) (SVec a))
-translateNullary (SL.Lit (tys, frame, segs))      = fromDVec <$> vecLit tys frame segs
-translateNullary (SL.TableRef (n, schema)) = fromDVec <$> vecTableRef n schema
+                 -> B.Build a (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
+translateNullary (SL.Lit (tys, frame, segs)) = fromDVec <$> vecLit tys frame segs
+translateNullary (SL.TableRef (n, schema))   = fromDVec <$> vecTableRef n schema

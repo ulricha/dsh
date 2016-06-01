@@ -165,10 +165,6 @@ opDotLabel tm i (BinOp UpdateMap _ _) = labelToDoc i "updatemap" empty (lookupTa
 opDotLabel tm i (BinOp RepMap _ _) = labelToDoc i "repmap" empty (lookupTags i tm)
 opDotLabel tm i (BinOp UnboxSng _ _) = labelToDoc i "unboxsng" empty (lookupTags i tm)
 opDotLabel tm i (BinOp (UnboxDefault es) _ _) = labelToDoc i "unboxdefault" (bracketList renderExpr $ N.toList es) (lookupTags i tm)
-opDotLabel tm i (BinOp AppSort _ _) = labelToDoc i "appsort" empty (lookupTags i tm)
-opDotLabel tm i (BinOp AppKey _ _) = labelToDoc i "appkey" empty (lookupTags i tm)
-opDotLabel tm i (BinOp AppFilter _ _) = labelToDoc i "appfilter" empty (lookupTags i tm)
-opDotLabel tm i (BinOp AppRep _ _) = labelToDoc i "apprep" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Append _ _) = labelToDoc i "append" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Align _ _) = labelToDoc i "align" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Zip _ _) = labelToDoc i "zip" empty (lookupTags i tm)
@@ -204,20 +200,25 @@ opDotLabel tm i (BinOp (GroupJoinUM (p, as)) _ _) =
 opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "combine" empty (lookupTags i tm)
 
 opDotColor :: VSL -> DotColor
-opDotColor (BinOp CartProduct _ _)    = DCRed
-opDotColor (BinOp (ThetaJoinMM _) _ _)  = DCGreen
-opDotColor (BinOp (NestJoinMM _) _ _)   = DCGreen
-opDotColor (BinOp (SemiJoinMM _) _ _)   = DCGreen
-opDotColor (BinOp (AntiJoinMM _) _ _)   = DCGreen
-opDotColor (BinOp (GroupJoinMM _) _ _)   = DCGreen
-opDotColor (UnOp (Sort _) _)          = DCTomato
-opDotColor (UnOp (Group _) _)         = DCTomato
+opDotColor (BinOp CartProduct _ _)     = DCRed
+opDotColor (BinOp Materialize _ _)     = DCSalmon
+opDotColor (BinOp (ThetaJoinMM _) _ _) = DCGreen
+opDotColor (BinOp (ThetaJoinMU _) _ _) = DCSeaGreen
+opDotColor (BinOp (ThetaJoinUM _) _ _) = DCSeaGreen
+opDotColor (BinOp (NestJoinMM _) _ _)  = DCGreen
+opDotColor (BinOp (SemiJoinMM _) _ _)  = DCGreen
+opDotColor (BinOp (SemiJoinMU _) _ _)  = DCSeaGreen
+opDotColor (BinOp (SemiJoinUM _) _ _)  = DCSeaGreen
+opDotColor (BinOp (AntiJoinMM _) _ _)  = DCGreen
+opDotColor (BinOp (AntiJoinMU _) _ _)  = DCSeaGreen
+opDotColor (BinOp (AntiJoinUM _) _ _)  = DCSeaGreen
+opDotColor (BinOp (GroupJoinMM _) _ _) = DCGreen
+opDotColor (BinOp (GroupJoinMU _) _ _) = DCSeaGreen
+opDotColor (BinOp (GroupJoinUM _) _ _) = DCSeaGreen
+opDotColor (UnOp (Sort _) _)           = DCTomato
+opDotColor (UnOp (Group _) _)          = DCTomato
 opDotColor (BinOp UnboxSng _ _)        = DCTan
-opDotColor (BinOp AppSort _ _)         = DCTan
-opDotColor (BinOp AppKey _ _)          = DCTan
-opDotColor (BinOp AppFilter _ _)       = DCTan
-opDotColor (BinOp AppRep _ _)          = DCTan
-opDotColor (BinOp ReplicateSeg _ _)   = DCTan
+opDotColor (BinOp ReplicateSeg _ _)    = DCTan
 opDotColor (BinOp ReplicateScalar _ _) = DCTan
 opDotColor (BinOp Align _ _)           = DCTan
 opDotColor (TerOp Combine _ _ _)       = DCDodgerBlue
@@ -227,6 +228,10 @@ opDotColor (BinOp (AggrSeg _) _ _)     = DCCrimson
 opDotColor (UnOp (WinFun _) _)         = DCTomato
 opDotColor (UnOp (GroupAggr (_, _)) _) = DCTomato
 opDotColor (UnOp (Project _) _)        = DCLightSkyBlue
+opDotColor (BinOp UpdateMap _ _)       = DCCyan
+opDotColor (UnOp UnitMap _)            = DCCornFlowerBlue
+opDotColor (UnOp MergeMap _)           = DCCornFlowerBlue
+opDotColor (UnOp RepUnit _)            = DCCornFlowerBlue
 opDotColor _                           = DCGray
 
 -- Dot colors
@@ -245,25 +250,33 @@ data DotColor = DCTomato
               | DCBeige
               | DCDodgerBlue
               | DCLightSkyBlue
+              | DCBlueViolet
               | DCHotPink
+              | DCBrown
+              | DCCyan
+              | DCCornFlowerBlue
 
 renderColor :: DotColor -> Doc
-renderColor DCTomato       = text "tomato"
-renderColor DCSalmon       = text "salmon"
-renderColor DCGray         = text "gray"
-renderColor DimDCGray      = text "dimgray"
-renderColor DCGold         = text "gold"
-renderColor DCTan          = text "tan"
-renderColor DCRed          = text "red"
-renderColor DCCrimson      = text "crimson"
-renderColor DCGreen        = text "green"
-renderColor DCSeaGreen     = text "seagreen"
-renderColor DCYelloGreen   = text "yellowgreen"
-renderColor DCSienna       = text "sienna"
-renderColor DCBeige        = text "beige"
-renderColor DCDodgerBlue   = text "dodgerblue"
-renderColor DCLightSkyBlue = text "lightskyblue"
-renderColor DCHotPink      = text "hotpink"
+renderColor DCTomato         = text "tomato"
+renderColor DCSalmon         = text "salmon"
+renderColor DCGray           = text "gray"
+renderColor DimDCGray        = text "dimgray"
+renderColor DCGold           = text "gold"
+renderColor DCTan            = text "tan"
+renderColor DCRed            = text "red"
+renderColor DCCrimson        = text "crimson"
+renderColor DCGreen          = text "green"
+renderColor DCSeaGreen       = text "seagreen"
+renderColor DCYelloGreen     = text "yellowgreen"
+renderColor DCSienna         = text "sienna"
+renderColor DCBeige          = text "beige"
+renderColor DCDodgerBlue     = text "dodgerblue"
+renderColor DCLightSkyBlue   = text "lightskyblue"
+renderColor DCHotPink        = text "hotpink"
+renderColor DCBrown          = text "brown"
+renderColor DCCyan           = text "cyan"
+renderColor DCBlueViolet     = text "blueviolet"
+renderColor DCCornFlowerBlue = text "cornflowerblue"
 
 escapeLabel :: String -> String
 escapeLabel s = concatMap escapeChar s

@@ -69,11 +69,6 @@ $(deriveJSON defaultOptions ''UnOp)
 data BinOp = ReplicateSeg
            | ReplicateScalar
 
-           | AppKey
-           | AppSort
-           | AppFilter
-           | AppRep
-
            | UnboxSng
            | UnboxDefault (N.NonEmpty Expr)
            | Align

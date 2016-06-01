@@ -2,8 +2,7 @@
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
--- | This module defines the kinds of vectors that occur in SL
--- programs.
+-- | This module defines the kinds of vectors that occur in SL and VSL programs.
 module Database.DSH.Common.Vector
     ( DBCol
     , ColName
@@ -11,9 +10,7 @@ module Database.DSH.Common.Vector
     , DagVector
     , vectorNodes
     , updateVector
-    , ADVec(..)
     , DVec(..)
-    , NDVec
     , RVec(..)
     , KVec(..)
     , SVec(..)
@@ -32,8 +29,9 @@ type ColName = String
 --------------------------------------------------------------------------------
 -- Abstractions over data vectors
 
--- | Concrete relational encodings of data vectors explicitly encode ordering
--- and segment information in named columns.
+-- | Concrete relational encodings of segment vectors have to provide
+-- segment-key relations (foreign-key relations) between outer and inner vectors
+-- as well as payload columns.
 class RelationalVector v where
     rvKeyCols  :: v -> [ColName]
     rvRefCols  :: v -> [ColName]
@@ -49,29 +47,9 @@ class DagVector v where
     updateVector :: AlgNode -> AlgNode -> v -> v
 
 --------------------------------------------------------------------------------
--- Simple data vectors
-
--- | Data vectors. A data vector references a result in an algebra DAG
--- and stores the number of payload columns that it has. 'ADVec'
--- abstracts over the type of references into the graph.
-data ADVec r = ADVec r [DBCol]
-    deriving (Show, Read)
-
--- | Data vectors that reference single nodes in an algebra graph
---  (used for X100 with an n-ary storage model).
-type NDVec = ADVec AlgNode
-
-instance DagVector NDVec where
-    vectorNodes (ADVec q _) = [q]
-
-    updateVector n1 n2 (ADVec q cols)
-        | q == n1   = ADVec n2 cols
-        | otherwise = ADVec q cols
-
---------------------------------------------------------------------------------
 -- Abstract vector types for vectorization
 
--- | A  data vector references an operator in a  DAG.
+-- | An abstract segment data vector
 newtype DVec = DVec AlgNode
     deriving (Show, Read)
 
@@ -82,23 +60,18 @@ instance DagVector DVec where
         | q == n1   = DVec n2
         | otherwise = DVec q
 
--- | Replication vectors. A @NRVec@ simply references a node in an
--- algebra Dag.
+-- | Replication vectors.
 newtype RVec = RVec AlgNode deriving (Show)
 
--- | Rekeying vectors. A @NKVec@ simply references a node in an algebra
--- Dag.
+-- | Rekeying vectors.
 newtype KVec = KVec AlgNode deriving (Show)
 
--- | Filtering vectors. A @NFVec@ simply references a node in an algebra
--- Dag.
+-- | Filtering vectors.
 newtype FVec = FVec AlgNode deriving (Show)
 
--- | Sorting vectors. A @NSVec@ simply references a node in an algebra
--- Dag.
+-- | Sorting vectors.
 newtype SVec = SVec AlgNode deriving (Show)
 
-$(deriveJSON defaultOptions ''ADVec)
 $(deriveJSON defaultOptions ''RVec)
 $(deriveJSON defaultOptions ''KVec)
 $(deriveJSON defaultOptions ''SVec)
