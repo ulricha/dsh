@@ -22,7 +22,7 @@ import           GHC.Generics                    (Generic)
 
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Vector
-import           Database.DSH.VL.Lang            (VL)
+import           Database.DSH.SL.Lang            (SL)
 
 --------------------------------------------------------------------------------
 -- Backend-independent composite keys
@@ -56,7 +56,7 @@ class (RelationalVector (BackendCode c), Row (BackendRow c)) => Backend c where
 
     -- | Implement vector operations using the backend-specific
     -- algebra.
-    generatePlan  :: QueryPlan VL VLDVec -> BackendPlan c
+    generatePlan  :: QueryPlan SL DVec -> BackendPlan c
 
     -- | Optimize the algebra plan and generate serialized backend
     -- code
