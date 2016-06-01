@@ -242,6 +242,7 @@ executable sldot
                       Database.DSH.Common.Nat
                       Database.DSH.Common.Pretty
                       Database.DSH.Common.Type
+                      Database.DSH.Common.VectorLang
                       Database.DSH.SL.Lang
                       Database.DSH.SL.Render.Dot
     GHC-Options: -Wall -fno-warn-orphans
@@ -271,6 +272,7 @@ executable vsldot
                       Database.DSH.Common.Lang
                       Database.DSH.Common.Nat
                       Database.DSH.Common.Pretty
+                      Database.DSH.Common.VectorLang
                       Database.DSH.Common.Type
                       Database.DSH.VSL.Lang
                       Database.DSH.VSL.Dot
