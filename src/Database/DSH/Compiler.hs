@@ -226,7 +226,7 @@ showVectorizedQ clOpt (Q q) = do
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
-    void $ runCommand $ printf "stack exec vldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+    void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
 
 -- | Show unoptimized vector plan (SL)
 showDelayedQ :: forall a. QA a => CLOptimizer -> Q a -> IO ()
@@ -236,7 +236,7 @@ showDelayedQ clOpt (Q q) = do
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
-    void $ runCommand $ printf "stack exec vldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+    void $ runCommand $ printf "stack exec vsldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
 
 -- | Show optimized vector plan (SL)
 showVectorizedOptQ :: forall a. QA a => CLOptimizer -> Q a -> IO ()
@@ -245,4 +245,4 @@ showVectorizedOptQ clOpt (Q q) = do
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
-    void $ runCommand $ printf "stack exec vldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+    void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName

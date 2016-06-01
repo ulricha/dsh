@@ -247,6 +247,36 @@ executable sldot
     GHC-Options: -Wall -fno-warn-orphans
     other-extensions: TemplateHaskell
 
+executable vsldot
+    Main-is: Database/DSH/Tools/VSLDotGen.hs
+    GHC-Options:      -Wall -fno-warn-orphans
+    hs-source-dirs:   src
+    build-depends:    base                >= 4.8 && < 5,
+                      mtl                 >= 2.1,
+                      aeson               >= 0.11,
+                      time                >= 1.4,
+                      containers          >= 0.5,
+                      template-haskell    >= 2.9,
+                      bytestring          >= 0.10,
+                      Decimal             >= 0.4,
+                      ansi-wl-pprint      >= 0.6.7.2,
+                      semigroups          >= 0.16,
+                      text                >= 1.2,
+                      scientific          >= 0.3,
+                      vector              >= 0.10,
+
+                      algebra-dag          >= 0.1
+
+    other-modules:    Database.DSH.Common.Impossible
+                      Database.DSH.Common.Lang
+                      Database.DSH.Common.Nat
+                      Database.DSH.Common.Pretty
+                      Database.DSH.Common.Type
+                      Database.DSH.VSL.Lang
+                      Database.DSH.VSL.Dot
+    GHC-Options: -Wall -fno-warn-orphans
+    other-extensions: TemplateHaskell
+
 source-repository head
     type:     git
     location: https://github.com/ulricha/dsh

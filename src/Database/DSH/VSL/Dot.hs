@@ -1,4 +1,6 @@
-module Database.DSH.VSL.Dot where
+module Database.DSH.VSL.Dot
+    ( renderVSLDot
+    ) where
 
 import qualified Data.Foldable                  as F
 import qualified Data.IntMap                    as Map
@@ -342,8 +344,8 @@ extractGraphStructure d = (operators, childs)
     childs = concat $ map (\(n, op) -> zip (repeat n) (Dag.opChildren op)) operators
 
 -- | Render an SL plan into a dot file (GraphViz).
-renderSLDot :: NodeMap [Tag] -> [AlgNode] -> NodeMap VSL -> String
-renderSLDot ts roots m = pp $ renderDot dotNodes dotEdges
+renderVSLDot :: NodeMap [Tag] -> [AlgNode] -> NodeMap VSL -> String
+renderVSLDot ts roots m = pp $ renderDot dotNodes dotEdges
   where
     (opLabels, edges) = extractGraphStructure d
     d = Dag.mkDag m roots
