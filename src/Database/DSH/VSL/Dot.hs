@@ -120,6 +120,10 @@ renderSegment s = brackets $ renderColumns $ segCols s
 renderColumns :: [Column] -> Doc
 renderColumns cols = renderData $ transpose $ map F.toList $ F.toList cols
 
+renderSegLookup :: SegmentLookup -> String
+renderSegLookup Direct = "M"
+renderSegLookup Unit   = "U"
+
 -- | Create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VSL -> Doc
 opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "winaggr"
@@ -140,8 +144,8 @@ opDotLabel tm i (UnOp Number _) = labelToDoc i "number" empty (lookupTags i tm)
 opDotLabel tm i (UnOp MergeMap _) = labelToDoc i "mergemap" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Segment _) = labelToDoc i "segment" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Unsegment _) = labelToDoc i "unsegment" empty (lookupTags i tm)
-opDotLabel tm i (UnOp RepUnit _) = labelToDoc i "repunit" empty (lookupTags i tm)
 opDotLabel tm i (UnOp UnitMap _) = labelToDoc i "unitmap" empty (lookupTags i tm)
+opDotLabel tm i (UnOp UpdateUnit _) = labelToDoc i "updateunit" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Nest _) = labelToDoc i "nest" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Reverse _) = labelToDoc i "reverse" empty (lookupTags i tm)
 opDotLabel tm i (UnOp R1 _) = labelToDoc i "R1" empty (lookupTags i tm)
@@ -162,59 +166,32 @@ opDotLabel tm i (BinOp ReplicateSeg _ _) = labelToDoc i "replicatenest" empty (l
 opDotLabel tm i (BinOp ReplicateScalar _ _) = labelToDoc i "replicatescalar" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Materialize _ _) = labelToDoc i "materialize" empty (lookupTags i tm)
 opDotLabel tm i (BinOp UpdateMap _ _) = labelToDoc i "updatemap" empty (lookupTags i tm)
-opDotLabel tm i (BinOp RepMap _ _) = labelToDoc i "repmap" empty (lookupTags i tm)
 opDotLabel tm i (BinOp UnboxSng _ _) = labelToDoc i "unboxsng" empty (lookupTags i tm)
 opDotLabel tm i (BinOp (UnboxDefault es) _ _) = labelToDoc i "unboxdefault" (bracketList renderExpr $ N.toList es) (lookupTags i tm)
 opDotLabel tm i (BinOp Append _ _) = labelToDoc i "append" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Align _ _) = labelToDoc i "align" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Zip _ _) = labelToDoc i "zip" empty (lookupTags i tm)
 opDotLabel tm i (BinOp CartProduct _ _) = labelToDoc i "cartproduct" empty (lookupTags i tm)
-opDotLabel tm i (BinOp (ThetaJoinMM p) _ _) =
-  labelToDoc i "thetajoinMM" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (ThetaJoinMU p) _ _) =
-  labelToDoc i "thetajoinMU" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (ThetaJoinUM p) _ _) =
-  labelToDoc i "thetajoinUM" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (NestJoinMM p) _ _) =
-  labelToDoc i "nestjoinMM" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (NestJoinMU p) _ _) =
-  labelToDoc i "nestjoinMU" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (AntiJoinMM p) _ _) =
-  labelToDoc i "antijoinMM" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (AntiJoinMU p) _ _) =
-  labelToDoc i "antijoinMU" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (AntiJoinUM p) _ _) =
-  labelToDoc i "antijoinUM" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (SemiJoinMM p) _ _) =
-  labelToDoc i "semijoinMM" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (SemiJoinMU p) _ _) =
-  labelToDoc i "semijoinMU" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (SemiJoinUM p) _ _) =
-  labelToDoc i "semijoinUM" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (GroupJoinMM (p, as)) _ _) =
-  labelToDoc i "groupjoinMM" (renderJoinPred p <+> bracketList renderAggrFun (N.toList $ L.getNE as)) (lookupTags i tm)
-opDotLabel tm i (BinOp (GroupJoinMU (p, as)) _ _) =
-  labelToDoc i "groupjoinMU" (renderJoinPred p <+> bracketList renderAggrFun (N.toList $ L.getNE as)) (lookupTags i tm)
-opDotLabel tm i (BinOp (GroupJoinUM (p, as)) _ _) =
-  labelToDoc i "groupjoinUM" (renderJoinPred p <+> bracketList renderAggrFun (N.toList $ L.getNE as)) (lookupTags i tm)
+opDotLabel tm i (BinOp (ThetaJoin (l1, l2, p)) _ _) =
+  labelToDoc i ("thetajoin" ++ renderSegLookup l1 ++ renderSegLookup l2) (renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (NestJoin (l1, l2, p)) _ _) =
+  labelToDoc i ("nestjoin" ++ renderSegLookup l1 ++ renderSegLookup l2) (renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (AntiJoin (l1, l2, p)) _ _) =
+  labelToDoc i  ("antijoin" ++ renderSegLookup l1 ++ renderSegLookup l2)(renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (SemiJoin (l1, l2, p)) _ _) =
+  labelToDoc i ("semijoin" ++ renderSegLookup l1 ++ renderSegLookup l2) (renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (GroupJoin (l1, l2, p, as)) _ _) =
+  labelToDoc i ("groupjoin" ++ renderSegLookup l1 ++ renderSegLookup l2) (renderJoinPred p <+> bracketList renderAggrFun (N.toList $ L.getNE as)) (lookupTags i tm)
 opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "combine" empty (lookupTags i tm)
 
 opDotColor :: VSL -> DotColor
 opDotColor (BinOp CartProduct _ _)     = DCRed
 opDotColor (BinOp Materialize _ _)     = DCSalmon
-opDotColor (BinOp (ThetaJoinMM _) _ _) = DCGreen
-opDotColor (BinOp (ThetaJoinMU _) _ _) = DCSeaGreen
-opDotColor (BinOp (ThetaJoinUM _) _ _) = DCSeaGreen
-opDotColor (BinOp (NestJoinMM _) _ _)  = DCGreen
-opDotColor (BinOp (SemiJoinMM _) _ _)  = DCGreen
-opDotColor (BinOp (SemiJoinMU _) _ _)  = DCSeaGreen
-opDotColor (BinOp (SemiJoinUM _) _ _)  = DCSeaGreen
-opDotColor (BinOp (AntiJoinMM _) _ _)  = DCGreen
-opDotColor (BinOp (AntiJoinMU _) _ _)  = DCSeaGreen
-opDotColor (BinOp (AntiJoinUM _) _ _)  = DCSeaGreen
-opDotColor (BinOp (GroupJoinMM _) _ _) = DCGreen
-opDotColor (BinOp (GroupJoinMU _) _ _) = DCSeaGreen
-opDotColor (BinOp (GroupJoinUM _) _ _) = DCSeaGreen
+opDotColor (BinOp (ThetaJoin _) _ _)   = DCGreen
+opDotColor (BinOp (NestJoin _) _ _)    = DCGreen
+opDotColor (BinOp (SemiJoin _) _ _)    = DCGreen
+opDotColor (BinOp (AntiJoin _) _ _)    = DCGreen
+opDotColor (BinOp (GroupJoin _) _ _)   = DCGreen
 opDotColor (UnOp (Sort _) _)           = DCTomato
 opDotColor (UnOp (Group _) _)          = DCTomato
 opDotColor (BinOp UnboxSng _ _)        = DCTan
@@ -231,7 +208,7 @@ opDotColor (UnOp (Project _) _)        = DCLightSkyBlue
 opDotColor (BinOp UpdateMap _ _)       = DCCyan
 opDotColor (UnOp UnitMap _)            = DCCornFlowerBlue
 opDotColor (UnOp MergeMap _)           = DCCornFlowerBlue
-opDotColor (UnOp RepUnit _)            = DCCornFlowerBlue
+opDotColor (UnOp UpdateUnit _)         = DCCornFlowerBlue
 opDotColor _                           = DCGray
 
 -- Dot colors

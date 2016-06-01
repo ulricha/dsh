@@ -117,9 +117,6 @@ zip dv1 dv2 = bindOp3 $ BinOp VSL.Zip (extract dv1) (extract dv2)
 cartproduct :: DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
 cartproduct dv1 dv2 = bindOp3 $ BinOp VSL.CartProduct (extract dv1) (extract dv2)
 
-repunit :: DVec -> VSLBuild RVec
-repunit v = bindOp $ UnOp VSL.RepUnit (extract v)
-
 replicatescalar :: DVec -> DVec -> VSLBuild (DVec, RVec)
 replicatescalar v1 v2 = bindOp2 $ BinOp VSL.ReplicateScalar (extract v1) (extract v2)
 
@@ -129,78 +126,81 @@ replicateseg v1 v2 = bindOp2 $ BinOp VSL.ReplicateSeg (extract v1) (extract v2)
 updatemap :: RVec -> RVec -> VSLBuild RVec
 updatemap m1 m2 = bindOp $ BinOp VSL.UpdateMap (extract m1) (extract m2)
 
-unitmap :: RVec -> VSLBuild RVec
+unitmap :: DVec -> VSLBuild RVec
 unitmap m = bindOp $ UnOp VSL.UnitMap (extract m)
+
+updateunit :: RVec -> VSLBuild RVec
+updateunit m = bindOp $ UnOp VSL.UpdateUnit (extract m)
 
 materialize :: RVec -> DVec -> VSLBuild (DVec, RVec)
 materialize r v = bindOp2 $ BinOp VSL.Materialize (extract r) (extract v)
 
 nestjoinMM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
-nestjoinMM p v1 v2 = bindOp3 $ BinOp (VSL.NestJoinMM p') (extract v1) (extract v2)
+nestjoinMM p v1 v2 = bindOp3 $ BinOp (VSL.NestJoin (VSL.Direct, VSL.Direct, p')) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 nestjoinMU :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
-nestjoinMU p v1 v2 = bindOp3 $ BinOp (VSL.NestJoinMU p') (extract v1) (extract v2)
+nestjoinMU p v1 v2 = bindOp3 $ BinOp (VSL.NestJoin (VSL.Direct, VSL.Unit, p')) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 thetajoinMM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
-thetajoinMM p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoinMM p') (extract v1) (extract v2)
+thetajoinMM p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoin (VSL.Direct, VSL.Direct, p')) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 thetajoinMU :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
-thetajoinMU p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoinMU p') (extract v1) (extract v2)
+thetajoinMU p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoin (VSL.Direct, VSL.Unit, p')) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 thetajoinUM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
-thetajoinUM p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoinUM p') (extract v1) (extract v2)
+thetajoinUM p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoin (VSL.Unit, VSL.Direct, p')) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 groupjoinMM :: L.JoinPredicate L.ScalarExpr -> L.NE AggrFun -> DVec -> DVec -> VSLBuild DVec
-groupjoinMM p as v1 v2 = bindOp $ BinOp (VSL.GroupJoinMM (p', as)) (extract v1) (extract v2)
+groupjoinMM p as v1 v2 = bindOp $ BinOp (VSL.GroupJoin (VSL.Direct, VSL.Direct, p', as)) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 groupjoinMU :: L.JoinPredicate L.ScalarExpr -> L.NE AggrFun -> DVec -> DVec -> VSLBuild DVec
-groupjoinMU p as v1 v2 = bindOp $ BinOp (VSL.GroupJoinMU (p', as)) (extract v1) (extract v2)
+groupjoinMU p as v1 v2 = bindOp $ BinOp (VSL.GroupJoin (VSL.Direct, VSL.Unit, p', as)) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 groupjoinUM :: L.JoinPredicate L.ScalarExpr -> L.NE AggrFun -> DVec -> DVec -> VSLBuild DVec
-groupjoinUM p as v1 v2 = bindOp $ BinOp (VSL.GroupJoinUM (p', as)) (extract v1) (extract v2)
+groupjoinUM p as v1 v2 = bindOp $ BinOp (VSL.GroupJoin (VSL.Unit, VSL.Direct, p', as)) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 antijoinMM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-antijoinMM p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoinMM p') (extract v1) (extract v2)
+antijoinMM p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoin (VSL.Direct, VSL.Direct, p')) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 antijoinMU :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-antijoinMU p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoinMU p') (extract v1) (extract v2)
+antijoinMU p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoin (VSL.Direct, VSL.Unit, p')) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 antijoinUM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-antijoinUM p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoinUM p') (extract v1) (extract v2)
+antijoinUM p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoin (VSL.Unit, VSL.Direct, p')) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 semijoinMM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-semijoinMM p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoinMM p') (extract v1) (extract v2)
+semijoinMM p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoin (VSL.Direct, VSL.Direct, p')) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 semijoinMU :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-semijoinMU p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoinMU p') (extract v1) (extract v2)
+semijoinMU p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoin (VSL.Direct, VSL.Unit, p')) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p
 
 semijoinUM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-semijoinUM p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoinUM p') (extract v1) (extract v2)
+semijoinUM p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoin (VSL.Unit, VSL.Direct, p')) (extract v1) (extract v2)
   where
     p' = toSLJoinPred p

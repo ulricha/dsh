@@ -588,7 +588,7 @@ dist (SShape dv1 l1) (VShape dv2 _) = do
     return $ VShape (dv2 { dvPhysVec = outerVec }) innerLyt
 dist (VShape (DelayedVec IDMap v1) l1) (VShape dv2 _) = do
     outerVec <- C.project [] (dvPhysVec dv2)
-    innerMap <- UnitMap <$> C.repunit (dvPhysVec dv2)
+    innerMap <- UnitMap <$> C.unitmap (dvPhysVec dv2)
     return $ VShape (dv2 { dvPhysVec = outerVec }) (LNest (DelayedVec innerMap v1) l1)
 dist _ _ = error "VSL.Vectorize.dist"
 
@@ -632,7 +632,7 @@ updateLayoutMaps newMap = go
 
 updateSegMap :: SegMap -> SegMap -> VSLBuild SegMap
 updateSegMap (RMap mapUpdate) (RMap oldMap) = RMap <$> C.updatemap mapUpdate oldMap
-updateSegMap (RMap mapUpdate) (UnitMap _)   = UnitMap <$> C.unitmap mapUpdate
+updateSegMap (RMap mapUpdate) (UnitMap _)   = UnitMap <$> C.updateunit mapUpdate
 updateSegMap (RMap mapUpdate) IDMap         = pure $ RMap mapUpdate
 updateSegMap _ _ = error "updateSegMap"
 

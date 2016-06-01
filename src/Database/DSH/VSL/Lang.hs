@@ -55,17 +55,23 @@ data UnOp = Segment
           | WinFun (WinFun, FrameSpec)
 
           -- | Generate a segment map that statically refers to the unit segment
-          | RepUnit
+          | UnitMap
           -- | Update a segment map to statically refer to the unit segment.
           -- Used as the update operation for unit delayed vectors for which we
           -- need only the outermost segment map.
-          | UnitMap
+          | UpdateUnit
           -- From a vector v, generate a *merge map* that maps all segments of
           -- the key domain of v to the segment identifier domain of v.
           | MergeMap
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''UnOp)
+
+data SegmentLookup = Direct
+                   | Unit
+                   deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''SegmentLookup)
 
 data BinOp = ReplicateSeg
            | ReplicateScalar
@@ -78,28 +84,15 @@ data BinOp = ReplicateSeg
            | Zip
            | CartProduct
 
-           | ThetaJoinMM (L.JoinPredicate Expr)
-           | ThetaJoinMU (L.JoinPredicate Expr)
-           | ThetaJoinUM (L.JoinPredicate Expr)
+           | ThetaJoin (SegmentLookup, SegmentLookup, L.JoinPredicate Expr)
 
-           | AntiJoinMM (L.JoinPredicate Expr)
-           | AntiJoinMU (L.JoinPredicate Expr)
-           | AntiJoinUM (L.JoinPredicate Expr)
+           | AntiJoin (SegmentLookup, SegmentLookup, L.JoinPredicate Expr)
 
-           | SemiJoinMM (L.JoinPredicate Expr)
-           | SemiJoinMU (L.JoinPredicate Expr)
-           | SemiJoinUM (L.JoinPredicate Expr)
+           | SemiJoin (SegmentLookup, SegmentLookup, L.JoinPredicate Expr)
 
-           | GroupJoinMM (L.JoinPredicate Expr, L.NE AggrFun)
-           | GroupJoinMU (L.JoinPredicate Expr, L.NE AggrFun)
-           | GroupJoinUM (L.JoinPredicate Expr, L.NE AggrFun)
+           | GroupJoin (SegmentLookup, SegmentLookup, L.JoinPredicate Expr, L.NE AggrFun)
 
-           -- Operators overloaded on the vector representation
-           -- M: materialized
-           -- D: delayed
-           -- U: unit
-           | NestJoinMM (L.JoinPredicate Expr)
-           | NestJoinMU (L.JoinPredicate Expr)
+           | NestJoin (SegmentLookup, SegmentLookup, L.JoinPredicate Expr)
 
            -- Maintenance operations on virtual segments
 
@@ -110,8 +103,6 @@ data BinOp = ReplicateSeg
            -- | Update a segment map by combining it with another segment map
            -- from the left (form the composition of two index space transforms)
            | UpdateMap
-           -- | 
-           | RepMap
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''BinOp)
