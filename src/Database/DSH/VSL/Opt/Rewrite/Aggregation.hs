@@ -5,13 +5,13 @@ module Database.DSH.VSL.Opt.Rewrite.Aggregation
     ) where
 
 import           Control.Monad
-import           Data.List.NonEmpty                   (NonEmpty ((:|)))
+-- import           Data.List.NonEmpty                   (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                   as N
 import           Data.Semigroup
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.Common.Lang
+-- import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Opt
 import           Database.DSH.Common.VectorLang
 import           Database.DSH.VSL.Lang
@@ -23,6 +23,7 @@ aggregationRules = [ inlineAggrSegProject
                    , inlineAggrProject
                    , mergeAggr
                    , flatGrouping
+                   , flatGroupingDefault
                    -- , mergeGroupAggrAggrSeg
                    -- , mergeNonEmptyAggrs
                    -- , mergeGroupAggr
@@ -115,14 +116,14 @@ mergeAggr q =
 -- | Merge a projection into a segmented aggregate operator.
 inlineAggrSegProject :: VSLRule ()
 inlineAggrSegProject q =
-  $(dagPatMatch 'q "AggrSeg afun (Project proj (q))"
+  $(dagPatMatch 'q "AggrSeg afun (Project proj (q1))"
     [| do
         let env = zip [1..] $(v "proj")
         let afun' = mapAggrFun (mergeExpr env) $(v "afun")
 
         return $ do
             logRewrite "Aggregation.Normalize.AggrSeg.Project" q
-            void $ replaceWithNew q $ UnOp (AggrSeg afun') $(v "q") |])
+            void $ replaceWithNew q $ UnOp (AggrSeg afun') $(v "q1") |])
 
 -- | We rewrite a combination of GroupS and aggregation operators into a single
 -- GroupAggr operator.
