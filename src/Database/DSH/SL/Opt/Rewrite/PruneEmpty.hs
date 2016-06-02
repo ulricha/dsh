@@ -2,13 +2,13 @@
 
 module Database.DSH.SL.Opt.Rewrite.PruneEmpty(pruneEmpty) where
 
-import           Control.Monad
+-- import           Control.Monad
 
 import           Database.DSH.Common.Opt
 import           Database.DSH.SL.Opt.Properties.Types
 import           Database.DSH.SL.Opt.Rewrite.Common
 
-import           Database.Algebra.Dag.Common
+-- import           Database.Algebra.Dag.Common
 -- import           Database.DSH.SL.Lang
 
 pruneEmpty :: SLRewrite Bool
@@ -28,12 +28,12 @@ emptyRules = [ -- emptyAppendLeftR1
 -- well, because otherwise inner vectors will be re-keyed and no
 -- longer be aligned with the outer vector.
 
-isEmpty :: AlgNode -> SLMatch BottomUpProps Bool
-isEmpty q = do
-  ps <- liftM emptyProp $ properties q
-  case ps of
-    VProp b -> return b
-    x       -> error $ "PruneEmpty.isEmpty: non-vector input " ++ show x
+-- isEmpty :: AlgNode -> SLMatch BottomUpProps Bool
+-- isEmpty q = do
+--   ps <- liftM emptyProp $ properties q
+--   case ps of
+--     VProp b -> return b
+--     x       -> error $ "PruneEmpty.isEmpty: non-vector input " ++ show x
 
 -- {- If the left input is empty and the other is not, the resulting value vector
 -- is simply the right input. -}

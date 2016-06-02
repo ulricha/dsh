@@ -226,7 +226,7 @@ Library
                      Database.DSH.VSL.Opt.Rewrite.PruneEmpty
                      Database.DSH.VSL.Opt.Rewrite.Redundant
                      Database.DSH.VSL.Opt.Rewrite.Aggregation
-                     Database.DSH.VSL.Opt.Rewrite.Window
+                     -- Database.DSH.VSL.Opt.Rewrite.Window
                      Database.DSH.VSL.Opt.Rewrite.Unused
 
                      Database.DSH.Tests.Common

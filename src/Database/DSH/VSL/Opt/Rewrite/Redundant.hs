@@ -15,7 +15,7 @@ import           Database.DSH.VSL.Opt.Properties.VectorType
 import           Database.DSH.VSL.Opt.Rewrite.Aggregation
 import           Database.DSH.VSL.Opt.Rewrite.Common
 import           Database.DSH.VSL.Opt.Rewrite.Expressions
-import           Database.DSH.VSL.Opt.Rewrite.Window
+-- import           Database.DSH.VSL.Opt.Rewrite.Window
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
 

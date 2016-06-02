@@ -5,19 +5,19 @@ module Database.DSH.VSL.Opt.Rewrite.Window where
 
 -- FIXME window rewrites need to be based on NumberS instead of Number.
 
-import           Control.Monad
+-- import           Control.Monad
 import           Data.List.NonEmpty                        (NonEmpty (..))
 
-import           Database.Algebra.Dag.Common
+-- import           Database.Algebra.Dag.Common
 
 import qualified Database.DSH.Common.Lang                  as L
-import           Database.DSH.Common.Opt
+-- import           Database.DSH.Common.Opt
 import           Database.DSH.Common.VectorLang
-import           Database.DSH.VSL.Lang
-import           Database.DSH.VSL.Opt.Properties.ReqColumns
-import           Database.DSH.VSL.Opt.Properties.Types
-import           Database.DSH.VSL.Opt.Properties.VectorType
-import           Database.DSH.VSL.Opt.Rewrite.Common
+-- import           Database.DSH.VSL.Lang
+-- import           Database.DSH.VSL.Opt.Properties.ReqColumns
+-- import           Database.DSH.VSL.Opt.Properties.Types
+-- import           Database.DSH.VSL.Opt.Properties.VectorType
+-- import           Database.DSH.VSL.Opt.Rewrite.Common
 
 pattern SingleJoinPred e1 op e2 = L.JoinPred ((L.JoinConjunct e1 op e2) :| [])
 pattern DoubleJoinPred e11 op1 e12 e21 op2 e22 = L.JoinPred ((L.JoinConjunct e11 op1 e12)
