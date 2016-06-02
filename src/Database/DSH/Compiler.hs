@@ -77,7 +77,7 @@ compileDelayedQ clOpt = (fst . clOpt) >>>
 -- | The frontend- and backend-independent part of the compiler. Compile a
 -- comprehension expression into optimized vector plans.
 compileOptQ :: CL.Expr -> QueryPlan SL.SL DVec
-compileOptQ = compileQ optimizeComprehensions >>> optimizeSLDefault
+compileOptQ = compileQ optBU >>> optimizeSLDefault
 
 -- | Compile a query and execute it on a given backend connection.
 runQ :: forall a c.
@@ -86,7 +86,7 @@ runQ :: forall a c.
 runQ c (Q q) = do
     let ty = reify (undefined :: Rep a)
     let cl = toComprehensions q
-    let vl = compileQ optimizeComprehensions cl
+    let vl = compileQ optBU cl
     let bp = generatePlan $ optimizeSLDefault vl
     let bc = generateCode bp
     frExp <$> execQueryBundle c bc ty
@@ -101,7 +101,7 @@ debugQ :: forall a c.(Backend c, QA a)
        -> IO ()
 debugQ prefix _ (Q q) = do
     let cl = toComprehensions q
-    let vl = compileQ optimizeComprehensions cl
+    let vl = compileQ optBU cl
     let vlOpt = optimizeSLDefault vl
     exportPlan (prefix ++ "_vl") vl
     exportPlan (prefix ++ "_vl_opt") vlOpt
@@ -113,7 +113,7 @@ vectorPlanQ :: forall a. QA a
             => Q a
             -> QueryPlan SL.SL DVec
 vectorPlanQ (Q q) =
-    optimizeSLDefault $ compileQ optimizeComprehensions $ toComprehensions q
+    optimizeSLDefault $ compileQ optBU $ toComprehensions q
 
 -- | Compile a query to the actual backend code that will be executed
 -- (for benchmarking purposes).
@@ -122,7 +122,7 @@ codeQ :: forall a c.(Backend c, QA a)
       -> Q a
       -> [BackendCode c]
 codeQ _ (Q q) =
-    let vl    = optimizeSLDefault $ compileQ optimizeComprehensions $ toComprehensions q
+    let vl    = optimizeSLDefault $ compileQ optBU $ toComprehensions q
         plan  = generatePlan vl :: BackendPlan c
         shape = generateCode plan :: Shape (BackendCode c)
     in F.foldr (:) [] shape
@@ -151,7 +151,7 @@ showComprehensionsLogQ clOpt (Q q) = do
 -- | Show optimized comprehensions (CL)
 showComprehensionsOptQ :: forall a. QA a => Q a -> IO ()
 showComprehensionsOptQ (Q q) = do
-    let cl = fst $ optimizeComprehensions $ toComprehensions q
+    let cl = fst $ optBU $ toComprehensions q
     putStrLn $ decorate $ pp cl
 
 -- | Show unoptimized desugared iterators (CL)
