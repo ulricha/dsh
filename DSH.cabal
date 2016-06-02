@@ -173,11 +173,13 @@ Library
                      Database.DSH.NKL.Kure
                      Database.DSH.NKL.Rewrite
                      Database.DSH.NKL.Primitives
+
                      Database.DSH.Translate.CL2NKL
                      Database.DSH.Translate.FKL2SL
                      Database.DSH.Translate.NKL2FKL
                      Database.DSH.Translate.FKL2VSL
                      Database.DSH.Translate.SL2Algebra
+                     Database.DSH.Translate.VSL2Algebra
 
                      Database.DSH.SL.Lang
                      Database.DSH.SL.Render.Dot
@@ -189,7 +191,7 @@ Library
                      Database.DSH.VSL.Vectorize
                      Database.DSH.VSL.Dot
                      Database.DSH.VSL.Construct
-                     Database.DSH.VSL.VirtSegAlgebra
+                     Database.DSH.VSL.VirtualSegmentAlgebra
 
                      Database.DSH.SL.Opt.Properties.BottomUp
                      Database.DSH.SL.Opt.Properties.Card
