@@ -55,7 +55,7 @@ class (RelationalVector b, Row (BackendRow b)) => Backend b where
     data BackendRow b
 
     execFlatQuery :: BackendConn b -> b -> IO [BackendRow b]
-    transactionally :: BackendConn b -> (BackendConn c -> IO a) -> IO a
+    transactionally :: BackendConn b -> (BackendConn b -> IO a) -> IO a
 
 -- class (RelationalVector (BackendCode c), Row (BackendRow c)) => Backend c where
 --     data BackendRow c

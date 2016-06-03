@@ -9,6 +9,7 @@ module Database.DSH.Compiler
     , compileOptQ
       -- * Debugging and benchmarking queries
     , codeQ
+    , vectorPlanQ
     , showComprehensionsQ
     , showComprehensionsLogQ
     , showComprehensionsOptQ
@@ -70,17 +71,6 @@ compileOptQ clOpt = compileQ clOpt >>> optimizeVectorPlan
 
 --------------------------------------------------------------------------------
 
--- | Compile a query and execute it on a given backend connection.
--- runQ :: forall a c.
---         (Backend c,QA a)
---      => c -> Q a -> IO a
--- runQ c (Q q) = do
---     let cl = toComprehensions q
---     let vl = compileQ optimizeComprehensions cl
---     let bp = generatePlan $ optimizeSLDefault vl
---     let bc = generateCode bp
---     frExp <$> execQueryBundle c bc (typeOf cl)
-
 runQ :: forall a b v. (VectorLang v, Backend b, QA a)
      => BackendCodeGen v b
      -> BackendConn b
@@ -94,6 +84,12 @@ runQ codeGen conn (Q q) = do
     frExp <$> execQueryBundle conn backendCode ty
 
 --------------------------------------------------------------------------------
+
+-- | Compile a query to a vector plan
+vectorPlanQ :: (VectorLang v, QA a)
+            => Q a
+            -> QueryPlan v DVec
+vectorPlanQ (Q q) = compileOptQ optimizeComprehensions $ toComprehensions q
 
 -- | Compile a query to the actual backend code that will be executed
 -- (for benchmarking purposes).
@@ -228,7 +224,6 @@ showDelayedQ clOpt (Q q) = do
     exportPlan fileName vl
     void $ runCommand $ printf "stack exec vsldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
 
-
 -- | Show unoptimized vector plan (SL)
 showDelayedOptQ :: forall a. QA a => CLOptimizer -> Q a -> IO ()
 showDelayedOptQ clOpt (Q q) = do
@@ -238,3 +233,17 @@ showDelayedOptQ clOpt (Q q) = do
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
     void $ runCommand $ printf "stack exec vsldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+
+-- | Show all backend queries produced for the given query
+showBackendQ :: forall a b v. (VectorLang v, Backend b, QA a, Show b)
+             => BackendCodeGen v b
+             -> Q a
+             -> IO ()
+showBackendQ codeGen q = do
+    putStrLn sepLine
+    forM_ (codeQ codeGen q) $ \code -> do
+         putStrLn $ show code
+         putStrLn sepLine
+
+  where
+    sepLine = replicate 80 '-'
