@@ -74,9 +74,9 @@ posBracket ma = do
 --------------------------------------------------------------------------------
 -- Execute flat queries and construct result values
 
-execQueryBundle :: Backend c
-                => c
-                -> Shape (BackendCode c)
+execQueryBundle :: Backend b
+                => BackendConn b
+                -> Shape b
                 -> F.Type a
                 -> IO (F.Exp a)
 execQueryBundle !conn !shape !ty =
@@ -93,8 +93,9 @@ execQueryBundle !conn !shape !ty =
         _ -> $impossible
 
 -- | Traverse the layout and execute all subqueries for nested vectors
-execNested :: Backend c
-           => c -> ColLayout (BackendCode c)
+execNested :: Backend b
+           => BackendConn b
+           -> ColLayout b
            -> F.Type a
            -> IO (SegLayout a)
 execNested !conn lyt ty =

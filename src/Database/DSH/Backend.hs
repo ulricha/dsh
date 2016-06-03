@@ -9,20 +9,20 @@ module Database.DSH.Backend
       KeyVal(..)
     , CompositeKey(..)
       -- * Backend Functionality Classes
+    , BackendCodeGen
     , Backend(..)
     , Row(..)
     ) where
 
-import           Data.ByteString                 (ByteString)
+import           Data.ByteString            (ByteString)
 import           Data.Hashable
 import           Data.Scientific
-import           Data.Text                       (Text)
-import qualified Data.Time.Calendar              as C
-import           GHC.Generics                    (Generic)
+import           Data.Text                  (Text)
+import qualified Data.Time.Calendar         as C
+import           GHC.Generics               (Generic)
 
-import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Vector
-import           Database.DSH.SL.Lang            (SL)
+import           Database.DSH.Common.QueryPlan
 
 --------------------------------------------------------------------------------
 -- Backend-independent composite keys
@@ -44,28 +44,39 @@ instance Hashable CompositeKey where
 
 --------------------------------------------------------------------------------
 
--- | An abstract backend for which we can generate code and on which
--- flat queries can be executed.
-class (RelationalVector (BackendCode c), Row (BackendRow c)) => Backend c where
-    data BackendRow c
-    data BackendCode c
-    data BackendPlan c
+-- | Generate backend code from vector plans.
+type BackendCodeGen v b = QueryPlan v DVec -> Shape b
 
-    -- | Execute a flat query on the backend.
-    execFlatQuery :: c -> BackendCode c -> IO [BackendRow c]
+--------------------------------------------------------------------------------
 
-    -- | Implement vector operations using the backend-specific
-    -- algebra.
-    generatePlan  :: QueryPlan SL DVec -> BackendPlan c
+-- | A backend that can execute backend code of type 'b'.
+class (RelationalVector b, Row (BackendRow b)) => Backend b where
+    data BackendConn b
+    data BackendRow b
 
-    -- | Optimize the algebra plan and generate serialized backend
-    -- code
-    generateCode  :: BackendPlan c -> Shape (BackendCode c)
+    execFlatQuery :: BackendConn b -> b -> IO [BackendRow b]
+    transactionally :: BackendConn b -> (BackendConn c -> IO a) -> IO a
 
-    -- | Dump versions of the plan in JSON form to the specified file.
-    dumpPlan :: String -> Bool -> BackendPlan c -> IO FilePath
+-- class (RelationalVector (BackendCode c), Row (BackendRow c)) => Backend c where
+--     data BackendRow c
+--     data BackendCode c
+--     data BackendPlan c
 
-    transactionally :: c -> (c -> IO a) -> IO a
+--     -- | Execute a flat query on the backend.
+--     execFlatQuery :: c -> BackendCode c -> IO [BackendRow c]
+
+--     -- | Implement vector operations using the backend-specific
+--     -- algebra.
+--     generatePlan  :: QueryPlan SL DVec -> BackendPlan c
+
+--     -- | Optimize the algebra plan and generate serialized backend
+--     -- code
+--     generateCode  :: BackendPlan c -> Shape (BackendCode c)
+
+--     -- | Dump versions of the plan in JSON form to the specified file.
+--     dumpPlan :: String -> Bool -> BackendPlan c -> IO FilePath
+
+--     transactionally :: c -> (c -> IO a) -> IO a
 
 --------------------------------------------------------------------------------
 

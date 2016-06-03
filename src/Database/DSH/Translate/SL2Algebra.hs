@@ -22,7 +22,6 @@ import           Database.DSH.Common.QueryPlan
 import qualified Database.DSH.Common.Vector as V
 import qualified Database.DSH.SL.Lang           as SL
 import           Database.DSH.SL.SegmentAlgebra
-import           Database.DSH.Translate.FKL2SL  ()
 
 -- FIXME the vector types d r k f s are determined by the algebra a.
 -- The only type variable necessary should be a.

@@ -13,19 +13,21 @@ import           System.Environment
 import           Test.Tasty
 
 import           Database.DSH.Backend
+import           Database.DSH.Compiler
 import           Database.DSH.Tests.CombinatorTests
 import           Database.DSH.Tests.ComprehensionTests
 import           Database.DSH.Tests.LawTests
+import           Database.DSH.Tests.Common
 
 -- | Convenience function for running tests
 runTests :: [String] -> TestTree -> IO ()
 runTests args tests = withArgs args (defaultMain tests)
 
 -- | All available tests in one package.
-defaultTests :: forall c.Backend c => c -> TestTree
-defaultTests conn = testGroup "default_tests" $ map ($ conn) testGroups
+defaultTests :: forall v b.(Backend b, VectorLang v) => DSHTestTree v b
+defaultTests codeGen conn = testGroup "default_tests" $ map (\g -> g codeGen conn) testGroups
   where
-    testGroups :: [c -> TestTree]
+    testGroups :: [DSHTestTree v b]
     testGroups =
         [ typeTests
         , tupleTests

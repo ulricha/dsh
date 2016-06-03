@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 -- | Constructor functions for Segment Language primitives
-module Database.DSH.SL.Primitives where
+module Database.DSH.SL.Construct where
 
 import qualified Data.List.NonEmpty             as N
 
