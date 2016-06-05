@@ -58,7 +58,7 @@ type DSHTestTree v b = BackendCodeGen v b -> BackendConn b -> TestTree
 -- | A simple property that should hold for a DSH query: Given any
 -- input, its result should be the same as the corresponding native
 -- Haskell code. 'The same' is defined by a predicate.
-makeProp :: (Q.QA a, Q.QA c, Show a, Show c, Backend b, VectorLang v)
+makeProp :: (Q.QA a, Q.QA c, Show a, Show c, BackendVector b, VectorLang v)
          => (c -> c -> Bool)
          -> (Q.Q a -> Q.Q c)
          -> (a -> c)
@@ -70,7 +70,7 @@ makeProp eq f1 f2 arg codeGen conn = monadicIO $ do
     assert $ db `eq` hs
 
 -- | Compare query result and native result by equality.
-makePropEq :: (Eq c, Q.QA a, Q.QA c, Show a, Show c, Backend b, VectorLang v)
+makePropEq :: (Eq c, Q.QA a, Q.QA c, Show a, Show c, BackendVector b, VectorLang v)
            => (Q.Q a -> Q.Q c)
            -> (a -> c)
            -> a
@@ -78,14 +78,14 @@ makePropEq :: (Eq c, Q.QA a, Q.QA c, Show a, Show c, Backend b, VectorLang v)
 makePropEq = makeProp (==)
 
 -- | Compare the double query result and native result.
-makePropDouble :: (Q.QA a, Show a, Backend b, VectorLang v)
+makePropDouble :: (Q.QA a, Show a, BackendVector b, VectorLang v)
                => (Q.Q a -> Q.Q Double)
                -> (a -> Double)
                -> a
                -> DSHProperty v b
 makePropDouble = makeProp close
 
-makePropDoubles :: (Q.QA a, Show a, Backend b, VectorLang v)
+makePropDoubles :: (Q.QA a, Show a, BackendVector b, VectorLang v)
                 => (Q.Q a -> Q.Q [Double])
                 -> (a -> [Double])
                 -> a
@@ -95,7 +95,7 @@ makePropDoubles = makeProp deltaList
     deltaList as bs = and $ zipWith close as bs
 
 -- | Equality HUnit assertion
-makeEqAssertion :: (Show a, Eq a, Q.QA a, Backend b, VectorLang v)
+makeEqAssertion :: (Show a, Eq a, Q.QA a, BackendVector b, VectorLang v)
                 => String
                 -> Q.Q a
                 -> a
@@ -104,7 +104,7 @@ makeEqAssertion msg q expRes codeGen conn = do
     actualRes <- runQ codeGen conn q
     assertEqual msg expRes actualRes
 
-testPropertyConn :: (Show a, Arbitrary a, Backend b, VectorLang v)
+testPropertyConn :: (Show a, Arbitrary a, BackendVector b, VectorLang v)
                  => BackendCodeGen v b
                  -> BackendConn b
                  -> TestName

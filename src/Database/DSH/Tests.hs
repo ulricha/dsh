@@ -24,7 +24,7 @@ runTests :: [String] -> TestTree -> IO ()
 runTests args tests = withArgs args (defaultMain tests)
 
 -- | All available tests in one package.
-defaultTests :: forall v b.(Backend b, VectorLang v) => DSHTestTree v b
+defaultTests :: forall v b.(BackendVector b, VectorLang v) => DSHTestTree v b
 defaultTests codeGen conn = testGroup "default_tests" $ map (\g -> g codeGen conn) testGroups
   where
     testGroups :: [DSHTestTree v b]

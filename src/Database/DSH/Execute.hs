@@ -74,7 +74,7 @@ posBracket ma = do
 --------------------------------------------------------------------------------
 -- Execute flat queries and construct result values
 
-execQueryBundle :: Backend b
+execQueryBundle :: BackendVector b
                 => BackendConn b
                 -> Shape b
                 -> F.Type a
@@ -84,16 +84,16 @@ execQueryBundle !conn !shape !ty =
     case (shape, ty) of
         (VShape q lyt, F.ListT ety) -> do
             slyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ety
-            tab  <- execFlatQuery conn' q
+            tab  <- execVector conn' q
             return $! F.ListE (foldl' (vecIter (rvKeyCols q) slyt) S.empty tab)
         (SShape q lyt, _) -> do
             tlyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ty
-            tab  <- execFlatQuery conn' q
+            tab  <- execVector conn' q
             return $! fromPrim tab (rvKeyCols q) tlyt
         _ -> $impossible
 
 -- | Traverse the layout and execute all subqueries for nested vectors
-execNested :: Backend b
+execNested :: BackendVector b
            => BackendConn b
            -> ColLayout b
            -> F.Type a
@@ -103,7 +103,7 @@ execNested !conn lyt ty =
         (CCol i, t)                   -> return $ SCol t i
         (CNest q clyt, F.ListT t)     -> do
             clyt' <- execNested conn clyt t
-            tab   <- execFlatQuery conn q
+            tab   <- execVector conn q
             return (SNest ty (mkSegMap (rvKeyCols q) (rvRefCols q) tab clyt'))
         (CTuple lyts, F.TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
                                          in execTuple lyts tupTy

@@ -71,7 +71,7 @@ compileOptQ clOpt = compileQ clOpt >>> optimizeVectorPlan
 
 --------------------------------------------------------------------------------
 
-runQ :: forall a b v. (VectorLang v, Backend b, QA a)
+runQ :: forall a b v. (VectorLang v, BackendVector b, QA a)
      => BackendCodeGen v b
      -> BackendConn b
      -> Q a
@@ -93,7 +93,7 @@ vectorPlanQ (Q q) = compileOptQ optimizeComprehensions $ toComprehensions q
 
 -- | Compile a query to the actual backend code that will be executed
 -- (for benchmarking purposes).
-codeQ :: (VectorLang v, Backend b, QA a)
+codeQ :: (VectorLang v, BackendVector b, QA a)
       => BackendCodeGen v b
       -> Q a
       -> [b]
@@ -235,11 +235,11 @@ showDelayedOptQ clOpt (Q q) = do
     void $ runCommand $ printf "stack exec vsldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
 
 -- | Show all backend queries produced for the given query
-showBackendQ :: forall a b v. (VectorLang v, Backend b, QA a, Show b)
-             => BackendCodeGen v b
-             -> Q a
-             -> IO ()
-showBackendQ codeGen q = do
+showBackendCodeQ :: forall a b v. (VectorLang v, BackendVector b, QA a, Show b)
+                 => BackendCodeGen v b
+                 -> Q a
+                 -> IO ()
+showBackendCodeQ codeGen q = do
     putStrLn sepLine
     forM_ (codeQ codeGen q) $ \code -> do
          putStrLn $ show code

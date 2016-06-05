@@ -10,19 +10,19 @@ module Database.DSH.Backend
     , CompositeKey(..)
       -- * Backend Functionality Classes
     , BackendCodeGen
-    , Backend(..)
+    , BackendVector(..)
     , Row(..)
     ) where
 
-import           Data.ByteString            (ByteString)
+import           Data.ByteString               (ByteString)
 import           Data.Hashable
 import           Data.Scientific
-import           Data.Text                  (Text)
-import qualified Data.Time.Calendar         as C
-import           GHC.Generics               (Generic)
+import           Data.Text                     (Text)
+import qualified Data.Time.Calendar            as C
+import           GHC.Generics                  (Generic)
 
-import           Database.DSH.Common.Vector
 import           Database.DSH.Common.QueryPlan
+import           Database.DSH.Common.Vector
 
 --------------------------------------------------------------------------------
 -- Backend-independent composite keys
@@ -49,13 +49,13 @@ type BackendCodeGen v b = QueryPlan v DVec -> Shape b
 
 --------------------------------------------------------------------------------
 
--- | A backend that can execute backend code of type 'b'.
-class (RelationalVector b, Row (BackendRow b)) => Backend b where
-    data BackendConn b
-    data BackendRow b
+-- | A backend vector can be executed on a flat backend.
+class (RelationalVector v, Row (BackendRow v)) => BackendVector v where
+    data BackendConn v
+    data BackendRow v
 
-    execFlatQuery :: BackendConn b -> b -> IO [BackendRow b]
-    transactionally :: BackendConn b -> (BackendConn b -> IO a) -> IO a
+    execVector :: BackendConn v -> v -> IO [BackendRow v]
+    transactionally :: BackendConn v -> (BackendConn v -> IO a) -> IO a
 
 -- class (RelationalVector (BackendCode c), Row (BackendRow c)) => Backend c where
 --     data BackendRow c
