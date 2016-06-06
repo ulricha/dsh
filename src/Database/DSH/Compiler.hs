@@ -88,18 +88,20 @@ runQ codeGen conn (Q q) = do
 
 -- | Compile a query to a vector plan
 vectorPlanQ :: (VectorLang v, QA a)
-            => Q a
+            => CLOptimizer
+            -> Q a
             -> QueryPlan v DVec
-vectorPlanQ (Q q) = compileOptQ optimizeComprehensions $ toComprehensions q
+vectorPlanQ clOpt (Q q) = compileOptQ clOpt $ toComprehensions q
 
 -- | Compile a query to the actual backend code that will be executed
 -- (for benchmarking purposes).
 codeQ :: (VectorLang v, BackendVector b, QA a)
-      => BackendCodeGen v b
+      => CLOptimizer
+      -> BackendCodeGen v b
       -> Q a
       -> [b]
-codeQ codeGen (Q q) =
-    let vectorPlan = compileOptQ optimizeComprehensions $ toComprehensions q
+codeQ clOpt codeGen (Q q) =
+    let vectorPlan = compileOptQ clOpt $ toComprehensions q
         backendCode = codeGen vectorPlan
     in F.foldr (:) [] backendCode
 
@@ -237,12 +239,13 @@ showDelayedOptQ clOpt (Q q) = do
 
 -- | Show all backend queries produced for the given query
 showBackendCodeQ :: forall a b v. (VectorLang v, BackendVector b, QA a, Show b)
-                 => BackendCodeGen v b
+                 => CLOptimizer
+                 -> BackendCodeGen v b
                  -> Q a
                  -> IO ()
-showBackendCodeQ codeGen q = do
+showBackendCodeQ clOpt codeGen q = do
     putStrLn sepLine
-    forM_ (codeQ codeGen q) $ \code -> do
+    forM_ (codeQ clOpt codeGen q) $ \code -> do
          putStrLn $ show code
          putStrLn sepLine
 
