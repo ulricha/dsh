@@ -318,7 +318,7 @@ group dv (LTuple [xl, gl]) = do
     (vo, vi, r) <- C.group groupExprs (dvPhysVec dv)
     vi'         <- C.project (map Column [1..leftWidth]) vi
     xl'         <- updateLayoutMaps (RMap r) xl
-    return (dv { dvPhysVec = vo }, LNest (DelayedVec IDMap vi') xl')
+    return (dv { dvPhysVec = vo }, LTuple [gl, LNest (DelayedVec IDMap vi') xl'])
 
 --------------------------------------------------------------------------------
 -- Filtering
