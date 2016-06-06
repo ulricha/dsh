@@ -7,22 +7,20 @@ module Database.DSH.Translate.VSL2Algebra
     , vl2Algebra
     ) where
 
-import qualified Data.IntMap                    as IM
+import qualified Data.IntMap                            as IM
 import           Data.List
-import qualified Data.Traversable               as T
+import qualified Data.Traversable                       as T
 
 import           Control.Monad.State
 
-import qualified Database.Algebra.Dag           as D
-import qualified Database.Algebra.Dag.Build     as B
+import qualified Database.Algebra.Dag.Build             as B
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.QueryPlan
-import qualified Database.DSH.Common.Vector as V
-import qualified Database.DSH.VSL.Lang           as VSL
+import qualified Database.DSH.Common.Vector             as V
+import qualified Database.DSH.VSL.Lang                  as VSL
 import           Database.DSH.VSL.VirtualSegmentAlgebra
-import           Database.DSH.Translate.FKL2VSL  ()
 
 -- FIXME the vector types d r are determined by the algebra a.
 -- The only type variable necessary should be a.
@@ -34,8 +32,8 @@ type VecBuild a d r = StateT (Cache d r) (B.Build a)
 
 runVecBuild :: VirtualSegmentAlgebra a
             => VecBuild a (VSLDVec a) (VSLRVec a) r
-            -> (D.AlgebraDag a, r, NodeMap [Tag])
-runVecBuild c = B.runBuild $ fst <$> runStateT c IM.empty
+            -> B.Build a r
+runVecBuild c = evalStateT c IM.empty
 
 data Res d r
     = RRVec r
@@ -122,10 +120,9 @@ pp m = intercalate ",\n" $ map show $ IM.toList m
 vl2Algebra :: VirtualSegmentAlgebra a
            => NodeMap VSL.VSL
            -> Shape V.DVec
-           -> VecBuild a (VSLDVec a) (VSLRVec a) (Shape (VSLDVec a))
-vl2Algebra vlNodes plan = do
+           -> B.Build a (Shape (VSLDVec a))
+vl2Algebra vlNodes plan = runVecBuild $ do
     mapM_ (translate vlNodes) roots
-
     refreshShape plan
   where
     roots :: [AlgNode]

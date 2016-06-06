@@ -119,6 +119,7 @@ Library
                      Database.DSH.Tests
                      Database.DSH.CL.Parser
                      Database.DSH.SL
+                     Database.DSH.VSL
                      Database.DSH.CL
                      Database.DSH.Common.QueryPlan
                      Database.DSH.Common.Opt
@@ -134,7 +135,6 @@ Library
                      Database.DSH.Frontend.TH
                      Database.DSH.Frontend.TupleTypes
                      Database.DSH.Frontend.Builtins
-                     Database.DSH.Translate.Frontend2CL
                      Database.DSH.Execute.TH
                      Database.DSH.Execute
 
@@ -174,24 +174,26 @@ Library
                      Database.DSH.NKL.Rewrite
                      Database.DSH.NKL.Primitives
 
+                     Database.DSH.Translate.Frontend2CL
                      Database.DSH.Translate.CL2NKL
-                     Database.DSH.Translate.FKL2SL
                      Database.DSH.Translate.NKL2FKL
-                     Database.DSH.Translate.FKL2VSL
                      Database.DSH.Translate.SL2Algebra
                      Database.DSH.Translate.VSL2Algebra
+                     Database.DSH.Translate.Vectorize
 
                      Database.DSH.SL.Lang
                      Database.DSH.SL.Render.Dot
                      Database.DSH.SL.SegmentAlgebra
+                     Database.DSH.SL.Builtins
+                     Database.DSH.SL.Construct
                      Database.DSH.SL.Vectorize
-                     Database.DSH.SL.Primitives
 
                      Database.DSH.VSL.Lang
-                     Database.DSH.VSL.Vectorize
+                     Database.DSH.VSL.Builtins
                      Database.DSH.VSL.Dot
                      Database.DSH.VSL.Construct
                      Database.DSH.VSL.VirtualSegmentAlgebra
+                     Database.DSH.VSL.Vectorize
 
                      Database.DSH.SL.Opt.Properties.BottomUp
                      Database.DSH.SL.Opt.Properties.Card

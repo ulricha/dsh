@@ -98,13 +98,6 @@ class VirtualSegmentAlgebra a where
     -- of the right input vector.
     vecReplicateScalar :: VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
 
-    -- | For each element of the right input vector create a corresponding segment
-    -- with a copy of the left input vector.
-    vecReplicateVector :: VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
-
-    -- | Apply a sorting vector to a data vector
-    vecAppSort   :: VSLRVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
-
     -- | Unbox singleton segments from an inner vector.
     vecUnboxSng :: VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
 
