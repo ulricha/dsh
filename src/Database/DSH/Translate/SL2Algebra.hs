@@ -13,7 +13,6 @@ import qualified Data.Traversable               as T
 
 import           Control.Monad.State
 
-import qualified Database.Algebra.Dag           as D
 import qualified Database.Algebra.Dag.Build     as B
 import           Database.Algebra.Dag.Common
 
@@ -33,8 +32,8 @@ type VecBuild a d r k f s = StateT (Cache d r k f s) (B.Build a)
 
 runVecBuild :: SegmentAlgebra a
             => VecBuild a (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a) r
-            -> (D.AlgebraDag a, r, NodeMap [Tag])
-runVecBuild c = B.runBuild $ fst <$> runStateT c IM.empty
+            -> B.Build a r
+runVecBuild c = evalStateT c IM.empty
 
 data Res d r k f s
     = RRVec r
@@ -142,13 +141,9 @@ getSL n vlNodes = case IM.lookup n vlNodes of
 pp :: NodeMap SL.SL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
-vl2Algebra :: SegmentAlgebra a
-           => NodeMap SL.SL
-           -> Shape V.DVec
-           -> VecBuild a (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a) (Shape (SLDVec a))
-vl2Algebra vlNodes plan = do
+vl2Algebra :: SegmentAlgebra a => NodeMap SL.SL -> Shape V.DVec -> B.Build a (Shape (SLDVec a))
+vl2Algebra vlNodes plan = runVecBuild $ do
     mapM_ (translate vlNodes) roots
-
     refreshShape plan
   where
     roots :: [AlgNode]
