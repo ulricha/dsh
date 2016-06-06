@@ -2,6 +2,7 @@
 -- (CL).
 module Database.DSH.CL.Opt
   ( optBU
+  , optimizeComprehensions
   , optTD
   , optFlat
   , optResugar
@@ -143,6 +144,9 @@ mkOptimizer opt expr =
 -- a CL query. Nestjoins are introduced bottom-up.
 optBU :: CLOptimizer
 optBU = mkOptimizer $ optPipelineR mainOptBU
+
+optimizeComprehensions :: CLOptimizer
+optimizeComprehensions = optBU
 
 -- | Apply the default set of unnesting and decorrelation rewrites to
 -- a CL query. Nestjoins are introduced top-down.
