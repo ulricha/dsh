@@ -130,12 +130,12 @@ sngL (VShape (DelayedVec m v) l) = do
 -- Aggregation
 
 aggr :: (Expr -> AggrFun) -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-aggr afun (VShape (MatVec v) LCol) = do
+aggr afun (VShape (MatVec v) _) = do
     va <- C.aggr (afun (Column 1)) v
     return $ SShape (MatVec va) LCol
 
 aggrL :: (Expr -> AggrFun) -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-aggrL afun (VShape dvo (LNest dvi LCol)) = do
+aggrL afun (VShape dvo (LNest dvi _)) = do
     let a = afun (Column 1)
     -- Aggregate the physical segments without considering the segment map.
     va      <- C.aggrseg a (dvPhysVec dvi)
