@@ -74,7 +74,6 @@ Flag debuggraph
   Default:     False
 
 Library
-  Extensions:        CPP
   Build-depends:     base                         >= 4.8 && < 5,
                      random                       >= 1.1,
                      process                      >= 1.2,
@@ -104,9 +103,6 @@ Library
                      algebra-dag                  >= 0.1.1
 
   Hs-source-dirs:    src
-
-  if flag(debugcomp)
-    CPP-Options:     -DDEBUGCOMP
 
   if flag(debuggraph)
     CPP-Options:     -DDEBUGGRAPH
