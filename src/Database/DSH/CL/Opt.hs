@@ -9,7 +9,6 @@ module Database.DSH.CL.Opt
 
 import           Control.Arrow
 
-import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Pretty
 
 import           Database.DSH.CL.Kure
@@ -82,11 +81,11 @@ descendR :: RewriteC CL
 descendR = readerT $ \cl -> case cl of
 
     ExprCL Comp{} ->
-        repeatR (compNormEarlyR
-                 <+ predpushdownR
-                 <+ flatjoinsR
-                 <+ anyR descendR
-                ) >>> debugShow "after comp"
+        repeatR ( compNormEarlyR
+                  <+ predpushdownR
+                  <+ flatjoinsR
+                  <+ anyR descendR
+                )
 
     -- On non-comprehensions, try to apply partial evaluation rules
     -- before descending

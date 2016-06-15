@@ -85,20 +85,3 @@ data TerOp = Combine  -- (DBV, RenameVector, RenameVector)
 $(deriveJSON defaultOptions ''TerOp)
 
 type SL = Algebra TerOp BinOp UnOp NullOp AlgNode
-
-checkRep :: Eq a => a -> a -> a -> a
-checkRep orig new x = if x == orig then new else x
-
-instance Operator SL where
-    opChildren (TerOp _ c1 c2 c3) = [c1, c2, c3]
-    opChildren (BinOp _ c1 c2) = [c1, c2]
-    opChildren (UnOp _ c) = [c]
-    opChildren (NullaryOp _) = []
-
-    replaceOpChild oper old new = replaceChild old new oper
-      where
-        replaceChild :: forall t b u n c. Eq c => c -> c -> Algebra t b u n c -> Algebra t b u n c
-        replaceChild o n (TerOp op c1 c2 c3) = TerOp op (checkRep o n c1) (checkRep o n c2) (checkRep o n c3)
-        replaceChild o n (BinOp op c1 c2) = BinOp op (checkRep o n c1) (checkRep o n c2)
-        replaceChild o n (UnOp op c) = UnOp op (checkRep o n c)
-        replaceChild _ _ (NullaryOp op) = NullaryOp op
