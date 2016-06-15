@@ -161,10 +161,6 @@ mkUniversalRangeAntiJoinT (x, xs) (y, ys) ps q = do
 
     let xy = sort [x, y]
 
-    debugMsg $ show psFVs
-    debugMsg $ show qFVs
-    debugMsg $ show xy
-
     case (psFVs, qFVs) of
         -- Class 12: p(y), q(x, y)
         ([y'], qsvs@[_, _]) | y == y' && qsvs == xy -> do

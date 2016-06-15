@@ -1,29 +1,23 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell  #-}
-{-# LANGUAGE BangPatterns     #-}
 
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
 
-#ifdef DEBUGCOMP
-import           Debug.Trace
-import           Database.DSH.Common.Pretty
-#endif
-
-import           Data.List.NonEmpty          (NonEmpty(..))
-import qualified Data.List.NonEmpty          as N
-import qualified Data.Foldable               as F
 import           Control.Monad.Reader
+import qualified Data.Foldable                  as F
+import           Data.List.NonEmpty             (NonEmpty (..))
+import qualified Data.List.NonEmpty             as N
 
 import           Database.DSH.Common.Impossible
 
-import           Database.DSH.Common.Type
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Type
 
-import           Database.DSH.CL.Lang        (toList)
-import qualified Database.DSH.CL.Lang        as CL
-import qualified Database.DSH.NKL.Primitives as P
-import qualified Database.DSH.NKL.Lang       as NKL
+import           Database.DSH.CL.Lang           (toList)
+import qualified Database.DSH.CL.Lang           as CL
+import qualified Database.DSH.NKL.Lang          as NKL
+import qualified Database.DSH.NKL.Primitives    as P
 import           Database.DSH.NKL.Rewrite
 
 --------------------------------------------------------------------------------
