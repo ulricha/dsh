@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Database.DSH.VSL.Opt.OptimizeVSL where
 
 import qualified Data.IntMap                                                      as M
