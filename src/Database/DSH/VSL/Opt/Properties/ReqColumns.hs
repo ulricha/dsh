@@ -152,7 +152,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
         Number    -> do
             VTDataVec w <- fromProp $ vectorTypeProp childBUProps
             (Just cols)   <- fromProp ownReqColumns
-            let cols'     = filter (/= w) cols
+            let cols'     = filter (/= (w+1)) cols
             VProp (Just cols') ∪ childReqColumns
 
         Reverse   -> do
