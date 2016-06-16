@@ -47,6 +47,7 @@ redundantRules = [ pullProjectAppKey
                  , pushAggrSegReplicateScalar
                  , pushUnboxSngAlign
                  , pushUnboxSngReplicateScalar
+                 , pullNumberReplicateNest
                  ]
 
 
@@ -103,6 +104,8 @@ redundantRulesBottomUp = [ sameInputAlign
                          , pullProjectReplicateScalarRight
                          , selectCartProd
                          , pushUnboxSngThetaJoinRight
+                         , pullNumberAlignLeft
+                         , pullNumberAlignRight
                          ]
 
 redundantRulesAllProps :: SLRuleSet Properties
@@ -1369,3 +1372,43 @@ pushUnboxSngReplicateScalar q =
            r1Node    <- insert $ UnOp R1 unboxNode
            distNode  <- insert $ BinOp ReplicateScalar $(v "q1") r1Node
            void $ replaceWithNew q $ UnOp R1 distNode |])
+
+--------------------------------------------------------------------------------
+
+pullNumberReplicateNest :: SLRule ()
+pullNumberReplicateNest q =
+  $(dagPatMatch 'q "R1 ((q1) ReplicateNest (Number (q2)))"
+    [| return $ do
+          logRewrite "Redundant.ReplicateNest.Number" q
+          repNode <- insert $ BinOp ReplicateNest $(v "q1") $(v "q2")
+          r1Node  <- insert $ UnOp R1 repNode
+          void $ replaceWithNew q $ UnOp Number r1Node
+     |])
+
+pullNumberAlignLeft :: SLRule BottomUpProps
+pullNumberAlignLeft q =
+  $(dagPatMatch 'q "(Number (q1)) Align (q2)"
+     [| do
+          w1 <- vectorWidth . vectorTypeProp <$> properties $(v "q1")
+          w2 <- vectorWidth . vectorTypeProp <$> properties $(v "q2")
+          return $ do
+            logRewrite "Redundant.Align.Number.Left" q
+            -- Project the number output between left and right columns to
+            -- preserve the schema.
+            let proj = map Column ([1..w1] ++ [w1 + w2 + 1] ++ [w1+1..w1+w2])
+            alignNode  <- insert $ BinOp Align $(v "q1") $(v "q2")
+            numberNode <- insert $ UnOp Number alignNode
+            void $ replaceWithNew q $ UnOp (Project proj) numberNode
+      |]
+   )
+
+pullNumberAlignRight :: SLRule BottomUpProps
+pullNumberAlignRight q =
+  $(dagPatMatch 'q "(q1) Align (Number (q2))"
+     [| do
+          return $ do
+            logRewrite "Redundant.Align.Number.Right" q
+            alignNode  <- insert $ BinOp Align $(v "q1") $(v "q2")
+            void $ replaceWithNew q $ UnOp Number alignNode
+      |]
+   )

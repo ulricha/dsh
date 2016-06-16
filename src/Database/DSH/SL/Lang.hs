@@ -11,8 +11,6 @@ module Database.DSH.SL.Lang where
 import           Data.Aeson.TH
 import qualified Data.List.NonEmpty             as N
 
-import           Database.Algebra.Dag           (Operator, opChildren,
-                                                 replaceOpChild)
 import           Database.Algebra.Dag.Common
 
 import qualified Database.DSH.Common.Lang       as L

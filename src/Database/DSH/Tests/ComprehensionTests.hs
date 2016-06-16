@@ -12,7 +12,6 @@ module Database.DSH.Tests.ComprehensionTests
 import           Data.List
 import           GHC.Exts
 
-import           Test.HUnit                           (Assertion)
 import           Test.QuickCheck
 import           Test.Tasty
 import qualified Test.Tasty.HUnit                     as TH
