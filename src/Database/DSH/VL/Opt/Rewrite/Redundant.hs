@@ -1435,7 +1435,6 @@ pullNumberAlignLeft q =
             -- Project the number output between left and right columns to
             -- preserve the schema.
             let proj = map Column ([1..w1] ++ [w1 + w2 + 1] ++ [w1+1..w1+w2])
-            trace (show proj) $ return ()
             alignNode  <- insert $ BinOp Align $(v "q1") $(v "q2")
             numberNode <- insert $ UnOp Number alignNode
             void $ replaceWithNew q $ UnOp (Project proj) numberNode
