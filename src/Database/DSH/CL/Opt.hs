@@ -1,9 +1,11 @@
 -- | This module performs optimizations on the Comprehension Language
 -- (CL).
 module Database.DSH.CL.Opt
-  ( optimizeComprehensions
-  , resugarComprehensions
-  , normalizeComprehensions
+  ( optBU
+  , optimizeComprehensions
+  , optTD
+  , optFlat
+  , optResugar
   , CLOptimizer
   ) where
 
@@ -34,7 +36,7 @@ import           Database.DSH.CL.Opt.Resugar
 
 -- | Comprehension normalization rules 1 to 3.
 compNormEarlyR :: RewriteC CL
-compNormEarlyR = m_norm_1R
+compNormEarlyR =    m_norm_1R
                  <+ m_norm_2R
                  <+ m_norm_3R
                  -- Does not lead to good code. See lablog entry (24.11.2014)
@@ -42,16 +44,21 @@ compNormEarlyR = m_norm_1R
                  <+ ifgeneratorR
                  <+ identityCompR
 
--- | Nestjoin/Nestproduct rewrites are applied bottom-up. Innermost
--- nesting opportunities must be dealt with first in order to produce
--- trees of nesting operators.
-buUnnestR :: RewriteC CL
-buUnnestR =
+-- | Nestjoin rewrites are applied bottom-up. Innermost nesting opportunities
+-- must be dealt with first in order to produce trees of nesting operators.
+decorrelateNestingR :: RewriteC CL
+decorrelateNestingR =
     zipCorrelatedR
     <+ repeatR (nestjoinR >+> groupjoinR >+> anytdR optimizeGroupJoinR)
     -- If the inverse M-Norm-3 succeeds, try to unnest the new
     -- generator
     <+ (nestingGenR >>> pathR [CompQuals, QualsSingleton, BindQualExpr] nestjoinR)
+
+--------------------------------------------------------------------------------
+-- Post-processing of queries.
+--
+-- This rule group consists of cleanup rewrites that are applied once at the end
+-- of rewriting.
 
 -- | Normalize unnested comprehensions. To avoid nested iterators
 -- after desugaring whenever possible, consecutive generators that do
@@ -61,7 +68,7 @@ postProcessCompR :: RewriteC CL
 postProcessCompR = do
     ExprCL Comp{} <- idR
     guardpushbackR
-        >+> repeatR introduceCartProductsR
+        -- >+> repeatR introduceCartProductsR
         >+> repeatR predpushdownR
 
 postProcessOnceR :: RewriteC CL
@@ -74,10 +81,10 @@ postProcessR :: RewriteC CL
 postProcessR = repeatR postProcessLoopR >+> postProcessOnceR >+> postProcessLoopR
 
 --------------------------------------------------------------------------------
--- Rewrite Strategy
 
--- | Perform a top-down traversal of a query expression, looking for
--- rewrite opportunities on comprehensions and other expressions.
+-- | Perform a top-down traversal of a query expression, looking for rewrite
+-- opportunities on comprehensions and other expressions: comprehension
+-- unnesting, flat join introduction, partial evaluation.
 descendR :: RewriteC CL
 descendR = readerT $ \cl -> case cl of
 
@@ -99,17 +106,24 @@ descendR = readerT $ \cl -> case cl of
     -- We are looking only for expressions. On non-expressions, simply descend.
     _             -> anyR descendR
 
-applyOptimizationsR :: RewriteC CL
-applyOptimizationsR = repeatR descendR >+> anytdR loopInvariantR >+> anybuR floatBindingsR >+> anybuR buUnnestR
+--------------------------------------------------------------------------------
+-- Rewrite Strategies
 
-normalizeFlatR :: RewriteC CL
-normalizeFlatR = normalizeOnceR >+> repeatR (repeatR descendR >+> anytdR loopInvariantR)
+mainOptTD :: RewriteC CL
+mainOptTD = repeatR descendR >+> anytdR loopInvariantR >+> anybuR floatBindingsR >+> onetdR decorrelateNestingR
+
+mainOptBU :: RewriteC CL
+mainOptBU = repeatR descendR >+> anytdR loopInvariantR >+> anybuR floatBindingsR >+> anybuR decorrelateNestingR
+
+mainOptFlatR :: RewriteC CL
+mainOptFlatR = repeatR descendR >+> anytdR loopInvariantR >+> anybuR floatBindingsR
 
 -- | The complete optimization pipeline
-optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+> repeatR applyOptimizationsR >+> postProcessR
+optPipelineR :: RewriteC CL -> RewriteC CL
+optPipelineR mainOptR = normalizeOnceR >+> repeatR mainOptR >+> postProcessR
 
 --------------------------------------------------------------------------------
+-- CL Optimizers
 
 -- | A optimizer that transforms a CL expression. Returns the potentially
 -- modified expression and a rewriting log.
@@ -126,14 +140,22 @@ mkOptimizer opt expr =
                 _ -> undefined
 
 -- | Apply the default set of unnesting and decorrelation rewrites to
--- a CL query.
+-- a CL query. Nestjoins are introduced bottom-up.
+optBU :: CLOptimizer
+optBU = mkOptimizer $ optPipelineR mainOptBU
+
 optimizeComprehensions :: CLOptimizer
-optimizeComprehensions = mkOptimizer optimizeR
+optimizeComprehensions = optBU
+
+-- | Apply the default set of unnesting and decorrelation rewrites to
+-- a CL query. Nestjoins are introduced top-down.
+optTD :: CLOptimizer
+optTD = mkOptimizer $ optPipelineR mainOptTD
 
 -- | CL optimizer: normalize and introduce flat joins.
-normalizeComprehensions :: CLOptimizer
-normalizeComprehensions = mkOptimizer normalizeFlatR
+optFlat :: CLOptimizer
+optFlat = mkOptimizer $ optPipelineR mainOptFlatR
 
 -- | CL optimizer: Resugar comprehensions
-resugarComprehensions :: CLOptimizer
-resugarComprehensions = mkOptimizer idR
+optResugar :: CLOptimizer
+optResugar = mkOptimizer idR

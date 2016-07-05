@@ -84,28 +84,6 @@ pushFilterjoinGroupJoinR = do
     let joinPred' = untuplifyJoinPredLeft joinPred
     return $ inject $ GroupJoinP ty predGroup as (AppE2 (typeOf xs) (joinConst joinPred') xs zs) ys
 
--- | If the left input of a filtering join is a NestProduct operator, push the join
--- into the left NestProduct input to reduce the cardinality before sorting.
---
--- In principle, we need to check whether the predicate of the filtering join
--- refers only to the first component of the tuples produced by NestProduct.
--- However, we know that the second tuple component has a list type and there is
--- no way that a list can occur in a join predicate.
---
--- Informally, the rewrite is correct because NestProduct produces one tuple for
--- each tuple from its left input. Whether these tuples are filtered before or
--- after is not relevant. Also, both NestProduct and SemiJoin keep the order of
--- their left input.
-pushFilterjoinNestproductR :: RewriteC CL
-pushFilterjoinNestproductR = do
-    AppE2 ty joinOp (NestProductP _ xs ys) zs <- promoteT idR
-    (joinConst, joinPred) <- isFilteringJoin joinOp
-    -- Rewrite the join predicate to refer to the complete input, not only to
-    -- its first tuple component. This is necessary because we are below the
-    -- tupling caused by the NestJoin.
-    let joinPred' = untuplifyJoinPredLeft joinPred
-    return $ inject $ NestProductP ty (AppE2 (typeOf xs) (joinConst joinPred') xs zs) ys
-
 --------------------------------------------------------------------------------
 -- Push filtering joins into Sort operators
 
@@ -167,7 +145,6 @@ pushFilterjoinSortR = do
 pushThroughRewritesR :: RewriteC CL
 pushThroughRewritesR =    logR "joinpd.nestjoin"    pushFilterjoinNestjoinR
                        <+ logR "joinpd.sort"        pushFilterjoinSortR
-                       <+ logR "joinpd.nestproduct" pushFilterjoinNestproductR
                        <+ logR "joinpd.groupjoin"   pushFilterjoinGroupJoinR
 
 joinPushdownR :: RewriteC CL

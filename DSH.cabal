@@ -114,7 +114,8 @@ Library
                      Database.DSH.Backend
                      Database.DSH.Tests
                      Database.DSH.CL.Parser
-                     Database.DSH.VL
+                     Database.DSH.SL
+                     Database.DSH.VSL
                      Database.DSH.CL
                      Database.DSH.Common.QueryPlan
                      Database.DSH.Common.Opt
@@ -130,7 +131,6 @@ Library
                      Database.DSH.Frontend.TH
                      Database.DSH.Frontend.TupleTypes
                      Database.DSH.Frontend.Builtins
-                     Database.DSH.Translate.Frontend2CL
                      Database.DSH.Execute.TH
                      Database.DSH.Execute
 
@@ -138,6 +138,7 @@ Library
                      Database.DSH.Common.RewriteM
                      Database.DSH.Common.Kure
                      Database.DSH.Common.TH
+                     Database.DSH.Common.VectorLang
 
                      Database.DSH.CL.Lang
                      Database.DSH.CL.Kure
@@ -168,35 +169,65 @@ Library
                      Database.DSH.NKL.Kure
                      Database.DSH.NKL.Rewrite
                      Database.DSH.NKL.Primitives
+
+                     Database.DSH.Translate.Frontend2CL
                      Database.DSH.Translate.CL2NKL
-                     Database.DSH.Translate.FKL2VL
                      Database.DSH.Translate.NKL2FKL
-                     Database.DSH.Translate.VL2Algebra
+                     Database.DSH.Translate.SL2Algebra
+                     Database.DSH.Translate.VSL2Algebra
+                     Database.DSH.Translate.Vectorize
 
-                     Database.DSH.VL.Lang
-                     Database.DSH.VL.Render.Dot
-                     Database.DSH.VL.VectorAlgebra
-                     Database.DSH.VL.Vectorize
-                     Database.DSH.VL.Primitives
+                     Database.DSH.SL.Lang
+                     Database.DSH.SL.Render.Dot
+                     Database.DSH.SL.SegmentAlgebra
+                     Database.DSH.SL.Builtins
+                     Database.DSH.SL.Construct
+                     Database.DSH.SL.Vectorize
 
-                     Database.DSH.VL.Opt.Properties.BottomUp
-                     Database.DSH.VL.Opt.Properties.Card
-                     Database.DSH.VL.Opt.Properties.Segments
-                     Database.DSH.VL.Opt.Properties.Common
-                     Database.DSH.VL.Opt.Properties.Const
-                     Database.DSH.VL.Opt.Properties.Empty
-                     Database.DSH.VL.Opt.Properties.ReqColumns
-                     Database.DSH.VL.Opt.Properties.TopDown
-                     Database.DSH.VL.Opt.Properties.Types
-                     Database.DSH.VL.Opt.Properties.VectorType
-                     Database.DSH.VL.Opt.OptimizeVL
-                     Database.DSH.VL.Opt.Rewrite.Common
-                     Database.DSH.VL.Opt.Rewrite.Expressions
-                     Database.DSH.VL.Opt.Rewrite.PruneEmpty
-                     Database.DSH.VL.Opt.Rewrite.Redundant
-                     Database.DSH.VL.Opt.Rewrite.Aggregation
-                     Database.DSH.VL.Opt.Rewrite.Window
-                     Database.DSH.VL.Opt.Rewrite.Unused
+                     Database.DSH.VSL.Lang
+                     Database.DSH.VSL.Builtins
+                     Database.DSH.VSL.Dot
+                     Database.DSH.VSL.Construct
+                     Database.DSH.VSL.VirtualSegmentAlgebra
+                     Database.DSH.VSL.Vectorize
+
+                     Database.DSH.SL.Opt.Properties.BottomUp
+                     Database.DSH.SL.Opt.Properties.Card
+                     Database.DSH.SL.Opt.Properties.Segments
+                     Database.DSH.SL.Opt.Properties.Common
+                     Database.DSH.SL.Opt.Properties.Const
+                     Database.DSH.SL.Opt.Properties.Empty
+                     Database.DSH.SL.Opt.Properties.ReqColumns
+                     Database.DSH.SL.Opt.Properties.TopDown
+                     Database.DSH.SL.Opt.Properties.Types
+                     Database.DSH.SL.Opt.Properties.VectorType
+                     Database.DSH.SL.Opt.OptimizeSL
+                     Database.DSH.SL.Opt.Rewrite.Common
+                     Database.DSH.SL.Opt.Rewrite.Expressions
+                     Database.DSH.SL.Opt.Rewrite.PruneEmpty
+                     Database.DSH.SL.Opt.Rewrite.Redundant
+                     Database.DSH.SL.Opt.Rewrite.Aggregation
+                     Database.DSH.SL.Opt.Rewrite.Window
+                     Database.DSH.SL.Opt.Rewrite.Unused
+
+                     Database.DSH.VSL.Opt.Properties.BottomUp
+                     Database.DSH.VSL.Opt.Properties.Card
+                     Database.DSH.VSL.Opt.Properties.Segments
+                     Database.DSH.VSL.Opt.Properties.Common
+                     Database.DSH.VSL.Opt.Properties.Const
+                     Database.DSH.VSL.Opt.Properties.Empty
+                     Database.DSH.VSL.Opt.Properties.ReqColumns
+                     Database.DSH.VSL.Opt.Properties.TopDown
+                     Database.DSH.VSL.Opt.Properties.Types
+                     Database.DSH.VSL.Opt.Properties.VectorType
+                     Database.DSH.VSL.Opt.OptimizeVSL
+                     Database.DSH.VSL.Opt.Rewrite.Common
+                     Database.DSH.VSL.Opt.Rewrite.Expressions
+                     Database.DSH.VSL.Opt.Rewrite.PruneEmpty
+                     Database.DSH.VSL.Opt.Rewrite.Redundant
+                     Database.DSH.VSL.Opt.Rewrite.Aggregation
+                     -- Database.DSH.VSL.Opt.Rewrite.Window
+                     Database.DSH.VSL.Opt.Rewrite.Unused
 
                      Database.DSH.Tests.Common
                      Database.DSH.Tests.ComprehensionTests
@@ -204,8 +235,8 @@ Library
                      Database.DSH.Tests.CombinatorTests
                      Database.DSH.Tests.DSHComprehensions
 
-executable vldot
-    Main-is: Database/DSH/Tools/VLDotGen.hs
+executable sldot
+    Main-is: Database/DSH/Tools/SLDotGen.hs
     GHC-Options:      -Wall -fno-warn-orphans
     hs-source-dirs:   src
     build-depends:    base                >= 4.8 && < 5,
@@ -229,8 +260,40 @@ executable vldot
                       Database.DSH.Common.Nat
                       Database.DSH.Common.Pretty
                       Database.DSH.Common.Type
-                      Database.DSH.VL.Lang
-                      Database.DSH.VL.Render.Dot
+                      Database.DSH.Common.VectorLang
+                      Database.DSH.SL.Lang
+                      Database.DSH.SL.Render.Dot
+    GHC-Options: -Wall -fno-warn-orphans
+    other-extensions: TemplateHaskell
+
+executable vsldot
+    Main-is: Database/DSH/Tools/VSLDotGen.hs
+    GHC-Options:      -Wall -fno-warn-orphans
+    hs-source-dirs:   src
+    build-depends:    base                >= 4.8 && < 5,
+                      mtl                 >= 2.1,
+                      aeson               >= 0.11,
+                      time                >= 1.4,
+                      containers          >= 0.5,
+                      template-haskell    >= 2.9,
+                      bytestring          >= 0.10,
+                      Decimal             >= 0.4,
+                      ansi-wl-pprint      >= 0.6.7.2,
+                      semigroups          >= 0.16,
+                      text                >= 1.2,
+                      scientific          >= 0.3,
+                      vector              >= 0.10,
+
+                      algebra-dag          >= 0.1
+
+    other-modules:    Database.DSH.Common.Impossible
+                      Database.DSH.Common.Lang
+                      Database.DSH.Common.Nat
+                      Database.DSH.Common.Pretty
+                      Database.DSH.Common.VectorLang
+                      Database.DSH.Common.Type
+                      Database.DSH.VSL.Lang
+                      Database.DSH.VSL.Dot
     GHC-Options: -Wall -fno-warn-orphans
     other-extensions: TemplateHaskell
 

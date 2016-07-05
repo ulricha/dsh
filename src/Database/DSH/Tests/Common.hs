@@ -4,7 +4,10 @@
 
 -- | Helpers for the construction of DSH test cases.
 module Database.DSH.Tests.Common
-    ( makePropEq
+    ( DSHProperty
+    , DSHAssertion
+    , DSHTestTree
+    , makePropEq
     , makePropDouble
     , makePropDoubles
     , makeEqAssertion
@@ -22,7 +25,6 @@ import           Test.QuickCheck
 import           Test.QuickCheck.Monadic
 import           Test.Tasty
 import           Test.Tasty.QuickCheck
-
 
 import qualified Database.DSH            as Q
 import           Database.DSH.Backend
@@ -49,60 +51,63 @@ eps = 1.0E-3
 close :: Double -> Double -> Bool
 close a b = abs (a - b) < eps
 
+type DSHProperty v b = BackendCodeGen v b -> BackendConn b -> Property
+type DSHAssertion v b = BackendCodeGen v b -> BackendConn b -> Assertion
+type DSHTestTree v b = BackendCodeGen v b -> BackendConn b -> TestTree
+
 -- | A simple property that should hold for a DSH query: Given any
 -- input, its result should be the same as the corresponding native
 -- Haskell code. 'The same' is defined by a predicate.
-makeProp :: (Q.QA a, Q.QA b, Show a, Show b, Backend c)
-         => (b -> b -> Bool)
-         -> (Q.Q a -> Q.Q b)
-         -> (a -> b)
+makeProp :: (Q.QA a, Q.QA c, Show a, Show c, BackendVector b, VectorLang v)
+         => (c -> c -> Bool)
+         -> (Q.Q a -> Q.Q c)
+         -> (a -> c)
          -> a
-         -> c
-         -> Property
-makeProp eq f1 f2 arg conn = monadicIO $ do
-    db <- run $ runQ conn $ f1 (Q.toQ arg)
+         -> DSHProperty v b
+makeProp eq f1 f2 arg codeGen conn = monadicIO $ do
+    db <- run $ runQ codeGen conn $ f1 (Q.toQ arg)
     let hs = f2 arg
     assert $ db `eq` hs
 
 -- | Compare query result and native result by equality.
-makePropEq :: (Eq b, Q.QA a, Q.QA b, Show a, Show b, Backend c)
-           => (Q.Q a -> Q.Q b)
-           -> (a -> b)
+makePropEq :: (Eq c, Q.QA a, Q.QA c, Show a, Show c, BackendVector b, VectorLang v)
+           => (Q.Q a -> Q.Q c)
+           -> (a -> c)
            -> a
-           -> c
-           -> Property
+           -> DSHProperty v b
 makePropEq = makeProp (==)
 
 -- | Compare the double query result and native result.
-makePropDouble :: (Q.QA a, Show a, Backend c)
+makePropDouble :: (Q.QA a, Show a, BackendVector b, VectorLang v)
                => (Q.Q a -> Q.Q Double)
                -> (a -> Double)
                -> a
-               -> c
-               -> Property
+               -> DSHProperty v b
 makePropDouble = makeProp close
 
-makePropDoubles :: (Q.QA a, Show a, Backend c)
+makePropDoubles :: (Q.QA a, Show a, BackendVector b, VectorLang v)
                 => (Q.Q a -> Q.Q [Double])
                 -> (a -> [Double])
                 -> a
-                -> c
-                -> Property
+                -> DSHProperty v b
 makePropDoubles = makeProp deltaList
   where
     deltaList as bs = and $ zipWith close as bs
 
 -- | Equality HUnit assertion
-makeEqAssertion :: (Show a, Eq a, Q.QA a, Backend c)
+makeEqAssertion :: (Show a, Eq a, Q.QA a, BackendVector b, VectorLang v)
                 => String
                 -> Q.Q a
                 -> a
-                -> c
-                -> Assertion
-makeEqAssertion msg q expRes conn = do
-    actualRes <- runQ conn q
+                -> DSHAssertion v b
+makeEqAssertion msg q expRes codeGen conn = do
+    actualRes <- runQ codeGen conn q
     assertEqual msg expRes actualRes
 
-testPropertyConn :: (Show a, Arbitrary a, Backend c)
-                 => c -> TestName -> (a -> c -> Property) -> TestTree
-testPropertyConn conn name t = testProperty name (\a -> t a conn)
+testPropertyConn :: (Show a, Arbitrary a, BackendVector b, VectorLang v)
+                 => BackendCodeGen v b
+                 -> BackendConn b
+                 -> TestName
+                 -> (a -> BackendCodeGen v b -> BackendConn b -> Property)
+                 -> TestTree
+testPropertyConn codeGen conn name t = testProperty name (\a -> t a codeGen conn)

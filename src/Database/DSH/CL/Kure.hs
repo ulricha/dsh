@@ -4,7 +4,6 @@
 {-# LANGUAGE RankNTypes            #-}
 
 -- | Infrastructure for KURE-based rewrites on CL expressions
-
 module Database.DSH.CL.Kure
     ( -- * Re-export relevant KURE modules
       module Language.KURE

@@ -60,14 +60,6 @@ cartProduct xs ys d =
         ListT yt = typeOf ys
     in PApp2 (liftTypeN d $ ListT (PPairT xt yt)) CartProduct (LiftedN d) xs ys
 
--- nestProduct :: [a] -> [b] -> [(a, [(a, b)])]
-nestProduct :: LExpr -> LExpr -> Nat -> LExpr
-nestProduct xs ys d =
-    let ListT xt = unliftTypeN d $ typeOf xs
-        ListT yt = unliftTypeN d $ typeOf ys
-        rt       = ListT (PPairT xt (ListT (PPairT xt yt)))
-    in PApp2 (liftTypeN d rt) NestProduct (LiftedN d) xs ys
-
 thetaJoin :: JoinPredicate ScalarExpr  -> LExpr -> LExpr -> Nat -> LExpr
 thetaJoin p xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
