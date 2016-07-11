@@ -205,7 +205,7 @@ distSingleton dv1 lyt1 dv2 = do
 dist ::  Shape DVec -> Shape DVec -> Build SL (Shape DVec)
 dist (SShape dv lyt) (VShape dv1 _)    = distSingleton dv lyt dv1
 dist (VShape dv lyt) (VShape dvo _) = do
-    (prodVec, rv)    <- slReplicateVector dvo dv
+    (prodVec, rv)    <- slReplicateVector dv dvo
 
     -- The outer vector does not have columns, it only describes the
     -- shape.
