@@ -74,7 +74,7 @@ posBracket ma = do
 --------------------------------------------------------------------------------
 -- Execute flat queries and construct result values
 
-execQueryBundle :: BackendVector b
+execQueryBundle :: (BackendVector b, F.Reify a)
                 => BackendConn b
                 -> Shape b
                 -> F.Type a
@@ -86,10 +86,14 @@ execQueryBundle !conn !shape !ty =
             slyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ety
             tab  <- execVector conn' q
             return $! F.ListE (foldl' (vecIter (rvKeyCols q) slyt) S.empty tab)
-        (SShape q lyt, _) -> do
-            tlyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) ty
+        -- The query compiler supports only queries that return a list. If the
+        -- frontend query returns a scalar value, the query result has been
+        -- wrapped in a singleton list. We have to extract the scalar result
+        -- value from the result list.
+        (VShape q lyt, sty) -> do
+            slyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) sty
             tab  <- execVector conn' q
-            return $! fromPrim tab (rvKeyCols q) tlyt
+            return $! fromPrim tab (rvKeyCols q) slyt
         _ -> $impossible
 
 -- | Traverse the layout and execute all subqueries for nested vectors

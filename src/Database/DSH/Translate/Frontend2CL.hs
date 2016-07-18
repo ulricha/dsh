@@ -45,7 +45,21 @@ prefixVar i = "v" ++ show i
 -- | Translate a DSH frontend expression into the internal
 -- comprehension-based language.
 toComprehensions :: Exp a -> CL.Expr
-toComprehensions q = runCompile (translate q)
+toComprehensions q =
+    -- The query compiler supports only queries that return a list. If the
+    -- frontend query returns a scalar value, we wrap the query in a
+    -- comprehension with a singleton unit generator.
+    --
+    -- Note that this comprehension is the outermost binder. Therefore, we can
+    -- choose the generator name freely without taking care to shadow other
+    -- names.
+    case Ty.typeOf cl of
+        Ty.ListT _ -> cl
+        _          -> CP.singleGenComp cl "wrap" xs
+  where
+    cl = runCompile (translate q)
+    -- Singleton list literal [()]
+    xs = CL.Lit (Ty.ListT $ Ty.ScalarT Ty.UnitT) (L.ListV [L.ScalarV L.UnitV])
 
 -- | Execute the transformation computation. During compilation table
 -- information can be retrieved from the database, therefore the result
