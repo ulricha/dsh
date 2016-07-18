@@ -439,3 +439,9 @@ instance Pretty ScalarUnOp where
 
 instance Pretty UnTextOp where
     pretty (SubString f t) = text $ printf "subString_%d,%d" f t
+
+--------------------------------------------------------------------------------
+
+-- | Singleton list literal [()]
+sngUnitList :: (Type, Val)
+sngUnitList = (ListT $ ScalarT UnitT, ListV [ScalarV UnitV])

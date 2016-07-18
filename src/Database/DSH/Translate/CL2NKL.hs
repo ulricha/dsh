@@ -304,7 +304,7 @@ desugarQuals (CL.BindQ x xs : qs) = do
 -- qualifiers leads to an expression that produces the (properly
 -- filtered) cartesian product of all qualifiers. The head expression
 -- ist then simply mapped over the resulting list.
-desugarComprehension:: Type -> CL.Expr -> [CL.Qual] -> NameEnv NKL.Expr
+desugarComprehension :: Type -> CL.Expr -> [CL.Qual] -> NameEnv NKL.Expr
 desugarComprehension _ e qs = do
     -- Desugar the qualifiers
     (env, genExpr, wrapHead) <- desugarQuals qs
@@ -332,7 +332,16 @@ desugarComprehension _ e qs = do
 
     return $ wrapHead $ NKL.Iterator (ListT $ typeOf e') e'' n genExpr
 
+-- | Ensure that the topmost construct in an NKL expression is an iterator.
+--
+-- This rewrite is valid because we allow only list-typed queries.
+wrapIterator :: NKL.Expr -> NKL.Expr
+wrapIterator e@NKL.Iterator{} = e
+wrapIterator e                = P.concat sngIter
+  where
+    sngIter = NKL.Iterator (ListT $ typeOf e) e "dswrap" (uncurry NKL.Const sngUnitList)
+
 -- | Express comprehensions through NKL iteration constructs map and
 -- concatMap and filter.
 desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions e = runReader (expr e) []
+desugarComprehensions e = wrapIterator $ runReader (expr e) []
