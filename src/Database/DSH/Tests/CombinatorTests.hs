@@ -315,6 +315,7 @@ liftedTests codeGen conn = testGroup "Lifted operations"
     , testPropertyConn codeGen conn "Lifted gte"                            prop_map_gte
     , testPropertyConn codeGen conn "Lifted cons"                           prop_map_cons
     , testPropertyConn codeGen conn "Lifted concat"                         prop_map_concat
+    , testPropertyConn codeGen conn "Lifted concat 2"                       prop_map_concat2
     , testPropertyConn codeGen conn "Lifted fst"                            prop_map_fst
     , testPropertyConn codeGen conn "Lifted snd"                            prop_map_snd
     , testPropertyConn codeGen conn "Lifted the"                            prop_map_the
@@ -1112,6 +1113,14 @@ prop_concat = makePropEq Q.concat concat
 
 prop_map_concat :: (BackendVector b, VectorLang v) => [[[Integer]]] -> DSHProperty v b
 prop_map_concat = makePropEq (Q.map Q.concat) (map concat)
+
+-- Test segment merging in a case with per-segment order for the natural-key SQL
+-- backend.
+prop_map_concat2 :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty v b
+prop_map_concat2 = makePropEq db heap
+  where
+    db (Q.view -> (xs, ys, zs)) = Q.map Q.concat $ Q.map (const (Q.map (const zs) ys)) zs
+    heap (xs, ys, zs) = map concat $ map (const (map (const zs) ys)) zs
 
 prop_concatMap :: (BackendVector b, VectorLang v) => [Integer] -> DSHProperty v b
 prop_concatMap = makePropEq (Q.concatMap Q.singleton) (concatMap (: []))
