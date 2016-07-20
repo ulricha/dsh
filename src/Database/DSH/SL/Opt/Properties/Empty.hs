@@ -31,7 +31,6 @@ inferEmptyUnOp e op =
     Nest      -> VPropPair False <$> unp e
     WinFun _  -> Right e
     Unique    -> Right e
-    Aggr _    -> Right $ VProp False
     UnboxKey  -> Right e
     Segment   -> Right e
     Unsegment -> Right e

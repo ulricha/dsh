@@ -41,7 +41,6 @@ data UnOp = UnboxKey
           | Select Expr
 
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
-          | Aggr (N.NonEmpty AggrFun)
           | Number
           | Unique
           | Reverse

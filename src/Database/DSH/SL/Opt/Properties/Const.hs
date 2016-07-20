@@ -132,8 +132,6 @@ inferConstVecUnOp c op =
 
     Unique -> return c
 
-    Aggr _ -> return $ VProp $ ConstVec [NonConstPL]
-
     UnboxKey -> return $ VProp CNA
 
     Segment -> do

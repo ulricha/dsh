@@ -241,7 +241,6 @@ translateUnOp unop c = case unop of
     SL.Unique          -> fromDVec <$> vecUnique (toDVec c)
     SL.Number          -> fromDVec <$> vecNumber (toDVec c)
     SL.UnboxKey         -> fromKVec <$> vecUnboxKey (toDVec c)
-    SL.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
     SL.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
     SL.Segment          -> fromDVec <$> vecSegment (toDVec c)
     SL.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)

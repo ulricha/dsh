@@ -21,7 +21,6 @@ inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferCardOneUnOp c op =
   case op of
     Unique -> Right c
-    Aggr _ -> Right $ VProp True
     WinFun _ -> Right c
     UnboxKey -> Right c
     Segment -> Right c

@@ -37,7 +37,6 @@ inferVectorTypeUnOp s op =
         VTDataVec w <- unpack s
         return $ VProp $ VTDataVec $ w + 1
     Unique -> VProp <$> unpack s
-    Aggr _ -> Right $ VProp $ VTDataVec 1
     UnboxKey -> Right $ VProp $ VTNA
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
