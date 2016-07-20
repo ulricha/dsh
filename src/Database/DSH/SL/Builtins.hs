@@ -29,163 +29,6 @@ import           Database.DSH.SL.Construct
 --------------------------------------------------------------------------------
 -- Construction of not-lifted primitives
 
-binOp :: L.ScalarBinOp -> Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-binOp o (SShape dv1 _) (SShape dv2 _) = do
-    (dv, _, _) <- slCartProduct dv1 dv2
-    dv'        <- slProject [BinApp o (Column 1) (Column 2)] dv
-    return $ SShape dv' LCol
-binOp _ _ _ = $impossible
-
-zip ::  Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-zip (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, fv1, fv2) <- slZip dv1 dv2
-    lyt1'          <- rekeyOuter fv1 lyt1
-    lyt2'          <- rekeyOuter fv2 lyt2
-    return $ VShape dv $ LTuple [lyt1', lyt2']
-zip _ _ = $impossible
-
-cartProduct :: Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-cartProduct (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, rv1, rv2) <- slCartProduct dv1 dv2
-    lyt1'          <- repLayout rv1 lyt1
-    lyt2'          <- repLayout rv2 lyt2
-    return $ VShape dv $ LTuple [lyt1', lyt2']
-cartProduct _ _ = $impossible
-
-thetaJoin :: L.JoinPredicate L.ScalarExpr -> Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-thetaJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, rv1, rv2) <- slThetaJoin joinPred dv1 dv2
-    lyt1'          <- repLayout rv1 lyt1
-    lyt2'          <- repLayout rv2 lyt2
-    return $ VShape dv $ LTuple [lyt1', lyt2']
-thetaJoin _ _ _ = $impossible
-
-nestJoin :: L.JoinPredicate L.ScalarExpr -> Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-nestJoin joinPred (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, rv1, rv2) <- slNestJoin joinPred dv1 dv2
-    lyt1'          <- repLayout rv1 lyt1
-    lyt2'          <- repLayout rv2 lyt2
-    return $ VShape dv1 (LTuple [lyt1, LNest dv (LTuple [lyt1', lyt2'])])
-nestJoin _ _ _ = $impossible
-
-groupJoin :: L.JoinPredicate L.ScalarExpr
-          -> L.NE AggrFun
-          -> Shape DVec
-          -> Shape DVec -> Build SL (Shape DVec)
-groupJoin joinPred afuns (VShape dv1 lyt1) (VShape dv2 _) = do
-    dv <- slGroupJoin joinPred afuns dv1 dv2
-    return $ VShape dv (LTuple $ lyt1 : map (const LCol) (N.toList $ L.getNE afuns))
-groupJoin _ _ _ _ = $impossible
-
-semiJoin :: L.JoinPredicate L.ScalarExpr -> Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-semiJoin joinPred (VShape dv1 lyt1) (VShape dv2 _) = do
-    (dv, fv) <- slSemiJoin joinPred dv1 dv2
-    lyt1'    <- filterLayout fv lyt1
-    return $ VShape dv lyt1'
-semiJoin _ _ _ = $impossible
-
-antiJoin :: L.JoinPredicate L.ScalarExpr -> Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-antiJoin joinPred (VShape dv1 lyt1) (VShape dv2 _) = do
-    (dv, fv) <- slAntiJoin joinPred dv1 dv2
-    lyt1'    <- filterLayout fv lyt1
-    return $ VShape dv lyt1'
-antiJoin _ _ _ = $impossible
-
-nub ::  Shape DVec -> Build SL (Shape DVec)
-nub (VShape dv lyt) = VShape <$> slUnique dv <*> pure lyt
-nub _ = $impossible
-
-number ::  Shape DVec -> Build SL (Shape DVec)
-number (VShape q lyt) =
-    VShape <$> slNumber q <*> pure (LTuple [lyt, LCol])
-number _ = $impossible
-
-append ::  Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-append (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    -- Append the current vectors
-    (dv12, kv1, kv2) <- slAppend dv1 dv2
-    -- Propagate position changes to descriptors of any inner vectors
-    lyt1'       <- rekeyOuter kv1 lyt1
-    lyt2'       <- rekeyOuter kv2 lyt2
-    -- Append the layouts, i.e. actually append all inner vectors
-    lyt'        <- appendLayout lyt1' lyt2'
-    return $ VShape dv12 lyt'
-append _ _ = $impossible
-
-reverse ::  Shape DVec -> Build SL (Shape DVec)
-reverse (VShape dv lyt) = do
-    (dv', sv) <- slReverse dv
-    lyt'      <- sortLayout sv lyt
-    return (VShape dv' lyt')
-reverse _ = $impossible
-
-sort :: Shape DVec -> Build SL (Shape DVec)
-sort (VShape dv (LTuple [xl, sl])) = do
-    let leftWidth  = columnsInLayout xl
-        rightWidth = columnsInLayout sl
-
-        sortExprs = map Column [leftWidth+1..leftWidth+rightWidth]
-
-    -- Sort by all sorting columns from the right tuple component
-    (dv', sv) <- slSort sortExprs dv
-
-    -- After sorting, discard the sorting criteria columns
-    dv''      <- slProject (map Column [1..leftWidth]) dv'
-    xl'       <- sortLayout sv xl
-    return $ VShape dv'' xl'
-sort _e1 = $impossible
-
--- | The right input contains the grouping columns.
-group ::  Shape DVec -> Build SL (Shape DVec)
-group (VShape dv (LTuple [lyt1, lyt2])) = do
-    let leftWidth  = columnsInLayout lyt1
-        rightWidth = columnsInLayout lyt2
-
-        groupExprs = map Column [leftWidth+1..leftWidth+rightWidth]
-
-    (dvo, dvi, sv) <- slGroup groupExprs dv
-
-    -- Discard the grouping columns in the inner vector
-    dvi'           <- slProject (map Column [1..leftWidth]) dvi
-
-    lyt1'          <- sortLayout sv lyt1
-    return $ VShape dvo (LTuple [lyt2, LNest dvi' lyt1'])
-group _e1 = $impossible
-
-length_ ::  Shape DVec -> Build SL (Shape DVec)
-length_ (VShape q _) = do
-    v  <- slAggr AggrCount q
-    return $ SShape v LCol
-length_ _ = $impossible
-
-restrict ::  Shape DVec -> Build SL (Shape DVec)
-restrict (VShape dv (LTuple [l, LCol])) = do
-    -- The right input vector has only one boolean column which
-    -- defines wether the tuple at the same position in the left input
-    -- is preserved.
-    let leftWidth = columnsInLayout l
-        predicate = Column $ leftWidth + 1
-
-    -- Filter the vector according to the boolean column
-    (dv', fv) <- slSelect predicate dv
-
-    -- After the selection, discard the boolean column from the right
-    dv''      <- slProject (map Column [1..leftWidth]) dv'
-
-    -- Filter any inner vectors
-    l'        <- filterLayout fv l
-    return $ VShape dv'' l'
-restrict _ = $impossible
-
-combine ::  Shape DVec -> Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-combine (VShape dvb LCol) (VShape dv1 lyt1) (VShape dv2 lyt2) = do
-    (dv, kv1, kv2) <- slCombine dvb dv1 dv2
-    lyt1'          <- rekeyOuter kv1 lyt1
-    lyt2'          <- rekeyOuter kv2 lyt2
-    lyt'           <- appendLayout lyt1' lyt2'
-    return $ VShape dv lyt'
-combine _ _ _ = $impossible
-
 -- | Distribute a single value in vector 'dv2' over an arbitrary
 -- (inner) vector.
 distSingleton :: DVec                  -- ^ The singleton outer vector
@@ -217,61 +60,6 @@ dist (VShape dv lyt) (VShape dvo _) = do
     return $ VShape outerVec (LNest prodVec lyt')
 dist _ _ = $impossible
 
-only :: Shape DVec -> Build SL (Shape DVec)
-only (VShape _ (LNest qi lyti)) = VShape <$> slUnsegment qi <*> pure lyti
-only (VShape q lyt)             = SShape <$> slUnsegment q <*> pure lyt
-only _                          = $impossible
-
-aggr :: (Expr -> AggrFun) -> Shape DVec -> Build SL (Shape DVec)
-aggr afun (VShape q LCol) =
-    SShape <$> slAggr (afun (Column 1)) q <*> pure LCol
-aggr _ _ = $impossible
-
-ifList ::  Shape DVec -> Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-ifList (SShape qb lytb) (VShape q1 lyt1) (VShape q2 lyt2) = do
-    let leftWidth = columnsInLayout lyt1
-        predicate = Column $ leftWidth + 1
-
-    VShape trueSelVec _  <- distSingleton qb lytb q1
-    (trueVec, truefv)    <- slSelect predicate
-                            =<< slAlign q1 trueSelVec
-    trueVec'             <- slProject (map Column [1..leftWidth]) trueVec
-
-    let predicate' = UnApp (L.SUBoolOp L.Not) predicate
-
-    VShape falseSelVec _ <- distSingleton qb lytb q2
-    (falseVec, falsefv)  <- slSelect predicate'
-                            =<< slAlign q2 falseSelVec
-    falseVec'            <- slProject (map Column [1..leftWidth]) falseVec
-
-    lyt1'                <- filterLayout truefv lyt1
-    lyt2'                <- filterLayout falsefv lyt2
-    lyt'                 <- appendLayout lyt1' lyt2'
-
-    (bothBranches, _, _) <- slAppend trueVec' falseVec'
-
-    return $ VShape bothBranches lyt'
-ifList qb (SShape q1 lyt1) (SShape q2 lyt2) = do
-    (VShape q lyt) <- ifList qb (VShape q1 lyt1) (VShape q2 lyt2)
-    return $ SShape q lyt
-ifList _ _ _ = $impossible
-
-tuple :: [Shape DVec] -> Build SL (Shape DVec)
-tuple shapes@(_ : _) = do
-    (q, lyts) <- boxVectors shapes
-    return $ SShape q (LTuple lyts)
-tuple _ = $impossible
-
-tupElem :: TupleIndex -> Shape DVec -> Build SL (Shape DVec)
-tupElem i (SShape q (LTuple lyts)) =
-    case lyts !! (tupleIndex i - 1) of
-        LNest qi lyt -> VShape <$> slUnsegment qi <*> pure lyt
-        _            -> do
-            let (lyt', cols) = projectColumns i lyts
-            proj <- slProject (map Column cols) q
-            return $ SShape proj lyt'
-tupElem _ _ = $impossible
-
 concat :: Shape DVec -> Build SL (Shape DVec)
 concat (VShape _ (LNest q lyt)) = VShape <$> slUnsegment q <*> pure lyt
 concat _e                       = $impossible
@@ -293,17 +81,33 @@ binOpL o (VShape dv1 _) (VShape dv2 _) = do
 binOpL _ _ _ = $impossible
 
 restrictL :: Shape DVec -> Build SL (Shape DVec)
-restrictL (VShape qo (LNest qi lyt)) = do
-    VShape qi' lyt' <- restrict (VShape qi lyt)
-    return $ VShape qo (LNest qi' lyt')
+restrictL (VShape qo (LNest dv l)) = do
+    -- The right input vector has only one boolean column which
+    -- defines wether the tuple at the same position in the left input
+    -- is preserved.
+    let leftWidth = columnsInLayout l
+        predicate = Column $ leftWidth + 1
+
+    -- Filter the vector according to the boolean column
+    (dv', fv) <- slSelect predicate dv
+
+    -- After the selection, discard the boolean column from the right
+    dv''      <- slProject (map Column [1..leftWidth]) dv'
+
+    -- Filter any inner vectors
+    l'        <- filterLayout fv l
+    return $ VShape qo (LNest dv'' l')
 restrictL _ = $impossible
 
 combineL :: Shape DVec -> Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-combineL (VShape qo (LNest qb LCol))
-         (VShape _ (LNest qi1 lyt1))
-         (VShape _ (LNest qi2 lyt2)) = do
-    VShape qi' lyt' <- combine (VShape qb LCol) (VShape qi1 lyt1) (VShape qi2 lyt2)
-    return $ VShape qo (LNest qi' lyt')
+combineL (VShape qo (LNest dvb LCol))
+         (VShape _ (LNest dv1 lyt1))
+         (VShape _ (LNest dv2 lyt2)) = do
+    (dv, kv1, kv2) <- slCombine dvb dv1 dv2
+    lyt1'          <- rekeyOuter kv1 lyt1
+    lyt2'          <- rekeyOuter kv2 lyt2
+    lyt'           <- appendLayout lyt1' lyt2'
+    return $ VShape qo (LNest dv lyt')
 combineL _ _ _ = $impossible
 
 zipL :: Shape DVec -> Shape DVec -> Build SL (Shape DVec)
