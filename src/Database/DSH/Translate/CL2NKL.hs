@@ -14,6 +14,7 @@ import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Type
 
+import qualified Database.DSH.CL.Desugar        as D
 import           Database.DSH.CL.Lang           (toList)
 import qualified Database.DSH.CL.Lang           as CL
 import qualified Database.DSH.NKL.Lang          as NKL
@@ -332,16 +333,7 @@ desugarComprehension _ e qs = do
 
     return $ wrapHead $ NKL.Iterator (ListT $ typeOf e') e'' n genExpr
 
--- | Ensure that the topmost construct in an NKL expression is an iterator.
---
--- This rewrite is valid because we allow only list-typed queries.
-wrapIterator :: NKL.Expr -> NKL.Expr
-wrapIterator e@NKL.Iterator{} = e
-wrapIterator e                = P.concat sngIter
-  where
-    sngIter = NKL.Iterator (ListT $ typeOf e) e "dswrap" (uncurry NKL.Const sngUnitList)
-
 -- | Express comprehensions through NKL iteration constructs map and
 -- concatMap and filter.
 desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions e = wrapIterator $ runReader (expr e) []
+desugarComprehensions e = runReader (expr $ D.bindScalarLiterals $ D.wrapComprehension e) []

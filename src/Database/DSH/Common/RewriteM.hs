@@ -26,7 +26,7 @@ import           Database.DSH.Common.Lang
 
 --------------------------------------------------------------------------------
 -- | The rewriting monad. Currently, it only provides fresh names
--- FIXME Figure out how to define a MonadCatch instance and use StateT s RewriteM
+-- FIXME Figure out how to define a MonadCatch instance and use StateT s KureM
 newtype RewriteM s w a = RewriteM { compM :: s -> (s, Either String (a, w)) }
 
 -- | A variant of RewriteM which adds extra state to the

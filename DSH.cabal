@@ -144,6 +144,7 @@ Library
                      Database.DSH.CL.Kure
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
+                     Database.DSH.CL.Desugar
                      Database.DSH.CL.Opt.Auxiliary
                      Database.DSH.CL.Opt.PostProcess
                      Database.DSH.CL.Opt.LoopInvariant

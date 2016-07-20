@@ -30,8 +30,8 @@ loopInvariantR =    logR "loopinvariant.guard" loopInvariantGuardR
 
 traverseT :: [Ident] -> TransformC CL (Expr, PathC)
 traverseT localVars = readerT $ \expr -> case expr of
-    -- We do not traverse into lambdas and comprehensions which are
-    -- nested in our current comprehension.
+    -- We do not traverse into comprehensions which are nested in our current
+    -- comprehension.
     ExprCL Comp{} -> fail "we don't traverse into comprehensions"
 
     -- Search in let-bindings. We need to check whether the binding generates
@@ -49,7 +49,6 @@ traverseT localVars = readerT $ \expr -> case expr of
 complexPathT :: [Ident] -> TransformC CL (Expr, PathC)
 complexPathT localVars = do
     ExprCL e <- idR
-    -- debugPretty "complexPathT" e
     path <- snocPathToPath <$> absPathT
 
     -- We are only interested in constant expressions that do not
