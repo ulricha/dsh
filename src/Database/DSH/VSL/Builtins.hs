@@ -720,16 +720,8 @@ toVector t ls = do
     return (litNode, lyt)
 
 -- | Shred a literal value into flat vectors.
-shredLiteral :: T.Type -> L.Val -> VSLBuild (Shape DelayedVec)
-shredLiteral (T.ScalarT t) v = do
-    (_, cols, _) <- toColumns (T.ScalarT t) [v]
-    litNode <- MatVec <$> C.lit ([t], SegFrame 1, UnitSeg cols)
-    return $ SShape litNode LCol
-shredLiteral (T.TupleT t)  v  = do
-    (tys, cols, lyt) <- toColumns (T.TupleT t) [v]
-    litNode <- MatVec <$> C.lit (tys, SegFrame 1, UnitSeg cols)
-    return $ SShape litNode lyt
-shredLiteral (T.ListT t) (L.ListV es) = do
+shredLiteral :: T.Type -> [L.Val] -> VSLBuild (Shape DelayedVec)
+shredLiteral (T.ListT t) es = do
     (tys, cols, lyt) <- toColumns t es
     litNode <- MatVec <$> C.lit (tys, SegFrame $ length es, UnitSeg cols)
     return $ VShape litNode lyt

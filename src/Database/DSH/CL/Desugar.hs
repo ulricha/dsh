@@ -1,10 +1,11 @@
-{-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 -- | Remove scalar literals from CL terms by binding them as singleton list
 -- generators.
 module Database.DSH.CL.Desugar
   ( bindScalarLiterals
   , wrapComprehension
+  , desugarBuiltins
   ) where
 
 import           Control.Arrow
@@ -12,9 +13,9 @@ import           Control.Arrow
 import           Database.DSH.Common.Lang
 
 import           Database.DSH.CL.Kure
-import qualified Database.DSH.CL.Primitives as P
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
+import qualified Database.DSH.CL.Primitives    as P
 
 -- | Search for a scalar literal in an expression. Return the value and the path
 -- to the literal.
@@ -80,7 +81,7 @@ bindScalarLiteralsR = do
 -- list generators in the enclosing comprehension.
 bindScalarLiterals :: Expr -> Expr
 bindScalarLiterals expr =
-    case applyExpr (bindScalarLiteralsR >>> projectT) expr of
+    case applyExpr (anytdR bindScalarLiteralsR >>> projectT) expr of
         Left _      -> expr
         Right expr' -> expr'
 
@@ -94,3 +95,20 @@ wrapComprehension e@Comp{} = e
 wrapComprehension e        = P.concat sngIter
   where
     sngIter = Comp (ListT $ typeOf e) e (S $ "dswrap" :<-: (uncurry Lit sngUnitList))
+
+--------------------------------------------------------------------------------
+
+desugarNullR :: RewriteC CL
+desugarNullR = do
+    ExprCL (AppE1 _ Null e) <- idR
+    return $ inject $ P.eq (P.length e) (Lit PIntT (ScalarV $ IntV 0))
+
+desugarBuiltinsR :: RewriteC CL
+desugarBuiltinsR = anytdR desugarNullR
+
+-- | Remove builtins that are not available in NKL.
+desugarBuiltins :: Expr -> Expr
+desugarBuiltins expr =
+    case applyExpr (desugarBuiltinsR >>> projectT) expr of
+        Left _      -> expr
+        Right expr' -> expr'

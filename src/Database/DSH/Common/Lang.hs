@@ -23,7 +23,7 @@ import           Database.DSH.Common.Type
 -----------------------------------------------------------------------------
 -- Common types for backend expressions
 
--- | Basic values in both FKL and NKL.
+-- | Literal values
 data Val = ListV    [Val]
          | TupleV   [Val]
          | ScalarV  ScalarVal

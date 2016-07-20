@@ -31,7 +31,7 @@ data ExprTempl l e = Table Type String L.BaseTableSchema
                    | If Type (ExprTempl l e) (ExprTempl l e) (ExprTempl l e)
                    | BinOp Type L.ScalarBinOp l (ExprTempl l e) (ExprTempl l e)
                    | UnOp Type L.ScalarUnOp l (ExprTempl l e)
-                   | Const Type L.Val
+                   | Const Type [L.Val]
                    | Ext e
                    | Let Type L.Ident (ExprTempl l e) (ExprTempl l e)
                    | Var Type L.Ident

@@ -27,7 +27,7 @@ data Expr  = Table Type String L.BaseTableSchema
            | BinOp Type L.ScalarBinOp Expr Expr
            | UnOp Type L.ScalarUnOp Expr
            | If Type Expr Expr Expr
-           | Const Type L.Val
+           | Const Type [L.Val]
            | Var Type L.Ident
            | Iterator Type Expr L.Ident Expr
            | Let Type L.Ident Expr Expr

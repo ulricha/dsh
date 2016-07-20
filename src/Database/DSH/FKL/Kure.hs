@@ -238,7 +238,7 @@ papp3R :: Monad m
 papp3R t1 t2 t3 = papp3T t1 t2 t3 PApp3
 {-# INLINE papp3R #-}
 
-constExprT :: Monad m => (Type -> Val -> b) -> Transform FlatCtx m (ExprTempl l e) b
+constExprT :: Monad m => (Type -> [Val] -> b) -> Transform FlatCtx m (ExprTempl l e) b
 constExprT f = contextfreeT $ \expr -> case expr of
                     Const ty v -> return $ f ty v
                     _          -> fail "not a constant"

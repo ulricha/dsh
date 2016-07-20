@@ -13,6 +13,7 @@ import           Database.DSH.Common.Impossible
 
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Type
+import           Database.DSH.Common.Pretty
 
 import qualified Database.DSH.CL.Desugar        as D
 import           Database.DSH.CL.Lang           (toList)
@@ -32,12 +33,6 @@ prim1 t p e = mkApp t <$> expr e
             CL.Singleton        -> mkPrim1 NKL.Singleton
             CL.Only             -> mkPrim1 NKL.Only
             CL.Concat           -> mkPrim1 NKL.Concat
-            -- Null in explicit form is useful during CL optimization
-            -- to easily recognize universal/existential patterns. In
-            -- backend implementations however, there currently is no
-            -- need to store it explicitly. Therefore, we implement it
-            -- using length in NKL.
-            CL.Null             -> nklNull
             CL.Reverse          -> mkPrim1 NKL.Reverse
             CL.Nub              -> mkPrim1 NKL.Nub
             CL.Number           -> mkPrim1 NKL.Number
@@ -46,11 +41,7 @@ prim1 t p e = mkApp t <$> expr e
             CL.Group            -> mkPrim1 NKL.Group
             CL.Agg a            -> mkPrim1 (NKL.Agg a)
             CL.Guard            -> $impossible
-
-    nklNull _ ne = NKL.BinOp PBoolT
-                             (SBRelOp Eq)
-                             (NKL.Const PIntT $ ScalarV $ IntV 0)
-                             (NKL.AppE1 PIntT (NKL.Agg Length) ne)
+            CL.Null             -> $impossible
 
     mkPrim1 nop nt = NKL.AppE1 nt nop
 
@@ -132,7 +123,9 @@ expr (CL.AppE2 t p e1 e2)        = prim2 t p e1 e2
 expr (CL.BinOp t o e1 e2)        = NKL.BinOp t o <$> expr e1 <*> expr e2
 expr (CL.UnOp t o e)             = NKL.UnOp t o <$> expr e
 expr (CL.If t c th el)           = NKL.If t <$> expr c <*> expr th <*> expr el
-expr (CL.Lit t v)                = return $ NKL.Const t v
+expr (CL.Lit t (ListV vs))       = return $ NKL.Const t vs
+expr (CL.Lit _ (ScalarV _))      = $impossible
+expr (CL.Lit _ (TupleV _))       = $impossible
 expr (CL.Var t v)                = return $ NKL.Var t v
 expr (CL.Comp t e qs)            = desugarComprehension t e (toList qs)
 expr (CL.Let t x e1 e2)          = NKL.Let t x <$> expr e1 <*> local (x :) (expr e2)
@@ -290,7 +283,7 @@ desugarQuals []                   = $impossible
 desugarQuals (CL.GuardQ p : qs)   = do
     (env, genExpr, _) <- desugarQuals qs
     p'                <- expr p
-    let wrapIf iter = P.if_  p' iter (NKL.Const (typeOf iter) (ListV []))
+    let wrapIf iter = P.if_  p' iter (NKL.Const (typeOf iter) [])
     return (env, genExpr, wrapIf)
 -- If the first qualifier is a generator, it becomes the base source
 -- expression.
@@ -336,4 +329,8 @@ desugarComprehension _ e qs = do
 -- | Express comprehensions through NKL iteration constructs map and
 -- concatMap and filter.
 desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions e = runReader (expr $ D.bindScalarLiterals $ D.wrapComprehension e) []
+desugarComprehensions e = runReader (expr desugared) []
+  where
+    desugared = D.bindScalarLiterals
+                $ D.wrapComprehension
+                $ D.desugarBuiltins e

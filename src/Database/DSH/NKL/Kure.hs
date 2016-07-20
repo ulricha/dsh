@@ -214,7 +214,7 @@ ifR :: Monad m => Rewrite NestedCtx m Expr
 ifR t1 t2 t3 = ifT t1 t2 t3 If
 {-# INLINE ifR #-}
 
-constExprT :: Monad m => (Type -> Val -> b) -> Transform NestedCtx m Expr b
+constExprT :: Monad m => (Type -> [Val] -> b) -> Transform NestedCtx m Expr b
 constExprT f = contextfreeT $ \expr -> case expr of
                     Const ty v -> return $ f ty v
                     _          -> fail "not a constant"
