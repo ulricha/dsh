@@ -133,7 +133,7 @@ prop_cartprod = makePropEq C.cartprod cartprod_native
     cartprod_native (xs, ys) = [ (x, y) | x <- xs, y <- ys]
 
 prop_cartprod_deep_nested :: (BackendVector b, VectorLang v) => [Integer] -> DSHProperty v b
-prop_cartprod_deep_nested = makePropEq C.cartprod_deep cartprod_deep_nested_native
+prop_cartprod_deep_nested = makePropEq C.cartprod_deep_nested cartprod_deep_nested_native
   where
     cartprod_deep_nested_native xs = concat [ concat [ [ (x,y,z) | z <- xs ] | y <- xs ] | x <- xs ]
 

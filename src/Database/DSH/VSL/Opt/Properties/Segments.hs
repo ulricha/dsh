@@ -37,7 +37,6 @@ inferSegmentsUnOp :: VectorProp SegP -> UnOp -> Either String (VectorProp SegP)
 inferSegmentsUnOp c op =
   case op of
     Distinct    -> pure c
-    Aggr _      -> pure $ VProp UnitSegP
     WinFun _    -> pure c
     MergeMap    -> pure c
     Segment     -> pure $ VProp SegdP

@@ -210,7 +210,6 @@ translateUnOp unop c = case unop of
     VSL.Distinct         -> fromDVec <$> vecDistinct (toDVec c)
     VSL.Number           -> fromDVec <$> vecNumber (toDVec c)
     VSL.MergeMap         -> fromRVec <$> vecMergeMap (toDVec c)
-    VSL.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
     VSL.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
     VSL.Segment          -> fromDVec <$> vecSegment (toDVec c)
     VSL.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)

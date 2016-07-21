@@ -66,9 +66,6 @@ sort sortExprs dv = bindOp2 $ UnOp (VSL.Sort sortExprs) (extract dv)
 reverse :: DVec -> VSLBuild (DVec, RVec)
 reverse dv = bindOp2 $ UnOp VSL.Reverse (extract dv)
 
-aggr :: AggrFun -> DVec -> VSLBuild DVec
-aggr aFun dv = bindOp $ UnOp (VSL.Aggr $ pure aFun) (extract dv)
-
 aggrseg :: AggrFun -> DVec -> VSLBuild DVec
 aggrseg aFun v = bindOp $ UnOp (VSL.AggrSeg aFun) (extract v)
 

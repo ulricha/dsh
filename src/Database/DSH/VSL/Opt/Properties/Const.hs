@@ -132,8 +132,6 @@ inferConstVecUnOp c op =
 
     Distinct -> return c
 
-    Aggr _ -> return $ VProp $ ConstVec [NonConstPL]
-
     MergeMap -> return $ VProp CNA
 
     Segment -> do

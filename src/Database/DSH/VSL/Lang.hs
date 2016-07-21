@@ -43,7 +43,6 @@ data UnOp = Segment
           | Select Expr
 
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
-          | Aggr (N.NonEmpty AggrFun)
           | AggrSeg AggrFun
           | Number
           | Distinct

@@ -5,9 +5,7 @@ module Database.DSH.VSL.Opt.Rewrite.Aggregation
     ) where
 
 import           Control.Monad
--- import           Data.List.NonEmpty                   (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty                   as N
-import           Data.Semigroup
+import qualified Data.List.NonEmpty                    as N
 
 import           Database.Algebra.Dag.Common
 
@@ -20,8 +18,6 @@ import           Database.DSH.VSL.Opt.Rewrite.Common
 
 aggregationRules :: VSLRuleSet ()
 aggregationRules = [ inlineAggrSegProject
-                   , inlineAggrProject
-                   , mergeAggr
                    , flatGrouping
                    , flatGroupingDefault
                    -- , mergeGroupAggrAggrSeg
@@ -85,33 +81,6 @@ groupingToAggregation =
 --             logRewrite "Aggregation.NonEmpty.AggrSeg" q
 --             let aggrOp = UnOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q2")
 --             void $ replaceWithNew q aggrOp |])
-
--- | Merge a projection into a segmented aggregate operator.
-inlineAggrProject :: VSLRule ()
-inlineAggrProject q =
-  $(dagPatMatch 'q "Aggr afuns (Project proj (qi))"
-    [| do
-        let env = zip [1..] $(v "proj")
-        let afun' = fmap (mapAggrFun (mergeExpr env)) $(v "afuns")
-
-        return $ do
-            logRewrite "Aggregation.Normalize.Aggr.Project" q
-            void $ replaceWithNew q $ UnOp (Aggr afun') $(v "qi") |])
-
--- | Merge two ungrouped aggregates on the same input
--- FIXME this rewrite is not correct in the general case: CartProductS changes
--- the key domain to the combination of the domains of the inputs.
--- Fix1: perform the merge on comprehensions, i.e. introduce a general aggregate builtin
--- Fix2: perform the merge on relational algebra.
-mergeAggr :: VSLRule ()
-mergeAggr q =
-  $(dagPatMatch 'q "R1 ((Aggr a1 (q1)) CartProduct (Aggr a2 (q2)))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-
-        return $ do
-          logRewrite "Aggregation.Merge" q
-          void $ replaceWithNew q $ UnOp (Aggr ($(v "a1") <> $(v "a2"))) $(v "q1") |])
 
 -- | Merge a projection into a segmented aggregate operator.
 inlineAggrSegProject :: VSLRule ()

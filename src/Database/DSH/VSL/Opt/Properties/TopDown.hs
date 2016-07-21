@@ -46,7 +46,6 @@ seed (UnOp op _)   =
         Sort _           -> vPropPairSeed
         Group _          -> vPropTripleSeed
         Project      _   -> vPropSeed
-        Aggr _           -> vPropSeed
         GroupAggr (_, _) -> vPropSeed
         R1               -> vPropSeed
         R2               -> vPropSeed
