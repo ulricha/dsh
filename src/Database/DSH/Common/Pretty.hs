@@ -77,8 +77,8 @@ prettyTuple es =
                           [right]
 
   where
-    left  = tuple lparen
-    right = tuple rparen
+    left  = tuple langle
+    right = tuple rangle
 
 prettyComp :: Doc -> [Doc] -> Doc
 prettyComp headExpr quals
