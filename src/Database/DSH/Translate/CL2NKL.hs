@@ -75,7 +75,7 @@ prim2 t o e1 e2 = mkApp2
 -- Generator environments
 
 -- | Access a component of a tuple variable
-type TupleAccessor = Type -> Ident -> NKL.Expr
+type TupleAccessor = NKL.Expr -> NKL.Expr
 
 type EnvEntry = (Ident, Type, TupleAccessor)
 
@@ -88,18 +88,18 @@ type GenEnv = N.NonEmpty EnvEntry
 -- | Construct an environment from one generator variable
 -- => (x, t, \n t -> Var t n)
 mkEnv :: (Ident, Type) -> GenEnv
-mkEnv (x, xt) = (x, xt, \n t -> NKL.Var n t) N.:| []
+mkEnv (x, xt) = (x, xt, id) N.:| []
 
 -- | Account for a new pair that has been added at the top of the
 -- constructed tuple
 updateEnvEntry :: EnvEntry -> EnvEntry
-updateEnvEntry (x, t, ta) = (x, t, \n t' -> P.fst $ ta n t')
+updateEnvEntry (x, t, ta) = (x, t, ta . P.fst)
 
 -- | Extend an environment with an additional generator variable.
 extendEnv :: GenEnv -> (Ident, NKL.Expr) -> GenEnv
 extendEnv entries (y, ys) =  entry N.<| fmap updateEnvEntry entries
   where
-    entry = (y, elemT $ typeOf ys, \n t -> P.snd $ NKL.Var n t)
+    entry = (y, elemT $ typeOf ys, P.snd)
 
 addGensToEnv :: NonEmpty (Ident, NKL.Expr) -> GenEnv -> GenEnv
 addGensToEnv gens env = F.foldl' extendEnv env gens
@@ -224,7 +224,7 @@ desugarGens env baseExpr qs = do
 substTupleAccesses :: [Ident] -> (Ident, Type) -> GenEnv -> NKL.Expr -> NKL.Expr
 substTupleAccesses visibleNames (n, t) env e = F.foldr substTupleAccess e env
   where
-    substTupleAccess (x, _, xta) e' = subst (n : visibleNames) x (xta t n) e'
+    substTupleAccess (x, _, xta) e' = subst (n : visibleNames) x (xta $ NKL.Var t n) e'
 
 qualVar :: CL.Qual -> [Ident]
 qualVar (CL.BindQ x _) = [x]
