@@ -40,11 +40,6 @@ pattern MatVec v = DelayedVec IDMap v
 --------------------------------------------------------------------------------
 -- Unary scalar operators
 
-unOp :: L.ScalarUnOp -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-unOp o (SShape (MatVec v) LCol) = do
-    vp <- C.project [UnApp o (Column 1)] v
-    return $ SShape (MatVec vp) LCol
-
 unOpL :: L.ScalarUnOp -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 unOpL o (VShape (DelayedVec m v) LCol) = do
     vp <- C.project [UnApp o (Column 1)] v
@@ -52,13 +47,6 @@ unOpL o (VShape (DelayedVec m v) LCol) = do
 
 --------------------------------------------------------------------------------
 -- Binary scalar operators
-
-binOp :: L.ScalarBinOp -> Shape DelayedVec -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-binOp o (SShape (MatVec v1) LCol) (SShape (MatVec v2) LCol) = do
-    (v, _, _) <- C.cartproduct v1 v2
-    v'        <- C.project [BinApp o (Column 1) (Column 2)] v
-    return $ SShape (DelayedVec IDMap v') LCol
-binOp _ _ _ = error "VSL.Vectorize.binOp"
 
 binOpL :: L.ScalarBinOp -> Shape DelayedVec -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 binOpL o (VShape dv1 LCol) (VShape dv2 LCol) = do
@@ -93,18 +81,6 @@ binOpL o (VShape dv1 LCol) (VShape dv2 LCol) = do
 --------------------------------------------------------------------------------
 -- Tuple indexing
 
-tupElem :: TupleIndex -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-tupElem i (SShape (MatVec v) (LTuple ls)) =
-    case ls !! (tupleIndex i - 1) of
-        LNest dv l -> do
-            (vi, li) <- materializeShape dv l
-            vi'      <- C.unsegment vi
-            return $ VShape (DelayedVec IDMap vi') li
-        _          -> do
-            let (l, cols) = projectColumns i ls
-            vp <- C.project (map Column cols) v
-            return $ SShape (DelayedVec IDMap vp) l
-
 tupElemL :: TupleIndex -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 tupElemL i (VShape dv (LTuple ls)) = do
     let (l, cols) = projectColumns i ls
@@ -114,12 +90,6 @@ tupElemL i (VShape dv (LTuple ls)) = do
 --------------------------------------------------------------------------------
 -- Singleton list construction
 
-sng :: Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-sng (VShape (MatVec v) l) = do
-    (vo, vi) <- C.nest v
-    return $ VShape (MatVec vo) (LNest (MatVec vi) l)
-sng (SShape (MatVec v) l) = return $ VShape (MatVec v) l
-
 sngL :: Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 sngL (VShape (DelayedVec m v) l) = do
     vo <- C.project [] v
@@ -128,11 +98,6 @@ sngL (VShape (DelayedVec m v) l) = do
 
 --------------------------------------------------------------------------------
 -- Aggregation
-
-aggr :: (Expr -> AggrFun) -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-aggr afun (VShape (MatVec v) _) = do
-    va <- C.aggr (afun (Column 1)) v
-    return $ SShape (MatVec va) LCol
 
 aggrL :: (Expr -> AggrFun) -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 aggrL afun (VShape dvo (LNest dvi _)) = do
@@ -184,38 +149,6 @@ concatL (VShape dvo (LNest dvi l)) = do
 --------------------------------------------------------------------------------
 -- Tuple Construction
 
-tuple :: [Shape DelayedVec] -> VSLBuild (Shape DelayedVec)
-tuple shapes = do
-    (dv, ls) <- boxVectors shapes
-    return $ SShape dv (LTuple ls)
-
--- | Align a list of shapes and nest vectors if necessary. This helper
--- function covers tuple construction in the unlifted case.
-boxVectors :: [Shape DelayedVec] -> VSLBuild (DelayedVec, [Layout DelayedVec])
-boxVectors [SShape dv l]              = do
-    (v, l') <- materializeShape dv l
-    return (MatVec v, [l'])
-boxVectors [VShape dv l]              = do
-    (v, l') <- materializeShape dv l
-    (vo, vi) <- C.nest v
-    return (MatVec vo, [LNest (MatVec vi) l'])
-boxVectors (SShape dv l : shapes) = do
-    (v, l') <- materializeShape dv l
-    (dvb, ls)      <- boxVectors shapes
-    (vb', r1, r2) <- C.cartproduct v (dvPhysVec dvb)
-    l''             <- updateLayoutMaps (RMap r1) l'
-    ls'            <- mapM (updateLayoutMaps (RMap r2)) ls
-    return (MatVec vb', l'' : ls')
-boxVectors (VShape dv l : shapes) = do
-    (dvb, ls)      <- boxVectors shapes
-    (v, l') <- materializeShape dv l
-    (vo, vi)      <- C.nest v
-    (vb', r1, r2) <- C.cartproduct vo (dvPhysVec dvb)
-    l''           <- updateLayoutMaps (RMap r1) (LNest (MatVec vi) l')
-    ls'           <- mapM (updateLayoutMaps (RMap r2)) ls
-    return (MatVec vb', l'' : ls')
-boxVectors s = error $ show s
-
 tupleL :: [Shape DelayedVec] -> VSLBuild (Shape DelayedVec)
 tupleL shapes =
     case shapes of
@@ -241,13 +174,6 @@ isUnitShape _                                     = False
 
 --------------------------------------------------------------------------------
 -- Singleton list conversion
-
-only :: Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-only (VShape _ (LNest dv l)) = do
-    (v, l') <- materializeShape dv l
-    v' <- C.unsegment v
-    return $ VShape (MatVec v') l'
-only (VShape (MatVec v) l) = SShape <$> (MatVec <$> C.unsegment v) <*> pure l
 
 onlyL :: Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 onlyL (VShape dvo (LNest dvi li)) = do
@@ -341,9 +267,6 @@ restrict dv (LTuple [l, LCol]) = do
 --------------------------------------------------------------------------------
 -- Applying unary vectorization macros
 
-unMacro :: UnVectMacro -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-unMacro macro (VShape dv l) = uncurry VShape <$> macro dv l
-
 unMacroL :: UnVectMacro -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 unMacroL macro (VShape dvo (LNest dvi l)) = VShape dvo <$> uncurry LNest <$> macro dvi l
 
@@ -356,9 +279,6 @@ type BinVectMacro =    DelayedVec -> Layout DelayedVec
 
 --------------------------------------------------------------------------------
 -- Applying binary vectorization macros
-
-binMacro :: BinVectMacro -> Shape DelayedVec -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-binMacro macro (VShape dv1 l1) (VShape dv2 l2) = uncurry VShape <$> macro dv1 l1 dv2 l2
 
 binMacroL :: BinVectMacro -> Shape DelayedVec -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 binMacroL macro (VShape dvo (LNest dvi1 l1)) (VShape _ (LNest dvi2 l2)) =
@@ -519,14 +439,6 @@ type TerVectMacro =    DelayedVec -> Layout DelayedVec
                     -> DelayedVec -> Layout DelayedVec
                     -> VSLBuild (DelayedVec, Layout DelayedVec)
 
-terMacro :: TerVectMacro
-         -> Shape DelayedVec
-         -> Shape DelayedVec
-         -> Shape DelayedVec
-         -> VSLBuild (Shape DelayedVec)
-terMacro macro (VShape dv1 l1) (VShape dv2 l2) (VShape dv3 l3) =
-    uncurry VShape <$> macro dv1 l1 dv2 l2 dv3 l3
-
 terMacroL :: TerVectMacro
           -> Shape DelayedVec
           -> Shape DelayedVec
@@ -548,32 +460,6 @@ combine dvb LCol dv1 l1 dv2 l2 = do
     l2''        <- updateLayoutMaps (RMap r2) l2'
     l           <- appendLayouts l1'' l2''
     return (MatVec v, l)
-
-if_ :: Shape DelayedVec -> Shape DelayedVec -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-if_ (SShape dvb LCol) (VShape dv1 l1) (VShape dv2 l2) = do
-    (thenVec, thenLyt) <- branchVec id (SShape dvb LCol) (VShape dv1 l1)
-    (elseVec, elseLyt) <- branchVec (UnApp (L.SUBoolOp L.Not)) (SShape dvb LCol) (VShape dv2 l2)
-    lyt                <- appendLayouts thenLyt elseLyt
-    (ifVec, _, _)      <- C.append thenVec elseVec
-    return $ VShape (MatVec ifVec) lyt
-if_ (SShape dvb LCol) (SShape dv1 l1) (SShape dv2 l2) = do
-    (thenVec, thenLyt) <- branchVec id (SShape dvb LCol) (VShape dv1 l1)
-    (elseVec, elseLyt) <- branchVec (UnApp (L.SUBoolOp L.Not)) (SShape dvb LCol) (VShape dv2 l2)
-    lyt                <- appendLayouts thenLyt elseLyt
-    (ifVec, _, _)      <- C.append thenVec elseVec
-    return $ SShape (MatVec ifVec) lyt
-
-branchVec :: (Expr -> Expr)
-          -> Shape DelayedVec
-          -> Shape DelayedVec
-          -> VSLBuild (DVec, Layout DelayedVec)
-branchVec p (SShape dvb LCol) (VShape dv1 l1) = do
-    let leftWidth = columnsInLayout l1
-    VShape (MatVec v) _ <- dist (SShape dvb LCol) (VShape dv1 l1)
-    (v', r)             <- C.select (p $ Column 1) v
-    vp                  <- C.project [ Column c | c <- [2..leftWidth+1] ] v'
-    l1'                 <- updateLayoutMaps (RMap r) l1
-    return (vp, l1')
 
 --------------------------------------------------------------------------------
 -- Distribution/Replication

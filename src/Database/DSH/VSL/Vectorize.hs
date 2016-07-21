@@ -48,25 +48,13 @@ fkl2SL expr =
             local (bind n e1') $ fkl2SL e
         Table _ n schema -> lift $ Builtins.dbTable n schema
         Const t v -> lift $ Builtins.shredLiteral t v
-        BinOp _ o NotLifted e1 e2    -> do
-            s1 <- fkl2SL e1
-            s2 <- fkl2SL e2
-            lift $ Builtins.binOp o s1 s2
         BinOp _ o Lifted e1 e2     -> do
             s1 <- fkl2SL e1
             s2 <- fkl2SL e2
             lift $ Builtins.binOpL o s1 s2
-        UnOp _ o NotLifted e1 -> do
-            s1 <- fkl2SL e1
-            lift $ Builtins.unOp o s1
         UnOp _ o Lifted e1 -> do
             s1 <- fkl2SL e1
             lift $ Builtins.unOpL o s1
-        If _ eb e1 e2 -> do
-            eb' <- fkl2SL eb
-            e1' <- fkl2SL e1
-            e2' <- fkl2SL e2
-            lift $ Builtins.if_ eb' e1' e2'
         PApp1 t f l arg -> do
             arg' <- fkl2SL arg
             lift $ papp1 t f l arg'
@@ -89,13 +77,14 @@ fkl2SL expr =
         MkTuple _ Lifted args -> do
             args' <- mapM fkl2SL args
             lift $ Builtins.tupleL args'
-        MkTuple _ NotLifted args -> do
-            args' <- mapM fkl2SL args
-            lift $ Builtins.tuple args'
+        MkTuple _ NotLifted _ -> $impossible
+        If{} -> $impossible
+        UnOp _ _ NotLifted _ -> $impossible
+        BinOp _ _ NotLifted _ _ -> $impossible
 
 papp3 :: Prim3 -> Lifted -> Shape Builtins.DelayedVec -> Shape Builtins.DelayedVec -> Shape Builtins.DelayedVec -> VSLBuild (Shape Builtins.DelayedVec)
 papp3 Combine Lifted    = Builtins.terMacroL Builtins.combine
-papp3 Combine NotLifted = Builtins.terMacro Builtins.combine
+papp3 Combine NotLifted = $impossible
 
 aggL :: Type -> AggrFun -> Shape Builtins.DelayedVec -> VSLBuild (Shape Builtins.DelayedVec)
 aggL t Sum     = Builtins.aggrL (VL.AggrSum $ VL.typeToScalarType $ elemT t)
@@ -105,15 +94,6 @@ aggL _ Minimum = Builtins.aggrL VL.AggrMin
 aggL _ Or      = Builtins.aggrL VL.AggrAny
 aggL _ And     = Builtins.aggrL VL.AggrAll
 aggL _ Length  = Builtins.aggrL (const VL.AggrCount)
-
-agg :: Type -> AggrFun -> Shape Builtins.DelayedVec -> VSLBuild (Shape Builtins.DelayedVec)
-agg t Sum     = Builtins.aggr (VL.AggrSum $ VL.typeToScalarType t)
-agg _ Avg     = Builtins.aggr VL.AggrAvg
-agg _ Maximum = Builtins.aggr VL.AggrMax
-agg _ Minimum = Builtins.aggr VL.AggrMin
-agg _ Or      = Builtins.aggr VL.AggrAny
-agg _ And     = Builtins.aggr VL.AggrAll
-agg _ Length  = Builtins.aggr (const VL.AggrCount)
 
 translateAggrFun :: AggrApp -> VL.AggrFun
 translateAggrFun a = case aaFun a of
@@ -143,19 +123,7 @@ papp1 t f Lifted =
         Agg a           -> aggL t a
         TupElem i       -> Builtins.tupElemL i
 
-papp1 t f NotLifted =
-    case f of
-        Singleton        -> Builtins.sng
-        Only             -> Builtins.only
-        Number           -> Builtins.unMacro Builtins.number
-        Sort             -> Builtins.unMacro Builtins.sort
-        Group            -> Builtins.unMacro Builtins.group
-        Restrict         -> Builtins.unMacro Builtins.restrict
-        Nub              -> Builtins.unMacro Builtins.nub
-        Reverse          -> Builtins.unMacro Builtins.reverse
-        Concat           -> Builtins.concat
-        Agg a            -> agg t a
-        TupElem i        -> Builtins.tupElem i
+papp1 _ _ NotLifted = $impossible
 
 papp2 :: Prim2 -> Lifted -> Shape Builtins.DelayedVec -> Shape Builtins.DelayedVec -> VSLBuild (Shape Builtins.DelayedVec)
 papp2 f Lifted =
@@ -170,17 +138,7 @@ papp2 f Lifted =
         SemiJoin p          -> Builtins.binMacroL $ Builtins.semijoin p
         AntiJoin p          -> Builtins.binMacroL $ Builtins.antijoin p
 
-papp2 f NotLifted =
-    case f of
-        Dist                -> Builtins.dist
-        Append              -> Builtins.binMacro Builtins.append
-        Zip                 -> Builtins.binMacro Builtins.zip
-        CartProduct         -> Builtins.binMacro Builtins.cartproduct
-        ThetaJoin p         -> Builtins.binMacro $ Builtins.thetajoin p
-        NestJoin p          -> Builtins.binMacro $ Builtins.nestjoin p
-        GroupJoin p (NE as) -> Builtins.binMacro $ Builtins.groupjoin p (NE $ fmap translateAggrFun as)
-        SemiJoin p          -> Builtins.binMacro $ Builtins.semijoin p
-        AntiJoin p          -> Builtins.binMacro $ Builtins.antijoin p
+papp2 _ NotLifted = $impossible
 
 --------------------------------------------------------------------------------
 
