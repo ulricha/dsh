@@ -29,6 +29,8 @@ import qualified Database.DSH.Tests.DSHComprehensions as C
 tests_comprehensions :: (BackendVector b, VectorLang v) => DSHTestTree v b
 tests_comprehensions codeGen conn = testGroup "Comprehensions"
     [ testProperty "cartprod" (\a -> prop_cartprod a codeGen conn)
+    , testProperty "cartprod_deep" (\a -> prop_cartprod_deep a codeGen conn)
+    , testProperty "cartprod_deep_nested" (\a -> prop_cartprod_deep_nested a codeGen conn)
     , testProperty "eqjoin" (\a -> prop_eqjoin a codeGen conn)
     , testProperty "eqjoinproj" (\a -> prop_eqjoinproj a codeGen conn)
     , testProperty "eqjoinpred" (\a -> prop_eqjoinpred a codeGen conn)
@@ -129,6 +131,16 @@ prop_cartprod :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DS
 prop_cartprod = makePropEq C.cartprod cartprod_native
   where
     cartprod_native (xs, ys) = [ (x, y) | x <- xs, y <- ys]
+
+prop_cartprod_deep_nested :: (BackendVector b, VectorLang v) => [Integer] -> DSHProperty v b
+prop_cartprod_deep_nested = makePropEq C.cartprod_deep cartprod_deep_nested_native
+  where
+    cartprod_deep_nested_native xs = concat [ concat [ [ (x,y,z) | z <- xs ] | y <- xs ] | x <- xs ]
+
+prop_cartprod_deep :: (BackendVector b, VectorLang v) => [Integer] -> DSHProperty v b
+prop_cartprod_deep = makePropEq C.cartprod_deep cartprod_deep_native
+  where
+    cartprod_deep_native xs = [ (x,y,z) | x <- xs, y <- xs, z <- xs ]
 
 prop_eqjoin :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
 prop_eqjoin = makePropEq C.eqjoin eqjoin_native
