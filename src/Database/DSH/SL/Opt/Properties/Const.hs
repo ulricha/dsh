@@ -122,10 +122,6 @@ inferConstVecNullOp op =
 inferConstVecUnOp :: VectorProp ConstVec -> UnOp -> Either String (VectorProp ConstVec)
 inferConstVecUnOp c op =
   case op of
-    Nest -> do
-      cols <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec []) (ConstVec cols)
-
     WinFun _ -> do
       cols <- unp c >>= fromDBV
       return $ VProp $ ConstVec (cols ++ [NonConstPL])

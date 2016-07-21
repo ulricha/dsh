@@ -268,12 +268,6 @@ tupElemL i (VShape q (LTuple lyts)) = do
     return $ VShape proj lyt'
 tupElemL _ _ = $impossible
 
-singleton :: Shape DVec -> Build SL (Shape DVec)
-singleton (VShape q lyt) = do
-    (dvo, dvi) <- slNest q
-    return $ VShape dvo (LNest dvi lyt)
-singleton (SShape q1 lyt) = return $ VShape q1 lyt
-
 singletonL :: Shape DVec -> Build SL (Shape DVec)
 singletonL (VShape q lyt) = do
     dvo <- slProject [] q
@@ -370,28 +364,6 @@ alignVectors (VShape q1 lyt1 : shapes) = do
     qz' <- slAlign q1 q
     return (qz', lyt1 : lyts)
 alignVectors _ = $impossible
-
--- | Align a list of shapes and nest vectors if necessary. This helper
--- function covers tuple construction in the unlifted case.
-boxVectors :: [Shape DVec] -> Build SL (DVec, [Layout DVec])
-boxVectors [SShape q1 lyt1]           = return (q1, [lyt1])
-boxVectors [VShape q1 lyt1]           = do
-    (dvo, dvi) <- slNest q1
-    return (dvo, [LNest dvi lyt1])
-boxVectors (SShape dv1 lyt1 : shapes) = do
-    (dv, lyts)      <- boxVectors shapes
-    (dv', rv1, rv2) <- slCartProduct dv1 dv
-    lyt1'           <- repLayout rv1 lyt1
-    lyts'           <- mapM (repLayout rv2) lyts
-    return (dv', lyt1' : lyts')
-boxVectors (VShape dv1 lyt1 : shapes) = do
-    (dv, lyts)      <- boxVectors shapes
-    (dvo, dvi)      <- slNest dv1
-    (dv', rv1, rv2) <- slCartProduct dvo dv
-    lyt1'           <- repLayout rv1 (LNest dvi lyt1)
-    lyts'           <- mapM (repLayout rv2) lyts
-    return (dv', lyt1' : lyts')
-boxVectors s = error $ show s
 
 --------------------------------------------------------------------------------
 -- Vectorization Helper Functions

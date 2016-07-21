@@ -41,7 +41,6 @@ inferSegmentsUnOp c op =
     MergeMap    -> pure c
     Segment     -> pure $ VProp SegdP
     Unsegment   -> pure $ VProp UnitSegP
-    Nest        -> pure $ VPropPair UnitSegP SegdP
     Project _   -> pure c
     Reverse     -> [ VPropPair f SegNAP | f <- unp c ]
     Select _    -> [ VPropPair f SegNAP | f <- unp c ]

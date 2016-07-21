@@ -111,9 +111,6 @@ slAppKey (KVec c1) (DVec c2) = pairVec (BinOp AppKey c1 c2) dvec kvec
 slAppRep :: RVec -> DVec -> Build SL (DVec, RVec)
 slAppRep (RVec c1) (DVec c2) = pairVec (BinOp AppRep c1 c2) dvec rvec
 
-slNest :: DVec -> Build SL (DVec, DVec)
-slNest (DVec c)= pairVec (UnOp Nest c) dvec dvec
-
 slAppend :: DVec -> DVec -> Build SL (DVec, KVec, KVec)
 slAppend (DVec c1) (DVec c2) = tripleVec (BinOp Append c1 c2) dvec kvec kvec
 

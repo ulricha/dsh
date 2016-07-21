@@ -146,7 +146,6 @@ opDotLabel tm i (UnOp Segment _) = labelToDoc i "segment" empty (lookupTags i tm
 opDotLabel tm i (UnOp Unsegment _) = labelToDoc i "unsegment" empty (lookupTags i tm)
 opDotLabel tm i (UnOp UnitMap _) = labelToDoc i "unitmap" empty (lookupTags i tm)
 opDotLabel tm i (UnOp UpdateUnit _) = labelToDoc i "updateunit" empty (lookupTags i tm)
-opDotLabel tm i (UnOp Nest _) = labelToDoc i "nest" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Reverse _) = labelToDoc i "reverse" empty (lookupTags i tm)
 opDotLabel tm i (UnOp R1 _) = labelToDoc i "R1" empty (lookupTags i tm)
 opDotLabel tm i (UnOp R2 _) = labelToDoc i "R2" empty (lookupTags i tm)

@@ -228,10 +228,6 @@ translateUnOp unop c = case unop of
         return $ RLPair (fromDVec d) (fromRVec p)
     VSL.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
 
-    VSL.Nest -> do
-        (qo, qi) <- vecNest (toDVec c)
-        return $ RLPair (fromDVec qo) (fromDVec qi)
-
     VSL.UnitMap -> fromRVec <$> vecUnitMap (toDVec c)
     VSL.UpdateUnit -> fromRVec <$> vecUpdateUnit (toRVec c)
 

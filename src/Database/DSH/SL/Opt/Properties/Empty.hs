@@ -28,7 +28,6 @@ inferEmptyNullOp op =
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
-    Nest      -> VPropPair False <$> unp e
     WinFun _  -> Right e
     Unique    -> Right e
     UnboxKey  -> Right e

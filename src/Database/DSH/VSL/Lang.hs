@@ -33,7 +33,6 @@ $(deriveJSON defaultOptions ''NullOp)
 
 data UnOp = Segment
           | Unsegment
-          | Nest
 
           | R1
           | R2

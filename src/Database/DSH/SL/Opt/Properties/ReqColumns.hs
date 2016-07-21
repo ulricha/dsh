@@ -113,10 +113,6 @@ inferReqColumnsUnOp :: BottomUpProps          -- ^ Input properties
 inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
     case op of
 
-        Nest -> do
-            cols <- snd <$> fromPropPair ownReqColumns
-            childReqColumns ∪ VProp cols
-
         WinFun (wfun, _) -> do
             -- Don't require the window function output from the child
             -- operator.

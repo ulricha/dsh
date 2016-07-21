@@ -30,9 +30,6 @@ unpack _         = Left "Input is not a single vector property"
 inferVectorTypeUnOp :: VectorProp VectorType -> UnOp -> Either String (VectorProp VectorType)
 inferVectorTypeUnOp s op =
   case op of
-    Nest -> do
-        VTDataVec w <- unpack s
-        return $ VPropPair (VTDataVec 0) (VTDataVec w)
     WinFun _ -> do
         VTDataVec w <- unpack s
         return $ VProp $ VTDataVec $ w + 1

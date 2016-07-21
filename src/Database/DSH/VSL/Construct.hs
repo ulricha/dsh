@@ -75,9 +75,6 @@ unboxsng dvo dvi = bindOp2 $ BinOp VSL.UnboxSng (extract dvo) (extract dvi)
 unboxdefault :: N.NonEmpty L.ScalarVal -> DVec -> DVec -> VSLBuild (DVec, RVec)
 unboxdefault defaultVals vo vi = bindOp2 $ BinOp (VSL.UnboxDefault defaultVals) (extract vo) (extract vi)
 
-nest :: DVec -> VSLBuild (DVec, DVec)
-nest dv = bindOp2 $ UnOp VSL.Nest (extract dv)
-
 append :: DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
 append dv1 dv2 = bindOp3 $ BinOp VSL.Append (extract dv1) (extract dv2)
 

@@ -259,10 +259,6 @@ translateUnOp unop c = case unop of
         return $ RLPair (fromDVec d) (fromSVec p)
     SL.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
 
-    SL.Nest -> do
-        (qo, qi) <- vecNest (toDVec c)
-        return $ RLPair (fromDVec qo) (fromDVec qi)
-
     SL.R1            -> case c of
         (RLPair c1 _)     -> return c1
         (RTriple c1 _ _) -> return c1
