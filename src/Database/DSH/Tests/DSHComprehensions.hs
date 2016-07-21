@@ -22,6 +22,12 @@ cartprod (view -> (xs, ys)) =
   , y <- ys
   ]
 
+cartprod_deep_nested :: Q [Integer] -> Q [(Integer, Integer, Integer)]
+cartprod_deep_nested xs = concat [ concat [ [ tup3 x y z | z <- xs ] | y <- xs ] | x <- xs ]
+
+cartprod_deep :: Q [Integer] -> Q [(Integer, Integer, Integer)]
+cartprod_deep xs = [ tup3 x y z | x <- xs, y <- xs, z <- xs ]
+
 eqjoin :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
 eqjoin (view -> (xs, ys)) =
   [ tup2 x y
