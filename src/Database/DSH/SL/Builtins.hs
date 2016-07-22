@@ -81,17 +81,14 @@ binOpL o (VShape dv1 _) (VShape dv2 _) = do
 binOpL _ _ _ = $impossible
 
 restrictL :: Shape DVec -> Build SL (Shape DVec)
-restrictL (VShape qo (LNest dv l)) = do
-    -- The right input vector has only one boolean column which
-    -- defines wether the tuple at the same position in the left input
-    -- is preserved.
+restrictL (VShape qo (LNest dv (LTuple [l, LCol]))) = do
     let leftWidth = columnsInLayout l
         predicate = Column $ leftWidth + 1
 
     -- Filter the vector according to the boolean column
     (dv', fv) <- slSelect predicate dv
 
-    -- After the selection, discard the boolean column from the right
+    -- After the selection, discard the boolean column
     dv''      <- slProject (map Column [1..leftWidth]) dv'
 
     -- Filter any inner vectors
