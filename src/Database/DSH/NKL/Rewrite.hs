@@ -53,15 +53,15 @@ boundVars = either error id . applyExpr [] boundVarsT
 --------------------------------------------------------------------------------
 -- Substitution
 
-subst :: [Ident] -> Ident -> Expr -> Expr -> Expr
-subst nameCtx x s e = either (const e) id $ applyExpr nameCtx (substR x s) e
+subst :: [Ident] -> [(Ident, Expr)] -> Expr -> Expr
+subst nameCtx substDict e = either (const e) id $ applyExpr nameCtx (substR substDict) e
 
 alphaCompR :: [Ident] -> RewriteN Expr
 alphaCompR avoidNames = do
     Iterator compTy h x _  <- idR
     x'                     <- freshNameT (x : freeVars h ++ avoidNames)
     let varTy = elemT compTy
-    iteratorT (tryR $ substR x (Var varTy x'))
+    iteratorT (tryR $ substR [(x, Var varTy x')])
               idR
               (\_ h' _ xs' -> Iterator compTy h' x' xs')
 
@@ -70,37 +70,38 @@ alphaLetR avoidNames = do
     Let letTy x e1 e2 <- idR
     x'                <- freshNameT (x : freeVars e2 ++ avoidNames)
     let varTy = typeOf e1
-    letT idR (tryR $ substR x (Var varTy x')) (\_ _ e1' e2' -> Let letTy x' e1' e2')
+    letT idR (tryR $ substR [(x, Var varTy x')]) (\_ _ e1' e2' -> Let letTy x' e1' e2')
 
--- | Replace /all/ references to variable 'v' by expression 's'.
-substR :: Ident -> Expr -> RewriteN Expr
-substR v s = readerT $ \expr -> case expr of
-    -- Occurence of the variable to be replaced
-    Var _ n | n == v                          -> return s
+-- | Replace /all/ references to variables in a dictionary with the
+-- corresponding expression.
+substR :: [(Ident, Expr)] -> RewriteN Expr
+substR substDict = readerT $ \expr -> case expr of
+    Var _ n ->
+        case lookup n substDict of
+            -- Occurence of a variable to be replaced
+            Just s  -> return s
+            -- Some other variable
+            Nothing -> idR
 
-    -- Some other variable
-    Var _ _                                   -> idR
-
-    -- A comprehension which does not shadow v and in which v occurs
-    -- free in the head. If the comprehension variable occurs free in
-    -- the substitute, we rename the comprehension to avoid name
+    -- Keep only those bindings from the substitution substDictionary which are not
+    -- shadowed by the generator variable. If the generator variable occurs free
+    -- in one of the substitutes, we rename the iterator to avoid name
     -- capturing.
-    Iterator _ h x _ | x /= v && v `elem` freeVars h ->
-        if x `elem` freeVars s
-        then alphaCompR (freeVars s) >>> substR v s
-        else anyR $ substR v s
+    Iterator _ h x _ | not (null $ freeVars h `intersect` map fst substDict) ->
+        let notShadowed = filter (\(n,s) -> n /= x) substDict
+            substFreeVars = concatMap (freeVars . snd) notShadowed
+        in if x `elem` substFreeVars
+           then alphaCompR substFreeVars >>> substR notShadowed
+           else anyR $ substR notShadowed
 
-    -- A comprehension whose generator shadows v -> don't descend into the head
-    Iterator _ _ x _ | v == x                     -> iteratorR idR (substR v s)
+    Let _ x _ e2 | not (null $ freeVars e2 `intersect` map fst substDict) ->
+        let notShadowed = filter (\(n,s) -> n /= x) substDict
+            substFreeVars = concatMap (freeVars . snd) notShadowed
+        in if x `elem` substFreeVars
+           then alphaLetR substFreeVars >>> substR notShadowed
+           else anyR $ substR notShadowed
 
-    Let _ x _ e2 | x /= v && v `elem` freeVars e2 ->
-        if x `elem` freeVars s
-        then alphaLetR (freeVars s) >>> substR v s
-        else anyR $ substR v s
-
-    -- A let binding which shadows v -> don't descend into the body
-    Let _ x _ _ | v == x                      -> letR (substR v s) idR
-    _                                         -> anyR $ substR v s
+    _                                         -> anyR $ substR substDict
 
 --------------------------------------------------------------------------------
 -- Simple optimizations
@@ -198,7 +199,7 @@ simpleBindingR :: RewriteN Expr
 simpleBindingR = do
     Let _ x e1 _ <- idR
     guardM $ simpleExpr e1
-    childT LetBody $ substR x e1
+    childT LetBody $ substR [(x, e1)]
 
 -- | Eliminate an iterator that does not perform any work.
 identityIteratorR :: RewriteN Expr
@@ -218,7 +219,7 @@ identityIteratorR = do
 mergeSortIteratorR :: RewriteN Expr
 mergeSortIteratorR = do
     Iterator _ f x (AppE1 _ Sort (Iterator _ (MkTuple _ [g, h]) y ys)) <- idR
-    g' <- constT (return f) >>> substR x g
+    g' <- constT (return f) >>> substR [(x, g)]
     let ft = typeOf f
         pt = TupleT [ft, PBoolT]
     return $ AppE1 (ListT ft) Sort (Iterator (ListT pt) (MkTuple pt [g', h]) y ys)
@@ -239,7 +240,7 @@ mergeRestrictR = do
     guardM $ y == y'
     let yt  = elemT $ typeOf ys
         yst = ListT yt
-    p1' <- constT (return p1) >>> substR x (Var yt y)
+    p1' <- constT (return p1) >>> substR [(x, Var yt y)]
     let p = BinOp PBoolT (SBBoolOp Conj) p1' p2
     return $ P.restrict (Iterator yst (P.tuple [Var yt y, p]) y ys)
 

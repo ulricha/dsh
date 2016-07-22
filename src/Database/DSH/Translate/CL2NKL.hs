@@ -222,9 +222,9 @@ desugarGens env baseExpr qs = do
 -- | Replace every occurence of a generator variable with the
 -- corresponding tuple access expression.
 substTupleAccesses :: [Ident] -> (Ident, Type) -> GenEnv -> NKL.Expr -> NKL.Expr
-substTupleAccesses visibleNames (n, t) env e = F.foldr substTupleAccess e env
+substTupleAccesses visibleNames (n, t) env e = subst (n : visibleNames) substDict e
   where
-    substTupleAccess (x, _, xta) e' = subst (n : visibleNames) x (xta $ NKL.Var t n) e'
+    substDict = N.toList $ fmap (\(x, _, xta) -> (x, xta $ NKL.Var t n)) env
 
 qualVar :: CL.Qual -> [Ident]
 qualVar (CL.BindQ x _) = [x]
