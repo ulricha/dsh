@@ -91,8 +91,7 @@ bindScalarLiterals expr =
 --
 -- This rewrite is valid because we allow only list-typed queries.
 wrapComprehension :: Expr -> Expr
-wrapComprehension e@Comp{} = e
-wrapComprehension e        = P.concat sngIter
+wrapComprehension e = P.concat sngIter
   where
     sngIter = Comp (ListT $ typeOf e) e (S $ "dswrap" :<-: (uncurry Lit sngUnitList))
 
