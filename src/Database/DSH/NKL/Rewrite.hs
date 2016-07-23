@@ -88,14 +88,14 @@ substR substDict = readerT $ \expr -> case expr of
     -- in one of the substitutes, we rename the iterator to avoid name
     -- capturing.
     Iterator _ h x _ | not (null $ freeVars h `intersect` map fst substDict) ->
-        let notShadowed = filter (\(n,s) -> n /= x) substDict
+        let notShadowed = filter (\(n,_) -> n /= x) substDict
             substFreeVars = concatMap (freeVars . snd) notShadowed
         in if x `elem` substFreeVars
            then alphaCompR substFreeVars >>> substR notShadowed
            else anyR $ substR notShadowed
 
     Let _ x _ e2 | not (null $ freeVars e2 `intersect` map fst substDict) ->
-        let notShadowed = filter (\(n,s) -> n /= x) substDict
+        let notShadowed = filter (\(n,_) -> n /= x) substDict
             substFreeVars = concatMap (freeVars . snd) notShadowed
         in if x `elem` substFreeVars
            then alphaLetR substFreeVars >>> substR notShadowed
@@ -140,6 +140,10 @@ pattern RestrictP e  <- AppE1 _ Restrict e
 -- [ e x | x <- xs ]
 singletonHeadR :: RewriteN Expr
 singletonHeadR = do
+    -- Do not apply at the expression top-level: We must not eliminate the
+    -- topmost iterator to guarantee that all expressions are compiled
+    -- iteratively.
+    []                                         <- snocPathToPath <$> absPathT
     ConcatP t (Iterator _ (SingletonP e) x xs) <- idR
     return $ Iterator t e x xs
 
