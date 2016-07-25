@@ -29,24 +29,7 @@ import           Database.DSH.SL.Construct
 --------------------------------------------------------------------------------
 -- Construction of not-lifted primitives
 
--- | Distribute a single value in vector 'dv2' over an arbitrary
--- (inner) vector.
-distSingleton :: DVec                  -- ^ The singleton outer vector
-              -> Layout DVec           -- ^ The outer vector's layout
-              -> DVec                  -- ^ The inner vector distributed over
-              -> Build SL (Shape DVec)
-distSingleton dv1 lyt1 dv2 = do
-    let leftWidth  = columnsInLayout lyt1
-        proj       = map Column [1..leftWidth]
-
-    (dv, rv) <- dv1 `slReplicateScalar` dv2
-    dv'      <- slProject proj dv
-
-    lyt'     <- repLayout rv lyt1
-    return $ VShape dv' lyt'
-
 dist ::  Shape DVec -> Shape DVec -> Build SL (Shape DVec)
-dist (SShape dv lyt) (VShape dv1 _)    = distSingleton dv lyt dv1
 dist (VShape dv lyt) (VShape dvo _) = do
     (prodVec, rv)    <- slReplicateVector dv dvo
 
