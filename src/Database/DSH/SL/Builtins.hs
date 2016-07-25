@@ -64,6 +64,31 @@ concat :: Shape DVec -> Build SL (Shape DVec)
 concat (VShape _ (LNest q lyt)) = VShape <$> slUnsegment q <*> pure lyt
 concat _e                       = $impossible
 
+combine :: Shape DVec -> Shape DVec -> Shape DVec -> Build SL (Shape DVec)
+combine (VShape dvb LCol) (VShape dv1 lyt1) (VShape dv2 lyt2) = do
+    (dv, kv1, kv2) <- slCombine dvb dv1 dv2
+    lyt1'          <- rekeyOuter kv1 lyt1
+    lyt2'          <- rekeyOuter kv2 lyt2
+    lyt'           <- appendLayout lyt1' lyt2'
+    return $ VShape dv lyt'
+combine _ _ _ = $impossible
+
+restrict :: Shape DVec -> Build SL (Shape DVec)
+restrict (VShape dv (LTuple [l, LCol])) = do
+    let leftWidth = columnsInLayout l
+        predicate = Column $ leftWidth + 1
+
+    -- Filter the vector according to the boolean column
+    (dv', fv) <- slSelect predicate dv
+
+    -- After the selection, discard the boolean column
+    dv''      <- slProject (map Column [1..leftWidth]) dv'
+
+    -- Filter any inner vectors
+    l'        <- filterLayout fv l
+    return $ VShape dv'' l'
+restrict _ = $impossible
+
 --------------------------------------------------------------------------------
 -- Construction of lifted primitives
 

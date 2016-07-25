@@ -86,7 +86,7 @@ fkl2SL expr =
 
 papp3 :: Prim3 -> Lifted -> Shape DVec -> Shape DVec -> Shape DVec -> Build SL.SL (Shape DVec)
 papp3 Combine Lifted    = Builtins.combineL
-papp3 Combine NotLifted = $impossible
+papp3 Combine NotLifted = Builtins.combine
 
 aggL :: Type -> AggrFun -> Shape DVec -> Build SL.SL (Shape DVec)
 aggL t Sum     = Builtins.aggrL (VL.AggrSum $ VL.typeToScalarType $ elemT t)
@@ -128,6 +128,7 @@ papp1 t f Lifted =
 papp1 _ f NotLifted =
     case f of
         Concat           -> Builtins.concat
+        Restrict         -> Builtins.restrict
         _                -> $impossible
 
 papp2 :: Prim2 -> Lifted -> Shape DVec -> Shape DVec -> Build SL.SL (Shape DVec)
