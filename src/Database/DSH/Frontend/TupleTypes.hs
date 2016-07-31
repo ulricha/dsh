@@ -553,6 +553,7 @@ mkTupElemTerm width idx arg = do
 
 -- | From a list of operand terms, construct a DSH tuple term.
 mkTupConstTerm :: [Exp] -> Q Exp
+mkTupConstTerm [t] = return t
 mkTupConstTerm ts
     | length ts <= 16 = return $ AppE (ConE $ mkName "TupleConstE")
                                $ foldl' AppE (ConE $ innerConst "" $ length ts) ts
