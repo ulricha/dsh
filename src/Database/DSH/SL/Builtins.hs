@@ -39,8 +39,8 @@ binOp _ _ _ = $impossible
 zip ::  Shape DVec -> Shape DVec -> Build SL (Shape DVec)
 zip (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     (dv, fv1, fv2) <- slZip dv1 dv2
-    lyt1'          <- rekeyOuter fv1 lyt1
-    lyt2'          <- rekeyOuter fv2 lyt2
+    lyt1'          <- repLayout fv1 lyt1
+    lyt2'          <- repLayout fv2 lyt2
     return $ VShape dv $ LTuple [lyt1', lyt2']
 zip _ _ = $impossible
 
@@ -309,8 +309,8 @@ combineL _ _ _ = $impossible
 zipL :: Shape DVec -> Shape DVec -> Build SL (Shape DVec)
 zipL (VShape d1 (LNest q1 lyt1)) (VShape _ (LNest q2 lyt2)) = do
     (q', r1, r2) <- slZip q1 q2
-    lyt1'        <- rekeyLayout r1 lyt1
-    lyt2'        <- rekeyLayout r2 lyt2
+    lyt1'        <- repLayout r1 lyt1
+    lyt2'        <- repLayout r2 lyt2
     return $ VShape d1 (LNest q' $ LTuple [lyt1', lyt2'])
 zipL _ _ = $impossible
 

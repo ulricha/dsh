@@ -209,7 +209,7 @@ translateBinOp b c1 c2 = case b of
 
     SL.Zip -> do
         (v, r1 ,r2) <- vecZip (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
+        return $ RTriple (fromDVec v) (fromRVec r1) (fromRVec r2)
 
     SL.CartProduct -> do
         (v, p1, p2) <- vecCartProduct (toDVec c1) (toDVec c2)
