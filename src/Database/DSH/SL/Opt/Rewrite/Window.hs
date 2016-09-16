@@ -19,13 +19,25 @@ import           Database.DSH.SL.Opt.Properties.Types
 import           Database.DSH.SL.Opt.Properties.VectorType
 import           Database.DSH.SL.Opt.Rewrite.Common
 
+--------------------------------------------------------------------------------
+-- Common patterns
+
+pattern SingleJoinPred :: t -> L.BinRelOp -> t -> L.JoinPredicate t
 pattern SingleJoinPred e1 op e2 = L.JoinPred ((L.JoinConjunct e1 op e2) :| [])
+
+pattern DoubleJoinPred :: t -> L.BinRelOp -> t -> t -> L.BinRelOp -> t -> L.JoinPredicate t
 pattern DoubleJoinPred e11 op1 e12 e21 op2 e22 = L.JoinPred ((L.JoinConjunct e11 op1 e12)
                                                              :|
                                                              [L.JoinConjunct e21 op2 e22])
+pattern AddExpr :: Expr -> Expr -> Expr
 pattern AddExpr e1 e2 = BinApp (L.SBNumOp L.Add) e1 e2
+
+pattern SubExpr :: Expr -> Expr -> Expr
 pattern SubExpr e1 e2 = BinApp (L.SBNumOp L.Sub) e1 e2
 
+--------------------------------------------------------------------------------
+
+-- | Translate a regular aggregate to the corresponding window aggregate
 aggrToWinFun :: AggrFun -> Maybe WinFun
 aggrToWinFun (AggrSum _ e)         = Just $ WinSum e
 aggrToWinFun (AggrMin e)           = Just $ WinMin e
@@ -35,6 +47,8 @@ aggrToWinFun (AggrAll e)           = Just $ WinAll e
 aggrToWinFun (AggrAny e)           = Just $ WinAny e
 aggrToWinFun AggrCount             = Just WinCount
 aggrToWinFun (AggrCountDistinct _) = Nothing
+
+--------------------------------------------------------------------------------
 
 -- Turn a running aggregate based on a self-join into a window operator.
 runningAggWinUnbounded :: SLRule BottomUpProps
