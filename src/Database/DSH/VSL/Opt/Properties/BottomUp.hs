@@ -100,5 +100,7 @@ inferTerOp op c1Props c2Props c3Props = do
                  , segProp        = opSeg
                  }
 
-inferBottomUpProperties :: AlgebraDag VSL -> NodeMap BottomUpProps
-inferBottomUpProperties = inferBottomUpGeneral inferWorker
+-- | Infer bottom-up properties from a DAG using a given topological ordering of
+-- nodes.
+inferBottomUpProperties :: [AlgNode] -> AlgebraDag VSL -> NodeMap BottomUpProps
+inferBottomUpProperties = inferBottomUpG inferWorker
