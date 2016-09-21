@@ -41,8 +41,11 @@ runRewriteM' s m = compM m s
 
 instance Monoid w => Monad (RewriteM s w) where
   return = returnM
+  {-# INLINE return #-}
   (>>=)  = bindM
+  {-# INLINE (>>=) #-}
   fail   = failM
+  {-# INLINE fail #-}
 
 returnM :: Monoid w => a -> RewriteM s w a
 returnM a = RewriteM (\n -> (n, Right (a, mempty)))
@@ -63,6 +66,7 @@ failM msg = RewriteM (\n -> (n, Left msg))
 
 instance Monoid w => MonadCatch (RewriteM s w) where
     catchM = catchRewriteM
+    {-# INLINE catchM #-}
 
 catchRewriteM :: Monoid w => RewriteM s w a -> (String -> RewriteM s w a) -> RewriteM s w a
 catchRewriteM (RewriteM st) f = RewriteM $ \ n -> case st n of
@@ -72,10 +76,13 @@ catchRewriteM (RewriteM st) f = RewriteM $ \ n -> case st n of
 
 instance Monoid w => Functor (RewriteM s w) where
   fmap = liftM
+  {-# INLINE fmap #-}
 
 instance Monoid w => Applicative (RewriteM s w) where
   pure  = return
+  {-# INLINE pure #-}
   (<*>) = ap
+  {-# INLINE (<*>) #-}
 
 suggestName :: Monoid w => RewriteM Int w Ident
 suggestName = RewriteM (\n -> (n+1, Right ("v" ++ show n, mempty)))
@@ -101,6 +108,7 @@ freshNameS vs = do v <- suggestName'
 -- | Log a debug message
 tell :: Monoid w => w -> RewriteM s w ()
 tell w = RewriteM $ \s -> (s, Right ((), w))
+{-# INLINE tell #-}
 
 get :: Monoid w => RewriteStateM s w s
 get = RewriteM $ \(!i, !s) -> ((i, s), Right (s, mempty))
