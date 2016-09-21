@@ -186,15 +186,21 @@ qualsguardpushbackR = innermostR $ readerT $ \quals -> case quals of
     GuardQ p :* S (BindQ x xs)   -> return $ BindQ x xs :* S (GuardQ p)
     _                            -> fail "no pushable guard"
 
+pushBackGuards :: NL Qual -> NL Qual
+pushBackGuards qs =
+    case (map (uncurry BindQ) gens, map GuardQ preds) of
+        (g:gs, ps) -> fromListSafe g (gs ++ ps)
+  where
+    (gens, preds) = partitionEithers $ map fromQual $ toList qs
 
 -- | Push all guards to the end of the qualifier list to bring
 -- generators closer together.
 guardpushbackR :: RewriteC CL
 guardpushbackR = logR "compnorm.guardpushback" $ do
-    Comp t h _ <- promoteT idR
-    qs' <- childT CompQuals (promoteR qualsguardpushbackR) >>> projectT
+    Comp t h qs <- promoteT idR
+    let qs' = pushBackGuards qs
+    guardM $ qs /= qs'
     return $ inject $ Comp t h qs'
-
 
 -- | If a guard does not depend on any generators of the current
 -- comprehension, it can be evaluated outside of the comprehension. As

@@ -289,7 +289,7 @@ disjunctiveGroupJoinR = logR "groupjoin.disjunctive" $ do
     guardM $ length vs < 10
 
     x <- freshNameT []
-    ex' <- fromScalarExpr x ex
+    let ex' = fromScalarExpr x ex
     let xTy = elemT $ typeOf xs
         resTy = TupleT [xTy, PBoolT]
 

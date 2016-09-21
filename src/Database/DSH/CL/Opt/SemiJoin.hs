@@ -89,9 +89,9 @@ mkExistentialSemiJoinT (x, xs) (y, ys) mq mps = do
         Just ps -> constT (T.mapM fromGuard ps) >>^ toList
         Nothing -> return []
 
-    quantExprs <- case mq of
-        Just q  -> constT (return $ inject q) >>> conjunctsT >>^ NL.toList
-        Nothing -> return []
+    let quantExprs = case mq of
+                         Just q  -> NL.toList $ conjuncts q
+                         Nothing -> []
 
     let allExprs = guardExprs ++ quantExprs
 

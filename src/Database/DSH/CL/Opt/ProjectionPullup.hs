@@ -119,7 +119,7 @@ inlineJoinPredLeftT :: Expr -> Ident -> JoinPredicate ScalarExpr -> TransformC C
 inlineJoinPredLeftT e x joinPred = do
     -- Extract all left join expressions and turn them into regular expressions
     predInputName <- freshNameT []
-    leftPreds     <- mapM (fromScalarExpr predInputName . jcLeft) $ jpConjuncts joinPred
+    let leftPreds = fmap (fromScalarExpr predInputName . jcLeft) $ jpConjuncts joinPred
 
     -- Inline the head expression into the join predicate
     inlinedPreds  <- constT (return leftPreds)
@@ -147,7 +147,7 @@ inlineJoinPredRightT :: Expr -> Ident -> JoinPredicate ScalarExpr -> TransformC 
 inlineJoinPredRightT e x joinPred = do
     -- Extract all right join expressions and turn them into regular expressions
     predInputName  <- freshNameT []
-    rightPreds     <- mapM (fromScalarExpr predInputName . jcRight) $ jpConjuncts joinPred
+    let rightPreds = fmap (fromScalarExpr predInputName . jcRight) $ jpConjuncts joinPred
 
     -- Inline the head expression into the join predicate
     inlinedPreds  <- constT (return rightPreds)
