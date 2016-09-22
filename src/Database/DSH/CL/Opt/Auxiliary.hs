@@ -259,8 +259,8 @@ freeVarsS (Comp _ h qs)     = genFree `S.union` (freeVarsS h `S.difference` genB
   where
     (genBound, genFree) = foldl' go (S.empty, S.empty) qs
 
-    go (gb, gf) (BindQ x e) = (S.insert x gb, freeVarsS e `S.difference` gb)
-    go (gb, gf) (GuardQ p)  = (gb, freeVarsS p `S.difference` gb)
+    go (gb, gf) (BindQ x e) = (S.insert x gb, gf `S.union` (freeVarsS e `S.difference` gb))
+    go (gb, gf) (GuardQ p)  = (gb, gf `S.union` (freeVarsS p `S.difference` gb))
 freeVarsS (MkTuple _ es)    = S.unions (map freeVarsS es)
 freeVarsS (Let _ x e1 e2)   = freeVarsS e1 `S.union` (S.delete x (freeVarsS e2))
 
