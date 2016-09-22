@@ -15,7 +15,6 @@ import           Database.DSH.Common.Impossible
 
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Type
-import           Database.DSH.Common.Pretty
 
 import qualified Database.DSH.CL.Desugar        as D
 import           Database.DSH.CL.Lang           (toList)

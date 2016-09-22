@@ -10,6 +10,7 @@ import           Control.Monad.Reader
 import           Database.Algebra.Dag.Build
 import qualified Database.Algebra.Dag.Common    as Alg
 
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type

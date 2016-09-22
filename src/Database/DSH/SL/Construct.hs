@@ -5,8 +5,6 @@
 -- | Constructor functions for Segment Language primitives
 module Database.DSH.SL.Construct where
 
-import qualified Data.List.NonEmpty             as N
-
 import qualified Database.DSH.Common.Lang       as L
 import qualified Database.DSH.Common.Type       as Ty
 import           Database.DSH.Common.Vector
