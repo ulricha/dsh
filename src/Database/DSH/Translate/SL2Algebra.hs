@@ -30,8 +30,7 @@ type Cache d r k f s = IM.IntMap (Res d r k f s)
 -- translation result of SL nodes.
 type VecBuild a d r k f s = StateT (Cache d r k f s) (B.Build a)
 
-runVecBuild :: SegmentAlgebra a
-            => VecBuild a (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a) r
+runVecBuild :: VecBuild a (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a) r
             -> B.Build a r
 runVecBuild c = evalStateT c IM.empty
 
@@ -45,10 +44,10 @@ data Res d r k f s
     | RTriple (Res d r k f s) (Res d r k f s) (Res d r k f s)
     deriving Show
 
-fromDict :: SegmentAlgebra a => AlgNode -> VecBuild a d r k f s (Maybe (Res d r k f s))
+fromDict :: AlgNode -> VecBuild a d r k f s (Maybe (Res d r k f s))
 fromDict n = gets (IM.lookup n)
 
-insertTranslation :: SegmentAlgebra a => AlgNode -> Res d r k f s -> VecBuild a d r k f s ()
+insertTranslation :: AlgNode -> Res d r k f s -> VecBuild a d r k f s ()
 insertTranslation n res = modify (IM.insert n res)
 
 --------------------------------------------------------------------------------

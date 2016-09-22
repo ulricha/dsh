@@ -68,7 +68,7 @@ instance Monoid w => MonadCatch (RewriteM s w) where
     catchM = catchRewriteM
     {-# INLINE catchM #-}
 
-catchRewriteM :: Monoid w => RewriteM s w a -> (String -> RewriteM s w a) -> RewriteM s w a
+catchRewriteM :: RewriteM s w a -> (String -> RewriteM s w a) -> RewriteM s w a
 catchRewriteM (RewriteM st) f = RewriteM $ \ n -> case st n of
                                         (!n', Left !msg)       -> compM (f msg) n'
                                         (!n', Right (!a, !w))  -> (n', Right (a, w))
@@ -106,7 +106,7 @@ freshNameS vs = do v <- suggestName'
                      else return v
 
 -- | Log a debug message
-tell :: Monoid w => w -> RewriteM s w ()
+tell :: w -> RewriteM s w ()
 tell w = RewriteM $ \s -> (s, Right ((), w))
 {-# INLINE tell #-}
 
@@ -122,7 +122,7 @@ modify :: Monoid w => (s -> s) -> RewriteStateM s w ()
 modify f = RewriteM $ \(!i, !s) -> ((i, f s), Right ((), mempty))
 {-# INLINE modify #-}
 
-stateful :: Monoid w => s -> RewriteStateM s w a -> RewriteM Int w (s, a)
+stateful :: s -> RewriteStateM s w a -> RewriteM Int w (s, a)
 stateful s ma = RewriteM $ \i ->
                case runRewriteM' (i, s) ma of
                    ((!i', _), Left !msg)        -> (i', Left msg)

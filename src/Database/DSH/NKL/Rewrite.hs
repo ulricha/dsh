@@ -89,7 +89,7 @@ substR substDict = readerT $ \expr -> case expr of
     -- in one of the substitutes, we rename the iterator to avoid name
     -- capturing.
     Iterator _ h x _ | not (null $ freeVars h `intersect` map fst substDict) ->
-        let notShadowed = filter (\(n,s) -> n /= x) substDict
+        let notShadowed = filter ((/= x) . fst) substDict
             substFreeVars = concatMap (freeVars . snd) notShadowed
         in if x `elem` substFreeVars
            then     childR IteratorSource (substR substDict)
@@ -102,7 +102,7 @@ substR substDict = readerT $ \expr -> case expr of
     -- in one of the substitutes, we rename the let-binding to avoid name
     -- capturing.
     Let _ x _ e2 | not (null $ freeVars e2 `intersect` map fst substDict) ->
-        let notShadowed = filter (\(n,s) -> n /= x) substDict
+        let notShadowed = filter ((/= x) . fst) substDict
             substFreeVars = concatMap (freeVars . snd) notShadowed
         in if x `elem` substFreeVars
            then     childR LetBind (substR substDict)
@@ -139,8 +139,13 @@ inlineBindingR v s = readerT $ \expr -> case expr of
     Iterator{}                -> idR
     _                         -> anyR $ inlineBindingR v s
 
+pattern ConcatP :: Type -> Expr -> Expr
 pattern ConcatP t xs <- AppE1 t Concat xs
+
+pattern SingletonP :: Expr -> Expr
 pattern SingletonP e <- AppE1 _ Singleton e
+
+pattern RestrictP :: Expr -> Expr
 pattern RestrictP e  <- AppE1 _ Restrict e
 
 -- concatMap (\x -> [e x]) xs

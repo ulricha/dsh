@@ -180,16 +180,11 @@ guardpushfrontR = do
     qs' <- childT CompQuals (promoteR qualsguardpushfrontR) >>> projectT
     return $ inject $ Comp t h qs'
 
-qualsguardpushbackR :: RewriteC (NL Qual)
-qualsguardpushbackR = innermostR $ readerT $ \quals -> case quals of
-    GuardQ p :* BindQ x xs :* qs -> return $ BindQ x xs :* GuardQ p :* qs
-    GuardQ p :* S (BindQ x xs)   -> return $ BindQ x xs :* S (GuardQ p)
-    _                            -> fail "no pushable guard"
-
 pushBackGuards :: NL Qual -> NL Qual
 pushBackGuards qs =
     case (map (uncurry BindQ) gens, map GuardQ preds) of
         (g:gs, ps) -> fromListSafe g (gs ++ ps)
+        ([], _)    -> $impossible
   where
     (gens, preds) = partitionEithers $ map fromQual $ toList qs
 

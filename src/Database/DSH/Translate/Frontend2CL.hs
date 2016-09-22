@@ -53,9 +53,7 @@ toComprehensions q = runCompile (translate q)
 runCompile :: Compile a -> a
 runCompile ma = evalState ma 1
 
-lamBody :: forall a b.(Reify a, Reify b)
-        => (Exp a -> Exp b)
-        -> Compile (L.Ident, Exp b)
+lamBody :: forall a b.Reify a => (Exp a -> Exp b) -> Compile (L.Ident, Exp b)
 lamBody f = do
     v <- freshVar
     return (prefixVar v, f (VarE v :: Exp a))

@@ -94,14 +94,28 @@ scalarType _           = Nothing
 --------------------------------------------------------------------------------
 -- Smart constructors and deconstructors.
 
-pattern PIntT        = ScalarT IntT
-pattern PStringT     = ScalarT StringT
-pattern PDoubleT     = ScalarT DoubleT
-pattern PDecimalT    = ScalarT DecimalT
-pattern PBoolT       = ScalarT BoolT
-pattern PDateT       = ScalarT DateT
-pattern PUnitT       = ScalarT UnitT
+pattern PIntT :: Type
+pattern PIntT = ScalarT IntT
 
+pattern PStringT :: Type
+pattern PStringT = ScalarT StringT
+
+pattern PDoubleT :: Type
+pattern PDoubleT = ScalarT DoubleT
+
+pattern PDecimalT :: Type
+pattern PDecimalT = ScalarT DecimalT
+
+pattern PBoolT :: Type
+pattern PBoolT = ScalarT BoolT
+
+pattern PDateT :: Type
+pattern PDateT = ScalarT DateT
+
+pattern PUnitT :: Type
+pattern PUnitT = ScalarT UnitT
+
+pattern PPairT :: Type -> Type -> Type
 pattern PPairT t1 t2 = TupleT [t1, t2]
 
 isList :: Type -> Bool
