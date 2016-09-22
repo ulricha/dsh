@@ -131,7 +131,7 @@ freshNameT avoidNames = do
 
 -- | Perform a transform with an empty path, i.e. a path starting from
 -- the current node.
-withLocalPathT :: Monad m => Transform CompCtx m a b -> Transform CompCtx m a b
+withLocalPathT :: Transform CompCtx m a b -> Transform CompCtx m a b
 withLocalPathT t = transform $ \c a -> applyT t (c { clPath = SnocPath [] }) a
 
 --------------------------------------------------------------------------------

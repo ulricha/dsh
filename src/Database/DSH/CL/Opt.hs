@@ -26,7 +26,6 @@ import           Database.DSH.CL.Opt.LoopInvariant
 import           Database.DSH.CL.Opt.NestJoin
 import           Database.DSH.CL.Opt.Normalize
 import           Database.DSH.CL.Opt.PartialEval
-import           Database.DSH.CL.Opt.PostProcess
 import           Database.DSH.CL.Opt.PredPushdown
 import           Database.DSH.CL.Opt.ProjectionPullup
 import           Database.DSH.CL.Opt.Resugar

@@ -32,8 +32,7 @@ applyExpr f e = fst <$> runRewriteM (applyT f initialCtx (inject e))
 --------------------------------------------------------------------------------
 -- Computation of free and bound variables
 
-freeVarsT :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e))
-          => TransformF (FKL l e) [Ident]
+freeVarsT :: Walker FlatCtx (FKL l e) => TransformF (FKL l e) [Ident]
 freeVarsT = fmap nub
             $ crushbuT
             $ do (ctx, ExprFKL (Var _ v)) <- exposeT
@@ -68,7 +67,7 @@ substR v s = readerT $ \expr -> case expr of
     -- Some other variable
     ExprFKL (Var _ _)                                   -> idR
 
-    ExprFKL (Let _ x _ e2) | x /= v ->
+    ExprFKL (Let _ x _ _) | x /= v ->
         if x `elem` freeVars s
         then alphaLetR (freeVars s) >>> substR v s
         else anyR $ substR v s
@@ -137,7 +136,10 @@ simpleBindingR = do
 -- Rewrites that remove redundant combinations of shape operators
 -- (forget and imprint)
 
+pattern ImprintP :: Nat -> FExpr -> FExpr -> ExprTempl t ShapeExt
 pattern ImprintP d e1 e2 <- Ext (Imprint d _ e1 e2)
+
+pattern ForgetP :: Nat -> FExpr -> ExprTempl l ShapeExt
 pattern ForgetP d e <- Ext (Forget d _ e)
 
 -- | Remove nested occurences of 'imprint':
@@ -219,6 +221,7 @@ boundforgetimprintR = do
 --------------------------------------------------------------------------------
 -- Chained dist patterns
 
+pattern DistP :: Type -> l -> ExprTempl l e -> ExprTempl l e -> ExprTempl l e
 pattern DistP ty l e1 e2 = PApp2 ty Dist l e1 e2
 
 -- | A binding that is referenced across more than one iteration level will lead

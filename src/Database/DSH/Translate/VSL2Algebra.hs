@@ -30,9 +30,7 @@ type Cache d r = IM.IntMap (Res d r)
 -- translation result of VSL nodes.
 type VecBuild a d r = StateT (Cache d r) (B.Build a)
 
-runVecBuild :: VirtualSegmentAlgebra a
-            => VecBuild a (VSLDVec a) (VSLRVec a) r
-            -> B.Build a r
+runVecBuild :: VecBuild a (VSLDVec a) (VSLRVec a) r -> B.Build a r
 runVecBuild c = evalStateT c IM.empty
 
 data Res d r
@@ -42,10 +40,10 @@ data Res d r
     | RTriple (Res d r) (Res d r) (Res d r)
     deriving Show
 
-fromDict :: VirtualSegmentAlgebra a => AlgNode -> VecBuild a d r (Maybe (Res d r))
+fromDict :: AlgNode -> VecBuild a d r (Maybe (Res d r))
 fromDict n = gets (IM.lookup n)
 
-insertTranslation :: VirtualSegmentAlgebra a => AlgNode -> Res d r -> VecBuild a d r ()
+insertTranslation :: AlgNode -> Res d r -> VecBuild a d r ()
 insertTranslation n res = modify (IM.insert n res)
 
 --------------------------------------------------------------------------------
