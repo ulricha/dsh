@@ -37,12 +37,12 @@ instance ToJSON Date where
 
 newtype Date = Date { unDate :: C.Day } deriving (Eq, Ord, Show)
 
-data ScalarVal = IntV      Int
-               | BoolV     Bool
-               | StringV   T.Text
-               | DoubleV   Double
-               | DecimalV  Scientific
-               | DateV     Date
+data ScalarVal = IntV      {-# UNPACK #-} !Int
+               | BoolV                    !Bool
+               | StringV   {-# UNPACK #-} !T.Text
+               | DoubleV   {-# UNPACK #-} !Double
+               | DecimalV  {-# UNPACK #-} !Scientific
+               | DateV                    !Date
                | UnitV
                deriving (Eq, Ord, Show)
 

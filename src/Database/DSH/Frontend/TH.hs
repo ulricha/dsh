@@ -53,9 +53,9 @@ deriveQA :: Name -> Q [Dec]
 deriveQA name = do
   info <- reify name
   case info of
-    TyConI (DataD    _cxt name1 tyVarBndrs cons _names) ->
+    TyConI (DataD    _cxt name1 tyVarBndrs _ cons _names) ->
       deriveTyConQA name1 tyVarBndrs cons
-    TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) ->
+    TyConI (NewtypeD _cxt name1 tyVarBndrs _ con  _names) ->
       deriveTyConQA name1 tyVarBndrs [con]
     _ -> fail errMsgExoticType
 
@@ -68,7 +68,7 @@ deriveTyConQA name tyVarBndrs cons = do
   let repDec        = deriveRep typ cons
   toExpDec <- deriveToExp cons
   frExpDec <- deriveFrExp cons
-  return [InstanceD context instanceHead [repDec,toExpDec,frExpDec]]
+  return [InstanceD Nothing context instanceHead [repDec,toExpDec,frExpDec]]
 
 -- Deriving the Rep type function
 
@@ -192,9 +192,9 @@ deriveTA :: Name -> Q [Dec]
 deriveTA name = do
   info <- reify name
   case info of
-    TyConI (DataD    _cxt name1 tyVarBndrs cons _names) ->
+    TyConI (DataD    _cxt name1 tyVarBndrs _ cons _names) ->
       deriveTyConTA name1 tyVarBndrs cons
-    TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) ->
+    TyConI (NewtypeD _cxt name1 tyVarBndrs _ con  _names) ->
       deriveTyConTA name1 tyVarBndrs [con]
     _ -> fail errMsgExoticType
 
@@ -204,7 +204,7 @@ deriveTyConTA name tyVarBndrs _cons = do
                           tyVarBndrs
   let typ           = foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs)
   let instanceHead  = AppT (ConT ''DSH.TA) typ
-  return [InstanceD context instanceHead []]
+  return [InstanceD Nothing context instanceHead []]
 
 -------------------
 -- Deriving View --
@@ -214,9 +214,9 @@ deriveView :: Name -> Q [Dec]
 deriveView name = do
   info <- reify name
   case info of
-    TyConI (DataD    _cxt name1 tyVarBndrs [con] _names) ->
+    TyConI (DataD    _cxt name1 tyVarBndrs _ [con] _names) ->
       deriveTyConView name1 tyVarBndrs con
-    TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) ->
+    TyConI (NewtypeD _cxt name1 tyVarBndrs _ con  _names) ->
       deriveTyConView name1 tyVarBndrs con
     _ -> fail errMsgExoticType
 
@@ -233,7 +233,7 @@ deriveTyConView name tyVarBndrs con = do
                 else foldl AppT (TupleT (length typs)) (map (AppT (ConT ''DSH.Q)) typs)
   let toViewDecTF = TySynInstD ''DSH.ToView $ TySynEqn [typ1] typ2
   viewDec <- deriveToView (length typs)
-  return [InstanceD context instanceHead [toViewDecTF, viewDec]]
+  return [InstanceD Nothing context instanceHead [toViewDecTF, viewDec]]
 
 deriveToView :: Int -> Q Dec
 deriveToView n = do
@@ -255,9 +255,9 @@ deriveElim :: Name -> Q [Dec]
 deriveElim name = do
   info <- reify name
   case info of
-    TyConI (DataD    _cxt name1 tyVarBndrs cons _names) ->
+    TyConI (DataD    _cxt name1 tyVarBndrs _ cons _names) ->
       deriveTyConElim name1 tyVarBndrs cons
-    TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) ->
+    TyConI (NewtypeD _cxt name1 tyVarBndrs _ con  _names) ->
       deriveTyConElim name1 tyVarBndrs [con]
     _ -> fail errMsgExoticType
 
@@ -272,7 +272,7 @@ deriveTyConElim name tyVarBndrs cons = do
   let instanceHead = AppT (AppT (ConT ''DSH.Elim) ty) resTy
   let eliminatorDec = deriveEliminator ty resTy cons
   elimDec <- deriveElimFun cons
-  return [InstanceD context instanceHead [eliminatorDec,elimDec]]
+  return [InstanceD Nothing context instanceHead [eliminatorDec,elimDec]]
 
 -- Deriving the Eliminator type function
 
@@ -362,12 +362,12 @@ deriveSmartConstructors :: Name -> Q [Dec]
 deriveSmartConstructors name = do
   info <- reify name
   case info of
-    TyConI (DataD    _cxt typConName tyVarBndrs cons _names) -> do
+    TyConI (DataD    _cxt typConName tyVarBndrs _ cons _names) -> do
       decss <- zipWithM (deriveSmartConstructor typConName tyVarBndrs (length cons))
                         [0 .. ]
                         cons
       return (concat decss)
-    TyConI (NewtypeD _cxt typConName tyVarBndrs con  _names) ->
+    TyConI (NewtypeD _cxt typConName tyVarBndrs _ con  _names) ->
       deriveSmartConstructor typConName tyVarBndrs 1 0 con
     _ -> fail errMsgExoticType
 
@@ -451,7 +451,7 @@ generateTableSelectors :: Name -> Q [Dec]
 generateTableSelectors name = do
   info <- reify name
   case info of
-    TyConI (DataD _ typName [] [RecC _ fields] _) ->
+    TyConI (DataD _ typName [] _ [RecC _ fields] _) ->
         concat <$> mapM instSelectors fields
       where fieldNames    = map (\(f, _, _) -> f) fields
             instSelectors = generateTableSelector typName fieldNames
@@ -498,6 +498,7 @@ mkTupleType :: [Type] -> Type
 mkTupleType ts = foldl' AppT (TupleT $ length ts) ts
 
 -- | Return the types of all fields of a constructor.
+-- FIXME missing cases for GADTs
 conToTypes :: Con -> [Type]
 conToTypes (NormalC _name strictTypes) = map snd strictTypes
 conToTypes (RecC _name varStrictTypes) = map (\(_,_,t) -> t) varStrictTypes
@@ -532,8 +533,8 @@ countConstructors :: Name -> Q Int
 countConstructors name = do
   info <- reify name
   case info of
-    TyConI (DataD    _ _ _ cons _)  -> return (length cons)
-    TyConI (NewtypeD {})            -> return 1
+    TyConI (DataD    _ _ _ _ cons _)  -> return (length cons)
+    TyConI (NewtypeD {})              -> return 1
     _ -> fail errMsgExoticType
 
 -- Error messages

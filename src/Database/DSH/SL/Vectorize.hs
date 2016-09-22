@@ -31,8 +31,8 @@ type EnvBuild = ReaderT Env (Build SL.SL)
 
 lookupEnv :: String -> EnvBuild (Shape DVec)
 lookupEnv n = ask >>= \env -> case lookup n env of
-    Just r -> return r
-    Nothing -> $impossible
+    Just r  -> return r
+    Nothing -> error $ "SL.Vectorize.lookupEnv: " ++ n
 
 bind :: Ident -> Shape DVec -> Env -> Env
 bind n e env = (n, e) : env

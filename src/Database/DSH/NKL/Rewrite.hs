@@ -75,6 +75,7 @@ alphaLetR avoidNames = do
 -- | Replace /all/ references to variables in a dictionary with the
 -- corresponding expression.
 substR :: [(Ident, Expr)] -> RewriteN Expr
+substR []        = idR
 substR substDict = readerT $ \expr -> case expr of
     Var _ n ->
         case lookup n substDict of
@@ -83,7 +84,7 @@ substR substDict = readerT $ \expr -> case expr of
             -- Some other variable
             Nothing -> idR
 
-    -- Keep only those bindings from the substitution substDictionary which are not
+    -- Keep only those bindings from the substitution dictionary which are not
     -- shadowed by the generator variable. If the generator variable occurs free
     -- in one of the substitutes, we rename the iterator to avoid name
     -- capturing.
@@ -91,15 +92,23 @@ substR substDict = readerT $ \expr -> case expr of
         let notShadowed = filter (\(n,_) -> n /= x) substDict
             substFreeVars = concatMap (freeVars . snd) notShadowed
         in if x `elem` substFreeVars
-           then alphaCompR substFreeVars >>> substR notShadowed
-           else anyR $ substR notShadowed
+           then     childR IteratorSource (substR substDict)
+                >>> alphaCompR substFreeVars
+                >>> childR IteratorHead (substR notShadowed)
+           else iteratorR (substR notShadowed) (substR substDict)
 
+    -- Keep only those bindings from the substitution dictionary which are not
+    -- shadowed by the let-bound variable. If the let-bound variable occurs free
+    -- in one of the substitutes, we rename the let-binding to avoid name
+    -- capturing.
     Let _ x _ e2 | not (null $ freeVars e2 `intersect` map fst substDict) ->
         let notShadowed = filter (\(n,_) -> n /= x) substDict
             substFreeVars = concatMap (freeVars . snd) notShadowed
         in if x `elem` substFreeVars
-           then alphaLetR substFreeVars >>> substR notShadowed
-           else anyR $ substR notShadowed
+           then     childR LetBind (substR substDict)
+                >>> alphaLetR substFreeVars
+                >>> childR LetBody (substR notShadowed)
+           else letR (substR substDict) (substR notShadowed)
 
     _                                         -> anyR $ substR substDict
 

@@ -52,8 +52,8 @@ quantifierPredicateT :: Ident
 quantifierPredicateT x y = readerT $ \q -> case q of
     -- If the quantifier predicate is already negated, take its
     -- non-negated form.
-    ExprCL (NotP _) -> do
-        conjs <- childT UnOpArg conjunctsT
+    ExprCL (NotP e1) -> do
+        let conjs = conjuncts e1
 
         -- Separate predicate parts that only depend on the inner
         -- variable.

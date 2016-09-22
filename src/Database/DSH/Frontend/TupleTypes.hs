@@ -96,7 +96,7 @@ mkTupElemType maxWidth = do
 
     cons   <- concat <$> mapM (mkTupElemCons aTyVar bTyVar) [2..maxWidth]
 
-    return $ [DataD [] tyName tyVars cons []]
+    return $ [DataD [] tyName tyVars Nothing cons []]
 
 --------------------------------------------------------------------------------
 -- Translation of tuple accessors to CL
@@ -154,7 +154,7 @@ mkReifyInstance width =
         instTy   = AppT (ConT $ mkName "Reify") $ tupleType $ map VarT tyNames
         reifyCxt = map (\tyName -> nameTyApp (mkName "Reify") (VarT tyName)) tyNames
 
-    in InstanceD reifyCxt instTy [mkReifyFun tyNames]
+    in InstanceD Nothing reifyCxt instTy [mkReifyFun tyNames]
 
 mkReifyInstances :: Int -> Q [Dec]
 mkReifyInstances maxWidth = return $ map mkReifyInstance [2..maxWidth]
@@ -198,7 +198,7 @@ mkQAInstance width = do
         rep     = mkRep width tyNames tupTy
         toExp   = mkToExp width tyNames
     frExp <- mkFrExp width tyNames
-    return $ InstanceD qaCxt instTy [rep, toExp, frExp]
+    return $ InstanceD Nothing qaCxt instTy [rep, toExp, frExp]
 
 -- | Generate QA instances for tuple types according to the following template:
 --
@@ -221,7 +221,7 @@ mkTAInstance width =
         tupTy   = foldl' AppT (TupleT width) $ map VarT tyNames
         instTy  = AppT (ConT $ mkName "TA") tupTy
         taCxt   = map (\tyName -> nameTyApp (mkName "BasicType") (VarT tyName)) tyNames
-    in InstanceD taCxt instTy []
+    in InstanceD Nothing taCxt instTy []
 
 -- | Generate TA instances for tuple types according to the following template:
 --
@@ -418,7 +418,7 @@ mkViewInstance width = do
         viewCxt   = map (\n -> nameTyApp (mkName "QA") (VarT n)) names
         toViewDec = mkToView names tupTy
     viewDec <- mkViewFun width
-    return $ InstanceD viewCxt instTy [toViewDec, viewDec]
+    return $ InstanceD Nothing viewCxt instTy [toViewDec, viewDec]
 
 mkViewInstances :: Int -> Q [Dec]
 mkViewInstances maxWidth = mapM mkViewInstance [2..maxWidth]
@@ -450,13 +450,14 @@ mkTupleCons tupTyName conName elemTyCons width = do
         constraints      = tupConstraint : reifyConstraints
 
     let -- '(Exp/Type t1) ... (Exp/Type t<n>)'
-        elemTys = [ (IsStrict, elemTyCons (VarT t))
+        elemTys = [ (strict, elemTyCons (VarT t))
                   | t <- tupElemTyNames
                   ]
 
     return $ ForallC tyVarBinders constraints
            $ NormalC (conName width) elemTys
-
+  where
+    strict = Bang NoSourceUnpackedness SourceStrict
 -- | Generate the types for AST type and term tuple constructors: 'TupleConst' and
 -- 'TupleType'. The first parameter is the name of the type. The second parameter
 -- is the type constructor for element fields and the third parameter generates
@@ -486,7 +487,7 @@ mkTupleASTTy tyName elemTyCons conName maxWidth = do
     tupTyName <- newName "a"
     cons      <- mapM (mkTupleCons tupTyName conName elemTyCons) [2..maxWidth]
 
-    return $ [DataD [] tyName  [PlainTV tupTyName] cons []]
+    return [DataD [] tyName [PlainTV tupTyName] Nothing cons []]
 
 -- | Generate the 'TupleConst' AST type for tuple term construction
 mkAstTupleConst :: Int -> Q [Dec]

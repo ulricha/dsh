@@ -118,8 +118,8 @@ combineL _ _ _ = $impossible
 zipL :: Shape DVec -> Shape DVec -> Build SL (Shape DVec)
 zipL (VShape d1 (LNest q1 lyt1)) (VShape _ (LNest q2 lyt2)) = do
     (q', r1, r2) <- slZip q1 q2
-    lyt1'        <- rekeyLayout r1 lyt1
-    lyt2'        <- rekeyLayout r2 lyt2
+    lyt1'        <- repLayout r1 lyt1
+    lyt2'        <- repLayout r2 lyt2
     return $ VShape d1 (LNest q' $ LTuple [lyt1', lyt2'])
 zipL _ _ = $impossible
 

@@ -68,7 +68,7 @@ substR v s = readerT $ \expr -> case expr of
     -- Some other variable
     ExprFKL (Var _ _)                                   -> idR
 
-    ExprFKL (Let _ x _ e2) | x /= v && v `elem` freeVars e2 ->
+    ExprFKL (Let _ x _ e2) | x /= v ->
         if x `elem` freeVars s
         then alphaLetR (freeVars s) >>> substR v s
         else anyR $ substR v s

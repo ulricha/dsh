@@ -82,7 +82,7 @@ toNonEmpty (a :* as) = a :| toList as
 toNonEmpty (S a)     = a :| []
 
 reverseNL :: NL a -> NL a
-reverseNL (a :* as) = F.foldl (flip (:*)) (S a) as
+reverseNL (a :* as) = F.foldl' (flip (:*)) (S a) as
 reverseNL (S a)     = S a
 
 appendNL :: NL a -> NL a -> NL a

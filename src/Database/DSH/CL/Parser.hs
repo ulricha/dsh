@@ -61,7 +61,7 @@ import qualified Database.DSH.Common.Lang as L
 import qualified Database.DSH.Common.Nat  as N
 import qualified Database.DSH.Common.Type as T
 
-type CLParser a = Parsec String a
+type CLParser a = Parsec Dec String a
 
 --------------------------------------------------------------------------------
 -- Lexer infrastructure

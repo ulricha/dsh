@@ -147,9 +147,9 @@ slProject projs (DVec c) = dvec $ insert $ UnOp (Project projs) c
 slAlign :: DVec -> DVec -> Build SL DVec
 slAlign (DVec c1) (DVec c2) = vec (BinOp Align c1 c2) dvec
 
-slZip :: DVec -> DVec -> Build SL (DVec, KVec, KVec)
+slZip :: DVec -> DVec -> Build SL (DVec, RVec, RVec)
 slZip (DVec c1) (DVec c2) =
-    tripleVec (BinOp Zip c1 c2) dvec kvec kvec
+    tripleVec (BinOp Zip c1 c2) dvec rvec rvec
 
 slCartProduct :: DVec -> DVec -> Build SL (DVec, RVec, RVec)
 slCartProduct (DVec c1) (DVec c2) =

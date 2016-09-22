@@ -58,7 +58,7 @@ replaceRoot oldRoot newRoot = do
 
 -- | Replace a node with a new operator while mainting the query
 -- structure information.
-replaceWithNew :: (D.Operator o, Show o, DagVector v)
+replaceWithNew :: (D.Operator o, DagVector v)
                => AlgNode -> o -> R.Rewrite o (Shape v) AlgNode
 replaceWithNew oldNode newOp = do
     sh <- R.getExtras

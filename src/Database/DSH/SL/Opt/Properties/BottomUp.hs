@@ -100,5 +100,5 @@ inferTerOp op c1Props c2Props c3Props = do
                  , segProp        = opSeg
                  }
 
-inferBottomUpProperties :: AlgebraDag SL -> NodeMap BottomUpProps
-inferBottomUpProperties = inferBottomUpGeneral inferWorker
+inferBottomUpProperties :: [AlgNode] -> AlgebraDag SL -> NodeMap BottomUpProps
+inferBottomUpProperties = inferBottomUpG inferWorker

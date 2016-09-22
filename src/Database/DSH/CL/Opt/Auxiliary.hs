@@ -16,8 +16,8 @@ module Database.DSH.CL.Opt.Auxiliary
       -- * Converting predicate expressions into join predicates
     , toScalarExpr
     , splitJoinPredT
-    , joinConjunctsT
-    , conjunctsT
+    -- , joinConjunctsT
+    , conjuncts
       -- * Helpers on scalar expressions
     , firstOnly
     , untuplifyScalarExpr
@@ -76,6 +76,7 @@ module Database.DSH.CL.Opt.Auxiliary
     ) where
 
 import           Control.Arrow
+import           Control.Monad
 import           Data.Either
 import qualified Data.Foldable                  as F
 import           Data.List
@@ -118,38 +119,33 @@ applyInjectable t e = fst <$> runRewriteM (applyT t initialCtx (inject e))
 
 -- | 'fromScalarExpr n e' rewrites scalar expression 'e' into a general
 -- expression and uses the name 'n' for the input variable.
-fromScalarExpr :: MonadCatch m => Ident -> ScalarExpr -> m Expr
-fromScalarExpr n e@(JBinOp op e1 e2)    = BinOp (typeOf e) op
-                                              <$> fromScalarExpr n e1
-                                              <*> fromScalarExpr n e2
-fromScalarExpr n e@(JUnOp op e1)        = UnOp (typeOf e) op
-                                              <$> fromScalarExpr n e1
-fromScalarExpr n e@(JTupElem tupIdx e1) = AppE1 (typeOf e) (TupElem tupIdx)
-                                              <$> fromScalarExpr n e1
-fromScalarExpr _ (JLit ty val)          = pure $ Lit ty val
-fromScalarExpr n (JInput ty)            = pure $ Var ty n
+fromScalarExpr :: Ident -> ScalarExpr -> Expr
+fromScalarExpr n e@(JBinOp op e1 e2)    = BinOp (typeOf e) op (fromScalarExpr n e1) (fromScalarExpr n e2)
+fromScalarExpr n e@(JUnOp op e1)        = UnOp (typeOf e) op (fromScalarExpr n e1)
+fromScalarExpr n e@(JTupElem tupIdx e1) = AppE1 (typeOf e) (TupElem tupIdx) (fromScalarExpr n e1)
+fromScalarExpr _ (JLit ty val)          = Lit ty val
+fromScalarExpr n (JInput ty)            = Var ty n
 
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
 
+toScalarExprM :: Ident -> Expr -> Maybe ScalarExpr
+toScalarExprM n (AppE1 _ (TupElem i) e) = JTupElem i <$> toScalarExprM n e
+toScalarExprM n (BinOp _ o e1 e2)       = JBinOp o <$> toScalarExprM n e1
+                                                   <*> toScalarExprM n e2
+toScalarExprM n (UnOp _ o e)            = JUnOp o <$> toScalarExprM n e
+toScalarExprM _ (Lit t v)               = pure $ JLit t v
+toScalarExprM n (Var t x)
+    | n == x    = pure $ JInput t
+    | otherwise = mzero
+toScalarExprM _ _                       = mzero
+
 toScalarExpr :: Ident -> TransformC Expr ScalarExpr
 toScalarExpr n = do
     e <- idR
-
-    case e of
-        AppE1 _ (TupElem i) _ ->
-            appe1T (toScalarExpr n) (\_ _ e1 -> JTupElem i e1)
-        BinOp _ o _ _ ->
-            binopT (toScalarExpr n) (toScalarExpr n) (\_ _ e1 e2 -> JBinOp o e1 e2)
-        UnOp _ o _ ->
-            unopT (toScalarExpr n) (\_ _ e1 -> JUnOp o e1)
-        Lit t v       ->
-            return $ JLit t v
-        Var t x       -> do
-            guardMsg (n == x) "toScalarExpr: wrong name"
-            return $ JInput t
-        _             ->
-            fail "toScalarExpr: can't translate to join expression"
+    case toScalarExprM n e of
+        Just se -> pure se
+        Nothing -> fail "toScalarExpr: can't translate to join expression"
 
 flipRelOp :: BinRelOp -> BinRelOp
 flipRelOp Eq  = Eq
@@ -168,8 +164,8 @@ splitJoinPredT :: Ident -> Ident -> TransformC Expr (JoinConjunct ScalarExpr)
 splitJoinPredT x y = do
     BinOp _ (SBRelOp op) e1 e2 <- idR
 
-    [x'] <- return $ freeVars e1
-    [y'] <- return $ freeVars e2
+    [x'] <- pure $ freeVars e1
+    [y'] <- pure $ freeVars e2
 
     if | x == x' && y == y' -> binopT (toScalarExpr x)
                                       (toScalarExpr y)
@@ -179,25 +175,14 @@ splitJoinPredT x y = do
                                       (\_ _ e1' e2' -> JoinConjunct e2' (flipRelOp op) e1')
        | otherwise          -> fail "splitJoinPredT: not a theta-join predicate"
 
--- | Split a conjunctive combination of join predicates.
-joinConjunctsT :: Ident -> Ident -> TransformC CL (NonEmpty (JoinConjunct ScalarExpr))
-joinConjunctsT x y = conjunctsT >>> mapT (splitJoinPredT x y)
+-- -- | Split a conjunctive combination of join predicates.
+-- joinConjunctsT :: Ident -> Ident -> TransformC CL (NonEmpty (JoinConjunct ScalarExpr))
+-- joinConjunctsT x y = conjunctsT >>> mapT (splitJoinPredT x y)
 
 -- | Split a combination of logical conjunctions into its sub-terms.
-conjunctsT :: TransformC CL (NonEmpty Expr)
-conjunctsT = readerT $ \e -> case e of
-    -- For a logical AND, turn the left and right arguments into lists
-    -- of join predicates and combine them.
-    ExprCL (BinOp _ (SBBoolOp Conj) _ _) -> do
-        leftConjs  <- childT BinOpArg1 conjunctsT
-        rightConjs <- childT BinOpArg2 conjunctsT
-        return $ leftConjs <> rightConjs
-
-    -- For a non-AND expression, try to transform it into a join
-    -- predicate.
-    ExprCL expr -> return $ expr :| []
-
-    _ -> $impossible
+conjuncts :: Expr -> NonEmpty Expr
+conjuncts (BinOp _ (SBBoolOp Conj) e1 e2) = conjuncts e1 <> conjuncts e2
+conjuncts e                               = pure e
 
 --------------------------------------------------------------------------------
 -- Helpers on scalar expressions
@@ -260,14 +245,28 @@ isFlatExpr expr =
 --------------------------------------------------------------------------------
 -- Computation of free variables
 
-freeVarsT :: TransformC CL [Ident]
-freeVarsT = fmap nub $ crushbuT $ promoteT $ do (ctx, Var _ v) <- exposeT
-                                                guardM (v `freeIn` ctx)
-                                                return [v]
+-- | Compute free variables of the given expression
+freeVarsS :: Expr -> S.Set Ident
+freeVarsS Table{}           = S.empty
+freeVarsS (AppE1 _ _ e)     = freeVarsS e
+freeVarsS (AppE2 _ _ e1 e2) = freeVarsS e1 `S.union` freeVarsS e2
+freeVarsS (BinOp _ _ e1 e2) = freeVarsS e1 `S.union` freeVarsS e2
+freeVarsS (UnOp _ _ e)      = freeVarsS e
+freeVarsS (If _ e1 e2 e3)   = freeVarsS e1 `S.union` freeVarsS e2 `S.union` freeVarsS e3
+freeVarsS Lit{}             = S.empty
+freeVarsS (Var _ n)         = S.singleton n
+freeVarsS (Comp _ h qs)     = genFree `S.union` (freeVarsS h `S.difference` genBound)
+  where
+    (genBound, genFree) = foldl' go (S.empty, S.empty) qs
+
+    go (gb, gf) (BindQ x e) = (S.insert x gb, gf `S.union` (freeVarsS e `S.difference` gb))
+    go (gb, gf) (GuardQ p)  = (gb, gf `S.union` (freeVarsS p `S.difference` gb))
+freeVarsS (MkTuple _ es)    = S.unions (map freeVarsS es)
+freeVarsS (Let _ x e1 e2)   = freeVarsS e1 `S.union` (S.delete x (freeVarsS e2))
 
 -- | Compute free variables of the given expression
 freeVars :: Expr -> [Ident]
-freeVars = either error id . applyExpr freeVarsT
+freeVars = S.toList . freeVarsS
 
 -- | Compute all identifiers bound by a qualifier list
 compBoundVars :: F.Foldable f => f Qual -> [Ident]
@@ -277,17 +276,28 @@ compBoundVars = F.foldr aux []
     aux (BindQ n _) ns = n : ns
     aux (GuardQ _) ns  = ns
 
-boundVarsT :: TransformC CL [Ident]
-boundVarsT = fmap nub $ crushbuT $ promoteT $ readerT $ \expr -> case expr of
-     Comp _ _ qs -> return $ compBoundVars qs
-     Let _ v _ _ -> return [v]
-     _           -> return []
+boundVarsS :: Expr -> S.Set Ident
+boundVarsS Table{}           = S.empty
+boundVarsS (AppE1 _ _ e)     = boundVarsS e
+boundVarsS (AppE2 _ _ e1 e2) = boundVarsS e1 `S.union` boundVarsS e2
+boundVarsS (BinOp _ _ e1 e2) = boundVarsS e1 `S.union` boundVarsS e2
+boundVarsS (UnOp _ _ e)      = boundVarsS e
+boundVarsS (If _ e1 e2 e3)   = boundVarsS e1 `S.union` boundVarsS e2 `S.union` boundVarsS e3
+boundVarsS Lit{}             = S.empty
+boundVarsS (Var _ n)         = S.singleton n
+boundVarsS (Comp _ h qs)     = genBound `S.union` boundVarsS h
+  where
+    genBound = foldl' go S.empty qs
 
--- | Compute all names that are bound in the given expression. Note
--- that the only binding forms in NKL are comprehensions or 'let'
--- bindings.
+    go gb (BindQ x e) = S.insert x $ boundVarsS e `S.union` gb
+    go gb (GuardQ p)  = boundVarsS p `S.union` gb
+boundVarsS (MkTuple _ es)    = S.unions (map boundVarsS es)
+boundVarsS (Let _ x e1 e2)   = S.insert x $ boundVarsS e1 `S.union` boundVarsS e2
+
+-- | Compute all names that are bound in the given expression. Note that the
+-- only binding forms in CL are comprehensions and 'let' bindings.
 boundVars :: Expr -> [Ident]
-boundVars = either error id . applyExpr boundVarsT
+boundVars = S.toList . boundVarsS
 
 --------------------------------------------------------------------------------
 -- Substitution

@@ -75,7 +75,8 @@ lamBody f = do
 -- | Translate a frontend HOAS AST to a FOAS AST in Comprehension
 -- Language (CL).
 translate :: forall a. Exp a -> Compile CL.Expr
-translate (TupleConstE tc) = let translateTupleConst = $(mkTranslateTupleTerm 16)
+translate (TupleConstE tc) = let translateTupleConst :: TupleConst a -> Compile CL.Expr
+                                 translateTupleConst = $(mkTranslateTupleTerm 16)
                              in translateTupleConst tc
 translate UnitE = return CP.unit
 translate (BoolE b) = return $ CP.bool b
@@ -168,7 +169,8 @@ translateType ScientificT    = Ty.PDecimalT
 translateType TextT          = Ty.PStringT
 translateType DayT           = Ty.PDateT
 translateType (ListT t)      = Ty.ListT (translateType t)
-translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)
+translateType (TupleT tupTy) = let translateTupleType :: TupleType a -> Ty.Type
+                                   translateTupleType = $(mkTranslateType 16)
                                in translateTupleType tupTy
 translateType (ArrowT _ _)   = $impossible
 

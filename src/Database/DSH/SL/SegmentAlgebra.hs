@@ -118,7 +118,7 @@ class SegmentAlgebra a where
 
     -- | Positionally align two vectors per segment: @map zip xss
     -- yss@.
-    vecZip :: SLDVec a -> SLDVec a -> Build a (SLDVec a, SLKVec a, SLKVec a)
+    vecZip :: SLDVec a -> SLDVec a -> Build a (SLDVec a, SLRVec a, SLRVec a)
 
     vecCartProduct :: SLDVec a -> SLDVec a -> Build a (SLDVec a, SLRVec a, SLRVec a)
     vecThetaJoin :: L.JoinPredicate Expr -> SLDVec a -> SLDVec a -> Build a (SLDVec a, SLRVec a, SLRVec a)

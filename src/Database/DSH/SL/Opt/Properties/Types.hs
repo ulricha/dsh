@@ -16,15 +16,15 @@ instance Show a => Show (VectorProp a) where
   show (VPropPair a1 a2) = show (a1, a2)
   show (VPropTriple a1 a2 a3) = show (a1, a2, a3)
 
-data VectorType = VTDataVec Int
+data VectorType = VTDataVec {-# UNPACK #-} !Int
                 | VTNA
                 deriving Show
 
-data Const = Const ScalarVal
+data Const = Const !ScalarVal
            | NoConst
             deriving Show
 
-data ConstPayload = ConstPL ScalarVal
+data ConstPayload = ConstPL !ScalarVal
                   | NonConstPL
                   deriving Show
 

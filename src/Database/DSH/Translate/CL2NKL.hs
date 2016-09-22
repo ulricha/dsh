@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell  #-}
 
+-- | Desugar CL expressions into NKL expressions that feature only simple
+-- iterators instead of full-blown comprehensions.
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
 

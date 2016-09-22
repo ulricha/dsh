@@ -124,15 +124,17 @@ mkTupleLytCons tupTyName lytTyCons conName width = do
         constraints      = tupConstraint : reifyConstraints
 
     let -- 'Type a'
-        dshTypeTy  = (IsStrict, AppT (ConT ''DSH.Type) (VarT tupTyName))
+        dshTypeTy  = (strict, AppT (ConT ''DSH.Type) (VarT tupTyName))
         -- 'TabLayout t1, TabLayout t<n>
-        elemLytTys = [ (IsStrict, lytTyCons (VarT t)) -- AppT (ConT $ mkName "TabLayout") (VarT t))
+        elemLytTys = [ (strict, lytTyCons (VarT t)) -- AppT (ConT $ mkName "TabLayout") (VarT t))
                      | t <- tupElemTyNames
                      ]
         argTys     = dshTypeTy : elemLytTys
 
     return $ ForallC tyVarBinders constraints
            $ NormalC (conName width) {- (tabTupleConsName width) -} argTys
+  where
+    strict = Bang NoSourceUnpackedness SourceStrict
 
 -- | Generate the data type for 'TabTuple'/'SegTuple' layouts that contain
 -- tabular query results.
@@ -161,7 +163,7 @@ mkTupleLyt tyName lytTyCons conName maxWidth = do
     tupTyName <- newName "a"
     cons      <- mapM (mkTupleLytCons tupTyName lytTyCons conName) [2..maxWidth]
 
-    return $ [DataD [] tyName  [PlainTV tupTyName] cons []]
+    return $ [DataD [] tyName [PlainTV tupTyName] Nothing cons []]
 
 --------------------------------------------------------------------------------
 -- Generate the tuple layout type containing tabular results
