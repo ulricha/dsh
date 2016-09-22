@@ -120,6 +120,7 @@ papp1 t f Lifted =
         Sort            -> Builtins.unMacroL Builtins.sort
         Group           -> Builtins.unMacroL Builtins.group
         Restrict        -> Builtins.unMacroL Builtins.restrict
+        LitExt v        -> Builtins.unMacroL (Builtins.ext v)
         Agg a           -> aggL t a
         TupElem i       -> Builtins.tupElemL i
 

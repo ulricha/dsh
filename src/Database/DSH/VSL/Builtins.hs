@@ -35,6 +35,7 @@ data DelayedVec = DelayedVec
     , dvPhysVec :: DVec
     } deriving (Show)
 
+pattern MatVec :: DVec -> DelayedVec
 pattern MatVec v = DelayedVec IDMap v
 
 --------------------------------------------------------------------------------
@@ -245,6 +246,15 @@ group dv (LTuple [xl, gl]) = do
     vi'         <- C.project (map Column [1..leftWidth]) vi
     xl'         <- updateLayoutMaps (RMap r) xl
     return (dv { dvPhysVec = vo }, LTuple [gl, LNest (DelayedVec IDMap vi') xl'])
+
+--------------------------------------------------------------------------------
+-- ext
+
+ext :: L.ScalarVal -> UnVectMacro
+ext val dv lyt = do
+    let w = columnsInLayout lyt
+    v' <- C.project ([ Column c | c <- [1..w]] ++ [Constant val]) (dvPhysVec dv)
+    return (dv { dvPhysVec = v' }, LTuple [lyt, LCol])
 
 --------------------------------------------------------------------------------
 -- Filtering

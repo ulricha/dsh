@@ -124,6 +124,7 @@ papp1 t f Lifted =
         Restrict        -> Builtins.restrictL
         Agg a           -> aggL t a
         TupElem i       -> Builtins.tupElemL i
+        LitExt v        -> Builtins.extL v
 
 papp1 _ f NotLifted =
     case f of

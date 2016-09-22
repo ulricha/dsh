@@ -75,6 +75,13 @@ restrict _ = $impossible
 --------------------------------------------------------------------------------
 -- Construction of lifted primitives
 
+extL :: L.ScalarVal -> Shape DVec -> Build SL (Shape DVec)
+extL val (VShape dvo (LNest dvi lyt)) = do
+    let w = columnsInLayout lyt
+    dvi' <- slProject ([ Column c | c <- [1..w]] ++ [Constant val]) dvi
+    return (VShape dvo (LNest dvi' (LTuple [lyt, LCol])))
+extL _ _ = $impossible
+
 onlyL :: Shape DVec -> Build SL (Shape DVec)
 onlyL (VShape dvo (LNest dvi lyt)) = do
     (dv, kv) <- slUnboxSng dvo dvi

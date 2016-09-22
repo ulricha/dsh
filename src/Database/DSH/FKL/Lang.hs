@@ -62,6 +62,7 @@ data Prim1 = Concat
            | Singleton
            | Only
            | Agg L.AggrFun
+           | LitExt L.ScalarVal
     deriving (Show, Eq)
 
 data Prim2 = Append
@@ -146,6 +147,7 @@ instance Pretty LiftedN where
     pretty (LiftedN n)    = super $ superscript (intFromNat n)
 
 instance Pretty Prim1 where
+    pretty (LitExt v)   = combinator $ text $ printf "ext{%s}" (pp v)
     pretty Concat       = combinator $ text "concat"
     pretty Reverse      = combinator $ text "reverse"
     pretty Nub          = combinator $ text "nub"

@@ -48,6 +48,15 @@ data ScalarVal = IntV      {-# UNPACK #-} !Int
 
 $(deriveJSON defaultOptions ''ScalarVal)
 
+instance Typed ScalarVal where
+    typeOf IntV{}     = PIntT
+    typeOf BoolV{}    = PBoolT
+    typeOf StringV{}  = PStringT
+    typeOf DoubleV{}  = PDoubleT
+    typeOf DecimalV{} = PDecimalT
+    typeOf DateV{}    = PDateT
+    typeOf UnitV{}    = PUnitT
+
 newtype ColName = ColName String deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''ColName)
@@ -210,18 +219,6 @@ aggFunType Minimum ty = ty
 aggFunType Avg ty     = ty
 aggFunType And _      = PBoolT
 aggFunType Or _       = PBoolT
-
-instance Pretty AggrFun where
-  pretty Length          = combinator $ text "length"
-  pretty Sum             = combinator $ text "sum"
-  pretty Avg             = combinator $ text "avg"
-  pretty Minimum         = combinator $ text "minimum"
-  pretty Maximum         = combinator $ text "maximum"
-  pretty And             = combinator $ text "and"
-  pretty Or              = combinator $ text "or"
-
-instance Pretty AggrApp where
-    pretty aa = pretty (aaFun aa) <> parens (pretty $ aaArg aa)
 
 -----------------------------------------------------------------------------
 -- Join operator arguments: limited expressions that can be used on joins
@@ -439,6 +436,19 @@ instance Pretty ScalarUnOp where
 
 instance Pretty UnTextOp where
     pretty (SubString f t) = text $ printf "subString_%d,%d" f t
+
+instance Pretty AggrFun where
+  pretty Length          = combinator $ text "length"
+  pretty Sum             = combinator $ text "sum"
+  pretty Avg             = combinator $ text "avg"
+  pretty Minimum         = combinator $ text "minimum"
+  pretty Maximum         = combinator $ text "maximum"
+  pretty And             = combinator $ text "and"
+  pretty Or              = combinator $ text "or"
+
+instance Pretty AggrApp where
+    pretty aa = pretty (aaFun aa) <> parens (pretty $ aaArg aa)
+
 
 --------------------------------------------------------------------------------
 

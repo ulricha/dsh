@@ -104,9 +104,11 @@ data Prim1 = Singleton
            | Guard
            | TupElem TupleIndex
            | Agg L.AggrFun
+           | Ext L.ScalarVal
            deriving (Eq, Show)
 
 instance Pretty Prim1 where
+  pretty (Ext v)         = combinator $ text $ printf "ext{%s}" (pp v)
   pretty Sort            = combinator $ text "sort"
   pretty Group           = combinator $ text "group"
   pretty Singleton       = combinator $ text "sng"

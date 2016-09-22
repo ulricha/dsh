@@ -20,6 +20,11 @@ import           Database.DSH.FKL.Lang
 --------------------------------------------------------------------------------
 -- Smart constructors for primitive combinators in the lifting FKL dialect
 
+ext :: ScalarVal -> LExpr -> Nat -> LExpr
+ext v xs d =
+    let ListT xt = unliftTypeN d $ typeOf xs
+    in PApp1 (liftTypeN d (ListT (PPairT xt (typeOf v)))) (LitExt v) (LiftedN d) xs
+
 group :: LExpr -> Nat -> LExpr
 group xs d =
     let ListT (TupleT [xt, gt]) = unliftTypeN d $ typeOf xs
