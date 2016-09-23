@@ -33,6 +33,8 @@ module Database.DSH.CL.Opt.Auxiliary
       -- * Substituion
     , substR
     , tuplifyR
+    , tuplifyFirstR
+    , tuplifySecondR
     , unTuplifyR
     , unTuplifyPathR
       -- * Combining generators and guards
@@ -322,12 +324,15 @@ substR v s = readerT $ \expr -> case expr of
     -- head. However, substitute in the qualifier list. The traversal on
     -- qualifiers takes care of shadowing generators.
     -- FIXME in this case, rename the shadowing generator to avoid
-    -- name-capturing (see lambda case)
+    -- name-capturing (see lambda case). Also, be careful not to capture free
+    -- variables in the substitute s (see let-binding case).
     ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> tryR $ childR CompQuals (substR v s)
     ExprCL _                                           -> tryR $ anyR $ substR v s
 
     -- Don't substitute past shadowing generators
     QualsCL (BindQ n _ :* _) | n == v                  -> tryR $ childR QualsHead (substR v s)
+    -- FIXME be careful not to capture free variables in the substitute s (see
+    -- let-binding case)!
     QualsCL _                                          -> tryR $ anyR $ substR v s
     QualCL _                                           -> tryR $ anyR $ substR v s
 
@@ -336,11 +341,29 @@ substR v s = readerT $ \expr -> case expr of
 -- Tuplifying and Untuplifying variables
 
 -- | Turn all occurences of two identifiers into accesses to one tuple variable.
--- tuplifyR z c y e = e[fst z/x][snd z/y]
+-- tuplifyR z x y e = e[fst z/x][snd z/y]
 tuplifyR :: Ident -> (Ident, Type) -> (Ident, Type) -> RewriteC CL
 tuplifyR v (v1, t1) (v2, t2) = substR v1 v1Rep >+> substR v2 v2Rep
   where
     (v1Rep, v2Rep) = tupleVars v t1 t2
+
+-- | Turn all occurences of one variable into access to a tuple variable (first
+-- component).
+--
+-- tuplifyFirstR z x y e = e[fst z/x]
+tuplifyFirstR :: Ident -> (Ident, Type) -> Type -> RewriteC CL
+tuplifyFirstR v (v1, t1) t2 = substR v1 v1Rep
+  where
+    (v1Rep, _) = tupleVars v t1 t2
+
+-- | Turn all occurences of one variable into access to a tuple variable (second
+-- component).
+--
+-- tuplifySecondR z x y e = e[snd z/y]
+tuplifySecondR :: Ident -> Type -> (Ident, Type) -> RewriteC CL
+tuplifySecondR v t1 (v2, t2) = substR v2 v2Rep
+  where
+    (_, v2Rep) = tupleVars v t1 t2
 
 tupleVars :: Ident -> Type -> Type -> (Expr, Expr)
 tupleVars n t1 t2 = (v1Rep, v2Rep)

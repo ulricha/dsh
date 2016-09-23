@@ -180,6 +180,8 @@ guardpushfrontR = do
     qs' <- childT CompQuals (promoteR qualsguardpushfrontR) >>> projectT
     return $ inject $ Comp t h qs'
 
+-- FIXME this is not correct if name shadowing occurs in the generators:
+-- [ e | x <- xs, p x, x <- ys ]
 pushBackGuards :: NL Qual -> NL Qual
 pushBackGuards qs =
     case (map (uncurry BindQ) gens, map GuardQ preds) of

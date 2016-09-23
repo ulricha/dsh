@@ -6,6 +6,7 @@
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
 
+import           Control.Arrow
 import           Control.Monad.Reader
 import qualified Data.Foldable                  as F
 import           Data.List.NonEmpty             (NonEmpty (..))
@@ -328,11 +329,11 @@ desugarComprehension _ e qs = do
 
     return $ wrapHead $ NKL.Iterator (ListT $ typeOf e') e'' n genExpr
 
--- | Express comprehensions through NKL iteration constructs map and
--- concatMap and filter.
+-- | Express comprehensions through NKL iterators and explicit list filtering.
 desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions e = runReader (expr desugared) []
+desugarComprehensions e = runReader (expr $ desugar e) []
   where
-    desugared = D.bindScalarLiterals
-                $ D.wrapComprehension
-                $ D.desugarBuiltins e
+    desugar =     D.desugarBuiltins
+              >>> D.wrapComprehension
+              >>> D.bindScalarLiterals
+              >>> D.eliminateScalarSingletons

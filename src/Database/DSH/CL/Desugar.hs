@@ -1,4 +1,5 @@
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Remove scalar literals from CL terms by binding them as singleton list
 -- generators.
@@ -6,16 +7,142 @@ module Database.DSH.CL.Desugar
   ( bindScalarLiterals
   , wrapComprehension
   , desugarBuiltins
+  , eliminateScalarSingletons
   ) where
 
 import           Control.Arrow
 
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
-import qualified Database.DSH.CL.Primitives    as P
+import qualified Database.DSH.CL.Primitives     as P
+
+--------------------------------------------------------------------------------
+
+-- | Try a rewrite once on an expression. If it fails, return the original
+-- expression.
+tryRewrite :: RewriteC CL -> Expr -> Expr
+tryRewrite r expr =
+    case applyExpr (r >>> projectT) expr of
+        Left _      -> expr
+        Right expr' -> expr'
+
+--------------------------------------------------------------------------------
+-- Eliminate generators with singleton literal lists
+
+pushSingletonGenFrontQualsR :: RewriteC CL
+pushSingletonGenFrontQualsR = readerT $ \quals -> case quals of
+    QualsCL (GuardQ p :* (y :<-: LitListP ty [ScalarV v]) :* qs) -> do
+        guardM $ y `notElem` freeVars p
+        return $ inject $ (y :<-: LitListP ty [ScalarV v]) :* GuardQ p :* qs
+    QualsCL (GuardQ p :* S (y :<-: LitListP ty [ScalarV v]))     -> do
+        guardM $ y `notElem` freeVars p
+        return $ inject $ (y :<-: LitListP ty [ScalarV v]) :* S (GuardQ p)
+    QualsCL (q :* _)                                             -> do
+        qs' <- childT QualsTail pushSingletonGenFrontQualsR >>> projectT
+        return $ inject $ q :* qs'
+    QualsCL (S _)                                                ->
+        fail "end of qualifier list, no match"
+    _                                                            ->
+        $impossible
+
+-- | Push scalar singleton list generators in front of guards as a preparation
+-- for merging them into generator extensions.
+pushSingletonGenFrontR :: RewriteC CL
+pushSingletonGenFrontR = do
+    Comp ty h _ <- promoteT idR
+    qs' <- childT CompQuals pushSingletonGenFrontQualsR >>> projectT
+    return $ inject $ Comp ty h qs'
+
+-- | Search for a generator with a literal singleton scalar list that can be
+-- replaced with an extension of another generator. Returns the new qualifier
+-- list, the tuplifying rewrite for the comprehension head and the tuplifying
+-- rewrite for the qualifiers together with the position from which it needs to
+-- be applied.
+searchScalarSingletonR :: TransformC CL (NL Qual, RewriteC CL, Maybe (PathC, RewriteC CL))
+searchScalarSingletonR = readerT $ \quals -> case quals of
+    QualsCL ((x :<-: xs) :* (y :<-: LitListP _ [ScalarV v]) :* qs) -> do
+        -- Sanity check
+        guardM $ x /= y
+
+        -- Tuplification in the qualifiers needs to be applied from here on.
+        path <- snocPathToPath <$> absPathT
+
+        -- A fresh name for the extension generator
+        z    <- freshNameT $ [x,y] ++ compBoundVars qs
+
+        let xt     = elemT $ typeOf xs
+            yt     = typeOf v
+            extGen = P.ext v xs
+            tupR   = tuplifyR z (x, xt) (y, yt)
+
+        -- Check the subsequent generators to see whether either x and/or y need
+        -- to be replaced in the head (or not, because they are shadowed by
+        -- subsequent generators).
+        let headR = case fmap (fmap fst) $ sequence $ fmap fromGen qs of
+                        Just ns
+                            | x `elem` ns && y `elem` ns -> idR
+                            | x `elem` ns                -> tuplifySecondR z xt (y, yt)
+                            | y `elem` ns                -> tuplifyFirstR z (x, xt) yt
+                            | otherwise                  -> tupR
+                        Nothing                          -> tupR
+        return ((z :<-: extGen) :* qs, headR, Just (path, tupR))
+
+    QualsCL ((x :<-: xs) :* S (y :<-: LitListP _ [ScalarV v]))     -> do
+        -- Sanity check
+        guardM $ x /= y
+
+        x'   <- freshNameT [x,y]
+        let extGen = P.ext v xs
+            tupR   = tuplifyR x' (x,elemT $ typeOf xs) (y,typeOf v)
+
+        -- If there are no subsequent generators, we know that neither x or y
+        -- are shadowed in the comprehension head. Furthermore, there is no need
+        -- to return a tuplifying rewrite for subsequent generators (because
+        -- there are none).
+        return (S (x' :<-: extGen), tupR, Nothing)
+    QualsCL (q :* _)                                               -> do
+        (qs', headR, mQualsR) <- childT QualsTail searchScalarSingletonR
+        return (q :* qs', headR, mQualsR)
+    QualsCL (S _)                                                   -> do
+        fail "bar"
+    ExprCL _ -> $impossible
+    QualCL _ -> $impossible
+
+eliminateScalarSingletonR :: RewriteC CL
+eliminateScalarSingletonR = do
+    Comp{}                <- promoteT idR
+    (qs', headR, mQualsR) <- childT CompQuals searchScalarSingletonR
+
+    let uHeadR = extractT headR >>> projectT
+        newQualsR = constT (pure $ QualsCL qs')
+    uQualsR <- case mQualsR of
+                   Just (qualsPath, qsR) -> do
+                       localPath <- drop 1 <$> localizePathT qualsPath
+                       pure $ extractT (pathR localPath qsR)
+                   Nothing                  -> pure idR
+    projectT >>> compR uHeadR (newQualsR >>> uQualsR >>> projectT) >>> injectT
+
+eliminateScalarSingletonsR :: RewriteC CL
+eliminateScalarSingletonsR = do
+    Comp{} <- promoteT idR
+    repeatR pushSingletonGenFrontR >+> repeatR eliminateScalarSingletonR
+
+-- | Replace singleton scalar literal list generators with generator extensions.
+--
+-- @
+-- [ e | x <- xs, y <- [42], qs ]
+-- =>
+-- [ e[z.1/x][z.2/y] | z <- ext{42} xs, qs[z.1/x][z.2/y] ]
+-- @
+eliminateScalarSingletons :: Expr -> Expr
+eliminateScalarSingletons = tryRewrite (repeatR $ anytdR eliminateScalarSingletonsR)
+
+--------------------------------------------------------------------------------
+-- Bind scalar literals in enclosing comprehensions
 
 -- | Search for a scalar literal in an expression. Return the value and the path
 -- to the literal.
@@ -80,10 +207,7 @@ bindScalarLiteralsR = do
 -- | Eliminate scalar literals from a CL expression by binding them as singleton
 -- list generators in the enclosing comprehension.
 bindScalarLiterals :: Expr -> Expr
-bindScalarLiterals expr =
-    case applyExpr (anytdR bindScalarLiteralsR >>> projectT) expr of
-        Left _      -> expr
-        Right expr' -> expr'
+bindScalarLiterals = tryRewrite (anytdR bindScalarLiteralsR)
 
 --------------------------------------------------------------------------------
 
@@ -91,7 +215,8 @@ bindScalarLiterals expr =
 --
 -- This rewrite is valid because we allow only list-typed queries.
 wrapComprehension :: Expr -> Expr
-wrapComprehension e = P.concat sngIter
+wrapComprehension e@Comp{} = e
+wrapComprehension e        = P.concat sngIter
   where
     sngIter = Comp (ListT $ typeOf e) e (S $ "dswrap" :<-: (uncurry Lit sngUnitList))
 
@@ -107,7 +232,4 @@ desugarBuiltinsR = anytdR desugarNullR
 
 -- | Remove builtins that are not available in NKL.
 desugarBuiltins :: Expr -> Expr
-desugarBuiltins expr =
-    case applyExpr (desugarBuiltinsR >>> projectT) expr of
-        Left _      -> expr
-        Right expr' -> expr'
+desugarBuiltins = tryRewrite desugarBuiltinsR
