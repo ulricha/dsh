@@ -154,11 +154,11 @@ pattern RestrictP e  <- AppE1 _ Restrict e
 -- [ e x | x <- xs ]
 singletonHeadR :: RewriteN Expr
 singletonHeadR = do
+    ConcatP t (Iterator _ (SingletonP e) x xs) <- idR
     -- Do not apply at the expression top-level: We must not eliminate the
     -- topmost iterator to guarantee that all expressions are compiled
     -- iteratively.
-    []                                         <- snocPathToPath <$> absPathT
-    ConcatP t (Iterator _ (SingletonP e) x xs) <- idR
+    _:_                                        <- snocPathToPath <$> absPathT
     return $ Iterator t e x xs
 
 -- | Count all occurences of an identifier for let-inlining.
