@@ -33,8 +33,19 @@ tryRewrite r expr =
 --------------------------------------------------------------------------------
 -- Eliminate generators with singleton literal lists
 
-pushSingletonGenFrontQualsR :: RewriteC CL
-pushSingletonGenFrontQualsR = readerT $ \quals -> case quals of
+pushSingletonGenQualsR :: RewriteC CL
+pushSingletonGenQualsR = readerT $ \quals -> case quals of
+    QualsCL ((y :<-: LitListP ty [ScalarV v]) :* (_ :<-: LitListP{}) :* _) -> do
+        qs' <- childT QualsTail pushSingletonGenQualsR >>> projectT
+        return $ inject $ (y :<-: LitListP ty [ScalarV v]) :* qs'
+    QualsCL ((y :<-: LitListP ty [ScalarV v]) :* (x :<-: xs) :* qs) -> do
+        guardM $ y `notElem` freeVars xs
+        return $ inject $ (x :<-: xs) :* (y :<-: LitListP ty [ScalarV v]) :* qs
+    QualsCL ((_ :<-: LitListP _ [ScalarV _]) :* S (_ :<-: LitListP{})) -> do
+        fail "end of qualifier list, no match"
+    QualsCL ((y :<-: LitListP ty [ScalarV v]) :* S (x :<-: xs)) -> do
+        guardM $ y `notElem` freeVars xs
+        return $ inject $ (x :<-: xs) :* S (y :<-: LitListP ty [ScalarV v])
     QualsCL (GuardQ p :* (y :<-: LitListP ty [ScalarV v]) :* qs) -> do
         guardM $ y `notElem` freeVars p
         return $ inject $ (y :<-: LitListP ty [ScalarV v]) :* GuardQ p :* qs
@@ -42,7 +53,7 @@ pushSingletonGenFrontQualsR = readerT $ \quals -> case quals of
         guardM $ y `notElem` freeVars p
         return $ inject $ (y :<-: LitListP ty [ScalarV v]) :* S (GuardQ p)
     QualsCL (q :* _)                                             -> do
-        qs' <- childT QualsTail pushSingletonGenFrontQualsR >>> projectT
+        qs' <- childT QualsTail pushSingletonGenQualsR >>> projectT
         return $ inject $ q :* qs'
     QualsCL (S _)                                                ->
         fail "end of qualifier list, no match"
@@ -51,10 +62,10 @@ pushSingletonGenFrontQualsR = readerT $ \quals -> case quals of
 
 -- | Push scalar singleton list generators in front of guards as a preparation
 -- for merging them into generator extensions.
-pushSingletonGenFrontR :: RewriteC CL
-pushSingletonGenFrontR = do
+pushSingletonGenR :: RewriteC CL
+pushSingletonGenR = do
     Comp ty h _ <- promoteT idR
-    qs' <- childT CompQuals pushSingletonGenFrontQualsR >>> projectT
+    qs' <- childT CompQuals pushSingletonGenQualsR >>> projectT
     return $ inject $ Comp ty h qs'
 
 -- | Search for a generator with a literal singleton scalar list that can be
@@ -129,7 +140,7 @@ eliminateScalarSingletonR = do
 eliminateScalarSingletonsR :: RewriteC CL
 eliminateScalarSingletonsR = do
     Comp{} <- promoteT idR
-    repeatR pushSingletonGenFrontR >+> repeatR eliminateScalarSingletonR
+    repeatR pushSingletonGenR >+> repeatR eliminateScalarSingletonR
 
 -- | Replace singleton scalar literal list generators with generator extensions.
 --
@@ -139,7 +150,7 @@ eliminateScalarSingletonsR = do
 -- [ e[z.1/x][z.2/y] | z <- ext{42} xs, qs[z.1/x][z.2/y] ]
 -- @
 eliminateScalarSingletons :: Expr -> Expr
-eliminateScalarSingletons = tryRewrite (repeatR $ anytdR eliminateScalarSingletonsR)
+eliminateScalarSingletons e = tryRewrite (repeatR $ anytdR eliminateScalarSingletonsR) e
 
 --------------------------------------------------------------------------------
 -- Bind scalar literals in enclosing comprehensions
