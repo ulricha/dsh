@@ -124,7 +124,6 @@ Library
                      Database.DSH.Common.Lang
                      Database.DSH.Common.Impossible
                      Database.DSH.Common.Pretty
-                     Database.DSH.Common.Sequence
 
   Other-modules:     Database.DSH.Frontend.Internals
                      Database.DSH.Frontend.Externals
