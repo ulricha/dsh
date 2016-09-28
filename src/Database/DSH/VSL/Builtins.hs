@@ -35,6 +35,7 @@ data DelayedVec = DelayedVec
     , dvPhysVec :: DVec
     } deriving (Show)
 
+pattern MatVec :: DVec -> DelayedVec
 pattern MatVec v = DelayedVec IDMap v
 
 --------------------------------------------------------------------------------
