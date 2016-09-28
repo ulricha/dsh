@@ -536,23 +536,62 @@ localizePathT path = do
 --------------------------------------------------------------------------------
 -- Pattern synonyms for expressions
 
-pattern ConcatP xs           <- AppE1 _ Concat xs
-pattern SingletonP x         <- AppE1 _ Singleton x
-pattern GuardP p             <- AppE1 _ Guard p
+pattern ConcatP :: Expr -> Expr
+pattern ConcatP xs <- AppE1 _ Concat xs
+
+pattern SingletonP :: Expr -> Expr
+pattern SingletonP x <- AppE1 _ Singleton x
+
+pattern GuardP :: Expr -> Expr
+pattern GuardP p <- AppE1 _ Guard p
+
+pattern SemiJoinP :: Type -> JoinPredicate ScalarExpr -> Expr -> Expr -> Expr
 pattern SemiJoinP ty p xs ys = AppE2 ty (SemiJoin p) xs ys
+
+pattern NestJoinP :: Type -> JoinPredicate ScalarExpr -> Expr -> Expr -> Expr
 pattern NestJoinP ty p xs ys = AppE2 ty (NestJoin p) xs ys
+
+pattern GroupJoinP :: Type -> JoinPredicate ScalarExpr -> NE AggrApp -> Expr -> Expr -> Expr
 pattern GroupJoinP ty p as xs ys = AppE2 ty (GroupJoin p as) xs ys
-pattern AndP xs              <- AppE1 _ (Agg And) xs
-pattern OrP xs              <- AppE1 _ (Agg Or) xs
-pattern SortP ty xs          = AppE1 ty Sort xs
-pattern NotP e               <- UnOp _ (SUBoolOp Not) e
+
+pattern AndP :: Expr -> Expr
+pattern AndP xs <- AppE1 _ (Agg And) xs
+
+pattern OrP :: Expr -> Expr
+pattern OrP xs <- AppE1 _ (Agg Or) xs
+
+pattern SortP :: Type -> Expr -> Expr
+pattern SortP ty xs = AppE1 ty Sort xs
+
+pattern NotP :: Expr -> Expr
+pattern NotP e <- UnOp _ (SUBoolOp Not) e
+
+pattern EqP :: Expr -> Expr -> Expr
 pattern EqP e1 e2 <- BinOp _ (SBRelOp Eq) e1 e2
+
+pattern LengthP :: Expr -> Expr
 pattern LengthP e <- AppE1 _ (Agg Length) e
+
+pattern NullP :: Expr -> Expr
 pattern NullP e <- AppE1 _ Null e
+
+pattern TrueP :: Expr
 pattern TrueP = Lit PBoolT (ScalarV (BoolV True))
+
+pattern FalseP :: Expr
 pattern FalseP = Lit PBoolT (ScalarV (BoolV False))
+
+pattern TupFirstP :: Type -> Expr -> Expr
 pattern TupFirstP t e = AppE1 t (TupElem First) e
+
+pattern TupSecondP :: Type -> Expr -> Expr
 pattern TupSecondP t e = AppE1 t (TupElem (Next First)) e
+
+pattern (:<-:) :: Ident -> Expr -> Qual
 pattern a :<-: b = BindQ a b
+
+pattern LitListP :: Type -> [Val] -> Expr
 pattern LitListP ty vs = Lit ty (ListV vs)
+
+pattern SingleJoinPredP :: e -> BinRelOp -> e -> JoinPredicate e
 pattern SingleJoinPredP r o l <- JoinPred (JoinConjunct r o l :| [])

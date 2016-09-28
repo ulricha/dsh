@@ -137,8 +137,7 @@ booleanTests codeGen conn = testGroup "Equality, Boolean Logic and Ordering"
     , testPropertyConn codeGen conn "neq"                             prop_neq
     , testPropertyConn codeGen conn "cond"                            prop_cond
     , testPropertyConn codeGen conn "cond tuples"                     prop_cond_tuples
-    -- FIXME test fails but is somewhat hard to analyze. Should be fixed anyway some time.
-    -- , testPropertyConn codeGen conn "cond ([[Integer]], [[Integer]])" prop_cond_list_tuples
+    , testPropertyConn codeGen conn "cond ([[Integer]], [[Integer]])" prop_cond_list_tuples
     , testPropertyConn codeGen conn "lt"                              prop_lt
     , testPropertyConn codeGen conn "lte"                             prop_lte
     , testPropertyConn codeGen conn "gt"                              prop_gt
@@ -338,6 +337,7 @@ liftedTests codeGen conn = testGroup "Lifted operations"
     , testPropertyConn codeGen conn "Lifted sortWith [(,)]"                 prop_map_sortWith_pair
     , testPropertyConn codeGen conn "Lifted sortWith [(,[])]"               prop_map_sortWith_nest
     , testPropertyConn codeGen conn "Lifted sortWith length"                prop_map_sortWith_length
+    , testPropertyConn codeGen conn "Lifted groupWith length"               prop_map_groupWith_length
     , testPropertyConn codeGen conn "Lifted groupWithKey length"            prop_map_groupWithKey_length
     , testPropertyConn codeGen conn "Lifted length"                         prop_map_length
     , testPropertyConn codeGen conn "Lifted length on [[(a,b)]]"            prop_map_length_tuple
@@ -1116,11 +1116,11 @@ prop_map_concat = makePropEq (Q.map Q.concat) (map concat)
 
 -- Test segment merging in a case with per-segment order for the natural-key SQL
 -- backend.
-prop_map_concat2 :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty v b
+prop_map_concat2 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
 prop_map_concat2 = makePropEq db heap
   where
-    db (Q.view -> (xs, ys, zs)) = Q.map Q.concat $ Q.map (const (Q.map (const zs) ys)) zs
-    heap (xs, ys, zs) = map concat $ map (const (map (const zs) ys)) zs
+    db (Q.view -> (ys, zs)) = Q.map Q.concat $ Q.map (const (Q.map (const zs) ys)) zs
+    heap (ys, zs) = map concat $ map (const (map (const zs) ys)) zs
 
 prop_concatMap :: (BackendVector b, VectorLang v) => [Integer] -> DSHProperty v b
 prop_concatMap = makePropEq (Q.concatMap Q.singleton) (concatMap (: []))

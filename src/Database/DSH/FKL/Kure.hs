@@ -1,8 +1,8 @@
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes            #-}
 
 -- | Infrastructure for KURE-based rewrites on FKL expressions
 module Database.DSH.FKL.Kure
@@ -42,19 +42,20 @@ import           Control.Monad
 import           Language.KURE
 import           Language.KURE.Lens
 
-import           Database.DSH.Common.RewriteM
-import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Type
+import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.RewriteM
+import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Lang
 
 --------------------------------------------------------------------------------
 -- Convenience type aliases
 
-type TransformF a b = Transform FlatCtx (RewriteM Int ()) a b
+type TransformF a b = Transform FlatCtx (RewriteM Int RewriteLog) a b
 type RewriteF a     = TransformF a a
-type LensF a b      = Lens FlatCtx (RewriteM Int ()) a b
+type LensF a b      = Lens FlatCtx (RewriteM Int RewriteLog) a b
 
 --------------------------------------------------------------------------------
 
@@ -126,11 +127,11 @@ freshNameT avoidNames = do
 
 -- | Run a stateful transform with an initial state and turn it into a regular
 -- (non-stateful) transform
-statefulT :: s -> Transform FlatCtx (RewriteStateM s ()) a b -> TransformF a (s, b)
+statefulT :: s -> Transform FlatCtx (RewriteStateM s RewriteLog) a b -> TransformF a (s, b)
 statefulT s = resultT (stateful s)
 
 -- | Turn a regular rewrite into a stateful rewrite
-liftstateT :: Transform FlatCtx (RewriteM Int ()) a b -> Transform FlatCtx (RewriteStateM s ()) a b
+liftstateT :: Transform FlatCtx (RewriteM Int RewriteLog) a b -> Transform FlatCtx (RewriteStateM s RewriteLog) a b
 liftstateT = resultT liftstate
 
 --------------------------------------------------------------------------------

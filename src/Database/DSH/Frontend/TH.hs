@@ -504,6 +504,8 @@ conToTypes (NormalC _name strictTypes) = map snd strictTypes
 conToTypes (RecC _name varStrictTypes) = map (\(_,_,t) -> t) varStrictTypes
 conToTypes (InfixC st1 _name st2) = [snd st1,snd st2]
 conToTypes (ForallC _tyVarBndrs _cxt con) = conToTypes con
+conToTypes GadtC{} = error "Can't derive database representation: GATDs are not supported"
+conToTypes RecGadtC{} = error "Can't derive database representation: GATDs are not supported"
 
 tyVarBndrToName :: TyVarBndr -> Name
 tyVarBndrToName (PlainTV name) = name
@@ -522,12 +524,16 @@ conToPattern (InfixC st1 name st2) = do
   ns <- mapM (\ _ -> newName "x") [st1,st2]
   return (ConP name (map VarP ns),ns)
 conToPattern (ForallC _tyVarBndr _cxt con) = conToPattern con
+conToPattern GadtC{} = error "Can't derive database representation: GATDs are not supported"
+conToPattern RecGadtC{} = error "Can't derive database representation: GATDs are not supported"
 
 conToName :: Con -> Name
 conToName (NormalC name _)  = name
 conToName (RecC name _)     = name
 conToName (InfixC _ name _) = name
 conToName (ForallC _ _ con) = conToName con
+conToName GadtC{}           = error "Can't derive database representation: GATDs are not supported"
+conToName RecGadtC{}        = error "Can't derive database representation: GATDs are not supported"
 
 countConstructors :: Name -> Q Int
 countConstructors name = do

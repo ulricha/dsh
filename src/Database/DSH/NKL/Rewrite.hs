@@ -165,26 +165,15 @@ singletonHeadR = do
 countVarRefT :: Ident -> TransformN Expr (Sum Int)
 countVarRefT v = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
-    Var _ n | n == v         -> return 1
-            | otherwise      -> return 0
-
-    Let _ n _ _ | n == v     -> letT (constT $ return 0)
-                                     (countVarRefT v)
-                                     (\_ _ c1 c2 -> c1 + c2)
-                | otherwise  -> letT (countVarRefT v)
-                                     (countVarRefT v)
-                                     (\_ _ c1 c2 -> c1 + c2)
-
-    Iterator _ _ x _ | v == x -> iteratorT (constT $ return 0)
-                                           (countVarRefT v)
-                                           (\_ c1 _ c2 -> c1 + c2)
-                     | otherwise -> iteratorT (countVarRefT v)
-                                              (countVarRefT v)
-                                              (\_ c1 _ c2 -> c1 + c2)
-
-    Table{}                  -> return 0
-    Const{}                  -> return 0
-    _                        -> allT (countVarRefT v)
+    Var _ n | n == v             -> return 1
+            | otherwise          -> return 0
+    Let _ n _ _ | n == v         -> childT LetBind (countVarRefT v)
+                | otherwise      -> allT (countVarRefT v)
+    Iterator _ _ x _ | v == x    -> childT IteratorSource (countVarRefT v)
+                     | otherwise -> allT (countVarRefT v)
+    Table{}                      -> return 0
+    Const{}                      -> return 0
+    _                            -> allT (countVarRefT v)
 
 -- | Remove a let-binding that is not referenced.
 unusedBindingR :: RewriteN Expr

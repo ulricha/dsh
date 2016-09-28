@@ -7,15 +7,15 @@ module Database.DSH.FKL.Rewrite
     , optimizeNormFKL
     ) where
 
-
-
 import           Control.Arrow
+import qualified Data.Foldable                as F
 import           Data.List
 import           Data.Monoid
 
-
+import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Pretty
 
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Common.Type
@@ -28,6 +28,13 @@ import qualified Database.DSH.FKL.Primitives  as P
 applyExpr :: (Injection (ExprTempl l e) (FKL l e))
           => TransformF (FKL l e) b -> ExprTempl l e -> Either String b
 applyExpr f e = fst <$> runRewriteM (applyT f initialCtx (inject e))
+
+applyExprLog :: (Injection (ExprTempl l e) (FKL l e))
+             => TransformF (FKL l e) b -> ExprTempl l e -> Either String (b, String)
+applyExprLog f e =
+    case runRewriteM (applyT f initialCtx (inject e)) of
+        Left msg     -> Left msg
+        Right (b, l) -> Right (b, F.foldl' (\s m -> s ++ "\n\n" ++ m) "" l)
 
 --------------------------------------------------------------------------------
 -- Computation of free and bound variables
@@ -50,31 +57,40 @@ freeVars = either error id . applyExpr freeVarsT
 
 alphaLetR :: ( Injection (ExprTempl l e) (FKL l e)
              , Walker FlatCtx (FKL l e)
-             , Typed e)
+             , Typed e
+             , Pretty l
+             , Pretty e
+             )
           => [Ident] -> RewriteF (FKL l e)
 alphaLetR avoidNames = do
-    ExprFKL (Let _ x e1 e2) <- idR
+    ExprFKL (Let ty x e1 e2) <- idR
     x'                      <- freshNameT (x : freeVars e2 ++ avoidNames)
     let varTy = typeOf e1
-    childR LetBody (tryR $ substR x (Var varTy x'))
+    e2' <- childT LetBody (substR x (Var varTy x')) >>> projectT
+    return $ inject $ Let ty x' e1 e2'
 
-substR :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e), Typed e)
+substR :: ( Injection (ExprTempl l e) (FKL l e)
+          , Walker FlatCtx (FKL l e)
+          , Typed e
+          , Pretty l
+          , Pretty e
+          )
        => Ident -> ExprTempl l e -> RewriteF (FKL l e)
 substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
-    ExprFKL (Var _ n) | n == v                          -> return $ inject s
+    ExprFKL (Var _ n) | n == v     -> return $ inject s
 
-    -- Some other variable
-    ExprFKL (Var _ _)                                   -> idR
-
+    -- A let-binding that does not shadow 'v'.
     ExprFKL (Let _ x _ _) | x /= v ->
         if x `elem` freeVars s
         then alphaLetR (freeVars s) >>> substR v s
-        else anyR $ substR v s
+        else tryR $ anyR $ substR v s
 
     -- A let binding which shadows v -> don't descend into the body
     ExprFKL (Let _ x _ _) | v == x -> tryR $ childR LetBind (substR v s)
-    _                              -> anyR $ substR v s
+
+    -- For all other expressions, simply substitute in the children
+    _                              -> tryR $ anyR $ substR v s
 
 --------------------------------------------------------------------------------
 -- Simple optimizations
@@ -87,20 +103,21 @@ countVarRefT v = readerT $ \expr -> case expr of
                       | otherwise      -> return 0
     ExprFKL Table{}                    -> return 0
     ExprFKL Const{}                    -> return 0
-
-    ExprFKL (Let _ n _ _) | n == v     -> childT LetBody (countVarRefT v)
-
+    ExprFKL (Let _ n _ _) | n == v     -> childT LetBind (countVarRefT v)
                           | otherwise  -> allT (countVarRefT v)
-
     _                                  -> allT (countVarRefT v)
 
 
 -- | Remove a let-binding that is not referenced.
-unusedBindingR :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e))
+unusedBindingR :: ( Injection (ExprTempl l e) (FKL l e)
+                  , Walker FlatCtx (FKL l e)
+                  , Pretty l
+                  , Pretty e
+                  )
                => RewriteF (FKL l e)
-unusedBindingR = do
+unusedBindingR = logR "fkl.unusedbinding" $ do
     ExprFKL (Let _ x _ e2) <- idR
-    0            <- childT LetBody $ countVarRefT x
+    0                      <- childT LetBody $ countVarRefT x
     return $ inject e2
 
 
@@ -108,9 +125,11 @@ unusedBindingR = do
 referencedOnceR :: ( Injection (ExprTempl l e) (FKL l e)
                    , Walker FlatCtx (FKL l e)
                    , Typed e
+                   , Pretty e
+                   , Pretty l
                    )
                 => RewriteF (FKL l e)
-referencedOnceR = do
+referencedOnceR = logR "fkl.referencedonce" $ do
     ExprFKL (Let _ x e1 _) <- idR
     1            <- childT LetBody $ countVarRefT x
     childT LetBody $ substR x e1
@@ -125,9 +144,11 @@ simpleExpr _                         = False
 simpleBindingR :: ( Injection (ExprTempl l e) (FKL l e)
                   , Walker FlatCtx (FKL l e)
                   , Typed e
+                  , Pretty e
+                  , Pretty l
                   )
                => RewriteF (FKL l e)
-simpleBindingR = do
+simpleBindingR = logR "fkl.simplebinding" $ do
     ExprFKL (Let _ x e1 _) <- idR
     guardM $ simpleExpr e1
     childT LetBody $ substR x e1
@@ -261,6 +282,8 @@ distChainR = do
 fklOptimizations :: ( Injection (ExprTempl l e) (FKL l e)
                     , Walker FlatCtx (FKL l e)
                     , Typed e
+                    , Pretty l
+                    , Pretty e
                     )
                  => RewriteF (FKL l e)
 fklOptimizations = anybuR $ unusedBindingR
@@ -288,6 +311,6 @@ optimizeNormFKL expr =
 
 optimizeFKL :: LExpr -> LExpr
 optimizeFKL expr =
-    case applyExpr (fklOptimizations >>> projectT) expr of
-        Left _      -> expr
-        Right expr' -> expr'
+    case applyExprLog (fklOptimizations >>> projectT) expr of
+        Left _           -> expr
+        Right (expr', _) -> expr'
