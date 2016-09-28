@@ -87,11 +87,8 @@ countVarRefT v = readerT $ \expr -> case expr of
                       | otherwise      -> return 0
     ExprFKL Table{}                    -> return 0
     ExprFKL Const{}                    -> return 0
-
-    ExprFKL (Let _ n _ _) | n == v     -> childT LetBody (countVarRefT v)
-
+    ExprFKL (Let _ n _ _) | n == v     -> childT LetBind (countVarRefT v)
                           | otherwise  -> allT (countVarRefT v)
-
     _                                  -> allT (countVarRefT v)
 
 
