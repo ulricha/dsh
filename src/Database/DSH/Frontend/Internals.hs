@@ -8,6 +8,8 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
 module Database.DSH.Frontend.Internals where
 
 import qualified Data.Sequence as S

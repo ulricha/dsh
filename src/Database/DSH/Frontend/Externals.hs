@@ -5,6 +5,8 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE ViewPatterns          #-}
 
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
 module Database.DSH.Frontend.Externals where
 
 import           Prelude                          (Bool (..), Char, Double,
