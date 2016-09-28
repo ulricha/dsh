@@ -53,10 +53,11 @@ alphaLetR :: ( Injection (ExprTempl l e) (FKL l e)
              , Typed e)
           => [Ident] -> RewriteF (FKL l e)
 alphaLetR avoidNames = do
-    ExprFKL (Let _ x e1 e2) <- idR
+    ExprFKL (Let ty x e1 e2) <- idR
     x'                      <- freshNameT (x : freeVars e2 ++ avoidNames)
     let varTy = typeOf e1
-    childR LetBody (tryR $ substR x (Var varTy x'))
+    e2' <- childT LetBody (substR x (Var varTy x')) >>> projectT
+    return $ inject $ Let ty x' e1 e2'
 
 substR :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e), Typed e)
        => Ident -> ExprTempl l e -> RewriteF (FKL l e)
