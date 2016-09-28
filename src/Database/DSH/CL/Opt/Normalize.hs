@@ -154,22 +154,16 @@ inlineBindingR v s = readerT $ \expr -> case expr of
 countVarRefT :: Ident -> TransformC CL (Sum Int)
 countVarRefT v = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
-    ExprCL (Var _ n) | n == v          -> return 1
-                     | otherwise       -> return 0
+    ExprCL (Var _ n)
+        | n == v                        -> return 1
+        | otherwise                     -> return 0
 
-    ExprCL (Let _ n _ _) | n == v      -> promoteT $ letT (constT $ return 0)
-                                                          (extractT $ countVarRefT v)
-                                                          (\_ _ c1 c2 -> c1 + c2)
-                         | otherwise   -> promoteT $ letT (extractT $ countVarRefT v)
-                                                          (extractT $ countVarRefT v)
-                                                          (\_ _ c1 c2 -> c1 + c2)
-
-    ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs -> promoteT $ compT (constT $ return 0)
-                                                                         (extractT $ countVarRefT v)
-                                                                         (\_ c1 c2 -> c1 + c2)
-                         | otherwise                 -> promoteT $ compT (extractT $ countVarRefT v)
-                                                                         (extractT $ countVarRefT v)
-                                                                         (\_ c1 c2 -> c1 + c2)
+    ExprCL (Let _ n _ _)
+        | n == v                        -> childT LetBind (countVarRefT v)
+        | otherwise                     -> allT (countVarRefT v)
+    ExprCL (Comp _ _ qs)
+        | v `elem` compBoundVars qs     -> childT CompQuals (countVarRefT v)
+        | otherwise                     -> allT (countVarRefT v)
     ExprCL Table{}                      -> return 0
     ExprCL Lit{}                        -> return 0
 
