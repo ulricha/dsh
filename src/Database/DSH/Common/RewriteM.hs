@@ -29,10 +29,12 @@ import           Database.DSH.Common.Lang
 -- FIXME Figure out how to define a MonadCatch instance and use StateT s RewriteM
 newtype RewriteM s w a = RewriteM { compM :: s -> (s, Either String (a, w)) }
 
--- | A variant of RewriteM which adds extra state to the
--- name-generating counter.
+-- | A variant of RewriteM which adds extra state to the name-generating
+-- counter.
 type RewriteStateM s w = RewriteM (Int, s) w
 
+-- | Run a rewrite. Return either the error message if it fails or the rewritten
+-- result and the log if it succeeds.
 runRewriteM :: RewriteM Int w a -> Either String (a, w)
 runRewriteM m = snd (compM m 0)
 
