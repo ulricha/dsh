@@ -59,7 +59,7 @@ class VirtualSegmentAlgebra a where
     vecUnsegment :: VSLDVec a -> Build a (VSLDVec a)
 
     vecAggr :: N.NonEmpty AggrFun -> VSLDVec a -> Build a (VSLDVec a)
-    vecAggrSeg :: AggrFun -> VSLDVec a -> Build a (VSLDVec a)
+    vecFold :: AggrFun -> VSLDVec a -> Build a (VSLDVec a)
 
     vecWinFun :: WinFun -> FrameSpec -> VSLDVec a -> Build a (VSLDVec a)
 

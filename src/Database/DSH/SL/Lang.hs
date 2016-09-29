@@ -62,7 +62,7 @@ data BinOp = ReplicateNest
            | UnboxSng
            | Align
 
-           | AggrSeg AggrFun
+           | Fold AggrFun
            | Append
            | Zip
            | CartProduct

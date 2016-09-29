@@ -42,7 +42,7 @@ data UnOp = Segment
           | Select Expr
 
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
-          | AggrSeg AggrFun
+          | Fold AggrFun
           | Number
           | Distinct
           | Reverse

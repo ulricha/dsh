@@ -53,7 +53,7 @@ aggrToWinFun (AggrCountDistinct _) = Nothing
 -- Turn a running aggregate based on a self-join into a window operator.
 runningAggWinUnbounded :: SLRule BottomUpProps
 runningAggWinUnbounded q =
-  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((_) AggrSeg afun (R1 ((qn=Number (q1)) NestJoin p (Number (q2))))))"
+  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((_) Fold afun (R1 ((qn=Number (q1)) NestJoin p (Number (q2))))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         predicate $ $(v "qo") == $(v "q1")

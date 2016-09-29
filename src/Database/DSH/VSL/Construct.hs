@@ -67,7 +67,7 @@ reverse :: DVec -> VSLBuild (DVec, RVec)
 reverse dv = bindOp2 $ UnOp VSL.Reverse (extract dv)
 
 aggrseg :: AggrFun -> DVec -> VSLBuild DVec
-aggrseg aFun v = bindOp $ UnOp (VSL.AggrSeg aFun) (extract v)
+aggrseg aFun v = bindOp $ UnOp (VSL.Fold aFun) (extract v)
 
 unboxsng :: DVec -> DVec -> VSLBuild (DVec, RVec)
 unboxsng dvo dvi = bindOp2 $ BinOp VSL.UnboxSng (extract dvo) (extract dvi)

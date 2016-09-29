@@ -19,9 +19,9 @@ import           Database.DSH.SL.Opt.Properties.Types
 import           Database.DSH.SL.Opt.Rewrite.Common
 
 aggregationRules :: SLRuleSet ()
-aggregationRules = [ inlineAggrSegProject
+aggregationRules = [ inlineFoldProject
                    , flatGrouping
-                   , mergeGroupAggrAggrSeg
+                   , mergeGroupAggrFold
                    -- , mergeNonEmptyAggrs
                    , mergeGroupAggr
                    , mergeGroupWithGroupAggrLeft
@@ -85,22 +85,22 @@ groupingToAggregation =
 --             void $ replaceWithNew q aggrOp |])
 
 -- | Merge a projection into a segmented aggregate operator.
-inlineAggrSegProject :: SLRule ()
-inlineAggrSegProject q =
-  $(dagPatMatch 'q "(qo) AggrSeg afun (Project proj (qi))"
+inlineFoldProject :: SLRule ()
+inlineFoldProject q =
+  $(dagPatMatch 'q "(qo) Fold afun (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
         let afun' = mapAggrFun (mergeExpr env) $(v "afun")
 
         return $ do
-            logRewrite "Aggregation.Normalize.AggrSeg.Project" q
-            void $ replaceWithNew q $ BinOp (AggrSeg afun') $(v "qo") $(v "qi") |])
+            logRewrite "Aggregation.Normalize.Fold.Project" q
+            void $ replaceWithNew q $ BinOp (Fold afun') $(v "qo") $(v "qi") |])
 
 -- | We rewrite a combination of GroupS and aggregation operators into a single
 -- GroupAggr operator.
 flatGrouping :: SLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng ((_) AggrSeg afun (R2 (qg1=Group groupExprs (q1)))))"
+  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng ((_) Fold afun (R2 (qg1=Group groupExprs (q1)))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -129,9 +129,9 @@ flatGrouping q =
 -- down through segment propagation operators.
 --
 -- Testcase: TPC-H Q11, Q15
-mergeGroupAggrAggrSeg :: SLRule ()
-mergeGroupAggrAggrSeg q =
-  $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) AggrSeg afun (R2 (qg1=Group groupExprs (q2)))))"
+mergeGroupAggrFold :: SLRule ()
+mergeGroupAggrFold q =
+  $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) Fold afun (R2 (qg1=Group groupExprs (q2)))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         let (groupExprs', afuns) = $(v "args")
@@ -251,7 +251,7 @@ mergeGroupWithGroupAggrRight q =
 -- into one groupjoin operator.
 groupJoin :: SLRule ()
 groupJoin q =
-  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((qo1) AggrSeg a (R1 ((qo2) NestJoin p (qi)))))"
+  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((qo1) Fold a (R1 ((qo2) NestJoin p (qi)))))"
     [| do
         predicate $ $(v "qo1") == $(v "qo")
         predicate $ $(v "qo2") == $(v "qo")
@@ -263,12 +263,12 @@ groupJoin q =
 
 countDistinct :: SLRule BottomUpProps
 countDistinct q =
-  $(dagPatMatch 'q "(q1) AggrSeg a (Unique (q2))"
+  $(dagPatMatch 'q "(q1) Fold a (Unique (q2))"
     [| do
         AggrCount           <- return $(v "a")
         VProp (VTDataVec 1) <- vectorTypeProp <$> properties $(v "q2")
 
         return $ do
             logRewrite "CountDistinct" q
-            void $ replaceWithNew q $ BinOp (AggrSeg (AggrCountDistinct (Column 1))) $(v "q1") $(v "q2")
+            void $ replaceWithNew q $ BinOp (Fold (AggrCountDistinct (Column 1))) $(v "q1") $(v "q2")
         |])

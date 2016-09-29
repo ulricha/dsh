@@ -48,7 +48,7 @@ inferSegmentsUnOp c op =
     Group _     -> [ VPropTriple f SegdP SegNAP | f <- unp c ]
     GroupAggr _ -> pure c
     Number      -> pure c
-    AggrSeg _   -> pure $ VProp SegdP
+    Fold _   -> pure $ VProp SegdP
     UpdateUnit  -> pure $ VProp SegNAP
     UnitMap     -> pure $ VProp SegNAP
     R1          ->

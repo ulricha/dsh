@@ -123,7 +123,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             cs ∪ childReqColumns
         Distinct    -> ownReqColumns ∪ childReqColumns
 
-        AggrSeg aggrFuns -> (VProp $ Just $ aggrReqCols aggrFuns)
+        Fold aggrFuns -> (VProp $ Just $ aggrReqCols aggrFuns)
                             ∪
                             childReqColumns
 

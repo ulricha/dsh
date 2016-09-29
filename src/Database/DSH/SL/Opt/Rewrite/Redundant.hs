@@ -37,14 +37,14 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectAppFilter
                  , pullProjectAppSort
                  , pullProjectUnboxKey
-                 , pullProjectAggrSeg
+                 , pullProjectFold
                  , pullProjectSort
                  , scalarConditional
-                 , pushAggrSegSelect
-                 , pushAggrSegThetaJoinRight
+                 , pushFoldSelect
+                 , pushFoldThetaJoinRight
                  , pushUnboxSngSelect
-                 , pushAggrSegAlign
-                 , pushAggrSegReplicateScalar
+                 , pushFoldAlign
+                 , pushFoldReplicateScalar
                  , pushUnboxSngAlign
                  , pushUnboxSngReplicateScalar
                  , pullNumberReplicateNest
@@ -1100,14 +1100,14 @@ pullProjectUnboxKey q =
            logRewrite "Redundant.Project.UnboxKey" q
            void $ replaceWithNew q $ UnOp UnboxKey $(v "q1") |])
 
--- | Any projections on the left input of AggrSeg are irrelevant, as
+-- | Any projections on the left input of Fold are irrelevant, as
 -- only the segment information are required from the vector.
-pullProjectAggrSeg :: SLRule ()
-pullProjectAggrSeg q =
-  $(dagPatMatch 'q "(Project _ (q1)) AggrSeg args (q2)"
+pullProjectFold :: SLRule ()
+pullProjectFold q =
+  $(dagPatMatch 'q "(Project _ (q1)) Fold args (q2)"
     [| return $ do
-           logRewrite "Redundant.Project.AggrSeg" q
-           void $ replaceWithNew q $ BinOp (AggrSeg $(v "args")) $(v "q1") $(v "q2") |])
+           logRewrite "Redundant.Project.Fold" q
+           void $ replaceWithNew q $ BinOp (Fold $(v "args")) $(v "q1") $(v "q2") |])
 
 --------------------------------------------------------------------------------
 -- Rewrites that deal with nested structures and propagation vectors.
@@ -1248,7 +1248,7 @@ selectCartProd q =
 -- Early aggregation of segments. We try to aggregate segments as early as
 -- possible by pushing down segment aggregation operators through segment
 -- propagation operators. Aggregating early means that the cardinality of inner
--- vectors is reduced. Ideally, we will be able to merge the AggrSeg operator with
+-- vectors is reduced. Ideally, we will be able to merge the Fold operator with
 -- nesting operators (Group, NestJoin) and thereby avoid the materialization of
 -- inner segments altogether.
 --
@@ -1257,28 +1257,28 @@ selectCartProd q =
 
 -- | If segments are aggregated after they have been filtered due to an outer
 -- selection, we can aggregate early before filtering the segments.
-pushAggrSegSelect :: SLRule ()
-pushAggrSegSelect q =
-  $(dagPatMatch 'q "(R1 (qs1=Select _ (qo))) AggrSeg af (R1 ((q2=R2 (qs2=Select _ (_))) AppFilter (qi)))"
+pushFoldSelect :: SLRule ()
+pushFoldSelect q =
+  $(dagPatMatch 'q "(R1 (qs1=Select _ (qo))) Fold af (R1 ((q2=R2 (qs2=Select _ (_))) AppFilter (qi)))"
     [| do
         predicate $ $(v "qs1") == $(v "qs2")
 
         return $ do
-            logRewrite "Redundant.AggrSeg.Push.Select" q
-            aggNode <- insert $ BinOp (AggrSeg $(v "af")) $(v "qo") $(v "qi")
+            logRewrite "Redundant.Fold.Push.Select" q
+            aggNode <- insert $ BinOp (Fold $(v "af")) $(v "qo") $(v "qi")
             appNode <- insert $ BinOp AppFilter $(v "q2") aggNode
             void $ replaceWithNew q $ UnOp R1 appNode |])
 
 -- | Aggregate segments from a right join input before they are replicated as a
 -- consequence of a ThetaJoin operator.
-pushAggrSegThetaJoinRight :: SLRule ()
-pushAggrSegThetaJoinRight q =
-    $(dagPatMatch 'q "(R1 (qj1)) AggrSeg args (R1 ((qr3=R3 (qj2=(_) ThetaJoin _ (qo2))) AppRep (qi)))"
+pushFoldThetaJoinRight :: SLRule ()
+pushFoldThetaJoinRight q =
+    $(dagPatMatch 'q "(R1 (qj1)) Fold args (R1 ((qr3=R3 (qj2=(_) ThetaJoin _ (qo2))) AppRep (qi)))"
       [| do
           predicate $ $(v "qj1") == $(v "qj2")
           return $ do
-              logRewrite "Redundant.AggrSeg.Push.ThetaJoin.Right" q
-              aggNode <- insert $ BinOp (AggrSeg $(v "args")) $(v "qo2") $(v "qi")
+              logRewrite "Redundant.Fold.Push.ThetaJoin.Right" q
+              aggNode <- insert $ BinOp (Fold $(v "args")) $(v "qo2") $(v "qi")
               repNode <- insert $ BinOp AppRep $(v "qr3") aggNode
               void $ replaceWithNew q $ UnOp R1 repNode
       |])
@@ -1329,23 +1329,23 @@ pushUnboxSngThetaJoinRight q =
 --------------------------------------------------------------------------------
 -- Normalization rules for segment aggregation
 
-pushAggrSegAlign :: SLRule ()
-pushAggrSegAlign q =
-  $(dagPatMatch 'q "((_) Align (q1)) AggrSeg af (q2)"
+pushFoldAlign :: SLRule ()
+pushFoldAlign q =
+  $(dagPatMatch 'q "((_) Align (q1)) Fold af (q2)"
     [| return $ do
-           logRewrite "Redundant.AggrSeg.Push.Align" q
-           void $ replaceWithNew q $ BinOp (AggrSeg $(v "af")) $(v "q1") $(v "q2") |])
+           logRewrite "Redundant.Fold.Push.Align" q
+           void $ replaceWithNew q $ BinOp (Fold $(v "af")) $(v "q1") $(v "q2") |])
 
-pushAggrSegReplicateScalar :: SLRule ()
-pushAggrSegReplicateScalar q =
-  $(dagPatMatch 'q "(R1 ((_) ReplicateScalar (q1))) AggrSeg af (q2)"
+pushFoldReplicateScalar :: SLRule ()
+pushFoldReplicateScalar q =
+  $(dagPatMatch 'q "(R1 ((_) ReplicateScalar (q1))) Fold af (q2)"
     [| return $ do
-           logRewrite "Redundant.AggrSeg.Push.ReplicateScalar" q
-           void $ replaceWithNew q $ BinOp (AggrSeg $(v "af")) $(v "q1") $(v "q2") |])
+           logRewrite "Redundant.Fold.Push.ReplicateScalar" q
+           void $ replaceWithNew q $ BinOp (Fold $(v "af")) $(v "q1") $(v "q2") |])
 
 -- | Apply a singleton unbox operator before an align operator. By unboxing
 -- early, we hope to be able to eliminate unboxing (e.g. by combining it with an
--- AggrSeg and Group operator).
+-- Fold and Group operator).
 --
 -- Note: We could either push into the left or right align input. For no good
 -- reason, we choose the right side. When we deal with a self-align, this will

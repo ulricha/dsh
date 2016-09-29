@@ -204,7 +204,7 @@ translateUnOp :: VirtualSegmentAlgebra a
               -> Res (VSLDVec a) (VSLRVec a)
               -> B.Build a (Res (VSLDVec a) (VSLRVec a))
 translateUnOp unop c = case unop of
-    VSL.AggrSeg a        -> fromDVec <$> vecAggrSeg a (toDVec c)
+    VSL.Fold a           -> fromDVec <$> vecFold a (toDVec c)
     VSL.Distinct         -> fromDVec <$> vecDistinct (toDVec c)
     VSL.Number           -> fromDVec <$> vecNumber (toDVec c)
     VSL.MergeMap         -> fromRVec <$> vecMergeMap (toDVec c)

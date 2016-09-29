@@ -60,7 +60,7 @@ seed (BinOp op _ _) =
         AppFilter       -> vPropPairSeed
         AppRep          -> vPropPairSeed
         UnboxSng        -> vPropPairSeed
-        AggrSeg _       -> vPropSeed
+        Fold _          -> vPropSeed
         Align           -> vPropSeed
         CartProduct     -> vPropTripleSeed
         ThetaJoin _     -> vPropTripleSeed

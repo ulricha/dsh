@@ -1184,7 +1184,7 @@ selectCartProd q =
 
 -- | Apply a singleton unbox operator before an align operator. By unboxing
 -- early, we hope to be able to eliminate unboxing (e.g. by combining it with an
--- AggrSeg and Group operator).
+-- Fold and Group operator).
 --
 -- Note: We could either push into the left or right align input. For no good
 -- reason, we choose the right side. When we deal with a self-align, this will

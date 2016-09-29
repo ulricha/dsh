@@ -17,10 +17,10 @@ import           Database.DSH.VSL.Opt.Properties.Types
 import           Database.DSH.VSL.Opt.Rewrite.Common
 
 aggregationRules :: VSLRuleSet ()
-aggregationRules = [ inlineAggrSegProject
+aggregationRules = [ inlineFoldProject
                    , flatGrouping
                    , flatGroupingDefault
-                   -- , mergeGroupAggrAggrSeg
+                   -- , mergeGroupAggrFold
                    -- , mergeNonEmptyAggrs
                    -- , mergeGroupAggr
                    -- , mergeGroupWithGroupAggrLeft
@@ -29,7 +29,7 @@ aggregationRules = [ inlineAggrSegProject
 
 aggregationRulesBottomUp :: VSLRuleSet BottomUpProps
 aggregationRulesBottomUp = [ {- nonEmptyAggr
-                           , nonEmptyAggrSeg -}
+                           , nonEmptyFold -}
                              countDistinct
                            ]
 
@@ -71,34 +71,34 @@ groupingToAggregation =
 -- -- | If we can infer that all segments (if there are any) are not
 -- -- empty, we can employ a simplified version of the aggregate operator
 -- -- that does not add default values for empty segments.
--- nonEmptyAggrSeg :: VSLRule BottomUpProps
--- nonEmptyAggrSeg q =
---   $(dagPatMatch 'q "(_) AggrSeg aggrFun (q2)"
+-- nonEmptyFold :: VSLRule BottomUpProps
+-- nonEmptyFold q =
+--   $(dagPatMatch 'q "(_) Fold aggrFun (q2)"
 --     [| do
 --         VProp True <- nonEmptyProp <$> properties $(v "q2")
 
 --         return $ do
---             logRewrite "Aggregation.NonEmpty.AggrSeg" q
+--             logRewrite "Aggregation.NonEmpty.Fold" q
 --             let aggrOp = UnOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q2")
 --             void $ replaceWithNew q aggrOp |])
 
 -- | Merge a projection into a segmented aggregate operator.
-inlineAggrSegProject :: VSLRule ()
-inlineAggrSegProject q =
-  $(dagPatMatch 'q "AggrSeg afun (Project proj (q1))"
+inlineFoldProject :: VSLRule ()
+inlineFoldProject q =
+  $(dagPatMatch 'q "Fold afun (Project proj (q1))"
     [| do
         let env = zip [1..] $(v "proj")
         let afun' = mapAggrFun (mergeExpr env) $(v "afun")
 
         return $ do
-            logRewrite "Aggregation.Normalize.AggrSeg.Project" q
-            void $ replaceWithNew q $ UnOp (AggrSeg afun') $(v "q1") |])
+            logRewrite "Aggregation.Normalize.Fold.Project" q
+            void $ replaceWithNew q $ UnOp (Fold afun') $(v "q1") |])
 
 -- | We rewrite a combination of GroupS and aggregation operators into a single
 -- GroupAggr operator.
 flatGrouping :: VSLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng (AggrSeg afun (R2 (qg1=Group groupExprs (q1)))))"
+  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng (Fold afun (R2 (qg1=Group groupExprs (q1)))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -119,7 +119,7 @@ flatGrouping q =
 -- GroupAggr operator.
 flatGroupingDefault :: VSLRule ()
 flatGroupingDefault q =
-  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxDefault _ (AggrSeg afun (R2 (qg1=Group groupExprs (q1)))))"
+  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxDefault _ (Fold afun (R2 (qg1=Group groupExprs (q1)))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -148,9 +148,9 @@ flatGroupingDefault q =
 -- down through segment propagation operators.
 --
 -- Testcase: TPC-H Q11, Q15
--- mergeGroupAggrAggrSeg :: VSLRule ()
--- mergeGroupAggrAggrSeg q =
---   $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) AggrSeg afun (R2 (qg1=Group groupExprs (q2)))))"
+-- mergeGroupAggrFold :: VSLRule ()
+-- mergeGroupAggrFold q =
+--   $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) Fold afun (R2 (qg1=Group groupExprs (q2)))))"
 --     [| do
 --         predicate $ $(v "q1") == $(v "q2")
 --         let (groupExprs', afuns) = $(v "args")
@@ -268,12 +268,12 @@ flatGroupingDefault q =
 
 countDistinct :: VSLRule BottomUpProps
 countDistinct q =
-  $(dagPatMatch 'q "AggrSeg a (Distinct (q1))"
+  $(dagPatMatch 'q "Fold a (Distinct (q1))"
     [| do
         AggrCount           <- return $(v "a")
         VProp (VTDataVec 1) <- vectorTypeProp <$> properties $(v "q1")
 
         return $ do
             logRewrite "CountDistinct" q
-            void $ replaceWithNew q $ UnOp (AggrSeg (AggrCountDistinct (Column 1))) $(v "q1")
+            void $ replaceWithNew q $ UnOp (Fold (AggrCountDistinct (Column 1))) $(v "q1")
         |])

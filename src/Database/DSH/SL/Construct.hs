@@ -79,8 +79,8 @@ slGroup groupExprs (DVec c) = tripleVec (UnOp (Group groupExprs) c) dvec dvec sv
 slSort :: [Expr] -> DVec -> Build SL (DVec, SVec)
 slSort sortExprs (DVec c1) = pairVec (UnOp (Sort sortExprs) c1) dvec svec
 
-slAggrSeg :: AggrFun -> DVec -> DVec -> Build SL DVec
-slAggrSeg aFun (DVec c1) (DVec c2) = vec (BinOp (AggrSeg aFun) c1 c2) dvec
+slFold :: AggrFun -> DVec -> DVec -> Build SL DVec
+slFold aFun (DVec c1) (DVec c2) = vec (BinOp (Fold aFun) c1 c2) dvec
 
 slUnboxKey :: DVec -> Build SL KVec
 slUnboxKey (DVec c) = vec (UnOp UnboxKey c) kvec

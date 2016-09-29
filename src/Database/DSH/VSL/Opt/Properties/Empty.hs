@@ -42,7 +42,7 @@ inferEmptyUnOp e op =
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr (_, _) -> Right $ VProp False
     Number          -> Right e
-    AggrSeg _ -> return $ VProp False
+    Fold _ -> return $ VProp False
     UpdateUnit -> return e
     UnitMap   -> return e
 

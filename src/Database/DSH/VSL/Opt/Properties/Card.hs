@@ -45,7 +45,7 @@ inferCardOneUnOp c op =
     GroupAggr ([], _) -> Right $ VProp True
     GroupAggr (_, _)  -> Right c
     Number -> Right c
-    AggrSeg _ -> return $ VProp False
+    Fold _ -> return $ VProp False
     UpdateUnit -> return $ VProp False
     UnitMap -> return $ VProp False
 

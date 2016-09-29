@@ -214,7 +214,7 @@ inferReqColumnsBinOp :: BottomUpProps
                      -> Either String (VectorProp ReqCols, VectorProp ReqCols)
 inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 childReqColumns2 op =
   case op of
-      AggrSeg aggrFun   -> do
+      Fold aggrFun   -> do
           fromLeft  <- childReqColumns1 ∪ none
           fromRight <- (VProp $ Just $ aggrReqCols aggrFun)
                        ∪

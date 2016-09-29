@@ -189,7 +189,7 @@ inferConstVecBinOp c1 c2 op =
   case op of
     -- FIXME use cardinality property to infer the length if possible
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
-    AggrSeg _ -> return $ VProp $ ConstVec [NonConstPL]
+    Fold _ -> return $ VProp $ ConstVec [NonConstPL]
 
     ReplicateNest -> do
       cols1 <- unp c1 >>= fromDBV

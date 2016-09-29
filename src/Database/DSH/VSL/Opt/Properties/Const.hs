@@ -186,7 +186,7 @@ inferConstVecUnOp c op =
 
     -- FIXME use cardinality property to infer the length if possible
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
-    AggrSeg _ -> return $ VProp $ ConstVec [NonConstPL]
+    Fold _ -> return $ VProp $ ConstVec [NonConstPL]
     UpdateUnit -> return $ VProp CNA
     UnitMap -> return $ VProp CNA
 

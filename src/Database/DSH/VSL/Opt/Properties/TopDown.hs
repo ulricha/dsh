@@ -50,7 +50,7 @@ seed (UnOp op _)   =
         R2               -> vPropSeed
         R3               -> vPropSeed
         Number           -> vPropSeed
-        AggrSeg _        -> vPropSeed
+        Fold _        -> vPropSeed
 
 seed (BinOp op _ _) =
     case op of

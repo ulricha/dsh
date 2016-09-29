@@ -82,7 +82,7 @@ reqValVectors _ _ _ e =
 inferVectorTypeBinOp :: VectorProp VectorType -> VectorProp VectorType -> BinOp -> Either String (VectorProp VectorType)
 inferVectorTypeBinOp s1 s2 op =
   case op of
-    AggrSeg _ -> return $ VProp $ VTDataVec 1
+    Fold _ -> return $ VProp $ VTDataVec 1
 
     ReplicateNest -> do
         VTDataVec w1 <- unpack s1

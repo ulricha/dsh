@@ -56,7 +56,7 @@ class SegmentAlgebra a where
     vecUnsegment :: SLDVec a -> Build a (SLDVec a)
 
     vecAggr :: N.NonEmpty AggrFun -> SLDVec a -> Build a (SLDVec a)
-    vecAggrSeg :: AggrFun -> SLDVec a -> SLDVec a -> Build a (SLDVec a)
+    vecFold :: AggrFun -> SLDVec a -> SLDVec a -> Build a (SLDVec a)
 
     vecWinFun :: WinFun -> FrameSpec -> SLDVec a -> Build a (SLDVec a)
 

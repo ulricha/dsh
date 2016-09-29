@@ -202,7 +202,7 @@ translateBinOp b c1 c2 = case b of
         (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
 
-    SL.AggrSeg a -> fromDVec <$> vecAggrSeg a (toDVec c1) (toDVec c2)
+    SL.Fold a -> fromDVec <$> vecFold a (toDVec c1) (toDVec c2)
 
     SL.Align -> fromDVec <$> vecAlign (toDVec c1) (toDVec c2)
 

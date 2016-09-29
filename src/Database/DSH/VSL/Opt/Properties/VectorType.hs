@@ -68,7 +68,7 @@ inferVectorTypeUnOp s op =
     Number -> do
         VTDataVec w <- unpack s
         return $ VProp $ VTDataVec (w + 1)
-    AggrSeg _ -> return $ VProp $ VTDataVec 1
+    Fold _ -> return $ VProp $ VTDataVec 1
     UpdateUnit -> return $ VProp VTNA
     UnitMap -> return $ VProp VTNA
 

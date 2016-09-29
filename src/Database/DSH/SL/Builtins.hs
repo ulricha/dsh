@@ -242,7 +242,7 @@ concatL _ = $impossible
 
 lengthL ::  Shape DVec -> Build SL (Shape DVec)
 lengthL (VShape q (LNest qi _)) = do
-    ls  <- slAggrSeg AggrCount q qi
+    ls  <- slFold AggrCount q qi
     lsu <- fst <$> slUnboxSng q ls
     return $ VShape lsu LCol
 lengthL _ = $impossible
@@ -253,7 +253,7 @@ outer (VShape q _)        = return q
 
 aggrL :: (Expr -> AggrFun) -> Shape DVec -> Build SL (Shape DVec)
 aggrL afun (VShape d (LNest q LCol)) = do
-    qr <- slAggrSeg (afun (Column 1)) d q
+    qr <- slFold (afun (Column 1)) d q
     qu <- fst <$> slUnboxSng d qr
     return $ VShape qu LCol
 aggrL _ _ = $impossible

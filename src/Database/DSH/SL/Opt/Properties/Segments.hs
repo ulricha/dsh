@@ -66,7 +66,7 @@ inferSegmentsUnOp c op =
 inferSegmentsBinOp :: VectorProp SegP -> VectorProp SegP -> BinOp -> Either String (VectorProp SegP)
 inferSegmentsBinOp c1 c2 op =
   case op of
-    AggrSeg _       -> pure $ VProp SegdP
+    Fold _          -> pure $ VProp SegdP
     ReplicateNest   -> pure $ VPropPair SegdP SegNAP
     ReplicateScalar -> [ VPropPair f SegNAP | f <- unp c2 ]
     AppKey          -> pure $ VPropPair SegdP SegNAP

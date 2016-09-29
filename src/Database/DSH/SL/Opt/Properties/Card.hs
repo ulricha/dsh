@@ -51,7 +51,7 @@ inferCardOneUnOp c op =
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
   case op of
-    AggrSeg _ -> return $ VProp False
+    Fold _ -> return $ VProp False
     ReplicateNest -> return $ VPropPair False False
     ReplicateScalar -> unp c2 >>= (\uc -> return $ VPropPair uc uc)
     AppKey -> return $ VPropPair False False
