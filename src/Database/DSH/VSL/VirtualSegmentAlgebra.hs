@@ -23,7 +23,7 @@ class VirtualSegmentAlgebra a where
     vecNest :: VSLDVec a -> Build a (VSLDVec a, VSLDVec a)
 
     -- | A vector representing a literal list.
-    vecLit :: [ScalarType] -> SegFrame -> Segments -> Build a (VSLDVec a)
+    vecLit :: PType -> VecSegs -> Build a (VSLDVec a)
 
     -- | A reference to a database-resident table.
     vecTableRef :: String -> L.BaseTableSchema -> Build a (VSLDVec a)
@@ -67,13 +67,13 @@ class VirtualSegmentAlgebra a where
     vecReverse :: VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
 
     -- | Filter a vector by applying a scalar boolean predicate.
-    vecSelect:: Expr -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
+    vecSelect:: VectorExpr -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
 
     -- | Per-segment sorting of a vector.
-    vecSort :: [Expr] -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
+    vecSort :: VectorExpr -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
 
     -- | Per-segment grouping of a vector
-    vecGroup :: [Expr] -> VSLDVec a -> Build a (VSLDVec a, VSLDVec a, VSLRVec a)
+    vecGroup :: VectorExpr -> VSLDVec a -> Build a (VSLDVec a, VSLDVec a, VSLRVec a)
 
     -- | The VL aggregation operator groups every segment of the input vector by the
     -- given columns and then performs the list of aggregations described by the
@@ -81,11 +81,11 @@ class VirtualSegmentAlgebra a where
     -- input vector since all segments are grouped individually. The output
     -- payload columns are the grouping columns followed by the aggregation
     -- results.
-    vecGroupAggr :: [Expr] -> N.NonEmpty AggrFun -> VSLDVec a -> Build a (VSLDVec a)
+    vecGroupAggr :: VectorExpr -> AggrFun -> VSLDVec a -> Build a (VSLDVec a)
 
     -- | Construct a new vector as the result of a list of scalar
     -- expressions per result column.
-    vecProject :: [Expr] -> VSLDVec a -> Build a (VSLDVec a)
+    vecProject :: VectorExpr -> VSLDVec a -> Build a (VSLDVec a)
 
     -- | Combine a replication vector and a vector containing physical segments.
     vecMaterialize :: VSLRVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
@@ -121,10 +121,10 @@ class VirtualSegmentAlgebra a where
     vecZip :: VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
 
     vecCartProduct :: VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
-    vecThetaJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate Expr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
-    vecNestJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate Expr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
-    vecSemiJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate Expr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
-    vecAntiJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate Expr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
-    vecGroupJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate Expr -> L.NE AggrFun -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a)
+    vecThetaJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate VectorExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
+    vecNestJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate VectorExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
+    vecSemiJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate VectorExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
+    vecAntiJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate VectorExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
+    vecGroupJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate VectorExpr -> L.NE AggrFun -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a)
 
     vecCombine :: VSLDVec a -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)

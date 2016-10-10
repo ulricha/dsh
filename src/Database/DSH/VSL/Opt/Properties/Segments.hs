@@ -20,7 +20,7 @@ inferSegmentsNullOp :: NullOp -> Either String (VectorProp SegP)
 inferSegmentsNullOp op =
   case op of
     -- Check wether all rows are in the unit segment
-    Lit (_, _, seg) ->
+    Lit (_, seg) ->
         case seg of
             UnitSeg _ -> pure $ VProp UnitSegP
             Segs _    -> pure $ VProp SegdP

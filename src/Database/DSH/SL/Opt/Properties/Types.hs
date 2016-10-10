@@ -16,19 +16,16 @@ instance Show a => Show (VectorProp a) where
   show (VPropPair a1 a2) = show (a1, a2)
   show (VPropTriple a1 a2 a3) = show (a1, a2, a3)
 
-data VectorType = VTDataVec {-# UNPACK #-} !Int
+data VectorType = VTDataVec PType
                 | VTNA
                 deriving Show
 
-data Const = Const !ScalarVal
-           | NoConst
-            deriving Show
+data ConstPayload = CPTuple ![ConstPayload]
+                  | CPVal   !ScalarVal
+                  | CPNoVal
+           deriving (Show)
 
-data ConstPayload = ConstPL !ScalarVal
-                  | NonConstPL
-                  deriving Show
-
-data ConstVec = ConstVec [ConstPayload]
+data ConstVec = ConstVec ConstPayload
               | CNA
               deriving (Show)
 
@@ -36,15 +33,13 @@ data SegP = UnitSegP | SegdP | SegNAP deriving (Show)
 
 data BottomUpProps = BUProps
     { emptyProp      :: VectorProp Bool
-    , constProp      :: VectorProp ConstVec
+    -- , constProp      :: VectorProp ConstVec
     , card1Prop      :: VectorProp Bool
-    , vectorTypeProp :: VectorProp VectorType
+    -- , vectorTypeProp :: VectorProp VectorType
     , segProp        :: VectorProp SegP
     } deriving (Show)
 
-type ReqCols = Maybe [DBCol]
-
-data TopDownProps = TDProps { reqColumnsProp :: VectorProp ReqCols } deriving (Show)
+data TopDownProps = TDProps deriving (Show)
 
 data Properties = Properties { bu :: BottomUpProps
                              , td :: TopDownProps
@@ -61,30 +56,25 @@ instance Pretty a => Pretty (VectorProp a) where
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
 
-isConst :: (Int, ConstPayload) -> [(Int, ScalarVal)] -> [(Int, ScalarVal)]
-isConst (_, NonConstPL) vals   = vals
-isConst (i, (ConstPL v)) vals  = (i, v) : vals
-
-renderPL :: Pretty a => (Int, a) -> Doc
-renderPL (i, v)  = int i <> colon <> pretty v
-
 instance Pretty ConstVec where
-  pretty (ConstVec ps) = bracketList id
-                         $ map renderPL
-                         $ foldr isConst []
-                         $ zip [1..] ps
-  pretty CNA           = text "NA"
+  pretty (ConstVec v) = pretty v
+  pretty CNA          = text "NA"
+
+instance Pretty ConstPayload where
+    pretty (CPTuple vs) = tupled $ map pretty vs
+    pretty (CPVal v)    = pretty v
+    pretty CPNoVal      = text "nc"
 
 instance Pretty VectorType where
   pretty = text . show
 
 instance Pretty BottomUpProps where
   pretty p = text "empty:" <+> (pretty $ emptyProp p)
-                 <$> text "const:" <+> (pretty $ constProp p)
-                 <$> text "schema:" <+> (pretty $ vectorTypeProp p)
+                 -- <$> text "const:" <+> (pretty $ constProp p)
+                 -- <$> text "schema:" <+> (pretty $ vectorTypeProp p)
 
 instance Pretty TopDownProps where
-  pretty p = text "reqCols:" <+> (text $ show $ reqColumnsProp p)
+  pretty p = empty
 
 -- | Rendering function for the bottom-up properties container.
 renderBottomUpProps :: BottomUpProps -> [String]

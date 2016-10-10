@@ -4,8 +4,7 @@
 
 -- | This module defines the kinds of vectors that occur in SL and VSL programs.
 module Database.DSH.Common.Vector
-    ( DBCol
-    , ColName
+    ( ColName
     , RelationalVector(..)
     , DagVector
     , vectorNodes

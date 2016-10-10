@@ -64,7 +64,6 @@ data Type  = ListT Type
            | ScalarT ScalarType
            deriving (Show, Eq, Ord)
 
-
 data ScalarType  = IntT
                  | BoolT
                  | DoubleT
@@ -73,7 +72,6 @@ data ScalarType  = IntT
                  | DecimalT
                  | DateT
                  deriving (Show, Eq, Ord)
-
 
 -- | Is the (scalar) type numeric?
 isNum :: Type -> Bool
@@ -92,7 +90,7 @@ scalarType (ScalarT t) = Just t
 scalarType _           = Nothing
 
 --------------------------------------------------------------------------------
--- Smart constructors and deconstructors.
+-- Smart constructors and deconstructors for regular types
 
 pattern PIntT :: Type
 pattern PIntT = ScalarT IntT
@@ -164,6 +162,14 @@ unliftTypeN (Succ n) t = unliftTypeN n $ unliftType t
 unliftType :: Type -> Type
 unliftType (ListT t1) = t1
 unliftType t          = error $ "Type: " ++ pp t ++ " cannot be unlifted."
+
+--------------------------------------------------------------------------------
+-- Annotated types
+
+data AnnTy a = AListT a (AnnTy a)
+             | ATupleT [AnnTy a]
+             | AScalarT ScalarType
+             deriving (Ord, Eq, Show)
 
 --------------------------------------------------------------------------------
 

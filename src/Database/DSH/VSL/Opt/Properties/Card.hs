@@ -1,5 +1,7 @@
 module Database.DSH.VSL.Opt.Properties.Card where
 
+import qualified Data.Sequence                          as S
+
 import           Database.DSH.Common.VectorLang
 import           Database.DSH.VSL.Lang
 
@@ -12,8 +14,11 @@ unp = unpack "Properties.Card"
 inferCardOneNullOp :: NullOp -> Either String (VectorProp Bool)
 inferCardOneNullOp op =
   case op of
-    Lit (_, f, _) -> Right $ VProp $ frameLen f == 1
-    TableRef _    -> Right $ VProp False
+    Lit (_, ss) ->
+        case ss of
+            UnitSeg sd -> Right $ VProp $ S.length sd == 1
+            Segs sds   -> Right $ VProp False
+    TableRef _ -> Right $ VProp False
 
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferCardOneUnOp c op =
@@ -42,7 +47,6 @@ inferCardOneUnOp c op =
       case c of
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.Card: not a triple"
-    GroupAggr ([], _) -> Right $ VProp True
     GroupAggr (_, _)  -> Right c
     Number -> Right c
     Fold _ -> return $ VProp False

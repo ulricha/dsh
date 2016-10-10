@@ -85,20 +85,19 @@ groupingToAggregation =
 -- | Merge a projection into a segmented aggregate operator.
 inlineFoldProject :: VSLRule ()
 inlineFoldProject q =
-  $(dagPatMatch 'q "Fold afun (Project proj (q1))"
+  $(dagPatMatch 'q "Fold afun (Project e (qi))"
     [| do
-        let env = zip [1..] $(v "proj")
-        let afun' = mapAggrFun (mergeExpr env) $(v "afun")
+        let afun' = mapAggrFun (mergeExpr e) $(v "afun")
 
         return $ do
             logRewrite "Aggregation.Normalize.Fold.Project" q
-            void $ replaceWithNew q $ UnOp (Fold afun') $(v "q1") |])
+            void $ replaceWithNew q $ UnOp (Fold afun') $(v "qi") |])
 
 -- | We rewrite a combination of GroupS and aggregation operators into a single
 -- GroupAggr operator.
 flatGrouping :: VSLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng (Fold afun (R2 (qg1=Group groupExprs (q1)))))"
+  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng (Fold afun (R2 (qg1=Group groupExpr (q1)))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -107,19 +106,14 @@ flatGrouping q =
 
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
-          let afuns = $(v "afun") N.:| []
-
-          groupAggrNode <- insert $ UnOp (GroupAggr ($(v "groupExprs"), afuns)) $(v "q1")
-          replace q groupAggrNode
-          let proj = map Column [1..length $(v "groupExprs")]
-          void $ replaceWithNew $(v "qr1") $ UnOp (Project proj) groupAggrNode
-        |])
+          replaceWithNew q $ UnOp (GroupAggr ($(v "groupExpr"), $(v "afun"))) $(v "q1")
+     |])
 
 -- | We rewrite a combination of GroupS and aggregation operators into a single
 -- GroupAggr operator.
 flatGroupingDefault :: VSLRule ()
 flatGroupingDefault q =
-  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxDefault _ (Fold afun (R2 (qg1=Group groupExprs (q1)))))"
+  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxDefault _ (Fold afun (R2 (qg1=Group groupExpr (q1)))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -127,13 +121,8 @@ flatGroupingDefault q =
         predicate $ $(v "qg") == $(v "qg1")
 
         return $ do
-          logRewrite "Aggregation.Grouping.Aggr" q
-          let afuns = $(v "afun") N.:| []
-
-          groupAggrNode <- insert $ UnOp (GroupAggr ($(v "groupExprs"), afuns)) $(v "q1")
-          replace q groupAggrNode
-          let proj = map Column [1..length $(v "groupExprs")]
-          void $ replaceWithNew $(v "qr1") $ UnOp (Project proj) groupAggrNode
+          logRewrite "Aggregation.Grouping.Aggr.Default" q
+          replaceWithNew q $ UnOp (GroupAggr ($(v "groupExpr"), $(v "afun"))) $(v "q1")
         |])
 
 -- | Cleanup rewrite: merge a segment aggregate with a group
@@ -271,9 +260,8 @@ countDistinct q =
   $(dagPatMatch 'q "Fold a (Distinct (q1))"
     [| do
         AggrCount           <- return $(v "a")
-        VProp (VTDataVec 1) <- vectorTypeProp <$> properties $(v "q1")
 
         return $ do
             logRewrite "CountDistinct" q
-            void $ replaceWithNew q $ UnOp (Fold (AggrCountDistinct (Column 1))) $(v "q1")
+            void $ replaceWithNew q $ UnOp (Fold (AggrCountDistinct VInput)) $(v "q1")
         |])

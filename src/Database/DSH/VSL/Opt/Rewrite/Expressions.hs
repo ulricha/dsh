@@ -29,26 +29,24 @@ expressionRules = [ mergeExpr1
 
 mergeExpr1 :: VSLRule BottomUpProps
 mergeExpr1 q =
-  $(dagPatMatch 'q "Project es1 (Project es2 (q1))"
+  $(dagPatMatch 'q "Project e2 (Project e1 (q1))"
     [| do
 
         return $ do
           logRewrite "Expr.Merge.11" q
-          let env  = zip [1..] $(v "es2")
-              es1' = map (mergeExpr env) $(v "es1")
-          void $ replaceWithNew q $ UnOp (Project es1') $(v "q1") |])
+          let e2' = partialEval $ mergeExpr $(v "e1") $(v "e2")
+          void $ replaceWithNew q $ UnOp (Project e2') $(v "q1") |])
 
 mergeSelectProject :: VSLRule BottomUpProps
 mergeSelectProject q =
-  $(dagPatMatch 'q "R1 (qs=Select p (Project projs (q1)))"
+  $(dagPatMatch 'q "R1 (qs=Select p (Project e (q1)))"
      [| do
         return $ do
           logRewrite "Expr.Merge.Select" q
-          let env = zip [1..] $(v "projs")
-          let p'  = mergeExpr env $(v "p")
+          let p'  = partialEval $ mergeExpr $(v "e") $(v "p")
           selectNode <- insert $ UnOp (Select p') $(v "q1")
           r1Node     <- insert $ UnOp R1 selectNode
-          void $ replaceWithNew q $ UnOp (Project $(v "projs")) r1Node
+          void $ replaceWithNew q $ UnOp (Project $(v "e")) r1Node
 
           r2Parents <- lookupR2Parents $(v "qs")
 
@@ -62,19 +60,9 @@ mergeSelectProject q =
 
 identityProject :: VSLRule BottomUpProps
 identityProject q =
-  $(dagPatMatch 'q "Project ps (q1)"
+  $(dagPatMatch 'q "Project e (q1)"
     [| do
-        VProp (VTDataVec w) <- vectorTypeProp <$> properties $(v "q1")
-        predicate $ length $(v "ps") == w
-
-        let sameCol :: (Int, Expr) -> Bool
-            sameCol (i, Column i') = i == i'
-            sameCol _               = False
-
-        predicate $ all sameCol (zip [1..] $(v "ps"))
-
-        rs <- getRootNodes
-        predicate $ not $ q `elem` rs
+        VInput <- return $(v "e")
 
         return $ do
           logRewrite "Project.Identity" q
@@ -83,38 +71,38 @@ identityProject q =
 ------------------------------------------------------------------------------
 -- Constant expression inputs
 
-liftPairRight :: Monad m => (a, m b) -> m (a, b)
-liftPairRight (a, mb) = mb >>= \b -> return (a, b)
+-- liftPairRight :: Monad m => (a, m b) -> m (a, b)
+-- liftPairRight (a, mb) = mb >>= \b -> return (a, b)
 
-mapPair :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
-mapPair f g (a, b) = (f a, g b)
+-- mapPair :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
+-- mapPair f g (a, b) = (f a, g b)
 
-insertConstants :: [(DBCol, ScalarVal)] -> Expr -> Expr
-insertConstants env expr =
-    case expr of
-        BinApp o e1 e2 -> BinApp o (insertConstants env e1) (insertConstants env e2)
-        UnApp o e1     -> UnApp o (insertConstants env e1)
-        Column c       -> case lookup c env of
-                               Just val -> Constant val
-                               Nothing  -> Column c
-        If c t e       -> If (insertConstants env c) (insertConstants env t) (insertConstants env e)
-        Constant _     -> expr
+-- insertConstants :: [(DBCol, ScalarVal)] -> Expr -> Expr
+-- insertConstants env expr =
+--     case expr of
+--         BinApp o e1 e2 -> BinApp o (insertConstants env e1) (insertConstants env e2)
+--         UnApp o e1     -> UnApp o (insertConstants env e1)
+--         Column c       -> case lookup c env of
+--                                Just val -> Constant val
+--                                Nothing  -> Column c
+--         If c t e       -> If (insertConstants env c) (insertConstants env t) (insertConstants env e)
+--         Constant _     -> expr
 
-constProject :: VSLRule BottomUpProps
-constProject q =
-  $(dagPatMatch 'q "Project projs (q1)"
-    [| do
-        VProp (ConstVec constCols) <- constProp <$> properties $(v "q1")
-        let envEntry = liftPairRight . mapPair id (constVal id)
-        let constEnv = mapMaybe envEntry $ zip [1..] constCols
+-- constProject :: VSLRule BottomUpProps
+-- constProject q =
+--   $(dagPatMatch 'q "Project projs (q1)"
+--     [| do
+--         VProp (ConstVec constCols) <- constProp <$> properties $(v "q1")
+--         let envEntry = liftPairRight . mapPair id (constVal id)
+--         let constEnv = mapMaybe envEntry $ zip [1..] constCols
 
-        predicate $ not $ null constEnv
+--         predicate $ not $ null constEnv
 
-        let projs' = map (insertConstants constEnv) $(v "projs")
+--         let projs' = map (insertConstants constEnv) $(v "projs")
 
-        -- To avoid rewriting loops, ensure that a change occured.
-        predicate $ projs' /= $(v "projs")
+--         -- To avoid rewriting loops, ensure that a change occured.
+--         predicate $ projs' /= $(v "projs")
 
-        return $ do
-          logRewrite "Expr.Project.Const" q
-          void $ replaceWithNew q $ UnOp (Project projs') $(v "q1") |])
+--         return $ do
+--           logRewrite "Expr.Project.Const" q
+--           void $ replaceWithNew q $ UnOp (Project projs') $(v "q1") |])

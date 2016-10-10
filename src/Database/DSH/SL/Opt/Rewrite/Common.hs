@@ -1,15 +1,20 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE PatternSynonyms #-}
+
 module Database.DSH.SL.Opt.Rewrite.Common where
 
 import qualified Data.IntMap                             as M
 
 import           Control.Monad
+import           Data.List.NonEmpty                   (NonEmpty ((:|)))
 
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.QueryPlan
 
+import           Database.DSH.Common.Impossible
 import qualified Database.DSH.Common.Lang                as L
+import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Opt                 as R
 import           Database.DSH.Common.Vector
 import           Database.DSH.Common.VectorLang
@@ -73,51 +78,3 @@ lookupR2Parents q = R.parents q >>= \ps -> filterM isR2 ps
             UnOp R2 _ -> return True
             _         -> return False
 
-mergeExpr :: [(DBCol, Expr)] -> Expr -> Expr
-mergeExpr env expr =
-    case expr of
-        BinApp o e1 e2 -> BinApp o (mergeExpr env e1) (mergeExpr env e2)
-        UnApp o e1     -> UnApp o (mergeExpr env e1)
-        Column c       -> case lookup c env of
-                               Just expr' -> expr'
-                               Nothing    -> error $ show c ++ " " ++ show env
-        If c t e       -> If (mergeExpr env c) (mergeExpr env t) (mergeExpr env e)
-        Constant _     -> expr
-
--- | Unwrap a constant value
-constVal :: Monad m => (L.ScalarVal -> a) -> ConstPayload -> m a
-constVal wrap (ConstPL val) = return $ wrap val
-constVal _             _    = fail "no match"
-
-mapAggrFun :: (Expr -> Expr) -> AggrFun -> AggrFun
-mapAggrFun f (AggrMax e)           = AggrMax $ f e
-mapAggrFun f (AggrSum t e)         = AggrSum t $ f e
-mapAggrFun f (AggrMin e)           = AggrMin $ f e
-mapAggrFun f (AggrAvg e)           = AggrAvg $ f e
-mapAggrFun f (AggrAny e)           = AggrAny $ f e
-mapAggrFun f (AggrAll e)           = AggrAll $ f e
-mapAggrFun _ AggrCount             = AggrCount
-mapAggrFun f (AggrCountDistinct e) = AggrCountDistinct $ f e
-
-mapWinFun :: (Expr -> Expr) -> WinFun -> WinFun
-mapWinFun f (WinMax e)        = WinMax $ f e
-mapWinFun f (WinSum e)        = WinSum $ f e
-mapWinFun f (WinMin e)        = WinMin $ f e
-mapWinFun f (WinAvg e)        = WinAvg $ f e
-mapWinFun f (WinAny e)        = WinAny $ f e
-mapWinFun f (WinAll e)        = WinAll $ f e
-mapWinFun f (WinFirstValue e) = WinFirstValue $ f e
-mapWinFun _ WinCount          = WinCount
-
-mapExprCols :: (DBCol -> DBCol) -> Expr -> Expr
-mapExprCols f (BinApp op e1 e2) = BinApp op (mapExprCols f e1) (mapExprCols f e2)
-mapExprCols f (UnApp op e)      = UnApp op (mapExprCols f e)
-mapExprCols f (Column c)        = Column $ f c
-mapExprCols _ (Constant val)    = Constant val
-mapExprCols f (If c t e)        = If (mapExprCols f c)
-                                     (mapExprCols f t)
-                                     (mapExprCols f e)
-
--- | Helper function: Shift all column indexes in an expression by a certain offset.
-shiftExprCols :: Int -> Expr -> Expr
-shiftExprCols o = mapExprCols (+ o)

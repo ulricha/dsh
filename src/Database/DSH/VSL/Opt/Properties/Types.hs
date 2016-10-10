@@ -36,15 +36,13 @@ data SegP = UnitSegP | SegdP | SegNAP deriving (Show)
 
 data BottomUpProps = BUProps
     { emptyProp      :: VectorProp Bool
-    , constProp      :: VectorProp ConstVec
     , card1Prop      :: VectorProp Bool
-    , vectorTypeProp :: VectorProp VectorType
+    -- , constProp      :: VectorProp ConstVec
+    -- , vectorTypeProp :: VectorProp VectorType
     , segProp        :: VectorProp SegP
     } deriving (Show)
 
-type ReqCols = Maybe [DBCol]
-
-data TopDownProps = TDProps { reqColumnsProp :: VectorProp ReqCols } deriving (Show)
+data TopDownProps = TDProps deriving (Show)
 
 data Properties = Properties { bu :: BottomUpProps
                              , td :: TopDownProps
@@ -80,11 +78,9 @@ instance Pretty VectorType where
 
 instance Pretty BottomUpProps where
   pretty p = text "empty:" <+> (pretty $ emptyProp p)
-                 <$> text "const:" <+> (pretty $ constProp p)
-                 <$> text "schema:" <+> (pretty $ vectorTypeProp p)
 
 instance Pretty TopDownProps where
-  pretty p = text "reqCols:" <+> (text $ show $ reqColumnsProp p)
+  pretty p = empty
 
 -- | Rendering function for the bottom-up properties container.
 renderBottomUpProps :: BottomUpProps -> [String]

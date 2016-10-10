@@ -16,6 +16,7 @@ import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Vector
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Nat
 
@@ -78,15 +79,6 @@ columnsInLayout :: Layout q -> Int
 columnsInLayout LCol          = 1
 columnsInLayout (LNest _ _)   = 0
 columnsInLayout (LTuple lyts) = sum $ map columnsInLayout lyts
-
--- | Index into a tuple layout and return the indexed element layout as well as
--- a projection that keeps only the corresponding payload columns.
-projectColumns :: TupleIndex -> [Layout a] -> (Layout a, [DBCol])
-projectColumns i lyts =
-    let (prefixLyts, lyt : _) = splitAt (tupleIndex i - 1) lyts
-        lytWidth              = columnsInLayout lyt
-        prefixWidth           = sum $ map columnsInLayout prefixLyts
-    in (lyt, [ c + prefixWidth | c <- [1..lytWidth] ])
 
 -- | A query plan consists of a DAG over some algebra and information about the
 -- shape of the query.

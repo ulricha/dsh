@@ -8,20 +8,21 @@ import qualified Data.List.NonEmpty as N
 
 import           Database.DSH.SL.Opt.Properties.Types
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.VectorLang
 
 import           Database.DSH.SL.Lang
 
 {- Implement more checks: check the input types for correctness -}
 
-vectorWidth :: VectorProp VectorType -> Int
+vectorWidth :: VectorProp VectorType -> PType
 vectorWidth (VProp (VTDataVec w))  = w
 vectorWidth _                      = error "vectorWidth: non-VTDataVec input"
 
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
-    Lit (tys, _, _)      -> Right $ VProp $ VTDataVec $ length tys
-    TableRef (_, schema) -> Right $ VProp $ VTDataVec $ N.length (tableCols schema)
+    Lit (ty, _)          -> Right $ VProp $ VTDataVec ty
+    TableRef (_, schema) -> Right $ VProp $ VTDataVec $ PTupleT $ N.toList $ fmap (PScalarT . snd) tableCols
 
 unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s

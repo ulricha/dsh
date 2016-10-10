@@ -3,6 +3,7 @@
 module Database.DSH.VSL.Opt.Properties.Empty where
 
 import           Control.Monad
+import qualified Data.Sequence                          as S
 
 import           Database.DSH.Common.VectorLang
 import           Database.DSH.VSL.Lang
@@ -22,8 +23,11 @@ mapUnp = mapUnpack "Properties.Empty"
 inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
-    Lit (_, f, _) -> Right $ VProp $ frameLen f == 0
-    TableRef{}    -> Right $ VProp False
+    Lit (_, ss) ->
+        case ss of
+            UnitSeg sd -> Right $ VProp $ S.null sd
+            Segs sds   -> Right $ VProp $ any S.null sds
+    TableRef{} -> Right $ VProp False
 
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =

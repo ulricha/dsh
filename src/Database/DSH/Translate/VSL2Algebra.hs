@@ -214,8 +214,8 @@ translateUnOp unop c = case unop of
     VSL.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
         return $ RLPair (fromDVec d) (fromRVec r)
-    VSL.Sort es         -> do
-        (d, p) <- vecSort es (toDVec c)
+    VSL.Sort e         -> do
+        (d, p) <- vecSort e (toDVec c)
         return $ RLPair (fromDVec d) (fromRVec p)
     VSL.Group es -> do
         (qo, qi, p) <- vecGroup es (toDVec c)
@@ -244,5 +244,5 @@ translateUnOp unop c = case unop of
 translateNullary :: VirtualSegmentAlgebra a
                  => VSL.NullOp
                  -> B.Build a (Res (VSLDVec a) (VSLRVec a))
-translateNullary (VSL.Lit (tys, frame, segs)) = fromDVec <$> vecLit tys frame segs
-translateNullary (VSL.TableRef (n, schema))   = fromDVec <$> vecTableRef n schema
+translateNullary (VSL.Lit (tys, segs))      = fromDVec <$> vecLit tys segs
+translateNullary (VSL.TableRef (n, schema)) = fromDVec <$> vecTableRef n schema

@@ -7,11 +7,12 @@ module Database.DSH.SL.Opt.Rewrite.Aggregation
 import           Control.Monad
 import           Data.List.NonEmpty                   (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                   as N
-import           Data.Semigroup
+import           Data.Semigroup                       hiding (First)
 
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Opt
 import           Database.DSH.Common.VectorLang
 import           Database.DSH.SL.Lang
@@ -21,12 +22,11 @@ import           Database.DSH.SL.Opt.Rewrite.Common
 aggregationRules :: SLRuleSet ()
 aggregationRules = [ inlineFoldProject
                    , flatGrouping
-                   , mergeGroupAggrFold
+                   -- , mergeGroupAggrFold
                    -- , mergeNonEmptyAggrs
-                   , mergeGroupAggr
+                   -- , mergeGroupAggr
                    , mergeGroupWithGroupAggrLeft
                    , mergeGroupWithGroupAggrRight
-                   , groupJoin
                    ]
 
 aggregationRulesBottomUp :: SLRuleSet BottomUpProps
@@ -87,10 +87,9 @@ groupingToAggregation =
 -- | Merge a projection into a segmented aggregate operator.
 inlineFoldProject :: SLRule ()
 inlineFoldProject q =
-  $(dagPatMatch 'q "(qo) Fold afun (Project proj (qi))"
+  $(dagPatMatch 'q "(qo) Fold afun (Project e (qi))"
     [| do
-        let env = zip [1..] $(v "proj")
-        let afun' = mapAggrFun (mergeExpr env) $(v "afun")
+        let afun' = mapAggrFun (mergeExpr e) $(v "afun")
 
         return $ do
             logRewrite "Aggregation.Normalize.Fold.Project" q
@@ -100,7 +99,7 @@ inlineFoldProject q =
 -- GroupAggr operator.
 flatGrouping :: SLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng ((_) Fold afun (R2 (qg1=Group groupExprs (q1)))))"
+  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng ((_) Fold afun (R2 (qg1=Group groupExpr (q1)))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -109,12 +108,7 @@ flatGrouping q =
 
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
-          let afuns = $(v "afun") N.:| []
-
-          groupAggrNode <- insert $ UnOp (GroupAggr ($(v "groupExprs"), afuns)) $(v "q1")
-          replace q groupAggrNode
-          let proj = map Column [1..length $(v "groupExprs")]
-          void $ replaceWithNew $(v "qr1") $ UnOp (Project proj) groupAggrNode
+          replaceWithNew q $ UnOp (GroupAggr ($(v "groupExpr"), $(v "afun"))) $(v "q1")
         |])
 
 -- | Cleanup rewrite: merge a segment aggregate with a group
@@ -129,62 +123,65 @@ flatGrouping q =
 -- down through segment propagation operators.
 --
 -- Testcase: TPC-H Q11, Q15
-mergeGroupAggrFold :: SLRule ()
-mergeGroupAggrFold q =
-  $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) Fold afun (R2 (qg1=Group groupExprs (q2)))))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        let (groupExprs', afuns) = $(v "args")
-        predicate $ groupExprs' == $(v "groupExprs")
 
-        return $ do
-          logRewrite "Aggregation.Grouping.Aggr2" q
+-- FIXME re-enable once type for groupaggr with multiple aggregates has been determined.
 
-          let afunsCombined = afuns <> (pure $(v "afun"))
-          groupAggrNode <- insert $ UnOp (GroupAggr ($(v "groupExprs"), afunsCombined)) $(v "q1")
-          replace q groupAggrNode
+-- mergeGroupAggrFold :: SLRule ()
+-- mergeGroupAggrFold q =
+--   $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) Fold afun (R2 (qg1=Group groupExprs (q2)))))"
+--     [| do
+--         predicate $ $(v "q1") == $(v "q2")
+--         let (groupExprs', afuns) = $(v "args")
+--         predicate $ groupExprs' == $(v "groupExprs")
 
-          -- Take care not to have duplicates of the grouping operator: Re-Wire
-          -- all parents of the original GroupAggr operator to the new
-          -- (extended) one and use a projection to keep the original schema.
-          gaParents <- filter (/= $(v "qu")) <$> parents $(v "qg")
-          let proj = map Column [1..(length groupExprs' + length afuns)]
-          projNode <- insert $ UnOp (Project proj) groupAggrNode
-          forM_ gaParents $ \p -> replaceChild p $(v "qg") projNode
-    |])
+--         return $ do
+--           logRewrite "Aggregation.Grouping.Aggr2" q
 
-mergeGroupAggr :: SLRule ()
-mergeGroupAggr q =
-  $(dagPatMatch 'q "(GroupAggr args1 (q1)) Align (GroupAggr args2 (q2))"
-    [| do
-        let (ges1, afuns1) = $(v "args1")
-        let (ges2, afuns2) = $(v "args2")
+--           let afunsCombined = afuns <> (pure $(v "afun"))
+--           groupAggrNode <- insert $ UnOp (GroupAggr ($(v "groupExprs"), afunsCombined)) $(v "q1")
+--           replace q groupAggrNode
 
-        -- The rewrite can be applied if the same input is grouped
-        -- according to the same grouping expressions.
-        predicate $ ges1 == ges2
-        predicate $ $(v "q1") == $(v "q2")
+--           -- Take care not to have duplicates of the grouping operator: Re-Wire
+--           -- all parents of the original GroupAggr operator to the new
+--           -- (extended) one and use a projection to keep the original schema.
+--           gaParents <- filter (/= $(v "qu")) <$> parents $(v "qg")
+--           let proj = map Column [1..(length groupExprs' + length afuns)]
+--           projNode <- insert $ UnOp (Project proj) groupAggrNode
+--           forM_ gaParents $ \p -> replaceChild p $(v "qg") projNode
+--     |])
 
-        return $ do
-          logRewrite "Aggregation.Normalize.MergeGroupAggr" q
-          groupNode <- insert $ UnOp (GroupAggr ($(v "ges1"), ($(v "afuns1") <> $(v "afuns2")))) $(v "q1")
+-- mergeGroupAggr :: SLRule ()
+-- mergeGroupAggr q =
+--   $(dagPatMatch 'q "(GroupAggr args1 (q1)) Align (GroupAggr args2 (q2))"
+--     [| do
+--         let (ges1, afuns1) = $(v "args1")
+--         let (ges2, afuns2) = $(v "args2")
 
-          -- Reconstruct the schema produced by Zip. Note that this
-          -- duplicates the grouping columns.
-          let groupWidth = length $(v "ges1")
-              aggrWidth1 = N.length afuns1
-              aggrWidth2 = N.length afuns2
-              groupCols  = [ Column c | c <- [1 .. groupWidth]]
+--         -- The rewrite can be applied if the same input is grouped
+--         -- according to the same grouping expressions.
+--         predicate $ ges1 == ges2
+--         predicate $ $(v "q1") == $(v "q2")
 
-          let proj = groupCols
-                     ++
-                     [ Column $ c + groupWidth | c <- [1 .. aggrWidth1] ]
-                     ++
-                     groupCols
-                     ++
-                     [ Column $ c + groupWidth + aggrWidth1 | c <- [1 .. aggrWidth2] ]
+--         return $ do
+--           logRewrite "Aggregation.Normalize.MergeGroupAggr" q
+--           groupNode <- insert $ UnOp (GroupAggr ($(v "ges1"), ($(v "afuns1") <> $(v "afuns2")))) $(v "q1")
 
-          void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
+--           -- Reconstruct the schema produced by Zip. Note that this
+--           -- duplicates the grouping columns.
+--           let groupWidth = length $(v "ges1")
+--               aggrWidth1 = N.length afuns1
+--               aggrWidth2 = N.length afuns2
+--               groupCols  = [ Column c | c <- [1 .. groupWidth]]
+
+--           let proj = groupCols
+--                      ++
+--                      [ Column $ c + groupWidth | c <- [1 .. aggrWidth1] ]
+--                      ++
+--                      groupCols
+--                      ++
+--                      [ Column $ c + groupWidth + aggrWidth1 | c <- [1 .. aggrWidth2] ]
+
+--           void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
 
 -- | This is a cleanup rewrite: It applies in a situation when
 -- aggregates have already been merged with Group into GroupAggr. If
@@ -206,17 +203,14 @@ mergeGroupWithGroupAggrLeft q =
 
             -- To keep the schema, we have to duplicate the grouping
             -- columns.
-            let groupWidth = length ges'
-                aggrWidth  = N.length afuns
-                groupCols  = [ Column c | c <- [1..groupWidth] ]
-                proj       = groupCols
-                             ++
-                             groupCols
-                             ++
-                             [ Column $ c + groupWidth | c <- [1..aggrWidth] ]
+            let e = VMkTuple [ VTupElem First VInput
+                             , VMkTuple [ VTupElem First VInput
+                                        , VTupElem (Next First) VInput
+                                        ]
+                             ]
 
             groupNode <- insert $ UnOp (GroupAggr (ges', afuns)) $(v "q1")
-            void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
+            void $ replaceWithNew q $ UnOp (Project e) groupNode |])
 
 -- | The mirrored dual of rewrite
 -- 'Aggregation.Normalize.MergeGroup.Left'.
@@ -235,40 +229,22 @@ mergeGroupWithGroupAggrRight q =
 
             -- To keep the schema, we have to duplicate the grouping
             -- columns.
-            let groupWidth = length ges'
-                aggrWidth  = N.length afuns
-                groupCols  = [ Column c | c <- [1..groupWidth] ]
-                proj       = groupCols
-                             ++
-                             [ Column $ c + groupWidth | c <- [1..aggrWidth] ]
-                             ++
-                             groupCols
+            let e = VMkTuple [ VMkTuple [ VTupElem First VInput
+                                        , VTupElem (Next First) VInput
+                                        ]
+                             , VTupElem First VInput
+                             ]
 
             groupNode <- insert $ UnOp (GroupAggr (ges', afuns)) $(v "q1")
-            void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
-
--- | Merge nestjoin-based binary grouping and subsequent aggregation
--- into one groupjoin operator.
-groupJoin :: SLRule ()
-groupJoin q =
-  $(dagPatMatch 'q "R1 ((qo) UnboxSng ((qo1) Fold a (R1 ((qo2) NestJoin p (qi)))))"
-    [| do
-        predicate $ $(v "qo1") == $(v "qo")
-        predicate $ $(v "qo2") == $(v "qo")
-
-        return $ do
-            logRewrite "GroupJoin" q
-            void $ replaceWithNew q $ BinOp (GroupJoin ($(v "p"), (NE $ $(v "a") :| []))) $(v "qo") $(v "qi")
-        |])
+            void $ replaceWithNew q $ UnOp (Project e) groupNode |])
 
 countDistinct :: SLRule BottomUpProps
 countDistinct q =
   $(dagPatMatch 'q "(q1) Fold a (Unique (q2))"
     [| do
         AggrCount           <- return $(v "a")
-        VProp (VTDataVec 1) <- vectorTypeProp <$> properties $(v "q2")
 
         return $ do
             logRewrite "CountDistinct" q
-            void $ replaceWithNew q $ BinOp (Fold (AggrCountDistinct (Column 1))) $(v "q1") $(v "q2")
+            void $ replaceWithNew q $ BinOp (Fold (AggrCountDistinct VInput)) $(v "q1") $(v "q2")
         |])

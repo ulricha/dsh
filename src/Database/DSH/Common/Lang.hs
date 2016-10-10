@@ -229,6 +229,9 @@ data JoinConjunct e = JoinConjunct
     , jcRight :: e
     } deriving (Show, Eq, Ord)
 
+instance Functor JoinConjunct where
+    fmap f jc = jc { jcLeft = f (jcLeft jc), jcRight = f (jcRight jc) }
+
 instance ToJSON e => ToJSON (JoinConjunct e) where
     toJSON (JoinConjunct e1 op e2) = toJSON (e1, op, e2)
 
@@ -237,6 +240,9 @@ instance FromJSON e => FromJSON (JoinConjunct e) where
 
 newtype JoinPredicate e = JoinPred { jpConjuncts :: N.NonEmpty (JoinConjunct e) }
     deriving (Show, Eq, Ord)
+
+instance Functor JoinPredicate where
+    fmap f jp = jp { jpConjuncts = fmap (fmap f) (jpConjuncts jp) }
 
 instance ToJSON e => ToJSON (JoinPredicate e) where
     toJSON (JoinPred conjs) = toJSON conjs

@@ -12,6 +12,7 @@ import qualified Database.Algebra.Dag           as Dag
 import           Database.Algebra.Dag.Common    as C
 
 import qualified Database.DSH.Common.Lang       as L
+import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.VectorLang
@@ -60,13 +61,6 @@ renderWinFun WinCount          = renderFun (text "count") []
 renderColumnType :: ScalarType -> Doc
 renderColumnType = text . show
 
-renderData :: [[L.ScalarVal]] -> Doc
-renderData [] = brackets empty
-renderData xs = flip (<>) semi $ sep $ punctuate semi $ map renderRow xs
-
-renderRow :: [L.ScalarVal] -> Doc
-renderRow = hcat . punctuate comma . map pretty
-
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
 
@@ -76,57 +70,55 @@ renderColName (L.ColName c) = text c
 renderCol :: (L.ColName, ScalarType) -> Doc
 renderCol (c, t) = renderColName c <> text "::" <> renderColumnType t
 
-renderProj :: Doc -> Expr -> Doc
-renderProj d e = d <> colon <> renderExpr e
-
-renderJoinConjunct :: L.JoinConjunct Expr -> Doc
+renderJoinConjunct :: L.JoinConjunct VectorExpr -> Doc
 renderJoinConjunct (L.JoinConjunct e1 o e2) =
     parenthize1 e1 <+> text (pp o) <+> parenthize1 e2
 
-renderJoinPred :: L.JoinPredicate Expr -> Doc
+renderJoinPred :: L.JoinPredicate VectorExpr -> Doc
 renderJoinPred (L.JoinPred conjs) = brackets
                                     $ hsep
                                     $ punctuate (text "&&")
                                     $ map renderJoinConjunct $ N.toList conjs
 
-renderExpr :: Expr -> Doc
-renderExpr (BinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
-renderExpr (UnApp op e)      = text (pp op) <+> parens (renderExpr e)
-renderExpr (Constant val)    = pretty val
-renderExpr (Column c)        = text "col" <> int c
-renderExpr (If c t e)        = text "if"
+renderExpr :: VectorExpr -> Doc
+renderExpr (VBinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
+renderExpr (VUnApp op e)      = text (pp op) <+> parens (renderExpr e)
+renderExpr (VConstant val)    = pretty val
+renderExpr VInput             = text "x"
+renderExpr (VMkTuple es)      = tupled $ map renderExpr es
+renderExpr (VTupElem i e)     = renderExpr e <> dot <> (int $ tupleIndex i)
+renderExpr VIndex             = text "Idx"
+renderExpr (VIf c t e)        = text "if"
                                  <+> renderExpr c
                                  <+> text "then"
                                  <+> renderExpr t
                                  <+> text "else"
                                  <+> renderExpr e
 
-parenthize1 :: Expr -> Doc
-parenthize1 e@(Constant _) = renderExpr e
-parenthize1 e@(Column _)   = renderExpr e
-parenthize1 e@BinApp{}     = parens $ renderExpr e
-parenthize1 e@UnApp{}      = parens $ renderExpr e
-parenthize1 e@If{}         = renderExpr e
+parenthize1 :: VectorExpr -> Doc
+parenthize1 e@(VConstant _) = renderExpr e
+parenthize1 e@VBinApp{}     = parens $ renderExpr e
+parenthize1 e@VUnApp{}      = parens $ renderExpr e
+parenthize1 e@VIf{}         = renderExpr e
+parenthize1 VIndex          = renderExpr VIndex
+parenthize1 VInput          = renderExpr VInput
+parenthize1 e@VMkTuple{}    = renderExpr e
+parenthize1 e@VTupElem{}    = renderExpr e
 
-renderSegments :: Segments -> Doc
-renderSegments (UnitSeg cols) = renderColumns cols
-renderSegments (Segs segs)    = vcat $ map renderSegment segs
+renderSegments :: VecSegs -> Doc
+renderSegments (UnitSeg seg) = renderSegment seg
+renderSegments (Segs segs)   = vcat $ map renderSegment $ F.toList segs
 
-renderSegment :: Segment -> Doc
-renderSegment s = brackets $ renderColumns $ segCols s
-
-renderColumns :: [Column] -> Doc
-renderColumns cols = renderData $ transpose $ map F.toList $ F.toList cols
+renderSegment :: SegD -> Doc
+renderSegment s = list $ map pretty $ F.toList s
 
 -- | Create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> SL -> Doc
 opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "winaggr"
     (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
     (lookupTags i tm)
-opDotLabel tm i (NullaryOp (Lit (tys, frame, segs))) = labelToDoc i "lit"
-        (bracketList renderColumnType tys <> comma
-        <$> text "frame: " <> int (frameLen frame) <> comma
-        <$> renderSegments segs) (lookupTags i tm)
+opDotLabel tm i (NullaryOp (Lit (ty, segs))) = labelToDoc i "lit"
+        (pretty ty <> comma <$> renderSegments segs) (lookupTags i tm)
 opDotLabel tm i (NullaryOp (TableRef (n, schema))) =
     labelToDoc i "table"
                  (text n <> text "\n"
@@ -142,16 +134,13 @@ opDotLabel tm i (UnOp Reverse _) = labelToDoc i "reverse" empty (lookupTags i tm
 opDotLabel tm i (UnOp R1 _) = labelToDoc i "R1" empty (lookupTags i tm)
 opDotLabel tm i (UnOp R2 _) = labelToDoc i "R2" empty (lookupTags i tm)
 opDotLabel tm i (UnOp R3 _) = labelToDoc i "R3" empty (lookupTags i tm)
-opDotLabel tm i (UnOp (Project pCols) _) =
-  labelToDoc i "project" pLabel (lookupTags i tm)
-  where pLabel = valCols
-        valCols = bracketList (\(j, p) -> renderProj (itemLabel j) p) $ zip ([1..] :: [Int]) pCols
-        itemLabel j = (text "i") <> (int j)
+opDotLabel tm i (UnOp (Project e) _) = labelToDoc i "project" pLabel (lookupTags i tm)
+  where pLabel = renderExpr e
 opDotLabel tm i (UnOp (Select e) _) = labelToDoc i "select" (renderExpr e) (lookupTags i tm)
-opDotLabel tm i (UnOp (GroupAggr (g, as)) _) = labelToDoc i "groupaggr" (bracketList renderExpr g <+> bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
+opDotLabel tm i (UnOp (GroupAggr (g, a)) _) = labelToDoc i "groupaggr" (renderExpr g <+> bracketList renderAggrFun [a]) (lookupTags i tm)
 opDotLabel tm i (BinOp (Fold a) _ _) = labelToDoc i "fold" (renderAggrFun a) (lookupTags i tm)
-opDotLabel tm i (UnOp (Sort cols) _) = labelToDoc i "sort" (bracketList renderExpr cols) (lookupTags i tm)
-opDotLabel tm i (UnOp (Group cols) _) = labelToDoc i "group" (bracketList renderExpr cols) (lookupTags i tm)
+opDotLabel tm i (UnOp (Sort e) _) = labelToDoc i "sort" (renderExpr e) (lookupTags i tm)
+opDotLabel tm i (UnOp (Group e) _) = labelToDoc i "group" (renderExpr e) (lookupTags i tm)
 opDotLabel tm i (BinOp ReplicateNest _ _) = labelToDoc i "replicatenest" empty (lookupTags i tm)
 opDotLabel tm i (BinOp ReplicateScalar _ _) = labelToDoc i "replicatescalar" empty (lookupTags i tm)
 opDotLabel tm i (BinOp UnboxSng _ _) = labelToDoc i "unboxsng" empty (lookupTags i tm)

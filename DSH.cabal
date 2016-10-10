@@ -195,12 +195,11 @@ Library
                      Database.DSH.SL.Opt.Properties.Card
                      Database.DSH.SL.Opt.Properties.Segments
                      Database.DSH.SL.Opt.Properties.Common
-                     Database.DSH.SL.Opt.Properties.Const
+                     -- Database.DSH.SL.Opt.Properties.Const
                      Database.DSH.SL.Opt.Properties.Empty
-                     Database.DSH.SL.Opt.Properties.ReqColumns
                      Database.DSH.SL.Opt.Properties.TopDown
                      Database.DSH.SL.Opt.Properties.Types
-                     Database.DSH.SL.Opt.Properties.VectorType
+                     -- Database.DSH.SL.Opt.Properties.VectorType
                      Database.DSH.SL.Opt.OptimizeSL
                      Database.DSH.SL.Opt.Rewrite.Common
                      Database.DSH.SL.Opt.Rewrite.Expressions
@@ -214,12 +213,11 @@ Library
                      Database.DSH.VSL.Opt.Properties.Card
                      Database.DSH.VSL.Opt.Properties.Segments
                      Database.DSH.VSL.Opt.Properties.Common
-                     Database.DSH.VSL.Opt.Properties.Const
+                     -- Database.DSH.VSL.Opt.Properties.Const
                      Database.DSH.VSL.Opt.Properties.Empty
-                     Database.DSH.VSL.Opt.Properties.ReqColumns
                      Database.DSH.VSL.Opt.Properties.TopDown
                      Database.DSH.VSL.Opt.Properties.Types
-                     Database.DSH.VSL.Opt.Properties.VectorType
+                     -- Database.DSH.VSL.Opt.Properties.VectorType
                      Database.DSH.VSL.Opt.OptimizeVSL
                      Database.DSH.VSL.Opt.Rewrite.Common
                      Database.DSH.VSL.Opt.Rewrite.Expressions

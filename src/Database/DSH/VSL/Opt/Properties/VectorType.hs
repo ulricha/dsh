@@ -20,7 +20,7 @@ vectorWidth _                      = error "vectorWidth: non-VTDataVec input"
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
-    Lit (tys, _, _)      -> Right $ VProp $ VTDataVec $ length tys
+    Lit (ty, _, _)      -> Right $ VProp $ VTDataVec ty
     TableRef (_, schema) -> Right $ VProp $ VTDataVec $ N.length (tableCols schema)
 
 unpack :: VectorProp VectorType -> Either String VectorType

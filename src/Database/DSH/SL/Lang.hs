@@ -22,7 +22,7 @@ import           Database.DSH.Common.VectorLang
 -- Vector Language operators. Documentation can be found in module
 -- VectorAlgebra.
 
-data NullOp = Lit ([ScalarType], SegFrame, Segments)
+data NullOp = Lit (PType, VecSegs)
             | TableRef (String, L.BaseTableSchema)
             deriving (Eq, Ord, Show)
 
@@ -36,15 +36,15 @@ data UnOp = UnboxKey
           | R2
           | R3
 
-          | Project [Expr]
-          | Select Expr
+          | Project VectorExpr
+          | Select VectorExpr
 
-          | GroupAggr ([Expr], N.NonEmpty AggrFun)
+          | GroupAggr (VectorExpr, AggrFun)
           | Number
           | Unique
           | Reverse
-          | Sort [Expr]
-          | Group [Expr]
+          | Sort VectorExpr
+          | Group VectorExpr
           | WinFun (WinFun, FrameSpec)
     deriving (Eq, Ord, Show)
 
@@ -66,11 +66,11 @@ data BinOp = ReplicateNest
            | Append
            | Zip
            | CartProduct
-           | ThetaJoin (L.JoinPredicate Expr)
-           | SemiJoin (L.JoinPredicate Expr)
-           | AntiJoin (L.JoinPredicate Expr)
-           | NestJoin (L.JoinPredicate Expr)
-           | GroupJoin (L.JoinPredicate Expr, L.NE AggrFun)
+           | ThetaJoin (L.JoinPredicate VectorExpr)
+           | SemiJoin (L.JoinPredicate VectorExpr)
+           | AntiJoin (L.JoinPredicate VectorExpr)
+           | NestJoin (L.JoinPredicate VectorExpr)
+           | GroupJoin (L.JoinPredicate VectorExpr, L.NE AggrFun)
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''BinOp)

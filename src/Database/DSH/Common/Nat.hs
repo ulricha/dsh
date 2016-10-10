@@ -2,6 +2,7 @@
 
 module Database.DSH.Common.Nat where
 
+import Data.Aeson
 import Data.Maybe
 
 import Database.DSH.Common.Impossible
@@ -23,8 +24,16 @@ intFromNat :: Nat -> Int
 intFromNat Zero     = 0
 intFromNat (Succ n) = 1 + intFromNat n
 
+--------------------------------------------------------------------------------
+
 -- | Indexes of tuple fields
-data TupleIndex = First | Next TupleIndex deriving (Show, Eq)
+data TupleIndex = First | Next TupleIndex deriving (Show, Eq, Ord)
+
+instance ToJSON TupleIndex where
+    toJSON = toJSON . tupleIndex
+
+instance FromJSON TupleIndex where
+    parseJSON o = intIndex <$> parseJSON o
 
 tupleIndex :: TupleIndex -> Int
 tupleIndex First    = 1

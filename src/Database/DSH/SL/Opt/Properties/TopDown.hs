@@ -12,22 +12,16 @@ import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Opt
 import           Database.DSH.SL.Lang
-import           Database.DSH.SL.Opt.Properties.ReqColumns
 import           Database.DSH.SL.Opt.Properties.Types
 
-reqColumnsSeed :: ReqCols
-reqColumnsSeed = Nothing
-
 vPropSeed :: TopDownProps
-vPropSeed = TDProps { reqColumnsProp = VProp reqColumnsSeed }
+vPropSeed = TDProps
 
 vPropPairSeed :: TopDownProps
-vPropPairSeed = TDProps { reqColumnsProp = VPropPair reqColumnsSeed reqColumnsSeed }
+vPropPairSeed = TDProps
 
 vPropTripleSeed :: TopDownProps
-vPropTripleSeed = TDProps { reqColumnsProp = VPropTriple reqColumnsSeed
-                                                         reqColumnsSeed
-                                                         reqColumnsSeed }
+vPropTripleSeed = TDProps
 
 seed :: SL -> TopDownProps
 seed (NullaryOp _) = vPropSeed
@@ -93,11 +87,7 @@ inferUnOp :: BottomUpProps
           -> UnOp
           -> Either String TopDownProps
 inferUnOp childBUProps ownProps cp op = do
-    cols <- inferReqColumnsUnOp childBUProps
-                                (reqColumnsProp ownProps)
-                                (reqColumnsProp cp)
-                                op
-    return $ TDProps { reqColumnsProp = cols }
+    return $ TDProps
 
 inferBinOp :: BottomUpProps
            -> BottomUpProps
@@ -107,14 +97,7 @@ inferBinOp :: BottomUpProps
            -> BinOp
            -> Either String (TopDownProps, TopDownProps)
 inferBinOp childBUProps1 childBUProps2 ownProps cp1 cp2 op = do
-    (crc1', crc2') <- inferReqColumnsBinOp childBUProps1
-                                           childBUProps2
-                                           (reqColumnsProp ownProps)
-                                           (reqColumnsProp cp1)
-                                           (reqColumnsProp cp2) op
-    let cp1' = TDProps { reqColumnsProp = crc1' }
-        cp2' = TDProps { reqColumnsProp = crc2' }
-    return (cp1', cp2')
+    return (TDProps, TDProps)
 
 inferTerOp :: TopDownProps
            -> TopDownProps
@@ -123,14 +106,7 @@ inferTerOp :: TopDownProps
            -> TerOp
            -> Either String (TopDownProps, TopDownProps, TopDownProps)
 inferTerOp ownProps cp1 cp2 cp3 op = do
-    (crc1', crc2', crc3') <- inferReqColumnsTerOp (reqColumnsProp ownProps)
-                                                  (reqColumnsProp cp1)
-                                                  (reqColumnsProp cp2)
-                                                  (reqColumnsProp cp3) op
-    let cp1' = TDProps { reqColumnsProp = crc1' }
-        cp2' = TDProps { reqColumnsProp = crc2' }
-        cp3' = TDProps { reqColumnsProp = crc3' }
-    return (cp1', cp2', cp3')
+    return (TDProps, TDProps, TDProps)
 
 inferChildProperties :: NodeMap BottomUpProps
                      -> D.AlgebraDag SL

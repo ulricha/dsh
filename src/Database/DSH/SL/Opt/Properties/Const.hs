@@ -23,26 +23,15 @@ import           Database.DSH.SL.Opt.Properties.Types
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Const"
 
-fromDBV :: ConstVec -> Either String [ConstPayload]
+fromDBV :: ConstVec -> Either String ConstPayload
 fromDBV (ConstVec pl) = Right pl
 fromDBV CNA           = Left "Properties.Const.fromDBV"
-
-sameConst :: ConstPayload -> ConstPayload -> ConstPayload
-sameConst (ConstPL v1) (ConstPL v2) | v1 == v2 = ConstPL v1
-sameConst _            _                       = NonConstPL
 
 --------------------------------------------------------------------------------
 -- Evaluation of constant expressions
 
 -- FIXME finish remaining cases, only integer numeric operations so
 -- far.
-
-mkEnv :: [ConstPayload] -> [(DBCol, ScalarVal)]
-mkEnv constCols = mapMaybe envEntry $ zip [1..] constCols
-  where
-    envEntry :: (DBCol, ConstPayload) -> Maybe (DBCol, ScalarVal)
-    envEntry (_, NonConstPL) = mzero
-    envEntry (c, ConstPL v)  = return (c, v)
 
 evalNumOp :: BinNumOp -> Int -> Int -> Int
 evalNumOp op v1 v2 =
@@ -53,78 +42,88 @@ evalNumOp op v1 v2 =
         Mul -> v1 * v2
         Mod -> v1 `mod` v2
 
-evalBinOp :: ScalarBinOp -> ScalarVal -> ScalarVal -> Maybe ScalarVal
-evalBinOp (SBNumOp nop)  (IntV i1)    (IntV i2)    = return $ IntV $ evalNumOp nop i1 i2
-evalBinOp (SBNumOp _)    (DoubleV _)  (DoubleV _)  = mzero
-evalBinOp (SBNumOp _)    (DecimalV _) (DecimalV _) = mzero
+evalBinOp :: ScalarBinOp -> ScalarVal -> ScalarVal -> ConstPayload
+evalBinOp (SBNumOp nop)  (IntV i1)    (IntV i2)    = CPVal $ IntV $ evalNumOp nop i1 i2
+evalBinOp (SBNumOp _)    (DoubleV _)  (DoubleV _)  = CPNoVal
+evalBinOp (SBNumOp _)    (DecimalV _) (DecimalV _) = CPNoVal
 
-evalBinOp (SBRelOp _)    (IntV _)     (IntV _)     = mzero
-evalBinOp (SBRelOp _)    (DoubleV _)  (DoubleV _)  = mzero
-evalBinOp (SBRelOp _)    (DecimalV _) (DecimalV _) = mzero
-evalBinOp (SBRelOp _)    (StringV _)  (StringV _)  = mzero
-evalBinOp (SBRelOp _)    (DateV _)    (DateV _)    = mzero
+evalBinOp (SBRelOp _)    (IntV _)     (IntV _)     = CPNoVal
+evalBinOp (SBRelOp _)    (DoubleV _)  (DoubleV _)  = CPNoVal
+evalBinOp (SBRelOp _)    (DecimalV _) (DecimalV _) = CPNoVal
+evalBinOp (SBRelOp _)    (StringV _)  (StringV _)  = CPNoVal
+evalBinOp (SBRelOp _)    (DateV _)    (DateV _)    = CPNoVal
 
-evalBinOp (SBBoolOp _)   (BoolV _)    (BoolV _)    = mzero
-evalBinOp (SBStringOp _) (StringV _)  (StringV _)  = mzero
-evalBinOp (SBDateOp _)   (IntV _)     (DateV _)    = mzero
-evalBinOp (SBDateOp _)   (DateV _)    (DateV _)    = mzero
+evalBinOp (SBBoolOp _)   (BoolV _)    (BoolV _)    = CPNoVal
+evalBinOp (SBStringOp _) (StringV _)  (StringV _)  = CPNoVal
+evalBinOp (SBDateOp _)   (IntV _)     (DateV _)    = CPNoVal
+evalBinOp (SBDateOp _)   (DateV _)    (DateV _)    = CPNoVal
 evalBinOp _              _            _            = $impossible
 
-evalUnOp :: ScalarUnOp -> ScalarVal -> Maybe ScalarVal
-evalUnOp _ _ = mzero
+evalUnOp :: ScalarUnOp -> ScalarVal -> ConstPayload
+evalUnOp _ _ = CPNoVal
 
-constExpr :: [ConstPayload] -> Expr -> Either String ConstPayload
-constExpr constCols expr =
-    case eval expr of
-        Just v  -> return $ ConstPL v
-        Nothing -> return NonConstPL
+constExpr :: ConstPayload -> VectorExpr -> ConstPayload
+constExpr constInput expr = eval constInput expr
 
-  where
-    env :: [(DBCol, ScalarVal)]
-    env = mkEnv constCols
-
-    eval :: Expr -> Maybe ScalarVal
-    eval (Constant v)      = return v
-    eval (Column i)        = lookup i env
-    eval (BinApp op e1 e2) = do
-        v1 <- eval e1
-        v2 <- eval e2
-        evalBinOp op v1 v2
-    eval (UnApp op e1)     = do
-        v <- eval e1
-        evalUnOp op v
-    eval (If c t e)        = do
-        cv <- eval c
-        case cv of
-            BoolV True  -> eval t
-            BoolV False -> eval e
-            _           -> mzero
+eval :: ConstPayload -> VectorExpr -> ConstPayload
+eval v (VConstant c)       = CPVal c
+eval v VInput              = v
+eval v (VBinApp op e1 e2)  =
+    case (eval v e1, eval v e2) of
+        (CPVal v1, CPVal v2) -> evalBinOp op v1 v2
+        _                          -> CPNoVal
+eval v (VUnApp op e1)      =
+    case eval v e1 of
+        CPVal v1 -> evalUnOp op v1
+        _           -> CPNoVal
+eval v (VIf c t e)         =
+    case eval v c of
+        CPVal (BoolV True)  -> eval v t
+        CPVal (BoolV False) -> eval v e
+        _                      -> CPNoVal
 
 --------------------------------------------------------------------------------
+
+updateConst :: ConstPayload -> VecVal -> ConstPayload
+updateConst (CPTuple cs) (VVTuple vs) = CPTuple $ zipWith updateConst cs vs
+updateConst CPNoVal      (VVScalar s) = CPNoVal
+updateConst (CPVal s')   (VVScalar s)
+    | s == s'                         = CPVal s
+    | otherwise                       = CPNoVal
+updateConst _            VVIndex      = CPNoVal
+updateConst _            _            = $impossible
+
+initConst :: VecVal -> ConstPayload
+initConst (VVTuple vs) = CPTuple $ map initConst vs
+initConst (VVScalar s) = CPVal s
+initConst VVIndex      = CPNoVal
+
+noConst :: PType -> ConstPayload
+noConst (PTupleT ts) = CPTuple $ map noConst ts
+noConst (PScalarT t) = CPNoVal
+noConst PIndexT      = CPNoVal
 
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
   case op of
-    Lit (tys, _, segs)      -> return $ VProp $ ConstVec constCols
-        where constCols       = map toConstPayload $ vectorCols tys segs
+    Lit (ty, segs)       ->
+        case S.viewl $ segmentData segs of
+            v S.:< vs -> return $ VProp $ ConstVec $ F.foldl' updateConst (initConst v) vs
+            _         -> return $ VProp $ ConstVec $ noConst ty
 
-              toConstPayload col =
-                  case S.viewl col of
-                      c S.:< s | F.all (c ==) s -> ConstPL c
-                      _                         -> NonConstPL
-
-    TableRef (_, schema)    -> return $ VProp
-                                      $ ConstVec
-                                      $ map (const NonConstPL)
-                                      $ N.toList
-                                      $ tableCols schema
+    TableRef (_, schema) -> return $ VProp
+                                   $ ConstVec
+                                   $ CPTuple
+                                   $ map (const CPNoVal)
+                                   $ N.toList
+                                   $ tableCols schema
 
 inferConstVecUnOp :: VectorProp ConstVec -> UnOp -> Either String (VectorProp ConstVec)
 inferConstVecUnOp c op =
   case op of
     WinFun _ -> do
-      cols <- unp c >>= fromDBV
-      return $ VProp $ ConstVec (cols ++ [NonConstPL])
+      cv <- unp c >>= fromDBV
+      return $ VProp $ ConstVec $ CPTuple [cv, CPNoVal]
 
     Unique -> return c
 
@@ -139,25 +138,24 @@ inferConstVecUnOp c op =
       return $ VProp $ ConstVec constCols
 
     Reverse -> do
-      cs <- unp c >>= fromDBV
-      return $ VPropPair (ConstVec cs) CNA
+      cv <- unp c >>= fromDBV
+      return $ VPropPair (ConstVec cv) CNA
 
-    Project projExprs   -> do
-      constCols  <- unp c >>= fromDBV
-      constCols' <- mapM (constExpr constCols) projExprs
-      return $ VProp $ ConstVec constCols'
+    Project projExpr   -> do
+      cv <- unp c >>= fromDBV
+      let cv' = constExpr cv projExpr
+      return $ VProp $ ConstVec cv'
 
     Select _       -> do
       cols <- unp c >>= fromDBV
       return $ VPropPair (ConstVec cols) CNA
 
-    GroupAggr (g, as) -> do
-      let pl = [ NonConstPL | _ <- [1 .. length g + N.length as] ]
-      return $ VProp $ ConstVec pl
+    GroupAggr (groupExpr, aggrFun) -> do
+      return $ VProp $ ConstVec $ CPTuple [CPNoVal, CPNoVal]
 
     Number -> do
-      cols <- unp c >>= fromDBV
-      return $ VProp $ ConstVec (cols ++ [NonConstPL])
+      cp <- unp c >>= fromDBV
+      return $ VProp $ ConstVec $ CPTuple [cp, CPNoVal]
 
     Sort _ -> do
       cs <- unp c >>= fromDBV

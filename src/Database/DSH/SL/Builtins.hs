@@ -35,7 +35,7 @@ dist (VShape dv lyt) (VShape dvo _) = do
 
     -- The outer vector does not have columns, it only describes the
     -- shape.
-    outerVec         <- slProject [] dvo
+    outerVec         <- slProject VIndex dvo
 
     -- Replicate any inner vectors
     lyt'             <- repLayout rv lyt
@@ -58,14 +58,11 @@ combine _ _ _ = $impossible
 
 restrict :: Shape DVec -> Build SL (Shape DVec)
 restrict (VShape dv (LTuple [l, LCol])) = do
-    let leftWidth = columnsInLayout l
-        predicate = Column $ leftWidth + 1
-
     -- Filter the vector according to the boolean column
-    (dv', fv) <- slSelect predicate dv
+    (dv', fv) <- slSelect (VTupElem (Next First) VInput) dv
 
     -- After the selection, discard the boolean column
-    dv''      <- slProject (map Column [1..leftWidth]) dv'
+    dv''      <- slProject (VTupElem First VInput) dv'
 
     -- Filter any inner vectors
     l'        <- filterLayout fv l
@@ -77,8 +74,7 @@ restrict _ = $impossible
 
 extL :: L.ScalarVal -> Shape DVec -> Build SL (Shape DVec)
 extL val (VShape dvo (LNest dvi lyt)) = do
-    let w = columnsInLayout lyt
-    dvi' <- slProject ([ Column c | c <- [1..w]] ++ [Constant val]) dvi
+    dvi' <- slProject (VMkTuple [VInput, VConstant val]) dvi
     return (VShape dvo (LNest dvi' (LTuple [lyt, LCol])))
 extL _ _ = $impossible
 
@@ -91,20 +87,18 @@ onlyL _                           = $impossible
 
 binOpL :: L.ScalarBinOp -> Shape DVec -> Shape DVec -> Build SL (Shape DVec)
 binOpL o (VShape dv1 _) (VShape dv2 _) = do
-    dv <- slProject [BinApp o (Column 1) (Column 2)] =<< slAlign dv1 dv2
+    da <- slAlign dv1 dv2
+    dv <- slProject (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) da
     return $ VShape dv LCol
 binOpL _ _ _ = $impossible
 
 restrictL :: Shape DVec -> Build SL (Shape DVec)
 restrictL (VShape qo (LNest dv (LTuple [l, LCol]))) = do
-    let leftWidth = columnsInLayout l
-        predicate = Column $ leftWidth + 1
-
     -- Filter the vector according to the boolean column
-    (dv', fv) <- slSelect predicate dv
+    (dv', fv) <- slSelect (VTupElem (Next First) VInput) dv
 
     -- After the selection, discard the boolean column
-    dv''      <- slProject (map Column [1..leftWidth]) dv'
+    dv''      <- slProject (VTupElem First VInput) dv'
 
     -- Filter any inner vectors
     l'        <- filterLayout fv l
@@ -202,32 +196,22 @@ reverseL (VShape dvo (LNest dvi lyt)) = do
 reverseL _ = $impossible
 
 sortL ::  Shape DVec -> Build SL (Shape DVec)
-sortL (VShape dvo (LNest dvi (LTuple [xl, sl]))) = do
-    let leftWidth  = columnsInLayout xl
-        rightWidth = columnsInLayout sl
-
-        sortExprs = map Column [leftWidth+1..leftWidth+rightWidth]
-
+sortL (VShape dvo (LNest dvi (LTuple [xl, _]))) = do
     -- Sort by all sorting columns from the right tuple component
-    (sortedVec, sv) <- slSort sortExprs dvi
+    (sortedVec, sv) <- slSort (VTupElem (Next First) VInput) dvi
 
     -- After sorting, discard the sorting criteria columns
-    resVec          <- slProject (map Column [1..leftWidth]) sortedVec
+    resVec          <- slProject (VTupElem First VInput) sortedVec
     xl'             <- sortLayout sv xl
     return $ VShape dvo (LNest resVec xl')
 sortL _ = $impossible
 
 groupL ::  Shape DVec -> Build SL (Shape DVec)
 groupL (VShape dvo (LNest dvi (LTuple [xl, gl]))) = do
-    let leftWidth  = columnsInLayout xl
-        rightWidth = columnsInLayout gl
-
-        groupExprs = map Column [leftWidth+1..leftWidth+rightWidth]
-
-    (dvo', dvi', rv) <- slGroup groupExprs dvi
+    (dvo', dvi', rv) <- slGroup (VTupElem (Next First) VInput) dvi
 
     -- Discard the grouping columns in the inner vector
-    dvi''            <- slProject (map Column [1..leftWidth]) dvi'
+    dvi''            <- slProject (VTupElem First VInput) dvi'
 
     xl'              <- sortLayout rv xl
     return $ VShape dvo (LNest dvo' (LTuple [gl, LNest dvi'' xl']))
@@ -251,9 +235,9 @@ outer ::  Shape DVec -> Build SL DVec
 outer (SShape _ _)        = $impossible
 outer (VShape q _)        = return q
 
-aggrL :: (Expr -> AggrFun) -> Shape DVec -> Build SL (Shape DVec)
+aggrL :: (VectorExpr -> AggrFun) -> Shape DVec -> Build SL (Shape DVec)
 aggrL afun (VShape d (LNest q LCol)) = do
-    qr <- slFold (afun (Column 1)) d q
+    qr <- slFold (afun VInput) d q
     qu <- fst <$> slUnboxSng d qr
     return $ VShape qu LCol
 aggrL _ _ = $impossible
@@ -275,14 +259,14 @@ tupleL _ = $impossible
 
 tupElemL :: TupleIndex -> Shape DVec -> Build SL (Shape DVec)
 tupElemL i (VShape q (LTuple lyts)) = do
-    let (lyt', cols) = projectColumns i lyts
-    proj <- slProject (map Column cols) q
-    return $ VShape proj lyt'
+    let lyt = lyts !! (tupleIndex i - 1)
+    proj <- slProject (VTupElem i VInput) q
+    return $ VShape proj lyt
 tupElemL _ _ = $impossible
 
 singletonL :: Shape DVec -> Build SL (Shape DVec)
 singletonL (VShape q lyt) = do
-    dvo <- slProject [] q
+    dvo <- slProject VIndex q
     dvi <- slSegment q
     return $ VShape dvo (LNest dvi lyt)
 singletonL _ = $impossible
@@ -305,64 +289,51 @@ dbTable n schema = do
 --------------------------------------------------------------------------------
 -- Shredding literal values
 
-scalarVal :: L.Val -> L.ScalarVal
-scalarVal (L.ScalarV v) = v
-scalarVal _             = $impossible
+shredList :: [L.Val] -> Layout (PType, S.Seq SegD) -> (S.Seq VecVal, Layout (PType, S.Seq SegD))
+shredList vs lyt = List.foldl' go (S.empty, lyt) vs
+  where
+    go (vvs, l) v = let (vv, l') = shredValue v l
+                    in (vvs S.|> vv, l')
 
-fromList :: L.Val -> [L.Val]
-fromList (L.ListV es) = es
-fromList _            = $impossible
+shredValue :: L.Val -> Layout (PType, S.Seq SegD) -> (VecVal, Layout (PType, S.Seq SegD))
+shredValue (L.ListV vs)  (LNest (ty, segs) lyt) =
+    let (seg, lyt') = shredList vs lyt
+    in (VVIndex, LNest (ty, segs S.|> seg) lyt')
+shredValue (L.TupleV vs) (LTuple lyts)          =
+    let (vvs, ls) = unzip $ zipWith shredValue vs lyts
+    in (VVTuple vvs, LTuple ls)
+shredValue (L.ScalarV v) LCol                   =
+    (VVScalar v, LCol)
+shredValue _ _ = $impossible
 
-fromTuple :: L.Val -> [L.Val]
-fromTuple (L.TupleV es) = es
-fromTuple _             = $impossible
+shredType :: Type -> Layout (PType, S.Seq SegD)
+shredType (ScalarT _) = LCol
+shredType (TupleT ts) = LTuple $ map shredType ts
+shredType (ListT t)   = LNest (payloadType t, S.empty) (shredType t)
 
--- | Turn list elements into vector columns and encode inner lists in separate
--- vectors.
---
--- 'toColumns' receives the element type of the list and all element values of
--- the list.
-toColumns :: Type -> [L.Val] -> Build SL ([ScalarType], [Column], Layout DVec)
-toColumns (ListT t) ls    = do
-    (v, lyt) <- toVector t ls
-    return ([], [], LNest v lyt)
-toColumns (TupleT tys) ts = do
-    let tupleComponents = if null ts
-                          then map (const []) tys
-                          else List.transpose $ map fromTuple ts
-    (colTys, cols, lyts) <- unzip3 <$> zipWithM toColumns tys tupleComponents
-    return (List.concat colTys, List.concat cols, LTuple lyts)
-toColumns (ScalarT t) vs  = return ([t], [S.fromList $ map scalarVal vs], LCol)
+payloadType :: Type -> PType
+payloadType (ScalarT t) = PScalarT t
+payloadType (TupleT ts) = PTupleT $ map payloadType ts
+payloadType (ListT _)   = PIndexT
 
--- | Divide columns into segments according to the length of the original inner
--- lists.
-chopSegments :: [Int] -> [Column] -> [Segment]
-chopSegments (l:ls) cols =
-    let (seg, cols') = unzip $ map (S.splitAt l) cols
-    in Seg seg l : chopSegments ls cols'
-chopSegments []     _    = []
+literalVectors :: Layout (PType, S.Seq SegD) -> Build SL (Layout DVec)
+literalVectors lyt = traverse go lyt
+  where
+    go (ty, segs) = slLit (ty, Segs segs)
 
--- | Encode all inner list values for a list type constructor in a vector.
---
--- 'toVector' receives the element type of the inner lists and all inner list
--- values.
-toVector :: Type -> [L.Val] -> Build SL (DVec, Layout DVec)
-toVector t ls = do
-    -- Concatenate the elements of all inner lists
-    let innerLists = map fromList ls
-        allElems   = List.concat innerLists
-        innerLens  = map length innerLists
-    (tys, cols, lyt) <- toColumns t allElems
-    let segs = chopSegments innerLens cols
-    litNode <- slLit (tys, SegFrame $ length allElems, Segs segs)
-    return (litNode, lyt)
+literalShape :: Shape (PType, S.Seq SegD) -> Build SL (Shape DVec)
+literalShape (VShape (ty, segs) lyt) = do
+    let seg = if S.null segs then $impossible else S.index segs 0
+    shapeVec <- slLit (ty, UnitSeg seg)
+    vecLyt   <- literalVectors lyt
+    return $ VShape shapeVec vecLyt
+literalShape SShape{} = $impossible
 
--- | Shred a literal value into flat vectors.
-shredLiteral ::  Type -> [L.Val] -> Build SL (Shape DVec)
-shredLiteral (ListT t) es = do
-    (tys, cols, lyt) <- toColumns t es
-    litNode <- slLit (tys, SegFrame $ length es, UnitSeg cols)
-    return $ VShape litNode lyt
+shredLiteral :: Type -> L.Val -> Build SL (Shape DVec)
+shredLiteral (ListT t) (L.ListV vs) = literalShape $ VShape (payloadType t, S.singleton seg) lyt
+  where
+    initLyt    = shredType t
+    (seg, lyt) = shredList vs initLyt
 shredLiteral _ _ = $impossible
 
 --------------------------------------------------------------------------------

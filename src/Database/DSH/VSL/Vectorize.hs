@@ -47,7 +47,7 @@ fkl2SL expr =
             e1' <- fkl2SL e1
             local (bind n e1') $ fkl2SL e
         Table _ n schema -> lift $ Builtins.dbTable n schema
-        Const t v -> lift $ Builtins.shredLiteral t v
+        Const t vs -> lift $ Builtins.shredLiteral t (ListV vs)
         BinOp _ o Lifted e1 e2     -> do
             s1 <- fkl2SL e1
             s2 <- fkl2SL e2
@@ -143,8 +143,7 @@ papp2 _ NotLifted = $impossible
 
 --------------------------------------------------------------------------------
 
--- | Materialize a result vector and insert a projection for all its columns.
--- This ensures that no result columns will be pruned by rewrites.
+-- | Materialize a result vector
 finalizeResultVectors :: Shape Builtins.DelayedVec -> VSLBuild (Shape DVec)
 finalizeResultVectors (VShape dv l) = finalizeShape dv l VShape
 finalizeResultVectors (SShape dv l) = finalizeShape dv l SShape
@@ -153,11 +152,7 @@ finalizeShape :: Builtins.DelayedVec -> Layout Builtins.DelayedVec -> (DVec -> L
 finalizeShape dv l shapeConst = do
     (v', l') <- Builtins.materializeShape dv l
     l''      <- traverseLayout l'
-
-    let width = columnsInLayout l''
-        cols  = map VL.Column [1 .. width]
-    vp       <- C.project cols v'
-    return $ shapeConst vp l''
+    return $ shapeConst v' l''
 
 traverseLayout :: Layout Builtins.DelayedVec -> VSLBuild (Layout DVec)
 traverseLayout LCol        = return LCol

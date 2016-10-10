@@ -48,7 +48,7 @@ fkl2SL expr =
             e1' <- fkl2SL e1
             local (bind n e1') $ fkl2SL e
         Table _ n schema -> lift $ Builtins.dbTable n schema
-        Const t v -> lift $ Builtins.shredLiteral t v
+        Const t vs -> lift $ Builtins.shredLiteral t (ListV vs)
         BinOp _ o Lifted e1 e2     -> do
             s1 <- fkl2SL e1
             s2 <- fkl2SL e2
@@ -150,38 +150,8 @@ papp2 f NotLifted =
         Dist                -> Builtins.dist
         _                   -> $impossible
 
--- For each top node, determine the number of columns the vector has and insert
--- a dummy projection which just copies those columns. This is to ensure that
--- columns which are required from the top are not pruned by optimizations.
-insertTopProjections :: Build SL.SL (Shape DVec) -> Build SL.SL (Shape DVec)
-insertTopProjections g = g >>= traverseShape
-
-  where
-    traverseShape :: Shape DVec -> Build SL.SL (Shape DVec)
-    traverseShape (VShape (DVec q) lyt) =
-        insertProj lyt q VShape
-    traverseShape (SShape (DVec q) lyt)     =
-        insertProj lyt q SShape
-
-    traverseLayout :: Layout DVec -> Build SL.SL (Layout DVec)
-    traverseLayout LCol                   = return LCol
-    traverseLayout (LTuple lyts)          = LTuple <$> mapM traverseLayout lyts
-    traverseLayout (LNest (DVec q) lyt) =
-      insertProj lyt q LNest
-
-    insertProj :: Layout DVec                  -- ^ The node's layout
-               -> Alg.AlgNode                    -- ^ The top node to consider
-               -> (DVec -> Layout DVec -> t) -- ^ Layout/Shape constructor
-               -> Build SL.SL t
-    insertProj lyt q describe = do
-        let width = columnsInLayout lyt
-            cols  = [1 .. width]
-        qp   <- insert $ Alg.UnOp (SL.Project $ map VL.Column cols) q
-        lyt' <- traverseLayout lyt
-        return $ describe (DVec qp) lyt'
-
 -- | Compile a FKL expression into a query plan of vector operators (SL)
 vectorize :: FExpr -> QueryPlan SL.SL DVec
 vectorize e = mkQueryPlan opMap shape tagMap
   where
-    (opMap, shape, tagMap) = runBuild (insertTopProjections $ runReaderT (fkl2SL e) [])
+    (opMap, shape, tagMap) = runBuild (runReaderT (fkl2SL e) [])

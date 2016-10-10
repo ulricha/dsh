@@ -43,7 +43,7 @@ pattern MatVec v = DelayedVec IDMap v
 
 unOpL :: L.ScalarUnOp -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 unOpL o (VShape (DelayedVec m v) LCol) = do
-    vp <- C.project [UnApp o (Column 1)] v
+    vp <- C.project (VUnApp o VInput) v
     return $ VShape (DelayedVec m vp) LCol
 
 --------------------------------------------------------------------------------
@@ -54,29 +54,29 @@ binOpL o (VShape dv1 LCol) (VShape dv2 LCol) = do
     case (dvSegMap dv1, dvSegMap dv2) of
         (RMap m1, RMap _) -> do
             v  <- C.align (dvPhysVec dv1) (dvPhysVec dv2)
-            v' <- C.project [BinApp o (Column 1) (Column 2)] v
+            v' <- C.project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) v
             return $ VShape (DelayedVec (RMap m1) v') LCol
         (UnitMap m1, UnitMap _) -> do
             v  <- C.align (dvPhysVec dv1) (dvPhysVec dv2)
-            v' <- C.project [BinApp o (Column 1) (Column 2)] v
+            v' <- C.project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) v
             return $ VShape (DelayedVec (UnitMap m1) v') LCol
         (IDMap, IDMap) -> do
             v  <- C.align (dvPhysVec dv1) (dvPhysVec dv2)
-            v' <- C.project [BinApp o (Column 1) (Column 2)] v
+            v' <- C.project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) v
             return $ VShape (DelayedVec IDMap v') LCol
         (RMap m1, IDMap) -> do
             -- Materialize the left input
             -- We do not need the replication vector because the layout is flat
             (mv1, _) <- C.materialize m1 (dvPhysVec dv1)
             v        <- C.align mv1 (dvPhysVec dv2)
-            v'       <- C.project [BinApp o (Column 1) (Column 2)] v
+            v'       <- C.project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) v
             return $ VShape (DelayedVec IDMap v') LCol
         (IDMap, RMap m2) -> do
             -- Materialize the right input
             -- We do not need the replication vector because the layout is flat
             (mv2, _) <- C.materialize m2 (dvPhysVec dv2)
             v        <- C.align (dvPhysVec dv1) mv2
-            v'       <- C.project [BinApp o (Column 1) (Column 2)] v
+            v'       <- C.project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) v
             return $ VShape (DelayedVec IDMap v') LCol
 
 --------------------------------------------------------------------------------
@@ -84,8 +84,8 @@ binOpL o (VShape dv1 LCol) (VShape dv2 LCol) = do
 
 tupElemL :: TupleIndex -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 tupElemL i (VShape dv (LTuple ls)) = do
-    let (l, cols) = projectColumns i ls
-    vp <- C.project (map Column cols) (dvPhysVec dv)
+    let l = ls !! (tupleIndex i - 1)
+    vp <- C.project (VTupElem i VInput) (dvPhysVec dv)
     return $ VShape (dv { dvPhysVec = vp }) (l)
 
 --------------------------------------------------------------------------------
@@ -93,16 +93,16 @@ tupElemL i (VShape dv (LTuple ls)) = do
 
 sngL :: Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 sngL (VShape (DelayedVec m v) l) = do
-    vo <- C.project [] v
+    vo <- C.project VIndex v
     vi <- C.segment v
     return $ VShape (DelayedVec m vo) (LNest (DelayedVec IDMap vi) l)
 
 --------------------------------------------------------------------------------
 -- Aggregation
 
-aggrL :: (Expr -> AggrFun) -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
+aggrL :: (VectorExpr -> AggrFun) -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
 aggrL afun (VShape dvo (LNest dvi _)) = do
-    let a = afun (Column 1)
+    let a = afun VInput
     -- Aggregate the physical segments without considering the segment map.
     va      <- C.aggrseg a (dvPhysVec dvi)
     -- To unbox, we need to materialize the inner vector. Crucially, we
@@ -217,16 +217,11 @@ reverse dv l = do
 -- sort
 
 sort :: UnVectMacro
-sort dv (LTuple [xl, sl]) = do
-    let leftWidth  = columnsInLayout xl
-        rightWidth = columnsInLayout sl
-
-        sortExprs = map Column [leftWidth+1..leftWidth+rightWidth]
-
+sort dv (LTuple [xl, _]) = do
     -- Sort by all sorting columns from the right tuple component
-    (v', r) <- C.sort sortExprs (dvPhysVec dv)
+    (v', r) <- C.sort (VTupElem (Next First) VInput) (dvPhysVec dv)
     -- After sorting, discard the sorting criteria columns
-    v''     <- C.project (map Column [1..leftWidth]) v'
+    v''     <- C.project (VTupElem First VInput) v'
 
     l'      <- updateLayoutMaps (RMap r) xl
 
@@ -237,13 +232,8 @@ sort dv (LTuple [xl, sl]) = do
 
 group :: UnVectMacro
 group dv (LTuple [xl, gl]) = do
-    let leftWidth  = columnsInLayout xl
-        rightWidth = columnsInLayout gl
-
-        groupExprs = map Column [leftWidth+1..leftWidth+rightWidth]
-
-    (vo, vi, r) <- C.group groupExprs (dvPhysVec dv)
-    vi'         <- C.project (map Column [1..leftWidth]) vi
+    (vo, vi, r) <- C.group (VTupElem (Next First) VInput) (dvPhysVec dv)
+    vi'         <- C.project (VTupElem First VInput) vi
     xl'         <- updateLayoutMaps (RMap r) xl
     return (dv { dvPhysVec = vo }, LTuple [gl, LNest (DelayedVec IDMap vi') xl'])
 
@@ -252,8 +242,7 @@ group dv (LTuple [xl, gl]) = do
 
 ext :: L.ScalarVal -> UnVectMacro
 ext val dv lyt = do
-    let w = columnsInLayout lyt
-    v' <- C.project ([ Column c | c <- [1..w]] ++ [Constant val]) (dvPhysVec dv)
+    v' <- C.project (VMkTuple [VInput, VConstant val]) (dvPhysVec dv)
     return (dv { dvPhysVec = v' }, LTuple [lyt, LCol])
 
 --------------------------------------------------------------------------------
@@ -261,15 +250,9 @@ ext val dv lyt = do
 
 restrict :: UnVectMacro
 restrict dv (LTuple [l, LCol]) = do
-    -- The right input vector has only one boolean column which
-    -- defines wether the tuple at the same position in the left input
-    -- is preserved.
-    let leftWidth = columnsInLayout l
-        predicate = Column $ leftWidth + 1
-
     -- Filter the vector according to the boolean column
-    (v, r) <- C.select predicate (dvPhysVec dv)
-    v'     <- C.project (map Column [1..leftWidth]) v
+    (v, r) <- C.select (VTupElem (Next First) VInput) (dvPhysVec dv)
+    v'     <- C.project (VTupElem First VInput) v
     l'     <- updateLayoutMaps (RMap r) l
 
     return (dv { dvPhysVec = v' }, l')
@@ -475,15 +458,8 @@ combine dvb LCol dv1 l1 dv2 l2 = do
 -- Distribution/Replication
 
 dist :: Shape DelayedVec -> Shape DelayedVec -> VSLBuild (Shape DelayedVec)
-dist (SShape dv1 l1) (VShape dv2 _) = do
-    let leftWidth  = columnsInLayout l1
-        proj       = map Column [1..leftWidth]
-    (v, r)   <- C.replicatescalar (dvPhysVec dv1) (dvPhysVec dv2)
-    outerVec <- C.project proj v
-    innerLyt <- updateLayoutMaps (RMap r) l1
-    return $ VShape (dv2 { dvPhysVec = outerVec }) innerLyt
 dist (VShape (DelayedVec IDMap v1) l1) (VShape dv2 _) = do
-    outerVec <- C.project [] (dvPhysVec dv2)
+    outerVec <- C.project VIndex (dvPhysVec dv2)
     innerMap <- UnitMap <$> C.unitmap (dvPhysVec dv2)
     return $ VShape (dv2 { dvPhysVec = outerVec }) (LNest (DelayedVec innerMap v1) l1)
 dist _ _ = error "VSL.Vectorize.dist"
@@ -563,62 +539,49 @@ dbTable n schema = do
 --------------------------------------------------------------------------------
 -- Shredding literal values
 
-scalarVal :: L.Val -> L.ScalarVal
-scalarVal (L.ScalarV v) = v
-scalarVal _             = $impossible
+shredList :: [L.Val] -> Layout (PType, S.Seq SegD) -> (S.Seq VecVal, Layout (PType, S.Seq SegD))
+shredList vs lyt = List.foldl' go (S.empty, lyt) vs
+  where
+    go (vvs, l) v = let (vv, l') = shredValue v l
+                    in (vvs S.|> vv, l')
 
-fromList :: L.Val -> [L.Val]
-fromList (L.ListV es) = es
-fromList _            = $impossible
+shredValue :: L.Val -> Layout (PType, S.Seq SegD) -> (VecVal, Layout (PType, S.Seq SegD))
+shredValue (L.ListV vs)  (LNest (ty, segs) lyt) =
+    let (seg, lyt') = shredList vs lyt
+    in (VVIndex, LNest (ty, segs S.|> seg) lyt')
+shredValue (L.TupleV vs) (LTuple lyts)          =
+    let (vvs, ls) = unzip $ zipWith shredValue vs lyts
+    in (VVTuple vvs, LTuple ls)
+shredValue (L.ScalarV v) LCol                   =
+    (VVScalar v, LCol)
+shredValue _ _ = $impossible
 
-fromTuple :: L.Val -> [L.Val]
-fromTuple (L.TupleV es) = es
-fromTuple _             = $impossible
+shredType :: T.Type -> Layout (PType, S.Seq SegD)
+shredType (T.ScalarT _) = LCol
+shredType (T.TupleT ts) = LTuple $ map shredType ts
+shredType (T.ListT t)   = LNest (payloadType t, S.empty) (shredType t)
 
--- | Turn list elements into vector columns and encode inner lists in separate
--- vectors.
---
--- 'toColumns' receives the element type of the list and all element values of
--- the list.
-toColumns :: T.Type -> [L.Val] -> VSLBuild ([T.ScalarType], [Column], Layout DelayedVec)
-toColumns (T.ListT t) ls    = do
-    (v, lyt) <- toVector t ls
-    return ([], [], LNest v lyt)
-toColumns (T.TupleT tys) ts = do
-    let tupleComponents = if null ts
-                          then map (const []) tys
-                          else List.transpose $ map fromTuple ts
-    (colTys, cols, lyts) <- unzip3 <$> zipWithM toColumns tys tupleComponents
-    return (List.concat colTys, List.concat cols, LTuple lyts)
-toColumns (T.ScalarT t) vs  = return ([t], [S.fromList $ map scalarVal vs], LCol)
+payloadType :: T.Type -> PType
+payloadType (T.ScalarT t) = PScalarT t
+payloadType (T.TupleT ts) = PTupleT $ map payloadType ts
+payloadType (T.ListT _)   = PIndexT
 
--- | Divide columns into segments according to the length of the original inner
--- lists.
-chopSegments :: [Int] -> [Column] -> [Segment]
-chopSegments (l:ls) cols =
-    let (seg, cols') = unzip $ map (S.splitAt l) cols
-    in Seg seg l : chopSegments ls cols'
-chopSegments []     _    = []
+literalVectors :: Layout (PType, S.Seq SegD) -> VSLBuild (Layout DelayedVec)
+literalVectors lyt = traverse go lyt
+  where
+    go (ty, segs) = DelayedVec IDMap <$> C.lit (ty, Segs segs)
 
--- | Encode all inner list values for a list type constructor in a vector.
---
--- 'toVector' receives the element type of the inner lists and all inner list
--- values.
-toVector :: T.Type -> [L.Val] -> VSLBuild (DelayedVec, Layout DelayedVec)
-toVector t ls = do
-    -- Concatenate the elements of all inner lists
-    let innerLists = map fromList ls
-        allElems   = List.concat innerLists
-        innerLens  = map length innerLists
-    (tys, cols, lyt) <- toColumns t allElems
-    let segs = chopSegments innerLens cols
-    litNode <- MatVec <$> C.lit (tys, SegFrame $ length allElems, Segs segs)
-    return (litNode, lyt)
+literalShape :: Shape (PType, S.Seq SegD) -> VSLBuild (Shape DelayedVec)
+literalShape (VShape (ty, segs) lyt) = do
+    let seg = if S.null segs then $impossible else S.index segs 0
+    shapeVec <- C.lit (ty, UnitSeg seg)
+    vecLyt   <- literalVectors lyt
+    return $ VShape (DelayedVec IDMap shapeVec) vecLyt
+literalShape SShape{} = $impossible
 
--- | Shred a literal value into flat vectors.
-shredLiteral :: T.Type -> [L.Val] -> VSLBuild (Shape DelayedVec)
-shredLiteral (T.ListT t) es = do
-    (tys, cols, lyt) <- toColumns t es
-    litNode <- MatVec <$> C.lit (tys, SegFrame $ length es, UnitSeg cols)
-    return $ VShape litNode lyt
+shredLiteral :: T.Type -> L.Val -> VSLBuild (Shape DelayedVec)
+shredLiteral (T.ListT t) (L.ListV vs) = literalShape $ VShape (payloadType t, S.singleton seg) lyt
+  where
+    initLyt    = shredType t
+    (seg, lyt) = shredList vs initLyt
 shredLiteral _ _ = $impossible

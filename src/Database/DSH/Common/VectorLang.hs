@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE GADTs                #-}
+{-# LANGUAGE PatternSynonyms      #-}
 {-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -7,48 +8,67 @@
 module Database.DSH.Common.VectorLang where
 
 import           Data.Aeson.TH
-import           Data.Monoid
+import qualified Data.Foldable                  as F
+import           Data.List.NonEmpty             (NonEmpty ((:|)))
+import           Data.Monoid                    hiding (First)
 import qualified Data.Sequence                  as S
+import           Text.PrettyPrint.ANSI.Leijen   hiding ((<$>))
 
 import           Database.DSH.Common.Impossible
 import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
+
+--------------------------------------------------------------------------------
+-- Payload values
+
+data VecVal = VVTuple [VecVal]
+            | VVScalar L.ScalarVal
+            | VVIndex
+            deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''VecVal)
+
+instance Pretty VecVal where
+    pretty VVIndex      = text "Idx"
+    pretty (VVTuple vs) = tupled $ map pretty vs
+    pretty (VVScalar v) = pretty v
 
 --------------------------------------------------------------------------------
 -- Scalar expressions and aggregate functions
 
--- | One-based reference to a payload column in a data vector.
-type DBCol = Int
-
-data Expr = BinApp L.ScalarBinOp Expr Expr
-          | UnApp L.ScalarUnOp Expr
-          | Column DBCol
-          | Constant L.ScalarVal
-          | If Expr Expr Expr
+data VectorExpr = VBinApp L.ScalarBinOp VectorExpr VectorExpr
+                | VUnApp L.ScalarUnOp VectorExpr
+                | VInput
+                | VTupElem TupleIndex VectorExpr
+                | VMkTuple [VectorExpr]
+                | VConstant L.ScalarVal
+                | VIf VectorExpr VectorExpr VectorExpr
+                | VIndex
           deriving (Eq, Ord, Show)
 
-$(deriveJSON defaultOptions ''Expr)
+$(deriveJSON defaultOptions ''VectorExpr)
 
-data AggrFun = AggrSum ScalarType Expr
-             | AggrMin Expr
-             | AggrMax Expr
-             | AggrAvg Expr
-             | AggrAll Expr
-             | AggrAny Expr
+data AggrFun = AggrSum ScalarType VectorExpr
+             | AggrMin VectorExpr
+             | AggrMax VectorExpr
+             | AggrAvg VectorExpr
+             | AggrAll VectorExpr
+             | AggrAny VectorExpr
              | AggrCount
-             | AggrCountDistinct Expr
+             | AggrCountDistinct VectorExpr
              deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''AggrFun)
 
-data WinFun = WinSum Expr
-            | WinMin Expr
-            | WinMax Expr
-            | WinAvg Expr
-            | WinAll Expr
-            | WinAny Expr
-            | WinFirstValue Expr
+data WinFun = WinSum VectorExpr
+            | WinMin VectorExpr
+            | WinMax VectorExpr
+            | WinAvg VectorExpr
+            | WinAll VectorExpr
+            | WinAny VectorExpr
+            | WinFirstValue VectorExpr
             | WinCount
             deriving (Eq, Ord, Show)
 
@@ -68,96 +88,32 @@ $(deriveJSON defaultOptions ''FrameSpec)
 --------------------------------------------------------------------------------
 -- Segments for vector literals.
 
-type Column = S.Seq L.ScalarVal
+type SegD = S.Seq VecVal
 
-data Segment = Seg
-    { segCols :: [Column]
-    , segLen  :: !Int
-    } deriving (Eq, Ord, Show)
-
-$(deriveJSON defaultOptions ''Segment)
-
-newtype SegFrame = SegFrame { frameLen :: Int } deriving (Eq, Ord, Show)
-
-$(deriveJSON defaultOptions ''SegFrame)
-
-data Segments = UnitSeg [Column]
-              | Segs [Segment]
+data VecSegs = UnitSeg SegD
+             | Segs (S.Seq SegD)
               deriving (Eq, Ord, Show)
 
-$(deriveJSON defaultOptions ''Segments)
+$(deriveJSON defaultOptions ''VecSegs)
 
--- | Extract complete columns from segments.
-vectorCols :: [ScalarType] -> Segments -> [Column]
-vectorCols tys (UnitSeg [])   = map (const S.empty) tys
-vectorCols _   (UnitSeg cols) = cols
-vectorCols tys (Segs segs)    = flattenSegments tys segs
-
-flattenSegments :: [ScalarType] -> [Segment] -> [Column]
-flattenSegments tys []   = map (const S.empty) tys
-flattenSegments tys segs = go (map (const S.empty) tys) segs
-  where
-    go cols (s:ss) = go (zipWith (<>) cols (segCols s)) ss
-    go cols []     = cols
+segmentData :: VecSegs -> SegD
+segmentData (UnitSeg s) = s
+segmentData (Segs ss)   = F.foldl' (S.><) S.empty ss
 
 ----------------------------------------------------------------------------------
 -- Convert join expressions into regular SL/VSL expressions
 
-pVal :: L.Val -> L.ScalarVal
-pVal (L.ScalarV v) = v
-pVal L.ListV{}     = error "VectorLang: Not a scalar value"
-pVal L.TupleV{}    = error "VectorLang: Not a scalar value"
+scalarVal :: L.Val -> L.ScalarVal
+scalarVal (L.ScalarV v) = v
+scalarVal _             = $impossible
 
--- | Determine the horizontal relational schema width of a type
-recordWidth :: Type -> Int
-recordWidth t =
-    case t of
-        ScalarT _   -> 1
-        TupleT ts   -> sum $ map recordWidth ts
-        ListT _     -> 0
-
-data ColExpr = Offset Int | Expr Expr
-
--- | If the child expressions are tuple operators which only give the
--- column offset, convert it into a proper expression first.
-offsetExpr :: ColExpr -> Expr
-offsetExpr (Offset o) = Column $ o + 1
-offsetExpr (Expr e)   = e
-
-addOffset :: Int -> ColExpr -> ColExpr
-addOffset _ (Expr _)   = error "VectorLang: Expression in offset calculation"
-addOffset i (Offset o) = Offset $ o + i
-
-toSLjoinConjunct :: L.JoinConjunct L.ScalarExpr -> L.JoinConjunct Expr
-toSLjoinConjunct (L.JoinConjunct e1 o e2) =
-    L.JoinConjunct (scalarExpr e1) o (scalarExpr e2)
-
-toSLJoinPred :: L.JoinPredicate L.ScalarExpr -> L.JoinPredicate Expr
-toSLJoinPred (L.JoinPred cs) = L.JoinPred $ fmap toSLjoinConjunct cs
-
--- | Convert join expressions into SL expressions. The main challenge
--- here is to convert sequences of tuple accessors (fst/snd) into SL
--- column indices.
-scalarExpr :: L.ScalarExpr -> Expr
-scalarExpr expr = offsetExpr $ aux expr
-  where
-    -- Construct expressions in a bottom-up way. For a given join
-    -- expression, return the following:
-    -- pair accessors   -> column offset in the flat relational representation
-    -- scalar operation -> corresponding SL expression
-    aux :: L.ScalarExpr -> ColExpr
-    -- FIXME SL joins should include join expressions!
-    aux (L.JBinOp op e1 e2)  = Expr $ BinApp op
-                                             (offsetExpr $ aux e1)
-                                             (offsetExpr $ aux e2)
-    aux (L.JUnOp op e)       = Expr $ UnApp op (offsetExpr $ aux e)
-    aux (L.JTupElem i e)     =
-        case typeOf e of
-            -- Compute the record width of all preceding tuple elements in the type
-            TupleT ts -> addOffset (sum $ map recordWidth $ take (tupleIndex i - 1) ts) (aux e)
-            _         -> error "VectorLang: type mismatch (not a tuple type)"
-    aux (L.JLit _ v)         = Expr $ Constant $ pVal v
-    aux (L.JInput _)         = Offset 0
+-- | Convert join expressions into SL expressions.
+scalarExpr :: L.ScalarExpr -> VectorExpr
+scalarExpr (L.JBinOp op e1 e2)  = VBinApp op (scalarExpr e1) (scalarExpr e2)
+scalarExpr (L.JUnOp op e)       = VUnApp op (scalarExpr e)
+scalarExpr (L.JTupElem i e)     = VTupElem i (scalarExpr e)
+scalarExpr (L.JLit _ v)         = VConstant $ scalarVal v
+scalarExpr (L.JInput _)         = VInput
 
 --------------------------------------------------------------------------------
 -- Type conversion
@@ -166,3 +122,151 @@ typeToScalarType :: Type -> ScalarType
 typeToScalarType ListT{}     = $impossible
 typeToScalarType TupleT{}    = $impossible
 typeToScalarType (ScalarT t) = t
+
+--------------------------------------------------------------------------------
+
+-- | The type of vector payloads
+data PType = PTupleT ![PType]
+           | PScalarT !ScalarType
+           | PIndexT
+           deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''PType)
+
+instance Pretty PType where
+    pretty PIndexT      = text "Idx"
+    pretty (PTupleT vs) = tupled $ map pretty vs
+    pretty (PScalarT v) = pretty v
+
+--------------------------------------------------------------------------------
+-- Rewrite Utilities
+
+-- | 'mergeExpr e1 e2' inlines 'e1' into 'e2'.
+mergeExpr :: VectorExpr -> VectorExpr -> VectorExpr
+mergeExpr inp (VBinApp o e1 e2) = VBinApp o (mergeExpr inp e1) (mergeExpr inp e2)
+mergeExpr inp (VUnApp o e)      = VUnApp o (mergeExpr inp e)
+mergeExpr inp VInput            = inp
+mergeExpr inp (VTupElem i e)    = VTupElem i (mergeExpr inp e)
+mergeExpr inp (VMkTuple es)     = VMkTuple $ map (mergeExpr inp) es
+mergeExpr _   (VConstant v)     = VConstant v
+mergeExpr inp (VIf c t e)       = VIf (mergeExpr inp c)
+                                      (mergeExpr inp t)
+                                      (mergeExpr inp e)
+mergeExpr _   VIndex            = VIndex
+
+-- | Construct a pair where the first component is an expression applied to the
+-- first component of the input pair. This rewrite is used whenever projections
+-- are pulled through a tuplifying operator.
+--
+-- (e[x.1/x], x.2)
+appExprFst :: VectorExpr -> VectorExpr
+appExprFst e = VMkTuple [ mergeExpr (VTupElem First VInput) e
+                        , VTupElem (Next First) VInput
+                        ]
+
+-- | Construct a pair where the second component is an expression applied to the
+-- second component of the input pair. This rewrite is used whenever projections
+-- are pulled through a tuplifying operator.
+--
+-- (x.1, e[x.2/x])
+appExprSnd :: VectorExpr -> VectorExpr
+appExprSnd e = VMkTuple [ VTupElem First VInput
+                        , mergeExpr (VTupElem (Next First) VInput) e
+                        ]
+
+-- | Returns the list element denoted by a tuple index.
+safeIndex :: TupleIndex -> [a] -> Maybe a
+safeIndex First    (x:xs) = Just x
+safeIndex (Next i) (x:xs) = safeIndex i xs
+safeIndex _        _      = Nothing
+
+-- | Partially evaluate scalar vector expressions. This covers:
+--
+-- * 'if' conditionals with constant conditions
+-- * Tuple selectors on tuple constructors
+partialEval :: VectorExpr -> VectorExpr
+partialEval (VBinApp o e1 e2)                     =
+    VBinApp o (partialEval e1) (partialEval e2)
+partialEval (VUnApp o e)                          =
+    VUnApp o (partialEval e)
+partialEval VInput                                =
+    VInput
+partialEval (VTupElem i (VMkTuple es))            =
+    case safeIndex i es of
+        Just e  -> partialEval e
+        Nothing -> $impossible
+partialEval (VTupElem i e)                        =
+    VTupElem i (partialEval e)
+partialEval (VMkTuple es)                         =
+    VMkTuple $ map partialEval es
+partialEval (VConstant v)                         =
+    VConstant v
+partialEval (VIf (VConstant (L.BoolV True)) t _)  =
+    partialEval t
+partialEval (VIf (VConstant (L.BoolV False)) _ e) =
+    partialEval e
+partialEval (VIf c t e)                           =
+   VIf (partialEval c) (partialEval t) (partialEval e)
+partialEval VIndex                                =
+    VIndex
+
+-- | Transform the argument expression of an aggregate.
+mapAggrFun :: (VectorExpr -> VectorExpr) -> AggrFun -> AggrFun
+mapAggrFun f (AggrMax e)           = AggrMax $ f e
+mapAggrFun f (AggrSum t e)         = AggrSum t $ f e
+mapAggrFun f (AggrMin e)           = AggrMin $ f e
+mapAggrFun f (AggrAvg e)           = AggrAvg $ f e
+mapAggrFun f (AggrAny e)           = AggrAny $ f e
+mapAggrFun f (AggrAll e)           = AggrAll $ f e
+mapAggrFun _ AggrCount             = AggrCount
+mapAggrFun f (AggrCountDistinct e) = AggrCountDistinct $ f e
+
+-- | Transform the argument expression of a window aggregate.
+mapWinFun :: (VectorExpr -> VectorExpr) -> WinFun -> WinFun
+mapWinFun f (WinMax e)        = WinMax $ f e
+mapWinFun f (WinSum e)        = WinSum $ f e
+mapWinFun f (WinMin e)        = WinMin $ f e
+mapWinFun f (WinAvg e)        = WinAvg $ f e
+mapWinFun f (WinAny e)        = WinAny $ f e
+mapWinFun f (WinAll e)        = WinAll $ f e
+mapWinFun f (WinFirstValue e) = WinFirstValue $ f e
+mapWinFun _ WinCount          = WinCount
+
+inlineJoinPredLeft :: VectorExpr -> L.JoinPredicate VectorExpr -> L.JoinPredicate VectorExpr
+inlineJoinPredLeft e (L.JoinPred conjs) = L.JoinPred $ fmap inlineLeft conjs
+  where
+    inlineLeft (L.JoinConjunct le op re) = L.JoinConjunct (mergeExpr e le) op re
+
+inlineJoinPredRight :: VectorExpr -> L.JoinPredicate VectorExpr -> L.JoinPredicate VectorExpr
+inlineJoinPredRight e (L.JoinPred conjs) = L.JoinPred $ fmap inlineRight conjs
+  where
+    inlineRight (L.JoinConjunct le op re) = L.JoinConjunct le op (mergeExpr e re)
+
+-- | Returns 'True' iff only the tuple component of the input determined by the
+-- predicate is accessed.
+idxOnly :: (TupleIndex -> Bool) -> VectorExpr -> Bool
+idxOnly p (VBinApp o e1 e2)   = idxOnly p e1 && idxOnly p e2
+idxOnly p (VUnApp o e)        = idxOnly p e
+idxOnly p (VTupElem i VInput) = p i
+idxOnly p VInput              = False
+idxOnly p (VTupElem i e)      = idxOnly p e
+idxOnly p (VMkTuple es)       = all (idxOnly p) es
+idxOnly _   (VConstant v)     = True
+idxOnly p (VIf c t e)         = all (idxOnly p) [c, t, e]
+idxOnly _   VIndex            = True
+
+--------------------------------------------------------------------------------
+-- Common patterns
+
+pattern SingleJoinPred :: t -> L.BinRelOp -> t -> L.JoinPredicate t
+pattern SingleJoinPred e1 op e2 = L.JoinPred ((L.JoinConjunct e1 op e2) :| [])
+
+pattern DoubleJoinPred :: t -> L.BinRelOp -> t -> t -> L.BinRelOp -> t -> L.JoinPredicate t
+pattern DoubleJoinPred e11 op1 e12 e21 op2 e22 = L.JoinPred ((L.JoinConjunct e11 op1 e12)
+                                                             :|
+                                                             [L.JoinConjunct e21 op2 e22])
+pattern VAddExpr :: VectorExpr -> VectorExpr -> VectorExpr
+pattern VAddExpr e1 e2 = VBinApp (L.SBNumOp L.Add) e1 e2
+
+pattern VSubExpr :: VectorExpr -> VectorExpr -> VectorExpr
+pattern VSubExpr e1 e2 = VBinApp (L.SBNumOp L.Sub) e1 e2

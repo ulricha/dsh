@@ -273,5 +273,5 @@ translateUnOp unop c = case unop of
 translateNullary :: SegmentAlgebra a
                  => SL.NullOp
                  -> B.Build a (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
-translateNullary (SL.Lit (tys, frame, segs)) = fromDVec <$> vecLit tys frame segs
-translateNullary (SL.TableRef (n, schema))   = fromDVec <$> vecTableRef n schema
+translateNullary (SL.Lit (ty, segs)) = fromDVec <$> vecLit ty segs
+translateNullary (SL.TableRef (n, schema))  = fromDVec <$> vecTableRef n schema

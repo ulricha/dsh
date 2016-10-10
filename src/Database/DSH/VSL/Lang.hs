@@ -25,7 +25,7 @@ import           Database.DSH.Common.VectorLang
 --------------------------------------------------------------------------------
 -- Operator definition
 
-data NullOp = Lit ([ScalarType], SegFrame, Segments)
+data NullOp = Lit (PType, VecSegs)
             | TableRef (String, L.BaseTableSchema)
             deriving (Eq, Ord, Show)
 
@@ -38,16 +38,16 @@ data UnOp = Segment
           | R2
           | R3
 
-          | Project [Expr]
-          | Select Expr
+          | Project VectorExpr
+          | Select VectorExpr
 
-          | GroupAggr ([Expr], N.NonEmpty AggrFun)
+          | GroupAggr (VectorExpr, AggrFun)
           | Fold AggrFun
           | Number
           | Distinct
           | Reverse
-          | Sort [Expr]
-          | Group [Expr]
+          | Sort VectorExpr
+          | Group VectorExpr
           | WinFun (WinFun, FrameSpec)
 
           -- | Generate a segment map that statically refers to the unit segment
@@ -80,15 +80,15 @@ data BinOp = ReplicateSeg
            | Zip
            | CartProduct
 
-           | ThetaJoin (SegmentLookup, SegmentLookup, L.JoinPredicate Expr)
+           | ThetaJoin (SegmentLookup, SegmentLookup, L.JoinPredicate VectorExpr)
 
-           | AntiJoin (SegmentLookup, SegmentLookup, L.JoinPredicate Expr)
+           | AntiJoin (SegmentLookup, SegmentLookup, L.JoinPredicate VectorExpr)
 
-           | SemiJoin (SegmentLookup, SegmentLookup, L.JoinPredicate Expr)
+           | SemiJoin (SegmentLookup, SegmentLookup, L.JoinPredicate VectorExpr)
 
-           | GroupJoin (SegmentLookup, SegmentLookup, L.JoinPredicate Expr, L.NE AggrFun)
+           | GroupJoin (SegmentLookup, SegmentLookup, L.JoinPredicate VectorExpr, L.NE AggrFun)
 
-           | NestJoin (SegmentLookup, SegmentLookup, L.JoinPredicate Expr)
+           | NestJoin (SegmentLookup, SegmentLookup, L.JoinPredicate VectorExpr)
 
            -- Maintenance operations on virtual segments
 

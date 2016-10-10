@@ -9,6 +9,7 @@ import qualified Database.DSH.Common.Lang       as L
 import qualified Database.DSH.Common.Type       as Ty
 import           Database.DSH.Common.Vector
 import           Database.DSH.Common.VectorLang
+import           Database.DSH.Common.Nat
 
 import           Database.Algebra.Dag.Build
 import           Database.Algebra.Dag.Common
@@ -73,10 +74,10 @@ slUnique (DVec c) = vec (UnOp Unique c) dvec
 slNumber :: DVec -> Build SL DVec
 slNumber (DVec c) = vec (UnOp Number c) dvec
 
-slGroup :: [Expr] -> DVec -> Build SL (DVec, DVec, SVec)
+slGroup :: VectorExpr -> DVec -> Build SL (DVec, DVec, SVec)
 slGroup groupExprs (DVec c) = tripleVec (UnOp (Group groupExprs) c) dvec dvec svec
 
-slSort :: [Expr] -> DVec -> Build SL (DVec, SVec)
+slSort :: VectorExpr -> DVec -> Build SL (DVec, SVec)
 slSort sortExprs (DVec c1) = pairVec (UnOp (Sort sortExprs) c1) dvec svec
 
 slFold :: AggrFun -> DVec -> DVec -> Build SL DVec
@@ -122,25 +123,25 @@ slCombine :: DVec -> DVec -> DVec -> Build SL (DVec, KVec, KVec)
 slCombine (DVec c1) (DVec c2) (DVec c3) =
     tripleVec (TerOp Combine c1 c2 c3) dvec kvec kvec
 
-slLit :: ([Ty.ScalarType], SegFrame, Segments) -> Build SL DVec
+slLit :: (PType, VecSegs) -> Build SL DVec
 slLit i = vec (NullaryOp $ Lit i) dvec
 
 slTableRef :: String -> L.BaseTableSchema -> Build SL DVec
 slTableRef n schema = vec (NullaryOp $ TableRef (n, schema)) dvec
 
 slUnExpr :: L.ScalarUnOp -> DVec -> Build SL DVec
-slUnExpr o (DVec c) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec
+slUnExpr o (DVec c) = vec (UnOp (Project (VUnApp o VInput)) c) dvec
 
 slBinExpr :: L.ScalarBinOp -> DVec -> DVec -> Build SL DVec
 slBinExpr o (DVec c1) (DVec c2) = do
     z <- insert $ BinOp Align c1 c2
-    dvec $ insert $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
+    dvec $ insert $ UnOp (Project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput))) z
 
-slSelect :: Expr -> DVec -> Build SL (DVec, FVec)
+slSelect :: VectorExpr -> DVec -> Build SL (DVec, FVec)
 slSelect p (DVec c) = pairVec (UnOp (Select p) c) dvec fvec
 
-slProject :: [Expr] -> DVec -> Build SL DVec
-slProject projs (DVec c) = dvec $ insert $ UnOp (Project projs) c
+slProject :: VectorExpr -> DVec -> Build SL DVec
+slProject e (DVec c) = dvec $ insert $ UnOp (Project e) c
 
 slAlign :: DVec -> DVec -> Build SL DVec
 slAlign (DVec c1) (DVec c2) = vec (BinOp Align c1 c2) dvec
@@ -157,31 +158,31 @@ slThetaJoin :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> Build SL (DVec, R
 slThetaJoin joinPred (DVec c1) (DVec c2) =
     tripleVec (BinOp (ThetaJoin joinPred') c1 c2) dvec rvec rvec
   where
-    joinPred' = toSLJoinPred joinPred
+    joinPred' = fmap scalarExpr joinPred
 
 slNestJoin :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> Build SL (DVec, RVec, RVec)
 slNestJoin joinPred (DVec c1) (DVec c2) =
     tripleVec (BinOp (NestJoin joinPred') c1 c2) dvec rvec rvec
   where
-    joinPred' = toSLJoinPred joinPred
+    joinPred' = fmap scalarExpr joinPred
 
 slGroupJoin :: L.JoinPredicate L.ScalarExpr -> L.NE AggrFun -> DVec -> DVec -> Build SL DVec
 slGroupJoin joinPred afuns (DVec c1) (DVec c2) =
     vec (BinOp (GroupJoin (joinPred', afuns)) c1 c2) dvec
   where
-    joinPred' = toSLJoinPred joinPred
+    joinPred' = fmap scalarExpr joinPred
 
 slSemiJoin :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> Build SL (DVec, FVec)
 slSemiJoin joinPred (DVec c1) (DVec c2) =
     pairVec (BinOp (SemiJoin joinPred') c1 c2) dvec fvec
   where
-    joinPred' = toSLJoinPred joinPred
+    joinPred' = fmap scalarExpr joinPred
 
 slAntiJoin :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> Build SL (DVec, FVec)
 slAntiJoin joinPred (DVec c1) (DVec c2) =
     pairVec (BinOp (AntiJoin joinPred') c1 c2) dvec fvec
   where
-    joinPred' = toSLJoinPred joinPred
+    joinPred' = fmap scalarExpr joinPred
 
 slReverse :: DVec -> Build SL (DVec, SVec)
 slReverse (DVec c) = pairVec (UnOp Reverse c) dvec svec
