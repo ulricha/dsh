@@ -10,14 +10,12 @@ module Database.DSH.Common.VectorLang where
 import           Data.Aeson.TH
 import qualified Data.Foldable                  as F
 import           Data.List.NonEmpty             (NonEmpty ((:|)))
-import           Data.Monoid                    hiding (First)
 import qualified Data.Sequence                  as S
 import           Text.PrettyPrint.ANSI.Leijen   hiding ((<$>))
 
 import           Database.DSH.Common.Impossible
 import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Nat
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 
 --------------------------------------------------------------------------------
@@ -176,8 +174,8 @@ appExprSnd e = VMkTuple [ VTupElem First VInput
 
 -- | Returns the list element denoted by a tuple index.
 safeIndex :: TupleIndex -> [a] -> Maybe a
-safeIndex First    (x:xs) = Just x
-safeIndex (Next i) (x:xs) = safeIndex i xs
+safeIndex First    (x:_)  = Just x
+safeIndex (Next i) (_:xs) = safeIndex i xs
 safeIndex _        _      = Nothing
 
 -- | Partially evaluate scalar vector expressions. This covers:
@@ -245,13 +243,13 @@ inlineJoinPredRight e (L.JoinPred conjs) = L.JoinPred $ fmap inlineRight conjs
 -- | Returns 'True' iff only the tuple component of the input determined by the
 -- predicate is accessed.
 idxOnly :: (TupleIndex -> Bool) -> VectorExpr -> Bool
-idxOnly p (VBinApp o e1 e2)   = idxOnly p e1 && idxOnly p e2
-idxOnly p (VUnApp o e)        = idxOnly p e
+idxOnly p (VBinApp _ e1 e2)   = idxOnly p e1 && idxOnly p e2
+idxOnly p (VUnApp _ e)        = idxOnly p e
 idxOnly p (VTupElem i VInput) = p i
-idxOnly p VInput              = False
-idxOnly p (VTupElem i e)      = idxOnly p e
+idxOnly _ VInput              = False
+idxOnly p (VTupElem _ e)      = idxOnly p e
 idxOnly p (VMkTuple es)       = all (idxOnly p) es
-idxOnly _   (VConstant v)     = True
+idxOnly _   (VConstant _)     = True
 idxOnly p (VIf c t e)         = all (idxOnly p) [c, t, e]
 idxOnly _   VIndex            = True
 

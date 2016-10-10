@@ -5,13 +5,9 @@ module Database.DSH.SL.Opt.Rewrite.Aggregation
     ) where
 
 import           Control.Monad
-import           Data.List.NonEmpty                   (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty                   as N
-import           Data.Semigroup                       hiding (First)
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Opt
 import           Database.DSH.Common.VectorLang
@@ -108,7 +104,7 @@ flatGrouping q =
 
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
-          replaceWithNew q $ UnOp (GroupAggr ($(v "groupExpr"), $(v "afun"))) $(v "q1")
+          void $ replaceWithNew q $ UnOp (GroupAggr ($(v "groupExpr"), $(v "afun"))) $(v "q1")
         |])
 
 -- | Cleanup rewrite: merge a segment aggregate with a group

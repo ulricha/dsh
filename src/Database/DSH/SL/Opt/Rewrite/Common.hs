@@ -6,18 +6,13 @@ module Database.DSH.SL.Opt.Rewrite.Common where
 import qualified Data.IntMap                             as M
 
 import           Control.Monad
-import           Data.List.NonEmpty                   (NonEmpty ((:|)))
 
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.QueryPlan
 
-import           Database.DSH.Common.Impossible
-import qualified Database.DSH.Common.Lang                as L
-import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Opt                 as R
 import           Database.DSH.Common.Vector
-import           Database.DSH.Common.VectorLang
 import           Database.DSH.SL.Lang
 
 import           Database.DSH.SL.Opt.Properties.BottomUp

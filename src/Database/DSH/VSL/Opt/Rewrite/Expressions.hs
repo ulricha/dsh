@@ -7,11 +7,9 @@ module Database.DSH.VSL.Opt.Rewrite.Expressions where
 -- which are expressed through multiple operators.
 
 import           Control.Monad
-import           Data.Maybe
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Opt
 import           Database.DSH.Common.VectorLang
 import           Database.DSH.VSL.Lang

@@ -5,7 +5,6 @@ module Database.DSH.VSL.Opt.Rewrite.Aggregation
     ) where
 
 import           Control.Monad
-import qualified Data.List.NonEmpty                    as N
 
 import           Database.Algebra.Dag.Common
 
@@ -106,7 +105,7 @@ flatGrouping q =
 
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
-          replaceWithNew q $ UnOp (GroupAggr ($(v "groupExpr"), $(v "afun"))) $(v "q1")
+          void $ replaceWithNew q $ UnOp (GroupAggr ($(v "groupExpr"), $(v "afun"))) $(v "q1")
      |])
 
 -- | We rewrite a combination of GroupS and aggregation operators into a single
@@ -122,7 +121,7 @@ flatGroupingDefault q =
 
         return $ do
           logRewrite "Aggregation.Grouping.Aggr.Default" q
-          replaceWithNew q $ UnOp (GroupAggr ($(v "groupExpr"), $(v "afun"))) $(v "q1")
+          void $ replaceWithNew q $ UnOp (GroupAggr ($(v "groupExpr"), $(v "afun"))) $(v "q1")
         |])
 
 -- | Cleanup rewrite: merge a segment aggregate with a group

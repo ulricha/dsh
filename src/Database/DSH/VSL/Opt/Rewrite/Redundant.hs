@@ -109,9 +109,9 @@ redundantRulesAllProps = [ -- unreferencedReplicateSeg
 --------------------------------------------------------------------------------
 --
 
-unwrapConstVal :: ConstPayload -> VSLMatch p ScalarVal
-unwrapConstVal (ConstPL val) = return val
-unwrapConstVal  NonConstPL   = fail "not a constant"
+-- unwrapConstVal :: ConstPayload -> VSLMatch p ScalarVal
+-- unwrapConstVal (ConstPL val) = return val
+-- unwrapConstVal  NonConstPL   = fail "not a constant"
 
 -- -- | If the left input of a dist operator is constant, a normal projection
 -- -- can be used because the Dist* operators keeps the shape of the
@@ -207,7 +207,7 @@ distLiftProjectRight q =
 -- shape of the inner vector.
 distLiftStacked :: VSLRule ()
 distLiftStacked q =
-  $(dagPatMatch 'q "R1 ((q1) ReplicateSeg (r1=R1 ((q11) ReplicateSeg (q2))))"
+  $(dagPatMatch 'q "R1 ((q1) ReplicateSeg (r1=R1 ((q11) ReplicateSeg (_))))"
      [| do
          predicate $ $(v "q1") == $(v "q11")
 
@@ -249,7 +249,7 @@ distLiftStacked q =
 -- input.
 alignedDistRight :: VSLRule ()
 alignedDistRight q =
-  $(dagPatMatch 'q "(q21) Align (qr1=R1 ((q1) [ReplicateSeg | ReplicateScalar] (q22)))"
+  $(dagPatMatch 'q "(q21) Align (qr1=R1 ((_) [ReplicateSeg | ReplicateScalar] (q22)))"
     [| do
         predicate $ $(v "q21") == $(v "q22")
 
@@ -266,7 +266,7 @@ alignedDistRight q =
 -- input.
 alignedDistLeft :: VSLRule ()
 alignedDistLeft q =
-  $(dagPatMatch 'q "(qr1=R1 ((q1) [ReplicateSeg | ReplicateScalar] (q21))) Align (q22)"
+  $(dagPatMatch 'q "(qr1=R1 ((_) [ReplicateSeg | ReplicateScalar] (q21))) Align (q22)"
     [| do
         predicate $ $(v "q21") == $(v "q22")
 
@@ -606,7 +606,7 @@ alignWinRightPush q =
 
 alignGroupJoinRight :: VSLRule ()
 alignGroupJoinRight q =
-  $(dagPatMatch 'q "(qo) Align (gj=(qo1) GroupJoin args (_))"
+  $(dagPatMatch 'q "(qo) Align (gj=(qo1) GroupJoin _ (_))"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
         return $ do
@@ -620,7 +620,7 @@ alignGroupJoinRight q =
 
 alignGroupJoinLeft :: VSLRule ()
 alignGroupJoinLeft q =
-  $(dagPatMatch 'q "(gj=(qo1) GroupJoin args (_)) Align (qo)"
+  $(dagPatMatch 'q "(gj=(qo1) GroupJoin _ (_)) Align (qo)"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
         return $ do
@@ -676,7 +676,7 @@ alignGroupJoinLeft q =
 -- both inputs.
 alignUnboxSngRight :: VSLRule ()
 alignUnboxSngRight q =
-  $(dagPatMatch 'q "(q11) Align (qu=R1 ((q12) UnboxSng (q2)))"
+  $(dagPatMatch 'q "(q11) Align (qu=R1 ((q12) UnboxSng (_)))"
      [| do
          predicate $ $(v "q11") == $(v "q12")
          return $ do
@@ -697,7 +697,7 @@ alignUnboxSngRight q =
 -- | See Align.UnboxSng.Right
 alignUnboxSngLeft :: VSLRule ()
 alignUnboxSngLeft q =
-  $(dagPatMatch 'q "(qu=R1 ((q11) UnboxSng (q2))) Align (q12)"
+  $(dagPatMatch 'q "(qu=R1 ((q11) UnboxSng (_))) Align (q12)"
      [| do
          predicate $ $(v "q11") == $(v "q12")
          return $ do
@@ -724,7 +724,7 @@ alignUnboxSngLeft q =
 -- both inputs.
 alignUnboxDefaultRight :: VSLRule ()
 alignUnboxDefaultRight q =
-  $(dagPatMatch 'q "(q11) Align (qu=R1 ((q12) UnboxDefault _ (q2)))"
+  $(dagPatMatch 'q "(q11) Align (qu=R1 ((q12) UnboxDefault _ (_)))"
      [| do
          predicate $ $(v "q11") == $(v "q12")
          return $ do
@@ -745,7 +745,7 @@ alignUnboxDefaultRight q =
 -- | See Align.UnboxSng.Right
 alignUnboxDefaultLeft :: VSLRule ()
 alignUnboxDefaultLeft q =
-  $(dagPatMatch 'q "(qu=R1 ((q11) UnboxDefault _ (q2))) Align (q12)"
+  $(dagPatMatch 'q "(qu=R1 ((q11) UnboxDefault _ (_))) Align (q12)"
      [| do
          predicate $ $(v "q11") == $(v "q12")
          return $ do
@@ -862,7 +862,7 @@ pullProjectNestJoinLeft q =
             logRewrite "Redundant.Project.NestJoin.Left" q
             let (l1, l2, p) = $(v "args")
                 e'          = appExprFst $(v "e")
-                p'          = inlineJoinPredLeft $(v "e") $(v "p")
+                p'          = inlineJoinPredLeft $(v "e") p
 
             joinNode <- insert $ BinOp (NestJoin (l1, l2, p')) $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 joinNode
@@ -879,7 +879,7 @@ pullProjectNestJoinRight q =
             logRewrite "Redundant.Project.NestJoin.Right" q
             let e' = appExprSnd $(v "e")
                 (l1, l2, p) = $(v "args")
-                p' = inlineJoinPredRight $(v "e") $(v "p")
+                p' = inlineJoinPredRight $(v "e") p
 
             joinNode <- insert $ BinOp (NestJoin (l1, l2, p')) $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 joinNode

@@ -17,7 +17,7 @@ inferCardOneNullOp op =
     Lit (_, ss) ->
         case ss of
             UnitSeg sd -> Right $ VProp $ S.length sd == 1
-            Segs sds   -> Right $ VProp False
+            Segs _     -> Right $ VProp False
     TableRef _ -> Right $ VProp False
 
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)

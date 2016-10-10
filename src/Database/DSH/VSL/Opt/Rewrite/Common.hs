@@ -12,7 +12,6 @@ import           Database.DSH.Common.QueryPlan
 import qualified Database.DSH.Common.Lang                 as L
 import qualified Database.DSH.Common.Opt                  as R
 import           Database.DSH.Common.Vector
-import           Database.DSH.Common.VectorLang
 import           Database.DSH.VSL.Lang
 
 import           Database.DSH.VSL.Opt.Properties.BottomUp

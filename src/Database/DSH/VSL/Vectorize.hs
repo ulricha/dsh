@@ -17,7 +17,6 @@ import qualified Database.DSH.Common.VectorLang as VL
 import           Database.DSH.FKL.Lang
 import qualified Database.DSH.VSL.Builtins      as Builtins
 import           Database.DSH.VSL.Construct     (VSLBuild)
-import qualified Database.DSH.VSL.Construct     as C
 import           Database.DSH.VSL.Lang          (VSL)
 
 --------------------------------------------------------------------------------

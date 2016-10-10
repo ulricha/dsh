@@ -17,7 +17,7 @@ import           Database.DSH.SL.Opt.Properties.Types
 import           Database.DSH.SL.Opt.Rewrite.Aggregation
 import           Database.DSH.SL.Opt.Rewrite.Common
 import           Database.DSH.SL.Opt.Rewrite.Expressions
-import           Database.DSH.SL.Opt.Rewrite.Window
+-- import           Database.DSH.SL.Opt.Rewrite.Window
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
 
@@ -217,7 +217,7 @@ distLiftProjectRight q =
 -- shape of the inner vector.
 distLiftStacked :: SLRule ()
 distLiftStacked q =
-  $(dagPatMatch 'q "R1 ((q1) ReplicateNest (r1=R1 ((q11) ReplicateNest (q2))))"
+  $(dagPatMatch 'q "R1 ((q1) ReplicateNest (r1=R1 ((q11) ReplicateNest (_))))"
      [| do
          predicate $ $(v "q1") == $(v "q11")
 
@@ -259,7 +259,7 @@ distLiftStacked q =
 -- input.
 alignedDistRight :: SLRule ()
 alignedDistRight q =
-  $(dagPatMatch 'q "(q21) Align (qr1=R1 ((q1) [ReplicateNest | ReplicateScalar] (q22)))"
+  $(dagPatMatch 'q "(q21) Align (qr1=R1 ((_) [ReplicateNest | ReplicateScalar] (q22)))"
     [| do
         predicate $ $(v "q21") == $(v "q22")
 
@@ -276,7 +276,7 @@ alignedDistRight q =
 -- input.
 alignedDistLeft :: SLRule ()
 alignedDistLeft q =
-  $(dagPatMatch 'q "(qr1=R1 ((q1) [ReplicateNest | ReplicateScalar] (q21))) Align (q22)"
+  $(dagPatMatch 'q "(qr1=R1 ((_) [ReplicateNest | ReplicateScalar] (q21))) Align (q22)"
     [| do
         predicate $ $(v "q21") == $(v "q22")
 
@@ -616,7 +616,7 @@ alignWinRightPush q =
 
 alignGroupJoinRight :: SLRule ()
 alignGroupJoinRight q =
-  $(dagPatMatch 'q "(qo) Align (gj=(qo1) GroupJoin args (_))"
+  $(dagPatMatch 'q "(qo) Align (gj=(qo1) GroupJoin _ (_))"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
         return $ do
@@ -630,7 +630,7 @@ alignGroupJoinRight q =
 
 alignGroupJoinLeft :: SLRule ()
 alignGroupJoinLeft q =
-  $(dagPatMatch 'q "(gj=(qo1) GroupJoin args (_)) Align (qo)"
+  $(dagPatMatch 'q "(gj=(qo1) GroupJoin _ (_)) Align (qo)"
     [| do
         predicate $ $(v "qo") == $(v "qo1")
         return $ do
@@ -686,7 +686,7 @@ alignGroupJoinLeft q =
 -- both inputs.
 alignUnboxSngRight :: SLRule ()
 alignUnboxSngRight q =
-  $(dagPatMatch 'q "(q11) Align (qu=R1 ((q12) UnboxSng (q2)))"
+  $(dagPatMatch 'q "(q11) Align (qu=R1 ((q12) UnboxSng (_)))"
      [| do
          predicate $ $(v "q11") == $(v "q12")
          return $ do
@@ -707,7 +707,7 @@ alignUnboxSngRight q =
 -- | See Align.UnboxSng.Right
 alignUnboxSngLeft :: SLRule ()
 alignUnboxSngLeft q =
-  $(dagPatMatch 'q "(qu=R1 ((q11) UnboxSng (q2))) Align (q12)"
+  $(dagPatMatch 'q "(qu=R1 ((q11) UnboxSng (_))) Align (q12)"
      [| do
          predicate $ $(v "q11") == $(v "q12")
          return $ do

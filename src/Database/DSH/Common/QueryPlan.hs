@@ -16,7 +16,6 @@ import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Vector
-import           Database.DSH.Common.VectorLang
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Nat
 

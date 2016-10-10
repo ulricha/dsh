@@ -19,7 +19,6 @@ import qualified Data.List.NonEmpty             as N
 import           Database.Algebra.Dag.Common
 
 import qualified Database.DSH.Common.Lang       as L
-import           Database.DSH.Common.Type
 import           Database.DSH.Common.VectorLang
 
 --------------------------------------------------------------------------------

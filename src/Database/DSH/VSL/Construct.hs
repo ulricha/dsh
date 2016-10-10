@@ -7,7 +7,6 @@ import qualified Database.Algebra.Dag.Build     as B
 import           Database.Algebra.Dag.Common
 
 import qualified Database.DSH.Common.Lang       as L
-import qualified Database.DSH.Common.Type       as Ty
 import           Database.DSH.Common.Vector
 import           Database.DSH.Common.VectorLang
 

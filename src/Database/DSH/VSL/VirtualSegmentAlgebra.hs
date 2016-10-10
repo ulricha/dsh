@@ -6,7 +6,6 @@ module Database.DSH.VSL.VirtualSegmentAlgebra where
 import qualified Data.List.NonEmpty                as N
 import           Database.Algebra.Dag.Build
 import qualified Database.DSH.Common.Lang          as L
-import           Database.DSH.Common.Type
 import           Database.DSH.Common.VectorLang
 import           Database.DSH.VSL.Lang
 
