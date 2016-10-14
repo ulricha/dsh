@@ -72,34 +72,6 @@ renderJoinPred (L.JoinPred conjs) = brackets
 renderLambda :: VectorExpr -> Doc
 renderLambda e = text "\\x." <> renderExpr e
 
-renderRecord :: [Doc] -> Doc
-renderRecord = encloseSep (char '<') (char '>') comma
-
-renderExpr :: VectorExpr -> Doc
-renderExpr (VBinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
-renderExpr (VUnApp op e)      = text (pp op) <+> parens (renderExpr e)
-renderExpr (VConstant val)    = pretty val
-renderExpr VInput             = text "x"
-renderExpr (VMkTuple es)      = renderRecord $ map renderExpr es
-renderExpr (VTupElem i e)     = renderExpr e <> dot <> (int $ tupleIndex i)
-renderExpr VIndex             = text "Idx"
-renderExpr (VIf c t e)        = text "if"
-                                 <+> renderExpr c
-                                 <+> text "then"
-                                 <+> renderExpr t
-                                 <+> text "else"
-                                 <+> renderExpr e
-
-parenthize1 :: VectorExpr -> Doc
-parenthize1 e@(VConstant _) = renderExpr e
-parenthize1 e@VBinApp{}     = parens $ renderExpr e
-parenthize1 e@VUnApp{}      = parens $ renderExpr e
-parenthize1 e@VIf{}         = renderExpr e
-parenthize1 VIndex          = renderExpr VIndex
-parenthize1 VInput          = renderExpr VInput
-parenthize1 e@VMkTuple{}    = renderExpr e
-parenthize1 e@VTupElem{}    = renderExpr e
-
 renderSegments :: VecSegs -> Doc
 renderSegments (UnitSeg seg) = renderSegment seg
 renderSegments (Segs segs)   = vcat $ map renderSegment $ F.toList segs

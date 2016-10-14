@@ -14,7 +14,6 @@ import qualified Database.Algebra.Dag           as Dag
 import           Database.Algebra.Dag.Common    as C
 
 import qualified Database.DSH.Common.Lang       as L
-import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.VectorLang
@@ -81,31 +80,6 @@ renderJoinPred (L.JoinPred conjs) = brackets
                                     $ hsep
                                     $ punctuate (text "&&")
                                     $ map renderJoinConjunct $ N.toList conjs
-
-renderExpr :: VectorExpr -> Doc
-renderExpr (VBinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
-renderExpr (VUnApp op e)      = text (pp op) <+> parens (renderExpr e)
-renderExpr (VConstant val)    = pretty val
-renderExpr VInput             = text "x"
-renderExpr (VMkTuple es)      = tupled $ map renderExpr es
-renderExpr (VTupElem i e)     = renderExpr e <> dot <> (int $ tupleIndex i)
-renderExpr VIndex             = text "Idx"
-renderExpr (VIf c t e)        = text "if"
-                                 <+> renderExpr c
-                                 <+> text "then"
-                                 <+> renderExpr t
-                                 <+> text "else"
-                                 <+> renderExpr e
-
-parenthize1 :: VectorExpr -> Doc
-parenthize1 e@(VConstant _) = renderExpr e
-parenthize1 e@VBinApp{}     = parens $ renderExpr e
-parenthize1 e@VUnApp{}      = parens $ renderExpr e
-parenthize1 e@VIf{}         = renderExpr e
-parenthize1 VIndex          = renderExpr VIndex
-parenthize1 VInput          = renderExpr VInput
-parenthize1 e@VMkTuple{}    = renderExpr e
-parenthize1 e@VTupElem{}    = renderExpr e
 
 renderSegments :: VecSegs -> Doc
 renderSegments (UnitSeg seg) = renderSegment seg
