@@ -85,7 +85,7 @@ inlineFoldProject :: SLRule ()
 inlineFoldProject q =
   $(dagPatMatch 'q "(qo) Fold afun (Project e (qi))"
     [| do
-        let afun' = mapAggrFun (mergeExpr e) $(v "afun")
+        let afun' = mapAggrFun (partialEval . mergeExpr e) $(v "afun")
 
         return $ do
             logRewrite "Aggregation.Normalize.Fold.Project" q

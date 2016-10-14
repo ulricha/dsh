@@ -937,7 +937,7 @@ pullProjectSort q =
   $(dagPatMatch 'q "R1 (Sort se (Project e (q1)))"
     [| return $ do
            logRewrite "Redundant.Project.Sort" q
-           let se' = mergeExpr $(v "e") $(v "se")
+           let se' = partialEval $ mergeExpr $(v "e") $(v "se")
            sortNode <- insert $ UnOp (Sort se') $(v "q1")
            r1Node   <- insert (UnOp R1 sortNode)
            void $ replaceWithNew q $ UnOp (Project $(v "e")) r1Node |])
