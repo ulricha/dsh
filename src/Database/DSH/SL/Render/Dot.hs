@@ -1,5 +1,6 @@
 module Database.DSH.SL.Render.Dot(renderSLDot) where
 
+import           Control.Monad.Reader
 import qualified Data.Foldable                  as F
 import qualified Data.IntMap                    as Map
 import           Data.List
@@ -17,18 +18,6 @@ import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.VectorLang
 import           Database.DSH.SL.Lang
-
-nodeToDoc :: AlgNode -> Doc
-nodeToDoc n = text "id:" <+> int n
-
-tagsToDoc :: [Tag] -> Doc
-tagsToDoc ts = vcat $ map text ts
-
-labelToDoc :: AlgNode -> String -> Doc -> [Tag] -> Doc
-labelToDoc n s as ts = nodeToDoc n <$> (text s <> parens as) <$> tagsToDoc (nub ts)
-
-lookupTags :: AlgNode -> NodeMap [Tag] -> [Tag]
-lookupTags = Map.findWithDefault []
 
 renderFun :: Doc -> [Doc] -> Doc
 renderFun name args = name <> parens (hsep $ punctuate comma args)
@@ -80,12 +69,18 @@ renderJoinPred (L.JoinPred conjs) = brackets
                                     $ punctuate (text "&&")
                                     $ map renderJoinConjunct $ N.toList conjs
 
+renderLambda :: VectorExpr -> Doc
+renderLambda e = text "\\x." <> renderExpr e
+
+renderRecord :: [Doc] -> Doc
+renderRecord = encloseSep (char '<') (char '>') comma
+
 renderExpr :: VectorExpr -> Doc
 renderExpr (VBinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
 renderExpr (VUnApp op e)      = text (pp op) <+> parens (renderExpr e)
 renderExpr (VConstant val)    = pretty val
 renderExpr VInput             = text "x"
-renderExpr (VMkTuple es)      = tupled $ map renderExpr es
+renderExpr (VMkTuple es)      = renderRecord $ map renderExpr es
 renderExpr (VTupElem i e)     = renderExpr e <> dot <> (int $ tupleIndex i)
 renderExpr VIndex             = text "Idx"
 renderExpr (VIf c t e)        = text "if"
@@ -112,58 +107,75 @@ renderSegments (Segs segs)   = vcat $ map renderSegment $ F.toList segs
 renderSegment :: SegD -> Doc
 renderSegment s = list $ map pretty $ F.toList s
 
+type Render = Reader (NodeMap [Tag])
+
+renderTags :: [Tag] -> Doc
+renderTags = vcat . map text
+
+renderId :: AlgNode -> Doc
+renderId n = text "id:" <+> int n
+
+labelDoc :: AlgNode -> String -> Doc -> Render Doc
+labelDoc nodeId opName arg = do
+    tags <- asks $ Map.findWithDefault [] nodeId
+    pure $ renderId nodeId <$> (text opName <> arg) <$> renderTags tags
+
+renderLabel :: AlgNode -> String -> Render Doc
+renderLabel nodeId opName = labelDoc nodeId opName empty
+
+renderLabelArg :: AlgNode -> String -> Doc -> Render Doc
+renderLabelArg nodeId opName arg = labelDoc nodeId opName (braces arg)
+
 -- | Create the node label from an operator description
-opDotLabel :: NodeMap [Tag] -> AlgNode -> SL -> Doc
-opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "winaggr"
-    (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
-    (lookupTags i tm)
-opDotLabel tm i (NullaryOp (Lit (ty, segs))) = labelToDoc i "lit"
-        (pretty ty <> comma <$> renderSegments segs) (lookupTags i tm)
-opDotLabel tm i (NullaryOp (TableRef (n, schema))) =
-    labelToDoc i "table"
-                 (text n <> text "\n"
-                  <> align (bracketList (\c -> renderCol c <> text "\n")
-                                        (N.toList $ L.tableCols schema)))
-                 (lookupTags i tm)
-opDotLabel tm i (UnOp Unique _) = labelToDoc i "unique" empty (lookupTags i tm)
-opDotLabel tm i (UnOp Number _) = labelToDoc i "number" empty (lookupTags i tm)
-opDotLabel tm i (UnOp UnboxKey _) = labelToDoc i "unboxkey" empty (lookupTags i tm)
-opDotLabel tm i (UnOp Segment _) = labelToDoc i "segment" empty (lookupTags i tm)
-opDotLabel tm i (UnOp Unsegment _) = labelToDoc i "unsegment" empty (lookupTags i tm)
-opDotLabel tm i (UnOp Reverse _) = labelToDoc i "reverse" empty (lookupTags i tm)
-opDotLabel tm i (UnOp R1 _) = labelToDoc i "R1" empty (lookupTags i tm)
-opDotLabel tm i (UnOp R2 _) = labelToDoc i "R2" empty (lookupTags i tm)
-opDotLabel tm i (UnOp R3 _) = labelToDoc i "R3" empty (lookupTags i tm)
-opDotLabel tm i (UnOp (Project e) _) = labelToDoc i "project" pLabel (lookupTags i tm)
-  where pLabel = renderExpr e
-opDotLabel tm i (UnOp (Select e) _) = labelToDoc i "select" (renderExpr e) (lookupTags i tm)
-opDotLabel tm i (UnOp (GroupAggr (g, a)) _) = labelToDoc i "groupaggr" (renderExpr g <+> bracketList renderAggrFun [a]) (lookupTags i tm)
-opDotLabel tm i (BinOp (Fold a) _ _) = labelToDoc i "fold" (renderAggrFun a) (lookupTags i tm)
-opDotLabel tm i (UnOp (Sort e) _) = labelToDoc i "sort" (renderExpr e) (lookupTags i tm)
-opDotLabel tm i (UnOp (Group e) _) = labelToDoc i "group" (renderExpr e) (lookupTags i tm)
-opDotLabel tm i (BinOp ReplicateNest _ _) = labelToDoc i "replicatenest" empty (lookupTags i tm)
-opDotLabel tm i (BinOp ReplicateScalar _ _) = labelToDoc i "replicatescalar" empty (lookupTags i tm)
-opDotLabel tm i (BinOp UnboxSng _ _) = labelToDoc i "unboxsng" empty (lookupTags i tm)
-opDotLabel tm i (BinOp AppSort _ _) = labelToDoc i "appsort" empty (lookupTags i tm)
-opDotLabel tm i (BinOp AppKey _ _) = labelToDoc i "appkey" empty (lookupTags i tm)
-opDotLabel tm i (BinOp AppFilter _ _) = labelToDoc i "appfilter" empty (lookupTags i tm)
-opDotLabel tm i (BinOp AppRep _ _) = labelToDoc i "apprep" empty (lookupTags i tm)
-opDotLabel tm i (BinOp Append _ _) = labelToDoc i "append" empty (lookupTags i tm)
-opDotLabel tm i (BinOp Align _ _) = labelToDoc i "align" empty (lookupTags i tm)
-opDotLabel tm i (BinOp Zip _ _) = labelToDoc i "zip" empty (lookupTags i tm)
-opDotLabel tm i (BinOp CartProduct _ _) = labelToDoc i "cartproduct" empty (lookupTags i tm)
-opDotLabel tm i (BinOp ReplicateVector _ _) = labelToDoc i "replicatevector" empty (lookupTags i tm)
-opDotLabel tm i (BinOp (ThetaJoin p) _ _) =
-  labelToDoc i "thetajoin" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (NestJoin p) _ _) =
-  labelToDoc i "nestjoin" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (SemiJoin p) _ _) =
-  labelToDoc i "semijoin" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (AntiJoin p) _ _) =
-  labelToDoc i "antijoin" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (GroupJoin (p, as)) _ _) =
-  labelToDoc i "groupjoin" (renderJoinPred p <+> bracketList renderAggrFun (N.toList $ L.getNE as)) (lookupTags i tm)
-opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "combine" empty (lookupTags i tm)
+opDotLabel :: AlgNode -> SL -> Render Doc
+opDotLabel i (UnOp (WinFun (wfun, wspec)) _) = renderLabelArg i "winaggr" (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
+opDotLabel i (NullaryOp (Lit (ty, segs))) = renderLabelArg i "lit" (pretty ty <> comma <$> renderSegments segs)
+opDotLabel i (NullaryOp (TableRef (n, schema))) = renderLabelArg i "table" arg
+  where
+    arg  = text n <> text "\n" <> align (bracketList (\c -> renderCol c <> text "\n") cols)
+    cols = N.toList $ L.tableCols schema
+opDotLabel i (UnOp Unique _) = renderLabel i "unique"
+opDotLabel i (UnOp Number _) = renderLabel i "number"
+opDotLabel i (UnOp UnboxKey _) = renderLabel i "unboxkey"
+opDotLabel i (UnOp Segment _) = renderLabel i "segment"
+opDotLabel i (UnOp Unsegment _) = renderLabel i "unsegment"
+opDotLabel i (UnOp Reverse _) = renderLabel i "reverse"
+opDotLabel i (UnOp R1 _) = renderLabel i "R1"
+opDotLabel i (UnOp R2 _) = renderLabel i "R2"
+opDotLabel i (UnOp R3 _) = renderLabel i "R3"
+opDotLabel i (UnOp (Project e) _) = renderLabelArg i "project" arg
+  where
+    arg = renderLambda e
+opDotLabel i (UnOp (Select e) _) = renderLabelArg i "select" (renderLambda e)
+opDotLabel i (UnOp (GroupAggr (g, a)) _) = renderLabelArg i "groupaggr" (renderLambda g <+> bracketList renderAggrFun [a])
+opDotLabel i (BinOp (Fold a) _ _) = renderLabelArg i "fold" (renderAggrFun a)
+opDotLabel i (UnOp (Sort e) _) = renderLabelArg i "sort" (renderLambda e)
+opDotLabel i (UnOp (Group e) _) = renderLabelArg i "group" (renderLambda e)
+opDotLabel i (BinOp ReplicateNest _ _) = renderLabel i "replicatenest"
+opDotLabel i (BinOp ReplicateScalar _ _) = renderLabel i "replicatescalar"
+opDotLabel i (BinOp UnboxSng _ _) = renderLabel i "unboxsng"
+opDotLabel i (BinOp AppSort _ _) = renderLabel i "appsort"
+opDotLabel i (BinOp AppKey _ _) = renderLabel i "appkey"
+opDotLabel i (BinOp AppFilter _ _) = renderLabel i "appfilter"
+opDotLabel i (BinOp AppRep _ _) = renderLabel i "apprep"
+opDotLabel i (BinOp Append _ _) = renderLabel i "append"
+opDotLabel i (BinOp Align _ _) = renderLabel i "align"
+opDotLabel i (BinOp Zip _ _) = renderLabel i "zip"
+opDotLabel i (BinOp CartProduct _ _) = renderLabel i "cartproduct"
+opDotLabel i (BinOp ReplicateVector _ _) = renderLabel i "replicatevector"
+opDotLabel i (BinOp (ThetaJoin p) _ _) =
+  renderLabelArg i "thetajoin" (renderJoinPred p)
+opDotLabel i (BinOp (NestJoin p) _ _) =
+  renderLabelArg i "nestjoin" (renderJoinPred p)
+opDotLabel i (BinOp (SemiJoin p) _ _) =
+  renderLabelArg i "semijoin" (renderJoinPred p)
+opDotLabel i (BinOp (AntiJoin p) _ _) =
+  renderLabelArg i "antijoin" (renderJoinPred p)
+opDotLabel i (BinOp (GroupJoin (p, as)) _ _) =
+    renderLabelArg i "groupjoin" arg
+  where
+    arg = renderJoinPred p <+> bracketList renderAggrFun (N.toList $ L.getNE as)
+opDotLabel i (TerOp Combine _ _ _) = renderLabel i "combine"
 
 opDotColor :: SL -> DotColor
 opDotColor (BinOp CartProduct _ _)    = DCRed
@@ -280,7 +292,6 @@ renderDot ns es = text "digraph" <> (braces $ preamble <$> nodeSection <$> edgeS
     nodeSection = vcat $ map renderDotNode ns
     edgeSection = vcat $ map renderDotEdge es
 
--- | Create an abstract Dot node from an X100 operator description
 constructDotNode :: [AlgNode] -> NodeMap [Tag] -> (AlgNode, SL) -> DotNode
 constructDotNode rootNodes ts (n, op) =
     if elem n rootNodes then
@@ -288,7 +299,7 @@ constructDotNode rootNodes ts (n, op) =
     else
         DotNode n l c Nothing
   where
-    l = escapeLabel $ pp $ opDotLabel ts n op
+    l = escapeLabel $ pp $ runReader (opDotLabel n op) ts
     c = opDotColor op
 
 -- | Create an abstract Dot edge
