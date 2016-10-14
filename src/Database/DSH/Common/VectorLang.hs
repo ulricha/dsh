@@ -183,31 +183,36 @@ safeIndex _        _      = Nothing
 --
 -- * 'if' conditionals with constant conditions
 -- * Tuple selectors on tuple constructors
-partialEval :: VectorExpr -> VectorExpr
-partialEval (VBinApp o e1 e2)                     =
-    VBinApp o (partialEval e1) (partialEval e2)
-partialEval (VUnApp o e)                          =
-    VUnApp o (partialEval e)
-partialEval VInput                                =
+simplify :: VectorExpr -> VectorExpr
+simplify (VBinApp o e1 e2)                     =
+    VBinApp o (simplify e1) (simplify e2)
+simplify (VUnApp o e)                          =
+    VUnApp o (simplify e)
+simplify VInput                                =
     VInput
-partialEval (VTupElem i (VMkTuple es))            =
+simplify (VTupElem i (VMkTuple es))            =
     case safeIndex i es of
-        Just e  -> partialEval e
+        Just e  -> simplify e
         Nothing -> $impossible
-partialEval (VTupElem i e)                        =
-    VTupElem i (partialEval e)
-partialEval (VMkTuple es)                         =
-    VMkTuple $ map partialEval es
-partialEval (VConstant v)                         =
+simplify (VTupElem i e)                        =
+    VTupElem i (simplify e)
+simplify (VMkTuple es)                         =
+    VMkTuple $ map simplify es
+simplify (VConstant v)                         =
     VConstant v
-partialEval (VIf (VConstant (L.BoolV True)) t _)  =
-    partialEval t
-partialEval (VIf (VConstant (L.BoolV False)) _ e) =
-    partialEval e
-partialEval (VIf c t e)                           =
-   VIf (partialEval c) (partialEval t) (partialEval e)
-partialEval VIndex                                =
+simplify (VIf (VConstant (L.BoolV True)) t _)  =
+    simplify t
+simplify (VIf (VConstant (L.BoolV False)) _ e) =
+    simplify e
+simplify (VIf c t e)                           =
+   VIf (simplify c) (simplify t) (simplify e)
+simplify VIndex                                =
     VIndex
+
+partialEval :: VectorExpr -> VectorExpr
+partialEval e = if e == e' then e else partialEval e'
+  where
+    e' = simplify e
 
 -- | Transform the argument expression of an aggregate.
 mapAggrFun :: (VectorExpr -> VectorExpr) -> AggrFun -> AggrFun
