@@ -143,11 +143,12 @@ thetaJoinL _ _ _ = $impossible
 -- △^L :: [[a]] -> [[b]] -> [[(a, [(a, b)])]]
 nestJoinL :: L.JoinPredicate L.ScalarExpr -> Shape DVec -> Shape DVec -> Build SL (Shape DVec)
 nestJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do
-    (dv, rv1, rv2) <- slNestJoin joinPred dvi1 dvi2
-    lyt1'          <- repLayout rv1 lyt1
-    lyt2'          <- repLayout rv2 lyt2
+    (dvi, rv1, rv2) <- slNestJoin joinPred dvi1 dvi2
+    dvm             <- slProject (VMkTuple [VInput, VIndex]) dvi1
+    lyt1'           <- repLayout rv1 lyt1
+    lyt2'           <- repLayout rv2 lyt2
     let lyt  = LTuple [lyt1', lyt2']
-    return $ VShape dvo1 (LNest dvi1 (LTuple [lyt1, LNest dv lyt]))
+    return $ VShape dvo1 (LNest dvm (LTuple [lyt1, LNest dvi lyt]))
 nestJoinL _ _ _ = $impossible
 
 groupJoinL :: L.JoinPredicate L.ScalarExpr
@@ -228,7 +229,8 @@ lengthL ::  Shape DVec -> Build SL (Shape DVec)
 lengthL (VShape q (LNest qi _)) = do
     ls  <- slFold AggrCount q qi
     lsu <- fst <$> slUnboxSng q ls
-    return $ VShape lsu LCol
+    lp  <- slProject (VTupElem (Next First) VInput) lsu
+    return $ VShape lp LCol
 lengthL _ = $impossible
 
 outer ::  Shape DVec -> Build SL DVec
@@ -239,7 +241,8 @@ aggrL :: (VectorExpr -> AggrFun) -> Shape DVec -> Build SL (Shape DVec)
 aggrL afun (VShape d (LNest q LCol)) = do
     qr <- slFold (afun VInput) d q
     qu <- fst <$> slUnboxSng d qr
-    return $ VShape qu LCol
+    qp <- slProject (VTupElem (Next First) VInput) qu
+    return $ VShape qp LCol
 aggrL _ _ = $impossible
 
 distL ::  Shape DVec -> Shape DVec -> Build SL (Shape DVec)
