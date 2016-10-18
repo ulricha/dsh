@@ -110,7 +110,7 @@ substR substDict = readerT $ \expr -> case expr of
                 >>> childR LetBody (substR notShadowed)
            else letR (substR substDict) (substR notShadowed)
 
-    _                                         -> anyR $ substR substDict
+    _                                         -> tryR $ anyR $ substR substDict
 
 --------------------------------------------------------------------------------
 -- Simple optimizations
