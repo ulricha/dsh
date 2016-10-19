@@ -109,7 +109,8 @@ aggrL afun (VShape dvo (LNest dvi _)) = do
     -- materialize *after* aggregation.
     (vm, _) <- materializeShape (dvi { dvPhysVec = va }) LCol
     vu      <- fst <$> defaultUnboxOp a (dvPhysVec dvo) vm
-    return $ VShape (dvo { dvPhysVec = vu }) LCol
+    vp      <- C.project (VTupElem (Next First) VInput) vu
+    return $ VShape (dvo { dvPhysVec = vp }) LCol
 
 defaultUnboxOp :: AggrFun -> DVec -> DVec -> VSLBuild (DVec, RVec)
 defaultUnboxOp (AggrSum t _)         = C.unboxdefault (pure $ sumDefault t)
@@ -307,22 +308,25 @@ nestjoin p dv1 l1 (DelayedVec m2 v2) l2 = do
     case m2 of
         IDMap -> do
             (v, r1, r2) <- C.nestjoinMM p v1 v2
+            vo          <- C.project (VMkTuple [VInput, VIndex]) v1
             l1'' <- updateLayoutMaps (RMap r1) l1'
             l2'  <- updateLayoutMaps (RMap r2) l2
-            return ( DelayedVec IDMap v1
+            return ( DelayedVec IDMap vo
                    , LTuple [l1', LNest (DelayedVec IDMap v) (LTuple [l1'', l2'])])
         UnitMap _ -> do
             (v, r1, r2) <- C.nestjoinMU p v1 v2
+            vo          <- C.project (VMkTuple [VInput, VIndex]) v1
             l1'' <- updateLayoutMaps (RMap r1) l1'
             l2'  <- updateLayoutMaps (RMap r2) l2
-            return ( DelayedVec IDMap v1
+            return ( DelayedVec IDMap vo
                    , LTuple [l1', LNest (DelayedVec IDMap v) (LTuple [l1'', l2'])])
         RMap m -> do
             (v2', l2') <- materializeShape (DelayedVec (RMap m) v2) l2
             (v, r1, r2) <- C.nestjoinMM p v1 v2'
+            vo          <- C.project (VMkTuple [VInput, VIndex]) v1
             l1'' <- updateLayoutMaps (RMap r1) l1'
             l2''  <- updateLayoutMaps (RMap r2) l2'
-            return ( DelayedVec IDMap v1
+            return ( DelayedVec IDMap vo
                    , LTuple [l1', LNest (DelayedVec IDMap v) (LTuple [l1'', l2''])])
 
 thetajoin :: L.JoinPredicate L.ScalarExpr -> BinVectMacro
