@@ -1,3 +1,5 @@
+-- FIXME remove once top-down properties are re-enabled
+{-# OPTIONS_GHC -w #-}
 module Database.DSH.VSL.Opt.Properties.TopDown
     ( inferTopDownProperties
     ) where

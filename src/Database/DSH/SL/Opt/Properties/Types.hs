@@ -74,7 +74,7 @@ instance Pretty BottomUpProps where
                  -- <$> text "schema:" <+> (pretty $ vectorTypeProp p)
 
 instance Pretty TopDownProps where
-  pretty p = empty
+  pretty _ = empty
 
 -- | Rendering function for the bottom-up properties container.
 renderBottomUpProps :: BottomUpProps -> [String]

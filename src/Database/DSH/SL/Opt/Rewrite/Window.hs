@@ -5,18 +5,18 @@ module Database.DSH.SL.Opt.Rewrite.Window where
 
 -- FIXME window rewrites need to be based on NumberS instead of Number.
 
-import           Control.Monad
-import           Data.List.NonEmpty                        (NonEmpty (..))
+-- import           Control.Monad
+-- import           Data.List.NonEmpty                        (NonEmpty (..))
 
-import           Database.Algebra.Dag.Common
+-- import           Database.Algebra.Dag.Common
 
-import qualified Database.DSH.Common.Lang                  as L
-import           Database.DSH.Common.Opt
-import           Database.DSH.Common.VectorLang
-import           Database.DSH.SL.Lang
-import           Database.DSH.SL.Opt.Properties.Types
--- import           Database.DSH.SL.Opt.Properties.VectorType
-import           Database.DSH.SL.Opt.Rewrite.Common
+-- import qualified Database.DSH.Common.Lang                  as L
+-- import           Database.DSH.Common.Opt
+-- import           Database.DSH.Common.VectorLang
+-- import           Database.DSH.SL.Lang
+-- import           Database.DSH.SL.Opt.Properties.Types
+-- -- import           Database.DSH.SL.Opt.Properties.VectorType
+-- import           Database.DSH.SL.Opt.Rewrite.Common
 
 
 --------------------------------------------------------------------------------

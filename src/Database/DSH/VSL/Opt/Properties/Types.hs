@@ -79,7 +79,7 @@ instance Pretty BottomUpProps where
   pretty p = text "empty:" <+> (pretty $ emptyProp p)
 
 instance Pretty TopDownProps where
-  pretty p = empty
+  pretty _ = empty
 
 -- | Rendering function for the bottom-up properties container.
 renderBottomUpProps :: BottomUpProps -> [String]
