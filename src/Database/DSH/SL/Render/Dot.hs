@@ -13,7 +13,6 @@ import qualified Database.Algebra.Dag           as Dag
 import           Database.Algebra.Dag.Common    as C
 
 import qualified Database.DSH.Common.Lang       as L
-import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.VectorLang

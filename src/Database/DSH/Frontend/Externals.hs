@@ -792,7 +792,7 @@ dateYear d = let (view -> (year, _, _)) = toGregorian d
 return :: (QA a) => Q a -> Q [a]
 return = singleton
 
-(>>=) :: (QA a,QA b) => Q [a] -> (Q a -> Q [b]) -> Q [b]
+(>>=) :: (Qa a,QA b) => Q [a] -> (Q a -> Q [b]) -> Q [b]
 (>>=) ma f = concatMap f ma
 
 (>>) :: (QA a,QA b) => Q [a] -> Q [b] -> Q [b]
