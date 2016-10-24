@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Database.DSH.SL.Opt.Rewrite.Common where
 
@@ -13,6 +15,7 @@ import           Database.DSH.Common.QueryPlan
 
 import qualified Database.DSH.Common.Opt                 as R
 import           Database.DSH.Common.Vector
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.SL.Lang
 
 import           Database.DSH.SL.Opt.Properties.BottomUp
@@ -20,19 +23,19 @@ import           Database.DSH.SL.Opt.Properties.TopDown
 import           Database.DSH.SL.Opt.Properties.Types
 
   -- Type abbreviations for convenience
-type SLRewrite p = R.Rewrite SL (Shape DVec) p
-type SLRule p = R.Rule SL p (Shape DVec)
-type SLRuleSet p = R.RuleSet SL p (Shape DVec)
-type SLMatch p = R.Match SL p (Shape DVec)
+type SLRewrite r e p = R.Rewrite (SL r e) (Shape DVec) p
+type SLRule r e p = R.Rule (SL r e) p (Shape DVec)
+type SLRuleSet r e p = R.RuleSet (SL r e) p (Shape DVec)
+type SLMatch r e p = R.Match (SL r e) p (Shape DVec)
 
-inferBottomUp :: SLRewrite (NodeMap BottomUpProps)
+inferBottomUp :: Ordish r e => SLRewrite r e (NodeMap BottomUpProps)
 inferBottomUp = do
   to    <- R.topsort
   props <- R.infer $ inferBottomUpProperties to
   return props
 
 -- FIXME replace infer with exposeDag
-inferTopDown :: SLRewrite (NodeMap TopDownProps)
+inferTopDown :: Ordish r e => SLRewrite r e (NodeMap TopDownProps)
 inferTopDown = do
   to        <- R.topsort
   buPropMap <- R.infer (inferBottomUpProperties to)
@@ -40,7 +43,7 @@ inferTopDown = do
   return props
 
 -- FIXME this infers bottom up properties twice!
-inferProperties :: SLRewrite (NodeMap Properties)
+inferProperties :: Ordish r e => SLRewrite r e (NodeMap Properties)
 inferProperties = do
   buMap <- inferBottomUp
   tdMap <- inferTopDown
@@ -52,10 +55,10 @@ noProps = return M.empty
 ---------------------------------------------------------------------------------
 -- Rewrite helper functions
 
-lookupR1Parents :: AlgNode -> SLRewrite [AlgNode]
+lookupR1Parents :: forall r e. Ordish r e => AlgNode -> SLRewrite r e [AlgNode]
 lookupR1Parents q = R.parents q >>= \ps -> filterM isR1 ps
   where
-    isR1 :: AlgNode -> SLRewrite Bool
+    isR1 :: AlgNode -> SLRewrite r e Bool
     isR1 q' = do
         o <- R.operator q'
         case o of
@@ -63,10 +66,10 @@ lookupR1Parents q = R.parents q >>= \ps -> filterM isR1 ps
             _         -> return False
 
 
-lookupR2Parents :: AlgNode -> SLRewrite [AlgNode]
+lookupR2Parents :: forall r e . Ordish r e => AlgNode -> SLRewrite r e [AlgNode]
 lookupR2Parents q = R.parents q >>= \ps -> filterM isR2 ps
   where
-    isR2 :: AlgNode -> SLRewrite Bool
+    isR2 :: AlgNode -> SLRewrite r e Bool
     isR2 q' = do
         o <- R.operator q'
         case o of

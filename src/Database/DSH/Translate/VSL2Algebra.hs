@@ -19,6 +19,7 @@ import           Database.Algebra.Dag.Common
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.QueryPlan
 import qualified Database.DSH.Common.Vector             as V
+import           Database.DSH.Common.VectorLang
 import qualified Database.DSH.VSL.Lang                  as VSL
 import           Database.DSH.VSL.VirtualSegmentAlgebra
 
@@ -76,7 +77,7 @@ refreshShape shape = T.mapM refreshVec shape
             Nothing -> $impossible
 
 translate :: VirtualSegmentAlgebra a
-          => NodeMap VSL.VSL
+          => NodeMap VSL.FVSL
           -> AlgNode
           -> VecBuild a (VSLDVec a) (VSLRVec a) (Res (VSLDVec a) (VSLRVec a))
 translate vlNodes n = do
@@ -107,16 +108,16 @@ translate vlNodes n = do
             insertTranslation n r'
             return r'
 
-getVSL :: AlgNode -> NodeMap VSL.VSL -> VSL.VSL
+getVSL :: AlgNode -> NodeMap VSL.FVSL -> VSL.FVSL
 getVSL n vlNodes = case IM.lookup n vlNodes of
     Just op -> op
     Nothing -> error $ "getVSL: node " ++ (show n) ++ " not in VSL nodes map " ++ (pp vlNodes)
 
-pp :: NodeMap VSL.VSL -> String
+pp :: NodeMap VSL.FVSL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
 vl2Algebra :: VirtualSegmentAlgebra a
-           => NodeMap VSL.VSL
+           => NodeMap VSL.FVSL
            -> Shape V.DVec
            -> B.Build a (Shape (VSLDVec a))
 vl2Algebra vlNodes plan = runVecBuild $ do
@@ -139,7 +140,7 @@ translateTerOp t c1 c2 c3 =
             return $ RTriple (fromDVec d) (fromRVec r1) (fromRVec r2)
 
 translateBinOp :: VirtualSegmentAlgebra a
-               => VSL.BinOp
+               => VSL.BinOp FlatExpr
                -> Res (VSLDVec a) (VSLRVec a)
                -> Res (VSLDVec a) (VSLRVec a)
                -> B.Build a (Res (VSLDVec a) (VSLRVec a))
@@ -200,7 +201,7 @@ translateBinOp b c1 c2 = case b of
     VSL.UpdateMap -> fromRVec <$> vecUpdateMap (toRVec c1) (toRVec c2)
 
 translateUnOp :: VirtualSegmentAlgebra a
-              => VSL.UnOp
+              => VSL.UnOp FlatTuple FlatExpr
               -> Res (VSLDVec a) (VSLRVec a)
               -> B.Build a (Res (VSLDVec a) (VSLRVec a))
 translateUnOp unop c = case unop of

@@ -7,6 +7,7 @@ import Database.Algebra.Dag.Common
 
 import Database.DSH.SL.Lang
 import Database.DSH.Common.Opt
+import Database.DSH.Common.VectorLang
 
 import Database.DSH.SL.Opt.Properties.Card
 -- import Database.DSH.SL.Opt.Properties.Const
@@ -16,7 +17,7 @@ import Database.DSH.SL.Opt.Properties.Types
 import Database.DSH.SL.Opt.Properties.Segments
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
-inferWorker :: NodeMap SL -> SL -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
+inferWorker :: NodeMap (SL r e) -> SL r e -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
 inferWorker d op node pm =
     case op of
          TerOp vl c1 c2 c3 ->
@@ -33,10 +34,10 @@ inferWorker d op node pm =
            in checkError d node [cProps] pm $ inferUnOp vl cProps
          NullaryOp vl -> checkError d node [] pm $ inferNullOp vl
 
-checkError :: NodeMap SL -> AlgNode -> [BottomUpProps] -> NodeMap BottomUpProps -> Either String BottomUpProps -> BottomUpProps
-checkError d n childProps propMap (Left msg) =
+checkError :: NodeMap (SL r e) -> AlgNode -> [BottomUpProps] -> NodeMap BottomUpProps -> Either String BottomUpProps -> BottomUpProps
+checkError _ n childProps propMap (Left msg) =
     let childPropsMsg = concatMap ((++) "\n" . show) childProps
-        completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s\n%s" n msg childPropsMsg (show propMap) (show d)
+        completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s" n msg childPropsMsg (show propMap)
     in error completeMsg
 checkError _ _ _ _ (Right props) = props
 
@@ -54,7 +55,7 @@ inferNullOp op = do
                  , segProp        = opSeg
                  }
 
-inferUnOp :: UnOp -> BottomUpProps -> Either String BottomUpProps
+inferUnOp :: UnOp r e -> BottomUpProps -> Either String BottomUpProps
 inferUnOp op cProps = do
   opEmpty    <- inferEmptyUnOp (emptyProp cProps) op
   -- opType     <- inferVectorTypeUnOp (vectorTypeProp cProps) op
@@ -68,7 +69,7 @@ inferUnOp op cProps = do
                  , segProp        = opSeg
                  }
 
-inferBinOp :: BinOp -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
+inferBinOp :: BinOp e -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
 inferBinOp op c1Props c2Props = do
   opEmpty    <- inferEmptyBinOp (emptyProp c1Props) (emptyProp c2Props) op
   -- opType     <- inferVectorTypeBinOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) op
@@ -100,5 +101,5 @@ inferTerOp op c1Props c2Props c3Props = do
                  , segProp        = opSeg
                  }
 
-inferBottomUpProperties :: [AlgNode] -> AlgebraDag SL -> NodeMap BottomUpProps
+inferBottomUpProperties :: Ordish r e => [AlgNode] -> AlgebraDag (SL r e) -> NodeMap BottomUpProps
 inferBottomUpProperties = inferBottomUpG inferWorker

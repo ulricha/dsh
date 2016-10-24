@@ -16,7 +16,7 @@ import           Database.DSH.VSL.Opt.Rewrite.Expressions
 import           Database.DSH.VSL.Opt.Rewrite.PruneEmpty
 import           Database.DSH.VSL.Opt.Rewrite.Redundant
 
-type RewriteClass = Rewrite VSL (Shape DVec) Bool
+type RewriteClass = Rewrite RVSL (Shape DVec) Bool
 
 rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty)
@@ -30,17 +30,17 @@ defaultPipeline = case assemblePipeline "ER" of
   Nothing -> error "invalid default pipeline"
 
 runPipeline
-  :: Dag.AlgebraDag VSL
+  :: Dag.AlgebraDag RVSL
   -> (Shape DVec)
   -> [RewriteClass]
-  -> Bool -> (Dag.AlgebraDag VSL, Log, Shape DVec)
+  -> Bool -> (Dag.AlgebraDag RVSL, Log, Shape DVec)
 runPipeline d sh pipeline debug = (d', rewriteLog, sh')
   where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
 
 assemblePipeline :: String -> Maybe [RewriteClass]
 assemblePipeline s = mapM (flip lookup rewriteClasses) s
 
-optimizeSL :: [RewriteClass] -> QueryPlan VSL DVec -> QueryPlan VSL DVec
+optimizeSL :: [RewriteClass] -> QueryPlan RVSL DVec -> QueryPlan RVSL DVec
 optimizeSL pipeline plan =
 #ifdef DEBUGGRAPH
   let (d, _, shape) = runPipeline (queryDag plan) (queryShape plan) pipeline True
@@ -49,10 +49,10 @@ optimizeSL pipeline plan =
 #endif
   in QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }
 
-optimizeSL' :: [RewriteClass] -> QueryPlan VSL DVec -> (QueryPlan VSL DVec, Log)
+optimizeSL' :: [RewriteClass] -> QueryPlan RVSL DVec -> (QueryPlan RVSL DVec, Log)
 optimizeSL' pipeline plan =
   let (d, l, shape) = runPipeline (queryDag plan) (queryShape plan) pipeline False
   in (QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }, l)
 
-optimizeVSLDefault :: QueryPlan VSL DVec -> QueryPlan VSL DVec
+optimizeVSLDefault :: QueryPlan RVSL DVec -> QueryPlan RVSL DVec
 optimizeVSLDefault = optimizeSL defaultPipeline

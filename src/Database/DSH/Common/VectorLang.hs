@@ -4,6 +4,7 @@
 {-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE ConstraintKinds      #-}
 
 module Database.DSH.Common.VectorLang where
 
@@ -37,6 +38,11 @@ instance Pretty VecVal where
 --------------------------------------------------------------------------------
 -- Scalar expressions and aggregate functions
 
+-- | Payload expressions for segment vectors.
+--
+-- 'VectorExpr' expresses scalar computations on vector payloads, in contrast to
+-- non-scalar computations (list operations) which are handled at the
+-- vector/segment level.
 data VectorExpr = VBinApp L.ScalarBinOp VectorExpr VectorExpr
                 | VUnApp L.ScalarUnOp VectorExpr
                 | VInput
@@ -49,27 +55,65 @@ data VectorExpr = VBinApp L.ScalarBinOp VectorExpr VectorExpr
 
 $(deriveJSON defaultOptions ''VectorExpr)
 
-data AggrFun = AggrSum ScalarType VectorExpr
-             | AggrMin VectorExpr
-             | AggrMax VectorExpr
-             | AggrAvg VectorExpr
-             | AggrAll VectorExpr
-             | AggrAny VectorExpr
-             | AggrCount
-             | AggrCountDistinct VectorExpr
-             deriving (Eq, Ord, Show)
+-- | *Flat* payload expressions for segment vectors.
+--
+-- This type expresses scalar payload computations on vectors with flat records
+-- of scalar values.
+data FlatExpr = FBinApp L.ScalarBinOp FlatExpr FlatExpr
+              | FUnApp L.ScalarUnOp FlatExpr
+              | FInputElem TupleIndex
+              | FConstant L.ScalarVal
+              | FIf FlatExpr FlatExpr FlatExpr
+              deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''FlatExpr)
+
+-- | Construction of a flat payload tuple.
+newtype FlatTuple = FT [FlatExpr] deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''FlatTuple)
+
+data AggrFun e = AggrSum ScalarType e
+               | AggrMin e
+               | AggrMax e
+               | AggrAvg e
+               | AggrAll e
+               | AggrAny e
+               | AggrCount
+               | AggrCountDistinct e
+               deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''AggrFun)
 
-data WinFun = WinSum VectorExpr
-            | WinMin VectorExpr
-            | WinMax VectorExpr
-            | WinAvg VectorExpr
-            | WinAll VectorExpr
-            | WinAny VectorExpr
-            | WinFirstValue VectorExpr
-            | WinCount
-            deriving (Eq, Ord, Show)
+instance Functor AggrFun where
+    fmap f (AggrMax e)           = AggrMax $ f e
+    fmap f (AggrSum t e)         = AggrSum t $ f e
+    fmap f (AggrMin e)           = AggrMin $ f e
+    fmap f (AggrAvg e)           = AggrAvg $ f e
+    fmap f (AggrAny e)           = AggrAny $ f e
+    fmap f (AggrAll e)           = AggrAll $ f e
+    fmap _ AggrCount             = AggrCount
+    fmap f (AggrCountDistinct e) = AggrCountDistinct $ f e
+
+data WinFun e = WinSum e
+              | WinMin e
+              | WinMax e
+              | WinAvg e
+              | WinAll e
+              | WinAny e
+              | WinFirstValue e
+              | WinCount
+              deriving (Eq, Ord, Show)
+
+instance Functor WinFun where
+    fmap f (WinMax e)        = WinMax $ f e
+    fmap f (WinSum e)        = WinSum $ f e
+    fmap f (WinMin e)        = WinMin $ f e
+    fmap f (WinAvg e)        = WinAvg $ f e
+    fmap f (WinAny e)        = WinAny $ f e
+    fmap f (WinAll e)        = WinAll $ f e
+    fmap f (WinFirstValue e) = WinFirstValue $ f e
+    fmap _ WinCount          = WinCount
 
 $(deriveJSON defaultOptions ''WinFun)
 
@@ -125,6 +169,9 @@ typeToScalarType (ScalarT t) = t
 --------------------------------------------------------------------------------
 
 -- | The type of vector payloads
+--
+-- This type corresponds directly to the element type of a list, with nested
+-- list type constructors replaced by the index type.
 data PType = PTupleT ![PType]
            | PScalarT !ScalarType
            | PIndexT
@@ -214,28 +261,6 @@ partialEval e = if e == e' then e else partialEval e'
   where
     e' = simplify e
 
--- | Transform the argument expression of an aggregate.
-mapAggrFun :: (VectorExpr -> VectorExpr) -> AggrFun -> AggrFun
-mapAggrFun f (AggrMax e)           = AggrMax $ f e
-mapAggrFun f (AggrSum t e)         = AggrSum t $ f e
-mapAggrFun f (AggrMin e)           = AggrMin $ f e
-mapAggrFun f (AggrAvg e)           = AggrAvg $ f e
-mapAggrFun f (AggrAny e)           = AggrAny $ f e
-mapAggrFun f (AggrAll e)           = AggrAll $ f e
-mapAggrFun _ AggrCount             = AggrCount
-mapAggrFun f (AggrCountDistinct e) = AggrCountDistinct $ f e
-
--- | Transform the argument expression of a window aggregate.
-mapWinFun :: (VectorExpr -> VectorExpr) -> WinFun -> WinFun
-mapWinFun f (WinMax e)        = WinMax $ f e
-mapWinFun f (WinSum e)        = WinSum $ f e
-mapWinFun f (WinMin e)        = WinMin $ f e
-mapWinFun f (WinAvg e)        = WinAvg $ f e
-mapWinFun f (WinAny e)        = WinAny $ f e
-mapWinFun f (WinAll e)        = WinAll $ f e
-mapWinFun f (WinFirstValue e) = WinFirstValue $ f e
-mapWinFun _ WinCount          = WinCount
-
 inlineJoinPredLeft :: VectorExpr -> L.JoinPredicate VectorExpr -> L.JoinPredicate VectorExpr
 inlineJoinPredLeft e (L.JoinPred conjs) = L.JoinPred $ fmap inlineLeft conjs
   where
@@ -281,9 +306,14 @@ pattern VSubExpr e1 e2 = VBinApp (L.SBNumOp L.Sub) e1 e2
 instance Pretty VectorExpr where
     pretty = renderExpr
 
+instance Pretty FlatExpr where
+    pretty = renderFlatExpr
+
+instance Pretty FlatTuple where
+    pretty = renderFlatTuple
+
 renderRecord :: [Doc] -> Doc
 renderRecord = encloseSep (char '<') (char '>') comma
-
 
 renderExpr :: VectorExpr -> Doc
 renderExpr (VBinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
@@ -309,3 +339,27 @@ parenthize1 VIndex          = renderExpr VIndex
 parenthize1 VInput          = renderExpr VInput
 parenthize1 e@VMkTuple{}    = renderExpr e
 parenthize1 e@VTupElem{}    = renderExpr e
+
+renderFlatTuple :: FlatTuple -> Doc
+renderFlatTuple (FT es) = renderRecord $ map renderFlatExpr es
+
+renderFlatExpr :: FlatExpr -> Doc
+renderFlatExpr (FBinApp op e1 e2) = parenthizeF e1 <+> text (pp op) <+> parenthizeF e2
+renderFlatExpr (FUnApp op e)      = text (pp op) <+> parens (renderFlatExpr e)
+renderFlatExpr (FConstant val)    = pretty val
+renderFlatExpr (FInputElem i)     = text "x" <> dot <> (int $ tupleIndex i)
+renderFlatExpr (FIf c t e)        = text "if"
+                                    <+> renderFlatExpr c
+                                    <+> text "then"
+                                    <+> renderFlatExpr t
+                                    <+> text "else"
+                                    <+> renderFlatExpr e
+
+parenthizeF :: FlatExpr -> Doc
+parenthizeF e@(FConstant _) = renderFlatExpr e
+parenthizeF e@FBinApp{}     = parens $ renderFlatExpr e
+parenthizeF e@FUnApp{}      = parens $ renderFlatExpr e
+parenthizeF e@FIf{}         = renderFlatExpr e
+parenthizeF e@FInputElem{}  = renderFlatExpr e
+
+type Ordish r e = (Ord r, Ord e, Show r, Show e)

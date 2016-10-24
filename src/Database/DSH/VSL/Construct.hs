@@ -1,3 +1,5 @@
+{-# LANGUAGE ConstraintKinds #-}
+
 module Database.DSH.VSL.Construct where
 
 import qualified Data.List.NonEmpty             as N
@@ -13,7 +15,7 @@ import           Database.DSH.Common.VectorLang
 import           Database.DSH.VSL.Lang          (VSL)
 import qualified Database.DSH.VSL.Lang          as VSL
 
-type VSLBuild = Build VSL
+type VSLBuild r e = Build (VSL r e)
 
 class VecNode a where
     inject :: AlgNode -> a
@@ -27,20 +29,20 @@ instance VecNode RVec where
     inject = RVec
     extract (RVec n) = n
 
-insertVirtOp :: VSL -> VSLBuild AlgNode
+insertVirtOp :: Ordish r e => VSL r e -> VSLBuild r e AlgNode
 insertVirtOp = B.insert
 
-bindOp :: VecNode a => VSL -> VSLBuild a
+bindOp :: (Ordish r e, VecNode a) => VSL r e -> VSLBuild r e a
 bindOp op = inject <$> insertVirtOp op
 
-bindOp2 :: (VecNode a, VecNode b) => VSL -> VSLBuild (a, b)
+bindOp2 :: (Ordish r e, VecNode a, VecNode b) => VSL r e -> VSLBuild r e (a, b)
 bindOp2 op = do
     opNode <- insertVirtOp op
     r1Node <- inject <$> (insertVirtOp $ UnOp VSL.R1 opNode)
     r2Node <- inject <$> (insertVirtOp $ UnOp VSL.R2 opNode)
     return (r1Node, r2Node)
 
-bindOp3 :: (VecNode a, VecNode b, VecNode c) => VSL -> VSLBuild (a, b, c)
+bindOp3 :: (Ordish r e, VecNode a, VecNode b, VecNode c) => VSL r e -> VSLBuild r e (a, b, c)
 bindOp3 op = do
     opNode <- insertVirtOp op
     r1Node <- inject <$> (insertVirtOp $ UnOp VSL.R1 opNode)
@@ -50,150 +52,122 @@ bindOp3 op = do
 
 --------------------------------------------------------------------------------
 
-distinct :: DVec -> VSLBuild DVec
+distinct :: Ordish r e => DVec -> VSLBuild r e DVec
 distinct dv = bindOp $ UnOp VSL.Distinct (extract dv)
 
-number :: DVec -> VSLBuild DVec
+number :: Ordish r e => DVec -> VSLBuild r e DVec
 number dv = bindOp $ UnOp VSL.Number (extract dv)
 
-group :: VectorExpr -> DVec -> VSLBuild (DVec, DVec, RVec)
+group :: Ordish r e => r -> DVec -> VSLBuild r e (DVec, DVec, RVec)
 group groupExpr dv = bindOp3 $ UnOp (VSL.Group groupExpr) (extract dv)
 
-sort :: VectorExpr -> DVec -> VSLBuild (DVec, RVec)
+sort :: Ordish r e => r -> DVec -> VSLBuild r e (DVec, RVec)
 sort sortExpr dv = bindOp2 $ UnOp (VSL.Sort sortExpr) (extract dv)
 
-reverse :: DVec -> VSLBuild (DVec, RVec)
+reverse :: Ordish r e => DVec -> VSLBuild r e (DVec, RVec)
 reverse dv = bindOp2 $ UnOp VSL.Reverse (extract dv)
 
-aggrseg :: AggrFun -> DVec -> VSLBuild DVec
+aggrseg :: Ordish r e => AggrFun e -> DVec -> VSLBuild r e DVec
 aggrseg aFun v = bindOp $ UnOp (VSL.Fold aFun) (extract v)
 
-unboxsng :: DVec -> DVec -> VSLBuild (DVec, RVec)
+unboxsng :: Ordish r e => DVec -> DVec -> VSLBuild r e (DVec, RVec)
 unboxsng dvo dvi = bindOp2 $ BinOp VSL.UnboxSng (extract dvo) (extract dvi)
 
-unboxdefault :: N.NonEmpty L.ScalarVal -> DVec -> DVec -> VSLBuild (DVec, RVec)
+unboxdefault :: Ordish r e => N.NonEmpty L.ScalarVal -> DVec -> DVec -> VSLBuild r e (DVec, RVec)
 unboxdefault defaultVals vo vi = bindOp2 $ BinOp (VSL.UnboxDefault defaultVals) (extract vo) (extract vi)
 
-append :: DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
+append :: Ordish r e => DVec -> DVec -> VSLBuild r e (DVec, RVec, RVec)
 append dv1 dv2 = bindOp3 $ BinOp VSL.Append (extract dv1) (extract dv2)
 
-segment :: DVec -> VSLBuild DVec
+segment :: Ordish r e => DVec -> VSLBuild r e DVec
 segment dv = bindOp $ UnOp VSL.Segment (extract dv)
 
-mergemap :: DVec -> VSLBuild RVec
+mergemap :: Ordish r e => DVec -> VSLBuild r e RVec
 mergemap v = bindOp $ UnOp VSL.MergeMap (extract v)
 
-unsegment :: DVec -> VSLBuild DVec
+unsegment :: Ordish r e => DVec -> VSLBuild r e DVec
 unsegment dv = bindOp $ UnOp VSL.Unsegment (extract dv)
 
-combine :: DVec -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
+combine :: Ordish r e => DVec -> DVec -> DVec -> VSLBuild r e (DVec, RVec, RVec)
 combine dv1 dv2 dv3 = bindOp3 $ TerOp VSL.Combine (extract dv1) (extract dv2) (extract dv3)
 
-lit :: (PType, VecSegs) -> VSLBuild DVec
+lit :: Ordish r e => (PType, VecSegs) -> VSLBuild r e DVec
 lit i = bindOp $ NullaryOp $ VSL.Lit i
 
-tableref :: String -> L.BaseTableSchema -> VSLBuild DVec
+tableref :: Ordish r e => String -> L.BaseTableSchema -> VSLBuild r e DVec
 tableref n schema = bindOp $ NullaryOp $ VSL.TableRef (n, schema)
 
-project :: VectorExpr -> DVec -> VSLBuild DVec
+project :: Ordish r e => r -> DVec -> VSLBuild r e DVec
 project e dv = bindOp $ UnOp (VSL.Project e) (extract dv)
 
-select :: VectorExpr -> DVec -> VSLBuild (DVec, RVec)
+select :: Ordish r e => e -> DVec -> VSLBuild r e (DVec, RVec)
 select p dv = bindOp2 $ UnOp (VSL.Select p) (extract dv)
 
-align :: DVec -> DVec -> VSLBuild DVec
+align :: Ordish r e => DVec -> DVec -> VSLBuild r e DVec
 align dv1 dv2 = bindOp $ BinOp VSL.Align (extract dv1) (extract dv2)
 
-zip :: DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
+zip :: Ordish r e => DVec -> DVec -> VSLBuild r e (DVec, RVec, RVec)
 zip dv1 dv2 = bindOp3 $ BinOp VSL.Zip (extract dv1) (extract dv2)
 
-cartproduct :: DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
+cartproduct :: Ordish r e => DVec -> DVec -> VSLBuild r e (DVec, RVec, RVec)
 cartproduct dv1 dv2 = bindOp3 $ BinOp VSL.CartProduct (extract dv1) (extract dv2)
 
-replicatescalar :: DVec -> DVec -> VSLBuild (DVec, RVec)
+replicatescalar :: Ordish r e => DVec -> DVec -> VSLBuild r e (DVec, RVec)
 replicatescalar v1 v2 = bindOp2 $ BinOp VSL.ReplicateScalar (extract v1) (extract v2)
 
-replicateseg :: DVec -> DVec -> VSLBuild (DVec, RVec)
+replicateseg :: Ordish r e => DVec -> DVec -> VSLBuild r e (DVec, RVec)
 replicateseg v1 v2 = bindOp2 $ BinOp VSL.ReplicateSeg (extract v1) (extract v2)
 
-updatemap :: RVec -> RVec -> VSLBuild RVec
+updatemap :: Ordish r e => RVec -> RVec -> VSLBuild r e RVec
 updatemap m1 m2 = bindOp $ BinOp VSL.UpdateMap (extract m1) (extract m2)
 
-unitmap :: DVec -> VSLBuild RVec
+unitmap :: Ordish r e => DVec -> VSLBuild r e RVec
 unitmap m = bindOp $ UnOp VSL.UnitMap (extract m)
 
-updateunit :: RVec -> VSLBuild RVec
+updateunit :: Ordish r e => RVec -> VSLBuild r e RVec
 updateunit m = bindOp $ UnOp VSL.UpdateUnit (extract m)
 
-materialize :: RVec -> DVec -> VSLBuild (DVec, RVec)
+materialize :: Ordish r e => RVec -> DVec -> VSLBuild r e (DVec, RVec)
 materialize r v = bindOp2 $ BinOp VSL.Materialize (extract r) (extract v)
 
-nestjoinMM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
-nestjoinMM p v1 v2 = bindOp3 $ BinOp (VSL.NestJoin (VSL.Direct, VSL.Direct, p')) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+nestjoinMM :: Ordish r e => L.JoinPredicate e -> DVec -> DVec -> VSLBuild r e (DVec, RVec, RVec)
+nestjoinMM p v1 v2 = bindOp3 $ BinOp (VSL.NestJoin (VSL.Direct, VSL.Direct, p)) (extract v1) (extract v2)
 
-nestjoinMU :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
-nestjoinMU p v1 v2 = bindOp3 $ BinOp (VSL.NestJoin (VSL.Direct, VSL.Unit, p')) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+nestjoinMU :: Ordish r e => L.JoinPredicate e -> DVec -> DVec -> VSLBuild r e (DVec, RVec, RVec)
+nestjoinMU p v1 v2 = bindOp3 $ BinOp (VSL.NestJoin (VSL.Direct, VSL.Unit, p)) (extract v1) (extract v2)
 
-thetajoinMM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
-thetajoinMM p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoin (VSL.Direct, VSL.Direct, p')) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+thetajoinMM :: Ordish r e => L.JoinPredicate e -> DVec -> DVec -> VSLBuild r e (DVec, RVec, RVec)
+thetajoinMM p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoin (VSL.Direct, VSL.Direct, p)) (extract v1) (extract v2)
 
-thetajoinMU :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
-thetajoinMU p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoin (VSL.Direct, VSL.Unit, p')) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+thetajoinMU :: Ordish r e => L.JoinPredicate e -> DVec -> DVec -> VSLBuild r e (DVec, RVec, RVec)
+thetajoinMU p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoin (VSL.Direct, VSL.Unit, p)) (extract v1) (extract v2)
 
-thetajoinUM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec, RVec)
-thetajoinUM p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoin (VSL.Unit, VSL.Direct, p')) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+thetajoinUM :: Ordish r e => L.JoinPredicate e -> DVec -> DVec -> VSLBuild r e (DVec, RVec, RVec)
+thetajoinUM p v1 v2 = bindOp3 $ BinOp (VSL.ThetaJoin (VSL.Unit, VSL.Direct, p)) (extract v1) (extract v2)
 
-groupjoinMM :: L.JoinPredicate L.ScalarExpr -> L.NE AggrFun -> DVec -> DVec -> VSLBuild DVec
-groupjoinMM p as v1 v2 = bindOp $ BinOp (VSL.GroupJoin (VSL.Direct, VSL.Direct, p', as)) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+groupjoinMM :: Ordish r e => L.JoinPredicate e -> L.NE (AggrFun e) -> DVec -> DVec -> VSLBuild r e DVec
+groupjoinMM p as v1 v2 = bindOp $ BinOp (VSL.GroupJoin (VSL.Direct, VSL.Direct, p, as)) (extract v1) (extract v2)
 
-groupjoinMU :: L.JoinPredicate L.ScalarExpr -> L.NE AggrFun -> DVec -> DVec -> VSLBuild DVec
-groupjoinMU p as v1 v2 = bindOp $ BinOp (VSL.GroupJoin (VSL.Direct, VSL.Unit, p', as)) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+groupjoinMU :: Ordish r e => L.JoinPredicate e -> L.NE (AggrFun e) -> DVec -> DVec -> VSLBuild r e DVec
+groupjoinMU p as v1 v2 = bindOp $ BinOp (VSL.GroupJoin (VSL.Direct, VSL.Unit, p, as)) (extract v1) (extract v2)
 
-groupjoinUM :: L.JoinPredicate L.ScalarExpr -> L.NE AggrFun -> DVec -> DVec -> VSLBuild DVec
-groupjoinUM p as v1 v2 = bindOp $ BinOp (VSL.GroupJoin (VSL.Unit, VSL.Direct, p', as)) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+groupjoinUM :: Ordish r e => L.JoinPredicate e -> L.NE (AggrFun e) -> DVec -> DVec -> VSLBuild r e DVec
+groupjoinUM p as v1 v2 = bindOp $ BinOp (VSL.GroupJoin (VSL.Unit, VSL.Direct, p, as)) (extract v1) (extract v2)
 
-antijoinMM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-antijoinMM p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoin (VSL.Direct, VSL.Direct, p')) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+antijoinMM :: Ordish r e => L.JoinPredicate e -> DVec -> DVec -> VSLBuild r e (DVec, RVec)
+antijoinMM p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoin (VSL.Direct, VSL.Direct, p)) (extract v1) (extract v2)
 
-antijoinMU :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-antijoinMU p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoin (VSL.Direct, VSL.Unit, p')) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+antijoinMU :: Ordish r e => L.JoinPredicate e -> DVec -> DVec -> VSLBuild r e (DVec, RVec)
+antijoinMU p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoin (VSL.Direct, VSL.Unit, p)) (extract v1) (extract v2)
 
-antijoinUM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-antijoinUM p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoin (VSL.Unit, VSL.Direct, p')) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+antijoinUM :: Ordish r e => L.JoinPredicate e -> DVec -> DVec -> VSLBuild r e (DVec, RVec)
+antijoinUM p v1 v2 = bindOp2 $ BinOp (VSL.AntiJoin (VSL.Unit, VSL.Direct, p)) (extract v1) (extract v2)
 
-semijoinMM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-semijoinMM p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoin (VSL.Direct, VSL.Direct, p')) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+semijoinMM :: Ordish r e => L.JoinPredicate e -> DVec -> DVec -> VSLBuild r e (DVec, RVec)
+semijoinMM p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoin (VSL.Direct, VSL.Direct, p)) (extract v1) (extract v2)
 
-semijoinMU :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-semijoinMU p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoin (VSL.Direct, VSL.Unit, p')) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+semijoinMU :: Ordish r e => L.JoinPredicate e -> DVec -> DVec -> VSLBuild r e (DVec, RVec)
+semijoinMU p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoin (VSL.Direct, VSL.Unit, p)) (extract v1) (extract v2)
 
-semijoinUM :: L.JoinPredicate L.ScalarExpr -> DVec -> DVec -> VSLBuild (DVec, RVec)
-semijoinUM p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoin (VSL.Unit, VSL.Direct, p')) (extract v1) (extract v2)
-  where
-    p' = fmap scalarExpr p
+semijoinUM :: Ordish r e => L.JoinPredicate e -> DVec -> DVec -> VSLBuild r e (DVec, RVec)
+semijoinUM p v1 v2 = bindOp2 $ BinOp (VSL.SemiJoin (VSL.Unit, VSL.Direct, p)) (extract v1) (extract v2)

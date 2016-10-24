@@ -22,7 +22,7 @@ inferCardOneNullOp op =
             Segs _     -> Right $ VProp False
     TableRef _ -> Right $ VProp False
 
-inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
+inferCardOneUnOp :: VectorProp Bool -> UnOp r e -> Either String (VectorProp Bool)
 inferCardOneUnOp c op =
   case op of
     Unique -> Right c
@@ -52,7 +52,7 @@ inferCardOneUnOp c op =
     GroupAggr (_, _)      -> Right c
     Number -> Right c
 
-inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
+inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp e -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
   case op of
     Fold _ -> return $ VProp False

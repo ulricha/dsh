@@ -16,7 +16,7 @@ import Database.DSH.VSL.Opt.Properties.Types
 import Database.DSH.VSL.Opt.Properties.Segments
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
-inferWorker :: NodeMap VSL -> VSL -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
+inferWorker :: (Show r, Show e) => NodeMap (VSL r e) -> VSL r e -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
 inferWorker d op node pm =
     case op of
          TerOp vl c1 c2 c3 ->
@@ -33,7 +33,7 @@ inferWorker d op node pm =
            in checkError d node [cProps] pm $ inferUnOp vl cProps
          NullaryOp vl -> checkError d node [] pm $ inferNullOp vl
 
-checkError :: NodeMap VSL -> AlgNode -> [BottomUpProps] -> NodeMap BottomUpProps -> Either String BottomUpProps -> BottomUpProps
+checkError :: (Show r, Show e) => NodeMap (VSL r e) -> AlgNode -> [BottomUpProps] -> NodeMap BottomUpProps -> Either String BottomUpProps -> BottomUpProps
 checkError d n childProps propMap (Left msg) =
     let childPropsMsg = concatMap ((++) "\n" . show) childProps
         completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s\n%s" n msg childPropsMsg (show propMap) (show d)
@@ -54,7 +54,7 @@ inferNullOp op = do
                  , segProp        = opSeg
                  }
 
-inferUnOp :: UnOp -> BottomUpProps -> Either String BottomUpProps
+inferUnOp :: UnOp r e -> BottomUpProps -> Either String BottomUpProps
 inferUnOp op cProps = do
   opEmpty    <- inferEmptyUnOp (emptyProp cProps) op
   -- opType     <- inferVectorTypeUnOp (vectorTypeProp cProps) op
@@ -68,7 +68,7 @@ inferUnOp op cProps = do
                  , segProp        = opSeg
                  }
 
-inferBinOp :: BinOp -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
+inferBinOp :: BinOp e -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
 inferBinOp op c1Props c2Props = do
   opEmpty    <- inferEmptyBinOp (emptyProp c1Props) (emptyProp c2Props) op
   -- opType     <- inferVectorTypeBinOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) op
@@ -102,5 +102,5 @@ inferTerOp op c1Props c2Props c3Props = do
 
 -- | Infer bottom-up properties from a DAG using a given topological ordering of
 -- nodes.
-inferBottomUpProperties :: [AlgNode] -> AlgebraDag VSL -> NodeMap BottomUpProps
+inferBottomUpProperties :: (Ord r, Ord e, Show r, Show e) => [AlgNode] -> AlgebraDag (VSL r e) -> NodeMap BottomUpProps
 inferBottomUpProperties = inferBottomUpG inferWorker

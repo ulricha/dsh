@@ -54,22 +54,22 @@ class SegmentAlgebra a where
     -- segment.
     vecUnsegment :: SLDVec a -> Build a (SLDVec a)
 
-    vecAggr :: N.NonEmpty AggrFun -> SLDVec a -> Build a (SLDVec a)
-    vecFold :: AggrFun -> SLDVec a -> SLDVec a -> Build a (SLDVec a)
+    vecAggr :: N.NonEmpty (AggrFun FlatExpr) -> SLDVec a -> Build a (SLDVec a)
+    vecFold :: AggrFun FlatExpr -> SLDVec a -> SLDVec a -> Build a (SLDVec a)
 
-    vecWinFun :: WinFun -> FrameSpec -> SLDVec a -> Build a (SLDVec a)
+    vecWinFun :: WinFun FlatExpr -> FrameSpec -> SLDVec a -> Build a (SLDVec a)
 
     -- | Reverse each segment of a vector individually.
     vecReverse :: SLDVec a -> Build a (SLDVec a, SLSVec a)
 
     -- | Filter a vector by applying a scalar boolean predicate.
-    vecSelect:: VectorExpr -> SLDVec a -> Build a (SLDVec a, SLFVec a)
+    vecSelect:: FlatExpr -> SLDVec a -> Build a (SLDVec a, SLFVec a)
 
     -- | Per-segment sorting of a vector.
-    vecSort :: VectorExpr -> SLDVec a -> Build a (SLDVec a, SLSVec a)
+    vecSort :: FlatTuple -> SLDVec a -> Build a (SLDVec a, SLSVec a)
 
     -- | Per-segment grouping of a vector
-    vecGroup :: VectorExpr -> SLDVec a -> Build a (SLDVec a, SLDVec a, SLSVec a)
+    vecGroup :: FlatTuple -> SLDVec a -> Build a (SLDVec a, SLDVec a, SLSVec a)
 
     -- | The VL aggregation operator groups every segment of the input vector by the
     -- given columns and then performs the list of aggregations described by the
@@ -77,11 +77,11 @@ class SegmentAlgebra a where
     -- input vector since all segments are grouped individually. The output
     -- payload columns are the grouping columns followed by the aggregation
     -- results.
-    vecGroupAggr :: VectorExpr -> AggrFun -> SLDVec a -> Build a (SLDVec a)
+    vecGroupAggr :: FlatTuple -> (AggrFun FlatExpr) -> SLDVec a -> Build a (SLDVec a)
 
     -- | Construct a new vector as the result of a list of scalar
     -- expressions per result column.
-    vecProject :: VectorExpr -> SLDVec a -> Build a (SLDVec a)
+    vecProject :: FlatTuple -> SLDVec a -> Build a (SLDVec a)
 
     vecReplicateNest :: SLDVec a -> SLDVec a -> Build a (SLDVec a, SLRVec a)
 
@@ -120,10 +120,10 @@ class SegmentAlgebra a where
     vecZip :: SLDVec a -> SLDVec a -> Build a (SLDVec a, SLRVec a, SLRVec a)
 
     vecCartProduct :: SLDVec a -> SLDVec a -> Build a (SLDVec a, SLRVec a, SLRVec a)
-    vecThetaJoin :: L.JoinPredicate VectorExpr -> SLDVec a -> SLDVec a -> Build a (SLDVec a, SLRVec a, SLRVec a)
-    vecNestJoin :: L.JoinPredicate VectorExpr -> SLDVec a -> SLDVec a -> Build a (SLDVec a, SLRVec a, SLRVec a)
-    vecSemiJoin :: L.JoinPredicate VectorExpr -> SLDVec a -> SLDVec a -> Build a (SLDVec a, SLFVec a)
-    vecAntiJoin :: L.JoinPredicate VectorExpr -> SLDVec a -> SLDVec a -> Build a (SLDVec a, SLFVec a)
-    vecGroupJoin :: L.JoinPredicate VectorExpr -> L.NE AggrFun -> SLDVec a -> SLDVec a -> Build a (SLDVec a)
+    vecThetaJoin :: L.JoinPredicate FlatExpr -> SLDVec a -> SLDVec a -> Build a (SLDVec a, SLRVec a, SLRVec a)
+    vecNestJoin :: L.JoinPredicate FlatExpr -> SLDVec a -> SLDVec a -> Build a (SLDVec a, SLRVec a, SLRVec a)
+    vecSemiJoin :: L.JoinPredicate FlatExpr -> SLDVec a -> SLDVec a -> Build a (SLDVec a, SLFVec a)
+    vecAntiJoin :: L.JoinPredicate FlatExpr -> SLDVec a -> SLDVec a -> Build a (SLDVec a, SLFVec a)
+    vecGroupJoin :: L.JoinPredicate FlatExpr -> L.NE (AggrFun FlatExpr) -> SLDVec a -> SLDVec a -> Build a (SLDVec a)
 
     vecCombine :: SLDVec a -> SLDVec a -> SLDVec a -> Build a (SLDVec a, SLKVec a, SLKVec a)

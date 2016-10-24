@@ -13,6 +13,7 @@ import qualified Database.Algebra.Dag                      as D
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Opt
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.VSL.Lang
 import           Database.DSH.VSL.Opt.Properties.Types
 
@@ -25,7 +26,7 @@ vPropPairSeed = TDProps
 vPropTripleSeed :: TopDownProps
 vPropTripleSeed = TDProps
 
-seed :: VSL -> TopDownProps
+seed :: VSL r e -> TopDownProps
 seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
     case op of
@@ -86,7 +87,7 @@ replaceProps n p = modify (M.insert n p)
 inferUnOp :: BottomUpProps
           -> TopDownProps
           -> TopDownProps
-          -> UnOp
+          -> UnOp r e
           -> Either String TopDownProps
 inferUnOp childBUProps ownProps cp op = do
     return TDProps
@@ -96,7 +97,7 @@ inferBinOp :: BottomUpProps
            -> TopDownProps
            -> TopDownProps
            -> TopDownProps
-           -> BinOp
+           -> BinOp e
            -> Either String (TopDownProps, TopDownProps)
 inferBinOp childBUProps1 childBUProps2 ownProps cp1 cp2 op = do
     return (TDProps, TDProps)
@@ -110,8 +111,9 @@ inferTerOp :: TopDownProps
 inferTerOp ownProps cp1 cp2 cp3 op = do
     return (TDProps, TDProps, TDProps)
 
-inferChildProperties :: NodeMap BottomUpProps
-                     -> D.AlgebraDag VSL
+inferChildProperties :: Ordish r e
+                     => NodeMap BottomUpProps
+                     -> D.AlgebraDag (VSL r e)
                      -> AlgNode
                      -> State InferenceState ()
 inferChildProperties buPropMap d n = do
@@ -142,7 +144,7 @@ inferChildProperties buPropMap d n = do
           replaceProps c2 cp2'
           replaceProps c3 cp3'
 
-checkError :: AlgNode -> [TopDownProps] -> D.AlgebraDag VSL -> Either String p -> p
+checkError :: (Show r, Show e) => AlgNode -> [TopDownProps] -> D.AlgebraDag (VSL r e) -> Either String p -> p
 checkError n childProps d (Left msg) =
     let completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s"
                                 n msg (show childProps) (show $ D.nodeMap d)
@@ -150,9 +152,10 @@ checkError n childProps d (Left msg) =
 checkError _ _ _ (Right props) = props
 
 -- | Infer properties during a top-down traversal.
-inferTopDownProperties :: NodeMap BottomUpProps
+inferTopDownProperties :: Ordish r e
+                       => NodeMap BottomUpProps
                        -> [AlgNode]
-                       -> D.AlgebraDag VSL
+                       -> D.AlgebraDag (VSL r e)
                        -> NodeMap TopDownProps
 inferTopDownProperties buPropMap topOrderedNodes d = execState action initialMap
   where

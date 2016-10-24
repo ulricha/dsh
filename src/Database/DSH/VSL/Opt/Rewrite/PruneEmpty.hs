@@ -5,16 +5,17 @@ module Database.DSH.VSL.Opt.Rewrite.PruneEmpty(pruneEmpty) where
 -- import           Control.Monad
 
 import           Database.DSH.Common.Opt
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.VSL.Opt.Properties.Types
 import           Database.DSH.VSL.Opt.Rewrite.Common
 
 -- import           Database.Algebra.Dag.Common
 -- import           Database.DSH.VSL.Lang
 
-pruneEmpty :: VSLRewrite Bool
+pruneEmpty :: VSLRewrite VectorExpr VectorExpr Bool
 pruneEmpty = applyToAll inferBottomUp emptyRules
 
-emptyRules :: VSLRuleSet BottomUpProps
+emptyRules :: VSLRuleSet VectorExpr VectorExpr BottomUpProps
 emptyRules = [ -- emptyAppendLeftR1
              -- , emptyAppendLeftR2
              -- , emptyAppendLeftR3

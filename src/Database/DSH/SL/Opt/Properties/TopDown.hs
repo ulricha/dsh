@@ -26,7 +26,7 @@ vPropPairSeed = TDProps
 vPropTripleSeed :: TopDownProps
 vPropTripleSeed = TDProps
 
-seed :: SL -> TopDownProps
+seed :: SL r e -> TopDownProps
 seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
     case op of
@@ -87,7 +87,7 @@ replaceProps n p = modify (M.insert n p)
 inferUnOp :: BottomUpProps
           -> TopDownProps
           -> TopDownProps
-          -> UnOp
+          -> UnOp r e
           -> Either String TopDownProps
 inferUnOp childBUProps ownProps cp op = do
     return $ TDProps
@@ -97,7 +97,7 @@ inferBinOp :: BottomUpProps
            -> TopDownProps
            -> TopDownProps
            -> TopDownProps
-           -> BinOp
+           -> BinOp e
            -> Either String (TopDownProps, TopDownProps)
 inferBinOp childBUProps1 childBUProps2 ownProps cp1 cp2 op = do
     return (TDProps, TDProps)
@@ -111,8 +111,9 @@ inferTerOp :: TopDownProps
 inferTerOp ownProps cp1 cp2 cp3 op = do
     return (TDProps, TDProps, TDProps)
 
-inferChildProperties :: NodeMap BottomUpProps
-                     -> D.AlgebraDag SL
+inferChildProperties :: (Ord r, Ord e, Show r, Show e)
+                     => NodeMap BottomUpProps
+                     -> D.AlgebraDag (SL r e)
                      -> AlgNode
                      -> State InferenceState ()
 inferChildProperties buPropMap d n = do
@@ -143,17 +144,18 @@ inferChildProperties buPropMap d n = do
           replaceProps c2 cp2'
           replaceProps c3 cp3'
 
-checkError :: AlgNode -> [TopDownProps] -> D.AlgebraDag SL -> Either String p -> p
+checkError :: AlgNode -> [TopDownProps] -> D.AlgebraDag (SL r e) -> Either String p -> p
 checkError n childProps d (Left msg) =
-    let completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s"
-                                n msg (show childProps) (show $ D.nodeMap d)
+    let completeMsg   = printf "Inference failed at node %d\n%s\n%s"
+                                n msg (show childProps)
     in error completeMsg
 checkError _ _ _ (Right props) = props
 
 -- | Infer properties during a top-down traversal.
-inferTopDownProperties :: NodeMap BottomUpProps
+inferTopDownProperties :: (Ord r, Ord e, Show r, Show e)
+                       => NodeMap BottomUpProps
                        -> [AlgNode]
-                       -> D.AlgebraDag SL
+                       -> D.AlgebraDag (SL r e)
                        -> NodeMap TopDownProps
 inferTopDownProperties buPropMap topOrderedNodes d = execState action initialMap
   where

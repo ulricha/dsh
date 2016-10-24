@@ -30,34 +30,34 @@ data NullOp = Lit (PType, VecSegs)
 
 $(deriveJSON defaultOptions ''NullOp)
 
-data UnOp = Segment
-          | Unsegment
+data UnOp r e = Segment
+              | Unsegment
 
-          | R1
-          | R2
-          | R3
+              | R1
+              | R2
+              | R3
 
-          | Project VectorExpr
-          | Select VectorExpr
+              | Project r
+              | Select e
 
-          | GroupAggr (VectorExpr, AggrFun)
-          | Fold AggrFun
-          | Number
-          | Distinct
-          | Reverse
-          | Sort VectorExpr
-          | Group VectorExpr
-          | WinFun (WinFun, FrameSpec)
+              | GroupAggr (r, AggrFun e)
+              | Fold (AggrFun e)
+              | Number
+              | Distinct
+              | Reverse
+              | Sort r
+              | Group r
+              | WinFun (WinFun e, FrameSpec)
 
-          -- | Generate a segment map that statically refers to the unit segment
-          | UnitMap
-          -- | Update a segment map to statically refer to the unit segment.
-          -- Used as the update operation for unit delayed vectors for which we
-          -- need only the outermost segment map.
-          | UpdateUnit
-          -- From a vector v, generate a *merge map* that maps all segments of
-          -- the key domain of v to the segment identifier domain of v.
-          | MergeMap
+              -- | Generate a segment map that statically refers to the unit segment
+              | UnitMap
+              -- | Update a segment map to statically refer to the unit segment.
+              -- Used as the update operation for unit delayed vectors for which we
+              -- need only the outermost segment map.
+              | UpdateUnit
+              -- | From a vector v, generate a *merge map* that maps all segments of
+              -- the key domain of v to the segment identifier domain of v.
+              | MergeMap
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''UnOp)
@@ -68,36 +68,28 @@ data SegmentLookup = Direct
 
 $(deriveJSON defaultOptions ''SegmentLookup)
 
-data BinOp = ReplicateSeg
-           | ReplicateScalar
-
-           | UnboxSng
-           | UnboxDefault (N.NonEmpty L.ScalarVal)
-           | Align
-
-           | Append
-           | Zip
-           | CartProduct
-
-           | ThetaJoin (SegmentLookup, SegmentLookup, L.JoinPredicate VectorExpr)
-
-           | AntiJoin (SegmentLookup, SegmentLookup, L.JoinPredicate VectorExpr)
-
-           | SemiJoin (SegmentLookup, SegmentLookup, L.JoinPredicate VectorExpr)
-
-           | GroupJoin (SegmentLookup, SegmentLookup, L.JoinPredicate VectorExpr, L.NE AggrFun)
-
-           | NestJoin (SegmentLookup, SegmentLookup, L.JoinPredicate VectorExpr)
-
-           -- Maintenance operations on virtual segments
-
-           -- | Materialize a delayed vector according to a segment map.
-           -- Produces a materialized data vector as well as a replication
-           -- vector for any inner vectors
-           | Materialize
-           -- | Update a segment map by combining it with another segment map
-           -- from the left (form the composition of two index space transforms)
-           | UpdateMap
+data BinOp e = ReplicateSeg
+             | ReplicateScalar
+             | UnboxSng
+             | UnboxDefault (N.NonEmpty L.ScalarVal)
+             | Align
+             | Append
+             | Zip
+             | CartProduct
+             | ThetaJoin (SegmentLookup, SegmentLookup, L.JoinPredicate e)
+             | AntiJoin (SegmentLookup, SegmentLookup, L.JoinPredicate e)
+             | SemiJoin (SegmentLookup, SegmentLookup, L.JoinPredicate e)
+             | GroupJoin (SegmentLookup, SegmentLookup, L.JoinPredicate e, L.NE (AggrFun e))
+             | NestJoin (SegmentLookup, SegmentLookup, L.JoinPredicate e)
+             -- Maintenance operations on virtual segments
+  
+             -- | Materialize a delayed vector according to a segment map.
+             -- Produces a materialized data vector as well as a replication
+             -- vector for any inner vectors
+             | Materialize
+             -- | Update a segment map by combining it with another segment map
+             -- from the left (form the composition of two index space transforms)
+             | UpdateMap
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''BinOp)
@@ -110,4 +102,6 @@ $(deriveJSON defaultOptions ''TerOp)
 --------------------------------------------------------------------------------
 -- DAG-based representation of VSL programs
 
-type VSL = Algebra TerOp BinOp UnOp NullOp AlgNode
+type VSL r e = Algebra TerOp (BinOp e) (UnOp r e) NullOp AlgNode
+type RVSL = VSL VectorExpr VectorExpr
+type FVSL = VSL FlatTuple FlatExpr

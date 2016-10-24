@@ -18,7 +18,8 @@ import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.QueryPlan
-import qualified Database.DSH.Common.Vector as V
+import qualified Database.DSH.Common.Vector     as V
+import           Database.DSH.Common.VectorLang
 import qualified Database.DSH.SL.Lang           as SL
 import           Database.DSH.SL.SegmentAlgebra
 
@@ -101,7 +102,7 @@ refreshShape shape = T.mapM refreshVec shape
             Nothing -> $impossible
 
 translate :: SegmentAlgebra a
-          => NodeMap SL.SL
+          => NodeMap SL.FSL
           -> AlgNode
           -> VecBuild a (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a) (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
 translate vlNodes n = do
@@ -132,15 +133,15 @@ translate vlNodes n = do
             insertTranslation n r'
             return r'
 
-getSL :: AlgNode -> NodeMap SL.SL -> SL.SL
+getSL :: AlgNode -> NodeMap SL.FSL -> SL.FSL
 getSL n vlNodes = case IM.lookup n vlNodes of
     Just op -> op
     Nothing -> error $ "getSL: node " ++ (show n) ++ " not in SL nodes map " ++ (pp vlNodes)
 
-pp :: NodeMap SL.SL -> String
+pp :: NodeMap SL.FSL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
-vl2Algebra :: SegmentAlgebra a => NodeMap SL.SL -> Shape V.DVec -> B.Build a (Shape (SLDVec a))
+vl2Algebra :: SegmentAlgebra a => NodeMap SL.FSL -> Shape V.DVec -> B.Build a (Shape (SLDVec a))
 vl2Algebra vlNodes plan = runVecBuild $ do
     mapM_ (translate vlNodes) roots
     refreshShape plan
@@ -161,7 +162,7 @@ translateTerOp t c1 c2 c3 =
             return $ RTriple (fromDVec d) (fromKVec r1) (fromKVec r2)
 
 translateBinOp :: SegmentAlgebra a
-               => SL.BinOp
+               => SL.BinOp FlatExpr
                -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
                -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
                -> B.Build a (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
@@ -233,7 +234,7 @@ translateBinOp b c1 c2 = case b of
         return $ RLPair (fromDVec v) (fromFVec r)
 
 translateUnOp :: SegmentAlgebra a
-              => SL.UnOp
+              => SL.UnOp FlatTuple FlatExpr
               -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
               -> B.Build a (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
 translateUnOp unop c = case unop of

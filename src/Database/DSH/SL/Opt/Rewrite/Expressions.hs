@@ -16,16 +16,16 @@ import           Database.DSH.SL.Lang
 import           Database.DSH.SL.Opt.Properties.Types
 import           Database.DSH.SL.Opt.Rewrite.Common
 
-optExpressions :: SLRewrite Bool
+optExpressions :: SLRewrite VectorExpr VectorExpr Bool
 optExpressions = iteratively $ applyToAll inferBottomUp expressionRules
 
-expressionRules :: SLRuleSet BottomUpProps
+expressionRules :: SLRuleSet VectorExpr VectorExpr BottomUpProps
 expressionRules = [ mergeExpr1
                   , identityProject
                   , mergeSelectProject
                   ]
 
-mergeExpr1 :: SLRule BottomUpProps
+mergeExpr1 :: SLRule VectorExpr VectorExpr BottomUpProps
 mergeExpr1 q =
   $(dagPatMatch 'q "Project e2 (Project e1 (q1))"
     [| do
@@ -35,7 +35,7 @@ mergeExpr1 q =
           let e2' = partialEval $ mergeExpr $(v "e1") $(v "e2")
           void $ replaceWithNew q $ UnOp (Project e2') $(v "q1") |])
 
-mergeSelectProject :: SLRule BottomUpProps
+mergeSelectProject :: SLRule VectorExpr VectorExpr BottomUpProps
 mergeSelectProject q =
   $(dagPatMatch 'q "R1 (qs=Select p (Project e (q1)))"
      [| do
@@ -56,7 +56,7 @@ mergeSelectProject q =
             qr2' <- insert $ UnOp R2 selectNode
             mapM_ (\qr2 -> replace qr2 qr2') r2Parents |])
 
-identityProject :: SLRule BottomUpProps
+identityProject :: SLRule VectorExpr VectorExpr BottomUpProps
 identityProject q =
   $(dagPatMatch 'q "Project e (q1)"
     [| do
@@ -86,7 +86,7 @@ identityProject q =
 --         If c t e       -> If (insertConstants env c) (insertConstants env t) (insertConstants env e)
 --         Constant _     -> expr
 
--- constProject :: SLRule BottomUpProps
+-- constProject :: SLRule VectorExpr VectorExpr BottomUpProps
 -- constProject q =
 --   $(dagPatMatch 'q "Project projs (q1)"
 --     [| do

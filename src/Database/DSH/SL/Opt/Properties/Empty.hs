@@ -29,7 +29,7 @@ inferEmptyNullOp op =
             Segs sds   -> Right $ VProp $ any S.null sds
     TableRef{}    -> Right $ VProp False
 
-inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
+inferEmptyUnOp :: VectorProp Bool -> UnOp r e -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
     WinFun _  -> Right e
@@ -63,7 +63,7 @@ inferEmptyUnOp e op =
         p                 -> Left ("Properties.Empty: not a triple" ++ show p)
 
 
-inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
+inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp e -> Either String (VectorProp Bool)
 inferEmptyBinOp e1 e2 op =
   case op of
     ReplicateNest   -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))

@@ -33,7 +33,7 @@ flatInputs SegNAP   _        = throwError "Properties.Segments: unexpected SegNA
 flatInputs _        SegNAP   = throwError "Properties.Segments: unexpected SegNAP input"
 flatInputs s1       s2       = throwError $ "Properties.Segments: inconsistent inputs " ++ show s1 ++ " " ++ show s2
 
-inferSegmentsUnOp :: VectorProp SegP -> UnOp -> Either String (VectorProp SegP)
+inferSegmentsUnOp :: VectorProp SegP -> UnOp r e -> Either String (VectorProp SegP)
 inferSegmentsUnOp c op =
   case op of
     Unique     -> pure c
@@ -63,7 +63,7 @@ inferSegmentsUnOp c op =
         VPropTriple _ _ b -> pure $ VProp b
         _                 -> throwError "Properties.Segments: not a triple"
 
-inferSegmentsBinOp :: VectorProp SegP -> VectorProp SegP -> BinOp -> Either String (VectorProp SegP)
+inferSegmentsBinOp :: VectorProp SegP -> VectorProp SegP -> BinOp e -> Either String (VectorProp SegP)
 inferSegmentsBinOp c1 c2 op =
   case op of
     Fold _          -> pure $ VProp SegdP

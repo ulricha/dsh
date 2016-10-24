@@ -26,49 +26,46 @@ data NullOp = Lit (PType, VecSegs)
 
 $(deriveJSON defaultOptions ''NullOp)
 
-data UnOp = UnboxKey
-          | Segment
-          | Unsegment
-
-          | R1
-          | R2
-          | R3
-
-          | Project VectorExpr
-          | Select VectorExpr
-
-          | GroupAggr (VectorExpr, AggrFun)
-          | Number
-          | Unique
-          | Reverse
-          | Sort VectorExpr
-          | Group VectorExpr
-          | WinFun (WinFun, FrameSpec)
-    deriving (Eq, Ord, Show)
+data UnOp r e = UnboxKey
+              | Segment
+              | Unsegment
+              | R1
+              | R2
+              | R3
+              | Project r
+              | Select e
+              | GroupAggr (r, AggrFun e)
+              | Number
+              | Unique
+              | Reverse
+              | Sort r
+              | Group r
+              | WinFun (WinFun e, FrameSpec)
+              deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''UnOp)
 
-data BinOp = ReplicateNest
-           | ReplicateScalar
-           | ReplicateVector
+data BinOp e = ReplicateNest
+             | ReplicateScalar
+             | ReplicateVector
 
-           | AppKey
-           | AppSort
-           | AppFilter
-           | AppRep
+             | AppKey
+             | AppSort
+             | AppFilter
+             | AppRep
 
-           | UnboxSng
-           | Align
+             | UnboxSng
+             | Align
 
-           | Fold AggrFun
-           | Append
-           | Zip
-           | CartProduct
-           | ThetaJoin (L.JoinPredicate VectorExpr)
-           | SemiJoin (L.JoinPredicate VectorExpr)
-           | AntiJoin (L.JoinPredicate VectorExpr)
-           | NestJoin (L.JoinPredicate VectorExpr)
-           | GroupJoin (L.JoinPredicate VectorExpr, L.NE AggrFun)
+             | Fold (AggrFun e)
+             | Append
+             | Zip
+             | CartProduct
+             | ThetaJoin (L.JoinPredicate e)
+             | SemiJoin (L.JoinPredicate e)
+             | AntiJoin (L.JoinPredicate e)
+             | NestJoin (L.JoinPredicate e)
+             | GroupJoin (L.JoinPredicate e, L.NE (AggrFun e))
     deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''BinOp)
@@ -78,4 +75,6 @@ data TerOp = Combine  -- (DBV, RenameVector, RenameVector)
 
 $(deriveJSON defaultOptions ''TerOp)
 
-type SL = Algebra TerOp BinOp UnOp NullOp AlgNode
+type SL r e = Algebra TerOp (BinOp e) (UnOp r e) NullOp AlgNode
+type RSL = SL VectorExpr VectorExpr
+type FSL = SL FlatTuple FlatExpr

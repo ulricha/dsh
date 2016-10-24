@@ -25,25 +25,25 @@ renderFrameSpec :: FrameSpec -> Doc
 renderFrameSpec FAllPreceding   = text "allprec"
 renderFrameSpec (FNPreceding n) = int n <+> text "prec"
 
-renderAggrFun :: AggrFun -> Doc
+renderAggrFun :: Pretty e => AggrFun e -> Doc
 renderAggrFun (AggrSum t c)         = renderFun (text "sum" <> char '_' <> renderColumnType t)
-                                                [renderExpr c]
-renderAggrFun (AggrMin c)           = renderFun (text "min") [renderExpr c]
-renderAggrFun (AggrMax c)           = renderFun (text "max") [renderExpr c]
-renderAggrFun (AggrAvg c)           = renderFun (text "avg") [renderExpr c]
-renderAggrFun (AggrAny c)           = renderFun (text "any") [renderExpr c]
-renderAggrFun (AggrAll c)           = renderFun (text "all") [renderExpr c]
+                                                [pretty c]
+renderAggrFun (AggrMin c)           = renderFun (text "min") [pretty c]
+renderAggrFun (AggrMax c)           = renderFun (text "max") [pretty c]
+renderAggrFun (AggrAvg c)           = renderFun (text "avg") [pretty c]
+renderAggrFun (AggrAny c)           = renderFun (text "any") [pretty c]
+renderAggrFun (AggrAll c)           = renderFun (text "all") [pretty c]
 renderAggrFun AggrCount             = renderFun (text "count") []
-renderAggrFun (AggrCountDistinct c) = renderFun (text "countDistinct") [renderExpr c]
+renderAggrFun (AggrCountDistinct c) = renderFun (text "countDistinct") [pretty c]
 
-renderWinFun :: WinFun -> Doc
-renderWinFun (WinSum c)        = renderFun (text "sum") [renderExpr c]
-renderWinFun (WinMin c)        = renderFun (text "min") [renderExpr c]
-renderWinFun (WinMax c)        = renderFun (text "max") [renderExpr c]
-renderWinFun (WinAvg c)        = renderFun (text "avg") [renderExpr c]
-renderWinFun (WinAny c)        = renderFun (text "any") [renderExpr c]
-renderWinFun (WinAll c)        = renderFun (text "all") [renderExpr c]
-renderWinFun (WinFirstValue c) = renderFun (text "first_value") [renderExpr c]
+renderWinFun :: Pretty e => WinFun e -> Doc
+renderWinFun (WinSum c)        = renderFun (text "sum") [pretty c]
+renderWinFun (WinMin c)        = renderFun (text "min") [pretty c]
+renderWinFun (WinMax c)        = renderFun (text "max") [pretty c]
+renderWinFun (WinAvg c)        = renderFun (text "avg") [pretty c]
+renderWinFun (WinAny c)        = renderFun (text "any") [pretty c]
+renderWinFun (WinAll c)        = renderFun (text "all") [pretty c]
+renderWinFun (WinFirstValue c) = renderFun (text "first_value") [pretty c]
 renderWinFun WinCount          = renderFun (text "count") []
 
 renderColumnType :: ScalarType -> Doc
@@ -58,18 +58,18 @@ renderColName (L.ColName c) = text c
 renderCol :: (L.ColName, ScalarType) -> Doc
 renderCol (c, t) = renderColName c <> text "::" <> renderColumnType t
 
-renderJoinConjunct :: L.JoinConjunct VectorExpr -> Doc
+renderJoinConjunct :: Pretty e => L.JoinConjunct e -> Doc
 renderJoinConjunct (L.JoinConjunct e1 o e2) =
-    parenthize1 e1 <+> text (pp o) <+> parenthize1 e2
+    pretty e1 <+> text (pp o) <+> pretty e2
 
-renderJoinPred :: L.JoinPredicate VectorExpr -> Doc
+renderJoinPred :: Pretty e => L.JoinPredicate e -> Doc
 renderJoinPred (L.JoinPred conjs) = brackets
                                     $ hsep
                                     $ punctuate (text "&&")
                                     $ map renderJoinConjunct $ N.toList conjs
 
-renderLambda :: VectorExpr -> Doc
-renderLambda e = text "\\x." <> renderExpr e
+renderLambda :: Pretty e => e -> Doc
+renderLambda e = text "\\x." <> pretty e
 
 renderSegments :: VecSegs -> Doc
 renderSegments (UnitSeg seg) = renderSegment seg
@@ -98,7 +98,7 @@ renderLabelArg :: AlgNode -> String -> Doc -> Render Doc
 renderLabelArg nodeId opName arg = labelDoc nodeId opName (braces arg)
 
 -- | Create the node label from an operator description
-opDotLabel :: AlgNode -> SL -> Render Doc
+opDotLabel :: (Pretty r, Pretty e) => AlgNode -> SL r e -> Render Doc
 opDotLabel i (UnOp (WinFun (wfun, wspec)) _) = renderLabelArg i "winaggr" (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
 opDotLabel i (NullaryOp (Lit (ty, segs))) = renderLabelArg i "lit" (pretty ty <> comma <$> renderSegments segs)
 opDotLabel i (NullaryOp (TableRef (n, schema))) = renderLabelArg i "table" arg
@@ -148,7 +148,7 @@ opDotLabel i (BinOp (GroupJoin (p, as)) _ _) =
     arg = renderJoinPred p <+> bracketList renderAggrFun (N.toList $ L.getNE as)
 opDotLabel i (TerOp Combine _ _ _) = renderLabel i "combine"
 
-opDotColor :: SL -> DotColor
+opDotColor :: SL r e -> DotColor
 opDotColor (BinOp CartProduct _ _)    = DCRed
 opDotColor (BinOp ReplicateVector _ _) = DCRed
 opDotColor (BinOp (ThetaJoin _) _ _)  = DCGreen
@@ -263,7 +263,11 @@ renderDot ns es = text "digraph" <> (braces $ preamble <$> nodeSection <$> edgeS
     nodeSection = vcat $ map renderDotNode ns
     edgeSection = vcat $ map renderDotEdge es
 
-constructDotNode :: [AlgNode] -> NodeMap [Tag] -> (AlgNode, SL) -> DotNode
+constructDotNode :: (Pretty r, Pretty e)
+                 => [AlgNode]
+                 -> NodeMap [Tag]
+                 -> (AlgNode, SL r e)
+                 -> DotNode
 constructDotNode rootNodes ts (n, op) =
     if elem n rootNodes then
         DotNode n l c (Just Dashed)
@@ -279,8 +283,9 @@ constructDotEdge = uncurry DotEdge
 
 -- | extract the operator descriptions and list of edges from a DAG
 -- FIXME no apparent reason to use topological ordering here
-extractGraphStructure :: Dag.AlgebraDag SL
-                     -> ([(AlgNode, SL)], [(AlgNode, AlgNode)])
+extractGraphStructure :: (Ord r, Ord e, Show r, Show e)
+                      => Dag.AlgebraDag (SL r e)
+                     -> ([(AlgNode, SL r e)], [(AlgNode, AlgNode)])
 extractGraphStructure d = (operators, childs)
   where
     nodes = Dag.topsort d
@@ -288,7 +293,11 @@ extractGraphStructure d = (operators, childs)
     childs = concat $ map (\(n, op) -> zip (repeat n) (Dag.opChildren op)) operators
 
 -- | Render an SL plan into a dot file (GraphViz).
-renderSLDot :: NodeMap [Tag] -> [AlgNode] -> NodeMap SL -> String
+renderSLDot :: (Ord r, Ord e, Show r, Show e, Pretty r, Pretty e)
+            => NodeMap [Tag]
+            -> [AlgNode]
+            -> NodeMap (SL r e)
+            -> String
 renderSLDot ts roots m = pp $ renderDot dotNodes dotEdges
   where
     (opLabels, edges) = extractGraphStructure d

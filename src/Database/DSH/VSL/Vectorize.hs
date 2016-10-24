@@ -17,7 +17,7 @@ import qualified Database.DSH.Common.VectorLang as VL
 import           Database.DSH.FKL.Lang
 import qualified Database.DSH.VSL.Builtins      as Builtins
 import           Database.DSH.VSL.Construct     (VSLBuild)
-import           Database.DSH.VSL.Lang          (VSL)
+import           Database.DSH.VSL.Lang          (RVSL)
 
 --------------------------------------------------------------------------------
 -- Extend the DAG builder monad with an environment for compiled SL
@@ -25,7 +25,7 @@ import           Database.DSH.VSL.Lang          (VSL)
 
 type Env = [(String, Shape Builtins.DelayedVec)]
 
-type EnvBuild = ReaderT Env VSLBuild
+type EnvBuild = ReaderT Env (VSLBuild VL.VectorExpr VL.VectorExpr)
 
 lookupEnv :: String -> EnvBuild (Shape Builtins.DelayedVec)
 lookupEnv n = ask >>= \env -> case lookup n env of
@@ -81,11 +81,11 @@ fkl2SL expr =
         UnOp _ _ NotLifted _ -> $impossible
         BinOp _ _ NotLifted _ _ -> $impossible
 
-papp3 :: Prim3 -> Lifted -> Shape Builtins.DelayedVec -> Shape Builtins.DelayedVec -> Shape Builtins.DelayedVec -> VSLBuild (Shape Builtins.DelayedVec)
+papp3 :: Prim3 -> Lifted -> Shape Builtins.DelayedVec -> Shape Builtins.DelayedVec -> Shape Builtins.DelayedVec -> Build RVSL (Shape Builtins.DelayedVec)
 papp3 Combine Lifted    = Builtins.terMacroL Builtins.combine
 papp3 Combine NotLifted = $impossible
 
-aggL :: Type -> AggrFun -> Shape Builtins.DelayedVec -> VSLBuild (Shape Builtins.DelayedVec)
+aggL :: Type -> AggrFun -> Shape Builtins.DelayedVec -> Build RVSL (Shape Builtins.DelayedVec)
 aggL t Sum     = Builtins.aggrL (VL.AggrSum $ VL.typeToScalarType $ elemT t)
 aggL _ Avg     = Builtins.aggrL VL.AggrAvg
 aggL _ Maximum = Builtins.aggrL VL.AggrMax
@@ -94,7 +94,7 @@ aggL _ Or      = Builtins.aggrL VL.AggrAny
 aggL _ And     = Builtins.aggrL VL.AggrAll
 aggL _ Length  = Builtins.aggrL (const VL.AggrCount)
 
-translateAggrFun :: AggrApp -> VL.AggrFun
+translateAggrFun :: AggrApp -> VL.AggrFun VL.VectorExpr
 translateAggrFun a = case aaFun a of
     Sum     -> let t = VL.typeToScalarType $ typeOf $ aaArg a
                in VL.AggrSum t e
@@ -107,7 +107,7 @@ translateAggrFun a = case aaFun a of
   where
     e = VL.scalarExpr $ aaArg a
 
-papp1 :: Type -> Prim1 -> Lifted -> Shape Builtins.DelayedVec -> VSLBuild (Shape Builtins.DelayedVec)
+papp1 :: Type -> Prim1 -> Lifted -> Shape Builtins.DelayedVec -> Build RVSL (Shape Builtins.DelayedVec)
 papp1 t f Lifted =
     case f of
         Singleton       -> Builtins.sngL
@@ -125,7 +125,7 @@ papp1 t f Lifted =
 
 papp1 _ _ NotLifted = $impossible
 
-papp2 :: Prim2 -> Lifted -> Shape Builtins.DelayedVec -> Shape Builtins.DelayedVec -> VSLBuild (Shape Builtins.DelayedVec)
+papp2 :: Prim2 -> Lifted -> Shape Builtins.DelayedVec -> Shape Builtins.DelayedVec -> Build RVSL (Shape Builtins.DelayedVec)
 papp2 f Lifted =
     case f of
         Dist                -> Builtins.distL
@@ -143,17 +143,17 @@ papp2 _ NotLifted = $impossible
 --------------------------------------------------------------------------------
 
 -- | Materialize a result vector
-finalizeResultVectors :: Shape Builtins.DelayedVec -> VSLBuild (Shape DVec)
+finalizeResultVectors :: Shape Builtins.DelayedVec -> Build RVSL (Shape DVec)
 finalizeResultVectors (VShape dv l) = finalizeShape dv l VShape
 finalizeResultVectors (SShape dv l) = finalizeShape dv l SShape
 
-finalizeShape :: Builtins.DelayedVec -> Layout Builtins.DelayedVec -> (DVec -> Layout DVec -> t) -> VSLBuild t
+finalizeShape :: Builtins.DelayedVec -> Layout Builtins.DelayedVec -> (DVec -> Layout DVec -> t) -> Build RVSL t
 finalizeShape dv l shapeConst = do
     (v', l') <- Builtins.materializeShape dv l
     l''      <- traverseLayout l'
     return $ shapeConst v' l''
 
-traverseLayout :: Layout Builtins.DelayedVec -> VSLBuild (Layout DVec)
+traverseLayout :: Layout Builtins.DelayedVec -> Build RVSL (Layout DVec)
 traverseLayout LCol        = return LCol
 traverseLayout (LTuple ls) = LTuple <$> mapM traverseLayout ls
 traverseLayout (LNest v l) = finalizeShape v l LNest
@@ -161,7 +161,7 @@ traverseLayout (LNest v l) = finalizeShape v l LNest
 --------------------------------------------------------------------------------
 
 -- | Compile a FKL expression into a query plan of vector operators (SL)
-vectorizeDelayed :: FExpr -> QueryPlan VSL DVec
+vectorizeDelayed :: FExpr -> QueryPlan RVSL DVec
 vectorizeDelayed e = mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild $ runReaderT (fkl2SL e) [] >>= finalizeResultVectors
