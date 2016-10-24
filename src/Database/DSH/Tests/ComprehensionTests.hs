@@ -19,6 +19,7 @@ import           Test.Tasty.QuickCheck
 
 import qualified Database.DSH                         as Q
 import           Database.DSH.Backend
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.Compiler
 import           Database.DSH.Tests.Common
 import qualified Database.DSH.Tests.DSHComprehensions as C
@@ -26,7 +27,7 @@ import qualified Database.DSH.Tests.DSHComprehensions as C
 {-# ANN module "HLint: ignore Use camelCase" #-}
 {-# ANN module "HLint: ignore Avoid lambda" #-}
 
-tests_comprehensions :: (BackendVector b, VectorLang v) => DSHTestTree v b
+tests_comprehensions :: (BackendVector b, VectorLang v) => DSHTestTree (v TExpr TExpr) b
 tests_comprehensions codeGen conn = testGroup "Comprehensions"
     [ testProperty "cartprod" (\a -> prop_cartprod a codeGen conn)
     , testProperty "cartprod_deep" (\a -> prop_cartprod_deep a codeGen conn)
@@ -72,14 +73,14 @@ tests_comprehensions codeGen conn = testGroup "Comprehensions"
     , testProperty "njg7" (\a -> prop_njg7 a codeGen conn)
     ]
 
-tests_lifted_joins :: (BackendVector b, VectorLang v) => DSHTestTree v b
+tests_lifted_joins :: (BackendVector b, VectorLang v) => DSHTestTree (v TExpr TExpr) b
 tests_lifted_joins codeGen conn = testGroup "Lifted Joins"
     [ testProperty "lifted semijoin" (\a -> prop_liftsemijoin a codeGen conn)
     , testProperty "lifted antijoin" (\a -> prop_liftantijoin a codeGen conn)
     , testProperty "lifted thetajoin" (\a -> prop_liftthetajoin a codeGen conn)
     ]
 
-tests_join_hunit :: (BackendVector b, VectorLang v) => DSHTestTree v b
+tests_join_hunit :: (BackendVector b, VectorLang v) => DSHTestTree (v TExpr TExpr) b
 tests_join_hunit codeGen conn = testGroup "HUnit joins"
     [ TH.testCase "heqjoin_nested1" (heqjoin_nested1 codeGen conn)
     , TH.testCase "hsemijoin" (hsemijoin codeGen conn)
@@ -95,7 +96,7 @@ tests_join_hunit codeGen conn = testGroup "HUnit joins"
     , TH.testCase "hfrontguard" (hfrontguard codeGen conn)
     ]
 
-tests_nest_head_hunit :: (BackendVector b, VectorLang v) => DSHTestTree v b
+tests_nest_head_hunit :: (BackendVector b, VectorLang v) => DSHTestTree (v TExpr TExpr) b
 tests_nest_head_hunit codeGen conn = testGroup "HUnit head nesting"
     [ TH.testCase "hnj1" (hnj1 codeGen conn)
     , TH.testCase "hnj2" (hnj2 codeGen conn)
@@ -115,7 +116,7 @@ tests_nest_head_hunit codeGen conn = testGroup "HUnit head nesting"
     , TH.testCase "hnp4" (hnp4 codeGen conn)
     ]
 
-tests_nest_guard_hunit :: (BackendVector b, VectorLang v) => DSHTestTree v b
+tests_nest_guard_hunit :: (BackendVector b, VectorLang v) => DSHTestTree (v TExpr TExpr) b
 tests_nest_guard_hunit codeGen conn = testGroup "HUnit guard nesting"
     [ TH.testCase "hnjg1" (hnjg1 codeGen conn)
     , TH.testCase "hnjg2" (hnjg2 codeGen conn)
@@ -127,37 +128,37 @@ tests_nest_guard_hunit codeGen conn = testGroup "HUnit guard nesting"
 ---------------------------------------------------------------------------------
 -- QuickCheck properties for comprehensions
 
-prop_cartprod :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_cartprod :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_cartprod = makePropEq C.cartprod cartprod_native
   where
     cartprod_native (xs, ys) = [ (x, y) | x <- xs, y <- ys]
 
-prop_cartprod_deep_nested :: (BackendVector b, VectorLang v) => [Integer] -> DSHProperty v b
+prop_cartprod_deep_nested :: (BackendVector b, VectorLang v) => [Integer] -> DSHProperty (v TExpr TExpr) b
 prop_cartprod_deep_nested = makePropEq C.cartprod_deep_nested cartprod_deep_nested_native
   where
     cartprod_deep_nested_native xs = concat [ concat [ [ (x,y,z) | z <- xs ] | y <- xs ] | x <- xs ]
 
-prop_cartprod_deep :: (BackendVector b, VectorLang v) => [Integer] -> DSHProperty v b
+prop_cartprod_deep :: (BackendVector b, VectorLang v) => [Integer] -> DSHProperty (v TExpr TExpr) b
 prop_cartprod_deep = makePropEq C.cartprod_deep cartprod_deep_native
   where
     cartprod_deep_native xs = [ (x,y,z) | x <- xs, y <- xs, z <- xs ]
 
-prop_eqjoin :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_eqjoin :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_eqjoin = makePropEq C.eqjoin eqjoin_native
   where
     eqjoin_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , x == y ]
 
-prop_eqjoinproj :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_eqjoinproj :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_eqjoinproj = makePropEq C.eqjoinproj eqjoinproj_native
   where
     eqjoinproj_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , (2 * x) == y ]
 
-prop_eqjoinpred :: (BackendVector b, VectorLang v) => (Integer, [Integer], [Integer]) -> DSHProperty v b
+prop_eqjoinpred :: (BackendVector b, VectorLang v) => (Integer, [Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_eqjoinpred = makePropEq C.eqjoinpred eqjoinpred_native
   where
     eqjoinpred_native (x', xs, ys) = [ (x, y) | x <- xs , y <- ys , x == y , x > x']
 
-prop_eqjointuples :: (BackendVector b, VectorLang v) => ([(Integer, Integer)], [(Integer, Integer)]) -> DSHProperty v b
+prop_eqjointuples :: (BackendVector b, VectorLang v) => ([(Integer, Integer)], [(Integer, Integer)]) -> DSHProperty (v TExpr TExpr) b
 prop_eqjointuples = makePropEq C.eqjointuples eqjointuples_native
   where
     eqjointuples_native (xs, ys) = [ (x1 * x2, y1, y2)
@@ -166,7 +167,7 @@ prop_eqjointuples = makePropEq C.eqjointuples eqjointuples_native
                                    , x1 == y2
                                    ]
 
-prop_thetajoin_eq :: (BackendVector b, VectorLang v) => ([(Integer, Integer)], [(Integer, Integer)]) -> DSHProperty v b
+prop_thetajoin_eq :: (BackendVector b, VectorLang v) => ([(Integer, Integer)], [(Integer, Integer)]) -> DSHProperty (v TExpr TExpr) b
 prop_thetajoin_eq = makePropEq C.thetajoin_eq thetajoin_eq_native
   where
     thetajoin_eq_native (xs, ys) = [ (x1 * x2, y1, y2)
@@ -176,7 +177,7 @@ prop_thetajoin_eq = makePropEq C.thetajoin_eq thetajoin_eq_native
                                    , y1 == x2
                                    ]
 
-prop_thetajoin_neq :: (BackendVector b, VectorLang v) => ([(Integer, Integer)], [(Integer, Integer)]) -> DSHProperty v b
+prop_thetajoin_neq :: (BackendVector b, VectorLang v) => ([(Integer, Integer)], [(Integer, Integer)]) -> DSHProperty (v TExpr TExpr) b
 prop_thetajoin_neq = makePropEq C.thetajoin_neq thetajoin_neq_native
   where
     thetajoin_neq_native (xs, ys) = [ (x1 * x2, y1, y2)
@@ -187,32 +188,32 @@ prop_thetajoin_neq = makePropEq C.thetajoin_neq thetajoin_neq_native
                                     ]
 
 
-prop_eqjoin3 :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty v b
+prop_eqjoin3 :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_eqjoin3 = makePropEq C.eqjoin3 eqjoin3_native
   where
     eqjoin3_native (xs, ys, zs) = [ (x, y, z) | x <- xs , y <- ys , z <- zs , x == y , y == z]
 
-prop_eqjoin_nested_left :: (BackendVector b, VectorLang v) => ([(Integer, [Integer])], [Integer]) -> DSHProperty v b
+prop_eqjoin_nested_left :: (BackendVector b, VectorLang v) => ([(Integer, [Integer])], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_eqjoin_nested_left = makePropEq C.eqjoin_nested_left eqjoin_nested_left_native
   where
     eqjoin_nested_left_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , fst x == y]
 
-prop_eqjoin_nested_right :: (BackendVector b, VectorLang v) => ([Integer], [(Integer, [Integer])]) -> DSHProperty v b
+prop_eqjoin_nested_right :: (BackendVector b, VectorLang v) => ([Integer], [(Integer, [Integer])]) -> DSHProperty (v TExpr TExpr) b
 prop_eqjoin_nested_right = makePropEq C.eqjoin_nested_right eqjoin_nested_right_native
   where
     eqjoin_nested_right_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , x == fst y]
 
-prop_eqjoin_nested_both :: (BackendVector b, VectorLang v) => ([(Integer, [Integer])], [(Integer, [Integer])]) -> DSHProperty v b
+prop_eqjoin_nested_both :: (BackendVector b, VectorLang v) => ([(Integer, [Integer])], [(Integer, [Integer])]) -> DSHProperty (v TExpr TExpr) b
 prop_eqjoin_nested_both = makePropEq C.eqjoin_nested_both eqjoin_nested_both_native
   where
     eqjoin_nested_both_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , fst x == fst y]
 
-prop_nestjoin :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_nestjoin :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_nestjoin = makePropEq C.nestjoin nestjoin_native
   where
     nestjoin_native (xs, ys) = [ (x, [ y | y <- ys, x == y ]) | x <- xs]
 
-prop_nestjoin3 :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty v b
+prop_nestjoin3 :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_nestjoin3 = makePropEq C.nestjoin3 nestjoin3_native
   where
     nestjoin3_native (njxs, njys, njzs) =
@@ -223,31 +224,31 @@ prop_nestjoin3 = makePropEq C.nestjoin3 nestjoin3_native
         | x <- njxs
         ]
 
-prop_groupjoin_length :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_length :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_length = makePropEq C.groupjoin_length groupjoin_length_native
   where
     groupjoin_length_native (njxs, njys) =
         [ (x, fromIntegral $ length [ y | y <- njys, x == y ]) | x <- njxs ]
 
-prop_groupjoin_length_nub :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_length_nub :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_length_nub = makePropEq C.groupjoin_length_nub groupjoin_length_nub_native
   where
     groupjoin_length_nub_native (njxs, njys) =
         [ (x, fromIntegral $ length $ nub [ y | y <- njys, x == y ]) | x <- njxs ]
 
-prop_groupjoin_sum :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_sum :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_sum = makePropEq C.groupjoin_sum groupjoin_sum_native
   where
     groupjoin_sum_native (njxs, njys) =
         [ (x, fromIntegral $ sum [ 2 * y + x | y <- njys, x == y ]) | x <- njxs ]
 
-prop_groupjoin_sum2 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_sum2 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_sum2 = makePropEq C.groupjoin_sum2 groupjoin_sum2_native
   where
     groupjoin_sum2_native (njxs, njys) =
         [ x + fromIntegral (sum [ 2 * y | y <- njys, x == y ]) | x <- njxs ]
 
-prop_groupjoin_sum_length :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_sum_length :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_sum_length = makePropEq C.groupjoin_sum_length groupjoin_sum_length_native
   where
     groupjoin_sum_length_native (njxs, njys) =
@@ -258,7 +259,7 @@ prop_groupjoin_sum_length = makePropEq C.groupjoin_sum_length groupjoin_sum_leng
         | x <- njxs
         ]
 
-prop_groupjoin_sum_length2 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_sum_length2 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_sum_length2 = makePropEq C.groupjoin_sum_length2 groupjoin_sum_length2_native
   where
     groupjoin_sum_length2_native (njxs, njys) =
@@ -270,7 +271,7 @@ prop_groupjoin_sum_length2 = makePropEq C.groupjoin_sum_length2 groupjoin_sum_le
         , 20 < sum [ 3 + y | y <- njys, x == y ]
         ]
 
-prop_groupjoin_sum_deep :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_sum_deep :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_sum_deep = makePropEq C.groupjoin_sum_deep groupjoin_sum_deep_native
   where
     groupjoin_sum_deep_native (njxs, njys, njzs) =
@@ -278,7 +279,7 @@ prop_groupjoin_sum_deep = makePropEq C.groupjoin_sum_deep groupjoin_sum_deep_nat
         | z <- njzs
         ]
 
-prop_groupjoin_length_guard :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_length_guard :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_length_guard = makePropEq C.groupjoin_sum_guard groupjoin_length_guard_native
   where
     groupjoin_length_guard_native (njxs, njys) =
@@ -288,7 +289,7 @@ prop_groupjoin_length_guard = makePropEq C.groupjoin_sum_guard groupjoin_length_
         , 5 < length ys
         ]
 
-prop_groupjoin_length_guard2 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_length_guard2 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_length_guard2 = makePropEq C.groupjoin_sum_guard2 groupjoin_sum_guard2_native
   where
     groupjoin_sum_guard2_native (njxs, njys) =
@@ -298,7 +299,7 @@ prop_groupjoin_length_guard2 = makePropEq C.groupjoin_sum_guard2 groupjoin_sum_g
         , 5 < length ys
         ]
 
-prop_groupjoin_sum_nest :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_sum_nest :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_sum_nest = makePropEq C.groupjoin_sum_nest groupjoin_sum_nest_native
   where
     groupjoin_sum_nest_native (njxs, njys) =
@@ -307,7 +308,7 @@ prop_groupjoin_sum_nest = makePropEq C.groupjoin_sum_nest groupjoin_sum_nest_nat
         , let ys = [ 2 * y | y <- njys, x == y ]
         ]
 
-prop_groupjoin_sum_nest2 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_sum_nest2 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_sum_nest2 = makePropEq C.groupjoin_sum_nest2 groupjoin_sum_nest2_native
   where
     groupjoin_sum_nest2_native (njxs, njys) =
@@ -317,7 +318,7 @@ prop_groupjoin_sum_nest2 = makePropEq C.groupjoin_sum_nest2 groupjoin_sum_nest2_
         , 10 > length ys
         ]
 
-prop_groupjoin_nestjoin :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_nestjoin :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_nestjoin = makePropEq C.groupjoin_nestjoin groupjoin_nestjoin_native
   where
     groupjoin_nestjoin_native (njxs, njys, njzs) =
@@ -325,7 +326,7 @@ prop_groupjoin_nestjoin = makePropEq C.groupjoin_nestjoin groupjoin_nestjoin_nat
         | x <- njxs
         ]
 
-prop_groupjoin_nestjoin_guard :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_nestjoin_guard :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_nestjoin_guard = makePropEq C.groupjoin_nestjoin_guard groupjoin_nestjoin_guard_native
   where
     groupjoin_nestjoin_guard_native (njxs, njys, njzs) =
@@ -334,7 +335,7 @@ prop_groupjoin_nestjoin_guard = makePropEq C.groupjoin_nestjoin_guard groupjoin_
         , 10 < length [ y | y <- njys, x == y ]
         ]
 
-prop_groupjoin_length_deep_sum :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty v b
+prop_groupjoin_length_deep_sum :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_groupjoin_length_deep_sum = makePropEq C.groupjoin_length_deep_sum groupjoin_length_deep_sum_native
   where
     groupjoin_length_deep_sum_native (njxs, njys, njzs) =
@@ -342,7 +343,7 @@ prop_groupjoin_length_deep_sum = makePropEq C.groupjoin_length_deep_sum groupjoi
         | z <- njzs
         ]
 
-prop_aj_class12 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_aj_class12 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_aj_class12 = makePropEq C.aj_class12 aj_class12_native
   where
     aj_class12_native (ajxs, ajys) = [ x
@@ -350,7 +351,7 @@ prop_aj_class12 = makePropEq C.aj_class12 aj_class12_native
                                      , and [ x == y | y <- ajys, y > 10 ]
                                      ]
 
-prop_aj_class15 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_aj_class15 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_aj_class15 = makePropEq C.aj_class15 aj_class15_native
   where
     aj_class15_native (ajxs, ajys) = [ x
@@ -358,7 +359,7 @@ prop_aj_class15 = makePropEq C.aj_class15 aj_class15_native
                                      , and [ y `rem` 4 == 0 | y <- ajys, x < y ]
                                      ]
 
-prop_aj_class16 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty v b
+prop_aj_class16 :: (BackendVector b, VectorLang v) => ([Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_aj_class16 = makePropEq C.aj_class16 aj_class16_native
   where
     aj_class16_native (ajxs, ajys) = [ x
@@ -366,27 +367,27 @@ prop_aj_class16 = makePropEq C.aj_class16 aj_class16_native
                                      , and [ y <= 2 * x | y <- ajys, x < y ]
                                      ]
 
-prop_backdep :: (BackendVector b, VectorLang v) => [[Integer]] -> DSHProperty v b
+prop_backdep :: (BackendVector b, VectorLang v) => [[Integer]] -> DSHProperty (v TExpr TExpr) b
 prop_backdep = makePropEq C.backdep backdep_native
   where
     backdep_native xss = [x | xs <- xss, x <- xs]
 
-prop_backdep_filter :: (BackendVector b, VectorLang v) => [[Integer]] -> DSHProperty v b
+prop_backdep_filter :: (BackendVector b, VectorLang v) => [[Integer]] -> DSHProperty (v TExpr TExpr) b
 prop_backdep_filter = makePropEq C.backdep_filter backdep_filter_native
   where
     backdep_filter_native xss = [x | xs <- xss, x <- xs, fromIntegral (length xs) > x]
 
-prop_backdep2 :: (BackendVector b, VectorLang v) => [[Integer]] -> DSHProperty v b
+prop_backdep2 :: (BackendVector b, VectorLang v) => [[Integer]] -> DSHProperty (v TExpr TExpr) b
 prop_backdep2 = makePropEq C.backdep2 backdep2
   where
     backdep2 xss = [ [ x * 42 | x <- xs ] | xs <- xss ]
 
-prop_backdep3 :: (BackendVector b, VectorLang v) => [[Integer]] -> DSHProperty v b
+prop_backdep3 :: (BackendVector b, VectorLang v) => [[Integer]] -> DSHProperty (v TExpr TExpr) b
 prop_backdep3 = makePropEq C.backdep3 backdep3
   where
     backdep3 xss = [ [ x + fromIntegral (length xs) | x <- xs ] | xs <- xss ]
 
-prop_backdep4 :: (BackendVector b, VectorLang v) => [[[Integer]]] -> DSHProperty v b
+prop_backdep4 :: (BackendVector b, VectorLang v) => [[[Integer]]] -> DSHProperty (v TExpr TExpr) b
 prop_backdep4 = makePropEq C.backdep4 backdep4
   where
     backdep4 xsss = [ [ [ x + fromIntegral (length xs) + fromIntegral (length xss)
@@ -397,7 +398,7 @@ prop_backdep4 = makePropEq C.backdep4 backdep4
                     | xss <- xsss
                     ]
 
-prop_backdep5 :: (BackendVector b, VectorLang v) => [[Integer]] -> DSHProperty v b
+prop_backdep5 :: (BackendVector b, VectorLang v) => [[Integer]] -> DSHProperty (v TExpr TExpr) b
 prop_backdep5 = makePropEq C.backdep5 backdep5
   where
     backdep5 xss = [ [ x + fromIntegral (length xs)
@@ -407,18 +408,18 @@ prop_backdep5 = makePropEq C.backdep5 backdep5
 --------------------------------------------------------------------------------
 -- Property tests for join operators in combination with guards and filters
 
-prop_njg6 :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty v b
+prop_njg6 :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_njg6 = makePropEq (\(Q.view -> (xs, ys, zs)) -> C.njg6 xs ys zs)
                        (\(xs, ys, zs) -> njg6 xs ys zs)
 
-prop_njg7 :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty v b
+prop_njg7 :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_njg7 = makePropEq (\(Q.view -> (xs, ys, zs)) -> C.njg7 xs ys zs)
                        (\(xs, ys, zs) -> njg7 xs ys zs)
 
 --------------------------------------------------------------------------------
 -- Tests for lifted join operators
 
-prop_liftsemijoin :: (BackendVector b, VectorLang v) => ([Positive Integer], [Integer]) -> DSHProperty v b
+prop_liftsemijoin :: (BackendVector b, VectorLang v) => ([Positive Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_liftsemijoin (xs, ys) = makePropEq C.liftsemijoin liftsemijoin (xs', ys)
   where
     xs' = map getPositive xs
@@ -429,7 +430,7 @@ liftsemijoin (xs, ys) =
     | g <- groupWith (`rem` 10) xs
     ]
 
-prop_liftantijoin :: (BackendVector b, VectorLang v) => ([Positive Integer], [Integer]) -> DSHProperty v b
+prop_liftantijoin :: (BackendVector b, VectorLang v) => ([Positive Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_liftantijoin (xs, ys) = makePropEq C.liftantijoin liftantijoin (xs', ys)
   where
     xs' = map getPositive xs
@@ -440,7 +441,7 @@ liftantijoin (xs, ys) =
     | g <- groupWith (`rem` 10) xs
     ]
 
-prop_liftthetajoin :: (BackendVector b, VectorLang v) => ([Positive Integer], [Integer]) -> DSHProperty v b
+prop_liftthetajoin :: (BackendVector b, VectorLang v) => ([Positive Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_liftthetajoin (xs, ys) = makePropEq C.liftthetajoin liftthetajoin (xs', ys)
   where
     xs' = map getPositive xs
@@ -454,7 +455,7 @@ liftthetajoin (xs, ys) =
 -----------------------------------------------------------------------
 -- HUnit tests for comprehensions
 
-heqjoin_nested1 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+heqjoin_nested1 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 heqjoin_nested1 = makeEqAssertion "heqjoin_nested" C.eqjoin_nested1 res
   where
     res = [ ((20, ['b']), 20)
@@ -463,57 +464,57 @@ heqjoin_nested1 = makeEqAssertion "heqjoin_nested" C.eqjoin_nested1 res
           , ((40, []), 40)
           ]
 
-hsemijoin :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hsemijoin :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hsemijoin = makeEqAssertion "hsemijoin" C.semijoin res
   where
     res = [2, 4, 6, 7]
 
-hsemijoin_range :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hsemijoin_range :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hsemijoin_range = makeEqAssertion "hsemijoin_range" C.semijoin_range res
   where
     res = [2, 4]
 
-hsemijoin_not_null :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hsemijoin_not_null :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hsemijoin_not_null = makeEqAssertion "hsemijoin_range" C.semijoin_not_null res
   where
     res = [2, 4, 6, 7]
 
-hsemijoin_quant :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hsemijoin_quant :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hsemijoin_quant = makeEqAssertion "hsemijoin_quant" C.semijoin_quant res
   where
     res = [6,7]
 
-hantijoin :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hantijoin :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hantijoin = makeEqAssertion "hantijoin" C.antijoin res
   where
     res = [1, 3, 5]
 
-hantijoin_range :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hantijoin_range :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hantijoin_range = makeEqAssertion "hantijoin_range" C.antijoin_range res
   where
     res = [1, 3, 5, 6, 7]
 
-hantijoin_null :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hantijoin_null :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hantijoin_null = makeEqAssertion "hantijoin_range" C.antijoin_null res
   where
     res = [1, 3, 5]
 
-hantijoin_class12 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hantijoin_class12 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hantijoin_class12 = makeEqAssertion "hantijoin_class12" C.antijoin_class12 res
   where
     res = [6,7,8,9,10]
 
-hantijoin_class15 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hantijoin_class15 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hantijoin_class15 = makeEqAssertion "hantijoin_class15" C.antijoin_class15 res
   where
     res = [5,6,7,8]
 
-hantijoin_class16 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hantijoin_class16 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hantijoin_class16 = makeEqAssertion "hantijoin_class16" C.antijoin_class16 res
   where
     res = [4,5,6]
 
-hfrontguard :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hfrontguard :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hfrontguard = makeEqAssertion "hfrontguard" C.frontguard res
   where
     res = [[],[1,2],[1,2]]
@@ -527,37 +528,37 @@ njxs1 = [1,2,3,4,5,6]
 njys1 :: [Integer]
 njys1 = [3,4,5,6,3,6,4,1,1,1]
 
-hnj1 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj1 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj1 = makeEqAssertion "hnj1" (C.nj1 njxs1 njys1) (nj1 njxs1 njys1)
 
-hnj2 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj2 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj2 = makeEqAssertion "hnj2" (C.nj2 njxs1 njys1) (nj2 njxs1 njys1)
 
-hnj3 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj3 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj3 = makeEqAssertion "hnj3" (C.nj3 njxs1 njys1) (nj3 njxs1 njys1)
 
-hnj4 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj4 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj4 = makeEqAssertion "hnj4" (C.nj4 njxs1 njys1) (nj4 njxs1 njys1)
 
-hnj5 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj5 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj5 = makeEqAssertion "hnj5" (C.nj5 njxs1 njys1) (nj5 njxs1 njys1)
 
-hnj6 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj6 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj6 = makeEqAssertion "hnj6" (C.nj6 njxs1 njys1) (nj6 njxs1 njys1)
 
-hnj7 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj7 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj7 = makeEqAssertion "hnj7" (C.nj7 njxs1 njys1) (nj7 njxs1 njys1)
 
-hnj8 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj8 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj8 = makeEqAssertion "hnj8" (C.nj8 njxs1 njys1) (nj8 njxs1 njys1)
 
-hnj9 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj9 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj9 = makeEqAssertion "hnj9" (C.nj9 njxs1 njys1) (nj9 njxs1 njys1)
 
-hnj10 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj10 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj10 = makeEqAssertion "hnj10" (C.nj10 njxs1 njys1) (nj10 njxs1 njys1)
 
-hnj11 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj11 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj11 = makeEqAssertion "hnj11" (C.nj11 njxs1 njys1) (nj11 njxs1 njys1)
 
 -- Test data for testcase hnj12
@@ -566,34 +567,34 @@ njxs2 = [1,2,3,4,5,5,2]
 njys2 = [2,1,0,5,4,4,4]
 njzs2 = [6,1,1,3,2,5]
 
-hnj12 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnj12 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnj12 = makeEqAssertion "hnj12" (C.nj12 njxs2 njys2 njzs2) (nj12 njxs2 njys2 njzs2)
 
-hnp1 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnp1 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnp1 = makeEqAssertion "hnp1" (C.np1 njxs1 njys1) (np1 njxs1 njys1)
 
-hnp2 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnp2 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnp2 = makeEqAssertion "hnp2" (C.np2 njxs1 njys1) (np2 njxs1 njys1)
 
-hnp3 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnp3 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnp3 = makeEqAssertion "hnp3" (C.np3 njxs1 njys1) (np3 njxs1 njys1)
 
-hnp4 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnp4 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnp4 = makeEqAssertion "hnp4" (C.np4 njxs1 njys1) (np4 njxs1 njys1)
 
-hnjg1 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnjg1 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnjg1 = makeEqAssertion "hnjg1" (C.njg1 njgxs1 njgzs1) (njg1 njgxs1 njgzs1)
 
-hnjg2 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnjg2 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnjg2 = makeEqAssertion "hnjg2" (C.njg2 njgxs1 njgys1) (njg2 njgxs1 njgys1)
 
-hnjg3 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnjg3 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnjg3 = makeEqAssertion "hnjg3" (C.njg3 njgxs1 njgys1 njgzs1) (njg3 njgxs1 njgys1 njgzs1)
 
-hnjg4 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnjg4 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnjg4 = makeEqAssertion "hnjg4" (C.njg4 njgxs1 njgys1 njgzs1) (njg4 njgxs1 njgys1 njgzs1)
 
-hnjg5 :: (BackendVector b, VectorLang v) => DSHAssertion v b
+hnjg5 :: (BackendVector b, VectorLang v) => DSHAssertion (v TExpr TExpr) b
 hnjg5 = makeEqAssertion "hnjg5" (C.njg5 njgxs1 njgys1) (njg5 njgxs1 njgys1)
 
 pair :: a -> b -> (a, b)
@@ -741,7 +742,7 @@ njg7 njgxs njgys njgzs =
 --------------------------------------------------------------------------------
 --
 
-prop_deep_iter :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer], [Integer], [Integer]) -> DSHProperty v b
+prop_deep_iter :: (BackendVector b, VectorLang v) => ([Integer], [Integer], [Integer], [Integer], [Integer]) -> DSHProperty (v TExpr TExpr) b
 prop_deep_iter = makePropEq C.deep_iter deep_iter_native
   where
     deep_iter_native (ws1, ws2, xs, ys, zs) =
@@ -760,7 +761,7 @@ prop_deep_iter = makePropEq C.deep_iter deep_iter_native
 -- from a nested list.
 prop_only_tuple :: (BackendVector b, VectorLang v)
                 => (Integer, NonEmptyList Integer, [Integer])
-                -> DSHProperty v b
+                -> DSHProperty (v TExpr TExpr) b
 prop_only_tuple (x, ys, zs) =
     makePropEq C.only_tuple only_tuple (x, getNonEmpty ys, zs)
 

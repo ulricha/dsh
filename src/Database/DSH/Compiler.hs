@@ -45,20 +45,21 @@ import           Database.DSH.CL.Opt
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Vector
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.Execute
 import           Database.DSH.FKL.Rewrite
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.NKL.Rewrite
+import           Database.DSH.SL
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.Vectorize
-import           Database.DSH.SL
 import           Database.DSH.VSL
 
 --------------------------------------------------------------------------------
 
 -- | The frontend- and backend-independent part of the compiler.
-compileQ :: VectorLang v => CLOptimizer -> CL.Expr -> QueryPlan v DVec
+compileQ :: VectorLang v => CLOptimizer -> CL.Expr -> QueryPlan (v TExpr TExpr) DVec
 compileQ clOpt = (fst . clOpt) >>>
                  desugarComprehensions  >>>
                  optimizeNKL            >>>
@@ -67,13 +68,13 @@ compileQ clOpt = (fst . clOpt) >>>
 
 -- | The frontend- and backend-independent part of the compiler. Compile a
 -- comprehension expression into optimized vector plans.
-compileOptQ :: VectorLang v => CLOptimizer -> CL.Expr -> QueryPlan v DVec
+compileOptQ :: VectorLang v => CLOptimizer -> CL.Expr -> QueryPlan (v TExpr TExpr) DVec
 compileOptQ clOpt = compileQ clOpt >>> optimizeVectorPlan
 
 --------------------------------------------------------------------------------
 
 runQ :: forall a b v. (VectorLang v, BackendVector b, QA a)
-     => BackendCodeGen v b
+     => BackendCodeGen (v TExpr TExpr) b
      -> BackendConn b
      -> Q a
      -> IO a
@@ -87,12 +88,12 @@ runQ codeGen conn (Q q) = do
 --------------------------------------------------------------------------------
 
 -- | Compile a query to a vector plan
-vectorPlanQ :: VectorLang v => CLOptimizer -> Q a -> QueryPlan v DVec
+vectorPlanQ :: VectorLang v => CLOptimizer -> Q a -> QueryPlan (v TExpr TExpr) DVec
 vectorPlanQ clOpt (Q q) = compileOptQ clOpt $ toComprehensions q
 
 -- | Compile a query to the actual backend code that will be executed
 -- (for benchmarking purposes).
-codeQ :: VectorLang v => CLOptimizer -> BackendCodeGen v b -> Q a -> [b]
+codeQ :: VectorLang v => CLOptimizer -> BackendCodeGen (v TExpr TExpr) b -> Q a -> [b]
 codeQ clOpt codeGen (Q q) =
     let vectorPlan = compileOptQ clOpt $ toComprehensions q
         backendCode = codeGen vectorPlan
@@ -233,7 +234,7 @@ showDelayedOptQ clOpt (Q q) = do
 -- | Show all backend queries produced for the given query
 showBackendCodeQ :: forall a b v. (VectorLang v, Show b)
                  => CLOptimizer
-                 -> BackendCodeGen v b
+                 -> BackendCodeGen (v TExpr TExpr) b
                  -> Q a
                  -> IO ()
 showBackendCodeQ clOpt codeGen q = do

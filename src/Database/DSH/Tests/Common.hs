@@ -29,6 +29,7 @@ import           Test.Tasty.QuickCheck
 import qualified Database.DSH            as Q
 import           Database.DSH.Backend
 import           Database.DSH.Compiler
+import           Database.DSH.Common.VectorLang
 
 instance Arbitrary T.Text where
   arbitrary = fmap T.pack arbitrary
@@ -63,7 +64,7 @@ makeProp :: (Q.QA a, Q.QA c, BackendVector b, VectorLang v)
          -> (Q.Q a -> Q.Q c)
          -> (a -> c)
          -> a
-         -> DSHProperty v b
+         -> DSHProperty (v TExpr TExpr) b
 makeProp eq f1 f2 arg codeGen conn = monadicIO $ do
     db <- run $ runQ codeGen conn $ f1 (Q.toQ arg)
     let hs = f2 arg
@@ -74,7 +75,7 @@ makePropEq :: (Eq c, Q.QA a, Q.QA c, BackendVector b, VectorLang v)
            => (Q.Q a -> Q.Q c)
            -> (a -> c)
            -> a
-           -> DSHProperty v b
+           -> DSHProperty (v TExpr TExpr) b
 makePropEq = makeProp (==)
 
 -- | Compare the double query result and native result.
@@ -82,14 +83,14 @@ makePropDouble :: (Q.QA a, BackendVector b, VectorLang v)
                => (Q.Q a -> Q.Q Double)
                -> (a -> Double)
                -> a
-               -> DSHProperty v b
+               -> DSHProperty (v TExpr TExpr) b
 makePropDouble = makeProp close
 
 makePropDoubles :: (Q.QA a, BackendVector b, VectorLang v)
                 => (Q.Q a -> Q.Q [Double])
                 -> (a -> [Double])
                 -> a
-                -> DSHProperty v b
+                -> DSHProperty (v TExpr TExpr) b
 makePropDoubles = makeProp deltaList
   where
     deltaList as bs = and $ zipWith close as bs
@@ -99,7 +100,7 @@ makeEqAssertion :: (Show a, Eq a, Q.QA a, BackendVector b, VectorLang v)
                 => String
                 -> Q.Q a
                 -> a
-                -> DSHAssertion v b
+                -> DSHAssertion (v TExpr TExpr) b
 makeEqAssertion msg q expRes codeGen conn = do
     actualRes <- runQ codeGen conn q
     assertEqual msg expRes actualRes
