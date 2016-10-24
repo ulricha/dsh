@@ -13,6 +13,7 @@ import           Data.Maybe
 import           Database.Algebra.Dag
 
 import           Database.DSH.VSL.Dot
+import           Database.DSH.VSL.Lang
 
 data Options = Options { optInput      :: IO String
                        , optReuse      :: Bool
@@ -57,9 +58,9 @@ main = do
     let Options { optInput = input
                 , optRootNodes = mRootNodes } = opts
 
-    plan <- input
+    plan <- pack <$> input
 
-    let dag = fromJust $ decode $ pack plan
+    let dag = fromJust $ decode plan :: AlgebraDag TVSL
 
     let rs' = fromMaybe (rootNodes dag) mRootNodes
     {-
