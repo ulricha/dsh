@@ -17,7 +17,7 @@ import Database.DSH.SL.Opt.Properties.Types
 import Database.DSH.SL.Opt.Properties.Segments
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
-inferWorker :: NodeMap (SL r e) -> SL r e -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
+inferWorker :: NodeMap (SLOp r e) -> SLOp r e -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
 inferWorker d op node pm =
     case op of
          TerOp vl c1 c2 c3 ->
@@ -34,7 +34,7 @@ inferWorker d op node pm =
            in checkError d node [cProps] pm $ inferUnOp vl cProps
          NullaryOp vl -> checkError d node [] pm $ inferNullOp vl
 
-checkError :: NodeMap (SL r e) -> AlgNode -> [BottomUpProps] -> NodeMap BottomUpProps -> Either String BottomUpProps -> BottomUpProps
+checkError :: NodeMap (SLOp r e) -> AlgNode -> [BottomUpProps] -> NodeMap BottomUpProps -> Either String BottomUpProps -> BottomUpProps
 checkError _ n childProps propMap (Left msg) =
     let childPropsMsg = concatMap ((++) "\n" . show) childProps
         completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s" n msg childPropsMsg (show propMap)
@@ -101,5 +101,5 @@ inferTerOp op c1Props c2Props c3Props = do
                  , segProp        = opSeg
                  }
 
-inferBottomUpProperties :: Ordish r e => [AlgNode] -> AlgebraDag (SL r e) -> NodeMap BottomUpProps
+inferBottomUpProperties :: Ordish r e => [AlgNode] -> AlgebraDag (SLOp r e) -> NodeMap BottomUpProps
 inferBottomUpProperties = inferBottomUpG inferWorker

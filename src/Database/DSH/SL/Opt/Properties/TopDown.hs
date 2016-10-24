@@ -26,7 +26,7 @@ vPropPairSeed = TDProps
 vPropTripleSeed :: TopDownProps
 vPropTripleSeed = TDProps
 
-seed :: SL r e -> TopDownProps
+seed :: SLOp r e -> TopDownProps
 seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
     case op of
@@ -113,7 +113,7 @@ inferTerOp ownProps cp1 cp2 cp3 op = do
 
 inferChildProperties :: (Ord r, Ord e, Show r, Show e)
                      => NodeMap BottomUpProps
-                     -> D.AlgebraDag (SL r e)
+                     -> D.AlgebraDag (SLOp r e)
                      -> AlgNode
                      -> State InferenceState ()
 inferChildProperties buPropMap d n = do
@@ -144,7 +144,7 @@ inferChildProperties buPropMap d n = do
           replaceProps c2 cp2'
           replaceProps c3 cp3'
 
-checkError :: AlgNode -> [TopDownProps] -> D.AlgebraDag (SL r e) -> Either String p -> p
+checkError :: AlgNode -> [TopDownProps] -> D.AlgebraDag (SLOp r e) -> Either String p -> p
 checkError n childProps d (Left msg) =
     let completeMsg   = printf "Inference failed at node %d\n%s\n%s"
                                 n msg (show childProps)
@@ -155,7 +155,7 @@ checkError _ _ _ (Right props) = props
 inferTopDownProperties :: (Ord r, Ord e, Show r, Show e)
                        => NodeMap BottomUpProps
                        -> [AlgNode]
-                       -> D.AlgebraDag (SL r e)
+                       -> D.AlgebraDag (SLOp r e)
                        -> NodeMap TopDownProps
 inferTopDownProperties buPropMap topOrderedNodes d = execState action initialMap
   where

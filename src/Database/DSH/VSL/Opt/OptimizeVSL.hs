@@ -12,11 +12,12 @@ import           Database.DSH.VSL.Lang
 import           Database.DSH.Common.Vector
 
 import           Database.DSH.Common.Opt
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.VSL.Opt.Rewrite.Expressions
 import           Database.DSH.VSL.Opt.Rewrite.PruneEmpty
 import           Database.DSH.VSL.Opt.Rewrite.Redundant
 
-type RewriteClass = Rewrite TVSL (Shape DVec) Bool
+type RewriteClass = Rewrite (VSLOp TExpr TExpr) (Shape DVec) Bool
 
 rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty)
@@ -34,8 +35,8 @@ runPipeline
   -> (Shape DVec)
   -> [RewriteClass]
   -> Bool -> (Dag.AlgebraDag TVSL, Log, Shape DVec)
-runPipeline d sh pipeline debug = (d', rewriteLog, sh')
-  where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
+runPipeline d sh pipeline debug = (Dag.dmap VSL d', rewriteLog, sh')
+  where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) (Dag.dmap unVSL d) sh debug
 
 assemblePipeline :: String -> Maybe [RewriteClass]
 assemblePipeline s = mapM (flip lookup rewriteClasses) s

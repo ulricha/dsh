@@ -7,6 +7,7 @@ import Database.Algebra.Dag.Common
 
 import Database.DSH.VSL.Lang
 import Database.DSH.Common.Opt
+import Database.DSH.Common.VectorLang
 
 import Database.DSH.VSL.Opt.Properties.Card
 import Database.DSH.VSL.Opt.Properties.Empty
@@ -16,7 +17,7 @@ import Database.DSH.VSL.Opt.Properties.Types
 import Database.DSH.VSL.Opt.Properties.Segments
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
-inferWorker :: (Show r, Show e) => NodeMap (VSL r e) -> VSL r e -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
+inferWorker :: (Show r, Show e) => NodeMap (VSLOp r e) -> VSLOp r e -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
 inferWorker d op node pm =
     case op of
          TerOp vl c1 c2 c3 ->
@@ -33,7 +34,7 @@ inferWorker d op node pm =
            in checkError d node [cProps] pm $ inferUnOp vl cProps
          NullaryOp vl -> checkError d node [] pm $ inferNullOp vl
 
-checkError :: (Show r, Show e) => NodeMap (VSL r e) -> AlgNode -> [BottomUpProps] -> NodeMap BottomUpProps -> Either String BottomUpProps -> BottomUpProps
+checkError :: (Show r, Show e) => NodeMap (VSLOp r e) -> AlgNode -> [BottomUpProps] -> NodeMap BottomUpProps -> Either String BottomUpProps -> BottomUpProps
 checkError d n childProps propMap (Left msg) =
     let childPropsMsg = concatMap ((++) "\n" . show) childProps
         completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s\n%s" n msg childPropsMsg (show propMap) (show d)
@@ -102,5 +103,5 @@ inferTerOp op c1Props c2Props c3Props = do
 
 -- | Infer bottom-up properties from a DAG using a given topological ordering of
 -- nodes.
-inferBottomUpProperties :: (Ord r, Ord e, Show r, Show e) => [AlgNode] -> AlgebraDag (VSL r e) -> NodeMap BottomUpProps
+inferBottomUpProperties :: Ordish r e => [AlgNode] -> AlgebraDag (VSLOp r e) -> NodeMap BottomUpProps
 inferBottomUpProperties = inferBottomUpG inferWorker

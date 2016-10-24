@@ -115,7 +115,7 @@ translate vlNodes n = do
         -- The SL node has not been translated yet.
         Nothing  -> do
             let vlOp = getSL n vlNodes
-            r' <- case vlOp of
+            r' <- case SL.unSL vlOp of
                 TerOp t c1 c2 c3 -> do
                     c1' <- translate vlNodes c1
                     c2' <- translate vlNodes c2

@@ -93,7 +93,7 @@ renderSegLookup Direct = "M"
 renderSegLookup Unit   = "U"
 
 -- | Create the node label from an operator description
-opDotLabel :: (Pretty e, Pretty r) => NodeMap [Tag] -> AlgNode -> VSL r e -> Doc
+opDotLabel :: (Pretty e, Pretty r) => NodeMap [Tag] -> AlgNode -> VSLOp r e -> Doc
 opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "winaggr"
     (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
     (lookupTags i tm)
@@ -145,7 +145,7 @@ opDotLabel tm i (BinOp (GroupJoin (l1, l2, p, as)) _ _) =
   labelToDoc i ("groupjoin" ++ renderSegLookup l1 ++ renderSegLookup l2) (renderJoinPred p <+> bracketList renderAggrFun (N.toList $ L.getNE as)) (lookupTags i tm)
 opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "combine" empty (lookupTags i tm)
 
-opDotColor :: VSL r e -> DotColor
+opDotColor :: VSLOp r e -> DotColor
 opDotColor (BinOp CartProduct _ _)     = DCRed
 opDotColor (BinOp Materialize _ _)     = DCSalmon
 opDotColor (BinOp (ThetaJoin _) _ _)   = DCGreen
@@ -280,8 +280,8 @@ constructDotNode rootNodes ts (n, op) =
     else
         DotNode n l c Nothing
   where
-    l = escapeLabel $ pp $ opDotLabel ts n op
-    c = opDotColor op
+    l = escapeLabel $ pp $ opDotLabel ts n $ unVSL op
+    c = opDotColor $ unVSL op
 
 -- | Create an abstract Dot edge
 constructDotEdge :: (AlgNode, AlgNode) -> DotEdge
@@ -289,7 +289,7 @@ constructDotEdge = uncurry DotEdge
 
 -- | extract the operator descriptions and list of edges from a DAG
 -- FIXME no apparent reason to use topological ordering here
-extractGraphStructure :: (Ord r, Ord e, Show r, Show e)
+extractGraphStructure :: Ordish r e
                       => Dag.AlgebraDag (VSL r e)
                       -> ([(AlgNode, VSL r e)], [(AlgNode, AlgNode)])
 extractGraphStructure d = (operators, childs)

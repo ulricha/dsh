@@ -75,6 +75,19 @@ data TerOp = Combine  -- (DBV, RenameVector, RenameVector)
 
 $(deriveJSON defaultOptions ''TerOp)
 
-type SL r e = Algebra TerOp (BinOp e) (UnOp r e) NullOp AlgNode
+--------------------------------------------------------------------------------
+
+type SLOp r e = Algebra TerOp (BinOp e) (UnOp r e) NullOp AlgNode
+
+newtype SL r e = SL
+    { unSL :: SLOp r e
+    } deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''SL)
+
+instance Ordish r e => Operator (SL r e) where
+    opChildren = opChildren . unSL
+    replaceOpChild (SL a) n1 n2 = SL (replaceOpChild a n1 n2)
+
 type TSL = SL TExpr TExpr
 type RSL = SL VRow RExpr

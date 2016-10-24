@@ -12,11 +12,12 @@ import           Database.DSH.SL.Lang
 import           Database.DSH.Common.Vector
 
 import           Database.DSH.Common.Opt
+import           Database.DSH.Common.VectorLang
 import           Database.DSH.SL.Opt.Rewrite.Expressions
 import           Database.DSH.SL.Opt.Rewrite.PruneEmpty
 import           Database.DSH.SL.Opt.Rewrite.Redundant
 
-type RewriteClass = Rewrite TSL (Shape DVec) Bool
+type RewriteClass = Rewrite (SLOp TExpr TExpr) (Shape DVec) Bool
 
 rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty)
@@ -29,13 +30,13 @@ defaultPipeline = case assemblePipeline "ER" of
   Just p -> p
   Nothing -> error "invalid default pipeline"
 
-runPipeline
-  :: Dag.AlgebraDag TSL
-  -> (Shape DVec)
-  -> [RewriteClass]
-  -> Bool -> (Dag.AlgebraDag TSL, Log, Shape DVec)
-runPipeline d sh pipeline debug = (d', rewriteLog, sh')
-  where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
+runPipeline :: Dag.AlgebraDag TSL
+            -> (Shape DVec)
+            -> [RewriteClass]
+            -> Bool
+            -> (Dag.AlgebraDag TSL, Log, Shape DVec)
+runPipeline d sh pipeline debug = (Dag.dmap SL d', rewriteLog, sh')
+  where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) (Dag.dmap unSL d) sh debug
 
 assemblePipeline :: String -> Maybe [RewriteClass]
 assemblePipeline s = mapM (flip lookup rewriteClasses) s

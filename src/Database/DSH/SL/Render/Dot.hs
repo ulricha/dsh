@@ -98,7 +98,7 @@ renderLabelArg :: AlgNode -> String -> Doc -> Render Doc
 renderLabelArg nodeId opName arg = labelDoc nodeId opName (braces arg)
 
 -- | Create the node label from an operator description
-opDotLabel :: (Pretty r, Pretty e) => AlgNode -> SL r e -> Render Doc
+opDotLabel :: (Pretty r, Pretty e) => AlgNode -> SLOp r e -> Render Doc
 opDotLabel i (UnOp (WinFun (wfun, wspec)) _) = renderLabelArg i "winaggr" (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
 opDotLabel i (NullaryOp (Lit (ty, segs))) = renderLabelArg i "lit" (pretty ty <> comma <$> renderSegments segs)
 opDotLabel i (NullaryOp (TableRef (n, schema))) = renderLabelArg i "table" arg
@@ -148,7 +148,7 @@ opDotLabel i (BinOp (GroupJoin (p, as)) _ _) =
     arg = renderJoinPred p <+> bracketList renderAggrFun (N.toList $ L.getNE as)
 opDotLabel i (TerOp Combine _ _ _) = renderLabel i "combine"
 
-opDotColor :: SL r e -> DotColor
+opDotColor :: SLOp r e -> DotColor
 opDotColor (BinOp CartProduct _ _)    = DCRed
 opDotColor (BinOp ReplicateVector _ _) = DCRed
 opDotColor (BinOp (ThetaJoin _) _ _)  = DCGreen
@@ -274,8 +274,8 @@ constructDotNode rootNodes ts (n, op) =
     else
         DotNode n l c Nothing
   where
-    l = escapeLabel $ pp $ runReader (opDotLabel n op) ts
-    c = opDotColor op
+    l = escapeLabel $ pp $ runReader (opDotLabel n (unSL op)) ts
+    c = opDotColor $ unSL op
 
 -- | Create an abstract Dot edge
 constructDotEdge :: (AlgNode, AlgNode) -> DotEdge

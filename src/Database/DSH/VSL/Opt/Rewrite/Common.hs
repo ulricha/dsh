@@ -22,10 +22,10 @@ import           Database.DSH.VSL.Opt.Properties.TopDown
 import           Database.DSH.VSL.Opt.Properties.Types
 
   -- Type abbreviations for convenience
-type VSLRewrite r e p = R.Rewrite (VSL r e) (Shape DVec) p
-type VSLRule r e p = R.Rule (VSL r e) p (Shape DVec)
-type VSLRuleSet r e p = R.RuleSet (VSL r e) p (Shape DVec)
-type VSLMatch r e p = R.Match (VSL r e) p (Shape DVec)
+type VSLRewrite r e p = R.Rewrite (VSLOp r e) (Shape DVec) p
+type VSLRule r e p    = R.Rule (VSLOp r e) p (Shape DVec)
+type VSLRuleSet r e p = R.RuleSet (VSLOp r e) p (Shape DVec)
+type VSLMatch r e p   = R.Match (VSLOp r e) p (Shape DVec)
 
 inferBottomUp :: Ordish r e => VSLRewrite r e (NodeMap BottomUpProps)
 inferBottomUp = do

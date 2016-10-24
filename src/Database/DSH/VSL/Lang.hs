@@ -102,6 +102,17 @@ $(deriveJSON defaultOptions ''TerOp)
 --------------------------------------------------------------------------------
 -- DAG-based representation of VSL programs
 
-type VSL r e = Algebra TerOp (BinOp e) (UnOp r e) NullOp AlgNode
+type VSLOp r e = Algebra TerOp (BinOp e) (UnOp r e) NullOp AlgNode
+
+newtype VSL r e = VSL
+    { unVSL :: VSLOp r e
+    } deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''VSL)
+
+instance Ordish r e => Operator (VSL r e) where
+    opChildren = opChildren . unVSL
+    replaceOpChild (VSL a) n1 n2 = VSL (replaceOpChild a n1 n2)
+
 type TVSL = VSL TExpr TExpr
 type RVSL = VSL VRow RExpr

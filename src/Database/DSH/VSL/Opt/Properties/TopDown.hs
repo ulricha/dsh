@@ -1,5 +1,6 @@
 -- FIXME remove once top-down properties are re-enabled
 {-# OPTIONS_GHC -w #-}
+
 module Database.DSH.VSL.Opt.Properties.TopDown
     ( inferTopDownProperties
     ) where
@@ -26,7 +27,7 @@ vPropPairSeed = TDProps
 vPropTripleSeed :: TopDownProps
 vPropTripleSeed = TDProps
 
-seed :: VSL r e -> TopDownProps
+seed :: VSLOp r e -> TopDownProps
 seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
     case op of
@@ -113,7 +114,7 @@ inferTerOp ownProps cp1 cp2 cp3 op = do
 
 inferChildProperties :: Ordish r e
                      => NodeMap BottomUpProps
-                     -> D.AlgebraDag (VSL r e)
+                     -> D.AlgebraDag (VSLOp r e)
                      -> AlgNode
                      -> State InferenceState ()
 inferChildProperties buPropMap d n = do
@@ -144,7 +145,7 @@ inferChildProperties buPropMap d n = do
           replaceProps c2 cp2'
           replaceProps c3 cp3'
 
-checkError :: (Show r, Show e) => AlgNode -> [TopDownProps] -> D.AlgebraDag (VSL r e) -> Either String p -> p
+checkError :: (Show r, Show e) => AlgNode -> [TopDownProps] -> D.AlgebraDag (VSLOp r e) -> Either String p -> p
 checkError n childProps d (Left msg) =
     let completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s"
                                 n msg (show childProps) (show $ D.nodeMap d)
@@ -155,7 +156,7 @@ checkError _ _ _ (Right props) = props
 inferTopDownProperties :: Ordish r e
                        => NodeMap BottomUpProps
                        -> [AlgNode]
-                       -> D.AlgebraDag (VSL r e)
+                       -> D.AlgebraDag (VSLOp r e)
                        -> NodeMap TopDownProps
 inferTopDownProperties buPropMap topOrderedNodes d = execState action initialMap
   where
