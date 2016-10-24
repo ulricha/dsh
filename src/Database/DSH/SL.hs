@@ -9,7 +9,7 @@ module Database.DSH.SL
     ) where
 
 import           Database.DSH.Common.VectorLang
-import           Database.DSH.SL.Lang              (RSL)
+import           Database.DSH.SL.Lang              (TSL)
 import           Database.DSH.SL.Opt.OptimizeSL
 import           Database.DSH.SL.SegmentAlgebra
 import qualified Database.DSH.SL.Vectorize         as Vectorize
@@ -17,6 +17,6 @@ import           Database.DSH.Translate.SL2Algebra (VecBuild, runVecBuild,
                                                     vl2Algebra)
 import           Database.DSH.Translate.Vectorize
 
-instance VectorLang RSL where
+instance VectorLang TSL where
     vectorize = Vectorize.vectorize
     optimizeVectorPlan = optimizeSLDefault

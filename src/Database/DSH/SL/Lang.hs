@@ -76,5 +76,5 @@ data TerOp = Combine  -- (DBV, RenameVector, RenameVector)
 $(deriveJSON defaultOptions ''TerOp)
 
 type SL r e = Algebra TerOp (BinOp e) (UnOp r e) NullOp AlgNode
-type RSL = SL VectorExpr VectorExpr
-type FSL = SL FlatTuple FlatExpr
+type TSL = SL TExpr TExpr
+type RSL = SL VRow RExpr

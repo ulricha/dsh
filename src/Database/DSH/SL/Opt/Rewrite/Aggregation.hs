@@ -15,7 +15,7 @@ import           Database.DSH.SL.Lang
 import           Database.DSH.SL.Opt.Properties.Types
 import           Database.DSH.SL.Opt.Rewrite.Common
 
-aggregationRules :: SLRuleSet VectorExpr VectorExpr ()
+aggregationRules :: SLRuleSet TExpr TExpr ()
 aggregationRules = [ inlineFoldProject
                    , flatGrouping
                    -- , mergeGroupAggrFold
@@ -25,13 +25,13 @@ aggregationRules = [ inlineFoldProject
                    , mergeGroupWithGroupAggrRight
                    ]
 
-aggregationRulesBottomUp :: SLRuleSet VectorExpr VectorExpr BottomUpProps
+aggregationRulesBottomUp :: SLRuleSet TExpr TExpr BottomUpProps
 aggregationRulesBottomUp = [ {- nonEmptyAggr
                            , nonEmptyAggrSeg -}
                              countDistinct
                            ]
 
-groupingToAggregation :: SLRewrite VectorExpr VectorExpr Bool
+groupingToAggregation :: SLRewrite TExpr TExpr Bool
 groupingToAggregation =
     iteratively
     $ sequenceRewrites [ applyToAll inferBottomUp aggregationRulesBottomUp
@@ -40,7 +40,7 @@ groupingToAggregation =
 
 -- -- FIXME this rewrite will no longer work: take the UnboxSngS
 -- -- operator into account.
--- mergeNonEmptyAggrs :: SLRule VectorExpr VectorExpr ()
+-- mergeNonEmptyAggrs :: SLRule TExpr TExpr ()
 -- mergeNonEmptyAggrs q =
 --   $(dagPatMatch 'q "(AggrNonEmptyS afuns1 (qi1)) Zip (AggrNonEmptyS afuns2 (qi2))"
 --     [| do
@@ -55,7 +55,7 @@ groupingToAggregation =
 -- -- | If we can infer that the vector is not empty, we can employ a
 -- -- simplified version of the aggregate operator that does not add a
 -- -- default value for an empty input.
--- nonEmptyAggr :: SLRule VectorExpr VectorExpr BottomUpProps
+-- nonEmptyAggr :: SLRule TExpr TExpr BottomUpProps
 -- nonEmptyAggr q =
 --   $(dagPatMatch 'q "Aggr aggrFun (q1)"
 --     [| do
@@ -69,7 +69,7 @@ groupingToAggregation =
 -- -- | If we can infer that all segments (if there are any) are not
 -- -- empty, we can employ a simplified version of the aggregate operator
 -- -- that does not add default values for empty segments.
--- nonEmptyAggrSeg :: SLRule VectorExpr VectorExpr BottomUpProps
+-- nonEmptyAggrSeg :: SLRule TExpr TExpr BottomUpProps
 -- nonEmptyAggrSeg q =
 --   $(dagPatMatch 'q "(_) AggrSeg aggrFun (q2)"
 --     [| do
@@ -81,7 +81,7 @@ groupingToAggregation =
 --             void $ replaceWithNew q aggrOp |])
 
 -- | Merge a projection into a segmented aggregate operator.
-inlineFoldProject :: SLRule VectorExpr VectorExpr ()
+inlineFoldProject :: SLRule TExpr TExpr ()
 inlineFoldProject q =
   $(dagPatMatch 'q "(qo) Fold afun (Project e (qi))"
     [| do
@@ -93,7 +93,7 @@ inlineFoldProject q =
 
 -- | We rewrite a combination of GroupS and aggregation operators into a single
 -- GroupAggr operator.
-flatGrouping :: SLRule VectorExpr VectorExpr ()
+flatGrouping :: SLRule TExpr TExpr ()
 flatGrouping q =
   $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng ((_) Fold afun (R2 (qg1=Group groupExpr (q1)))))"
     [| do
@@ -122,7 +122,7 @@ flatGrouping q =
 
 -- FIXME re-enable once type for groupaggr with multiple aggregates has been determined.
 
--- mergeGroupAggrFold :: SLRule VectorExpr VectorExpr ()
+-- mergeGroupAggrFold :: SLRule TExpr TExpr ()
 -- mergeGroupAggrFold q =
 --   $(dagPatMatch 'q "R1 (qu=(qg=GroupAggr args (q1)) UnboxSng ((_) Fold afun (R2 (qg1=Group groupExprs (q2)))))"
 --     [| do
@@ -146,7 +146,7 @@ flatGrouping q =
 --           forM_ gaParents $ \p -> replaceChild p $(v "qg") projNode
 --     |])
 
--- mergeGroupAggr :: SLRule VectorExpr VectorExpr ()
+-- mergeGroupAggr :: SLRule TExpr TExpr ()
 -- mergeGroupAggr q =
 --   $(dagPatMatch 'q "(GroupAggr args1 (q1)) Align (GroupAggr args2 (q2))"
 --     [| do
@@ -184,7 +184,7 @@ flatGrouping q =
 -- the GroupAggr output is combined with the R1 output of Group on the
 -- same input and grouping expressions via Align, the effect is that
 -- only the grouping expressions are duplicated.
-mergeGroupWithGroupAggrLeft :: SLRule VectorExpr VectorExpr ()
+mergeGroupWithGroupAggrLeft :: SLRule TExpr TExpr ()
 mergeGroupWithGroupAggrLeft q =
   $(dagPatMatch 'q "(R1 (Group ges (q1))) Align (GroupAggr args (q2))"
     [| do
@@ -210,7 +210,7 @@ mergeGroupWithGroupAggrLeft q =
 
 -- | The mirrored dual of rewrite
 -- 'Aggregation.Normalize.MergeGroup.Left'.
-mergeGroupWithGroupAggrRight :: SLRule VectorExpr VectorExpr ()
+mergeGroupWithGroupAggrRight :: SLRule TExpr TExpr ()
 mergeGroupWithGroupAggrRight q =
   $(dagPatMatch 'q "(GroupAggr args (q1)) Align (R1 (Group ges (q2)))"
     [| do
@@ -234,7 +234,7 @@ mergeGroupWithGroupAggrRight q =
             groupNode <- insert $ UnOp (GroupAggr (ges', afuns)) $(v "q1")
             void $ replaceWithNew q $ UnOp (Project e) groupNode |])
 
-countDistinct :: SLRule VectorExpr VectorExpr BottomUpProps
+countDistinct :: SLRule TExpr TExpr BottomUpProps
 countDistinct q =
   $(dagPatMatch 'q "(q1) Fold a (Unique (q2))"
     [| do

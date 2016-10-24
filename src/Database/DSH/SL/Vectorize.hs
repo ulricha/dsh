@@ -26,7 +26,7 @@ import qualified Database.DSH.SL.Lang           as SL
 
 type Env = [(String, Shape DVec)]
 
-type EnvBuild = ReaderT Env (Build SL.RSL)
+type EnvBuild = ReaderT Env (Build SL.TSL)
 
 lookupEnv :: String -> EnvBuild (Shape DVec)
 lookupEnv n = ask >>= \env -> case lookup n env of
@@ -83,11 +83,11 @@ fkl2SL expr =
         If{} -> $impossible
         MkTuple _ NotLifted _ -> $impossible
 
-papp3 :: Prim3 -> Lifted -> Shape DVec -> Shape DVec -> Shape DVec -> Build SL.RSL (Shape DVec)
+papp3 :: Prim3 -> Lifted -> Shape DVec -> Shape DVec -> Shape DVec -> Build SL.TSL (Shape DVec)
 papp3 Combine Lifted    = Builtins.combineL
 papp3 Combine NotLifted = Builtins.combine
 
-aggL :: Type -> AggrFun -> Shape DVec -> Build SL.RSL (Shape DVec)
+aggL :: Type -> AggrFun -> Shape DVec -> Build SL.TSL (Shape DVec)
 aggL t Sum     = Builtins.aggrL (VL.AggrSum $ VL.typeToScalarType $ elemT t)
 aggL _ Avg     = Builtins.aggrL VL.AggrAvg
 aggL _ Maximum = Builtins.aggrL VL.AggrMax
@@ -96,7 +96,7 @@ aggL _ Or      = Builtins.aggrL VL.AggrAny
 aggL _ And     = Builtins.aggrL VL.AggrAll
 aggL _ Length  = Builtins.lengthL
 
-translateAggrFun :: AggrApp -> VL.AggrFun VL.VectorExpr
+translateAggrFun :: AggrApp -> VL.AggrFun VL.TExpr
 translateAggrFun a = case aaFun a of
     Sum     -> let t = VL.typeToScalarType $ typeOf $ aaArg a
                in VL.AggrSum t e
@@ -109,7 +109,7 @@ translateAggrFun a = case aaFun a of
   where
     e = VL.scalarExpr $ aaArg a
 
-papp1 :: Type -> Prim1 -> Lifted -> Shape DVec -> Build SL.RSL (Shape DVec)
+papp1 :: Type -> Prim1 -> Lifted -> Shape DVec -> Build SL.TSL (Shape DVec)
 papp1 t f Lifted =
     case f of
         Singleton       -> Builtins.singletonL
@@ -131,7 +131,7 @@ papp1 _ f NotLifted =
         Restrict         -> Builtins.restrict
         _                -> $impossible
 
-papp2 :: Prim2 -> Lifted -> Shape DVec -> Shape DVec -> Build SL.RSL (Shape DVec)
+papp2 :: Prim2 -> Lifted -> Shape DVec -> Shape DVec -> Build SL.TSL (Shape DVec)
 papp2 f Lifted =
     case f of
         Dist                -> Builtins.distL
@@ -150,7 +150,7 @@ papp2 f NotLifted =
         _                   -> $impossible
 
 -- | Compile a FKL expression into a query plan of vector operators (SL)
-vectorize :: FExpr -> QueryPlan SL.RSL DVec
+vectorize :: FExpr -> QueryPlan SL.TSL DVec
 vectorize e = mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild (runReaderT (fkl2SL e) [])

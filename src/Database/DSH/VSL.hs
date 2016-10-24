@@ -10,12 +10,12 @@ module Database.DSH.VSL
 
 import           Database.DSH.Common.VectorLang
 import           Database.DSH.Translate.Vectorize
-import           Database.DSH.VSL.Lang                  (RVSL, SegmentLookup(..))
+import           Database.DSH.VSL.Lang                  (TVSL, SegmentLookup(..))
 import           Database.DSH.VSL.Opt.OptimizeVSL
 import           Database.DSH.VSL.Vectorize
 import           Database.DSH.VSL.VirtualSegmentAlgebra
 import           Database.DSH.Translate.VSL2Algebra
 
-instance VectorLang RVSL where
+instance VectorLang TVSL where
     vectorize = vectorizeDelayed
     optimizeVectorPlan = optimizeVSLDefault

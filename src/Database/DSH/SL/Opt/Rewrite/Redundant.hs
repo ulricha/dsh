@@ -21,7 +21,7 @@ import           Database.DSH.SL.Opt.Rewrite.Expressions
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
 
-removeRedundancy :: SLRewrite VectorExpr VectorExpr Bool
+removeRedundancy :: SLRewrite TExpr TExpr Bool
 removeRedundancy =
     iteratively $ sequenceRewrites [ cleanup
                                    , applyToAll noProps redundantRules
@@ -30,10 +30,10 @@ removeRedundancy =
                                    , groupingToAggregation
                                    ]
 
-cleanup :: SLRewrite VectorExpr VectorExpr Bool
+cleanup :: SLRewrite TExpr TExpr Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
-redundantRules :: SLRuleSet VectorExpr VectorExpr ()
+redundantRules :: SLRuleSet TExpr TExpr ()
 redundantRules = [ pullProjectAppKey
                  , pullProjectAppRep
                  , pullProjectAppFilter
@@ -104,13 +104,13 @@ redundantRules = [ pullProjectAppKey
                  ]
 
 
-redundantRulesBottomUp :: SLRuleSet VectorExpr VectorExpr BottomUpProps
+redundantRulesBottomUp :: SLRuleSet TExpr TExpr BottomUpProps
 redundantRulesBottomUp = [ distLiftNestJoin
                          , nestJoinChain
                          , alignCartProdRight
                          ]
 
-redundantRulesAllProps :: SLRuleSet VectorExpr VectorExpr Properties
+redundantRulesAllProps :: SLRuleSet TExpr TExpr Properties
 redundantRulesAllProps = [ -- unreferencedReplicateNest
                          -- , notReqNumber
                          -- , unboxNumber
@@ -126,7 +126,7 @@ redundantRulesAllProps = [ -- unreferencedReplicateNest
 -- | If the left input of a dist operator is constant, a normal projection
 -- can be used because the Dist* operators keeps the shape of the
 -- right input.
--- constDist :: SLRule VectorExpr VectorExpr BottomUpProps
+-- constDist :: SLRule TExpr TExpr BottomUpProps
 -- constDist q =
 --   $(dagPatMatch 'q "R1 ((q1) [ReplicateNest | ReplicateScalar] (q2))"
 --     [| do
@@ -143,7 +143,7 @@ redundantRulesAllProps = [ -- unreferencedReplicateNest
 -- way, check if the vector's columns are actually referenced/required
 -- downstream. If not, we can remove the ReplicateNest altogether, as the
 -- shape of the inner vector is not changed by ReplicateNest.
--- unreferencedReplicateNest :: SLRule VectorExpr VectorExpr Properties
+-- unreferencedReplicateNest :: SLRule TExpr TExpr Properties
 -- unreferencedReplicateNest q =
 --   $(dagPatMatch 'q  "R1 ((q1) ReplicateNest (q2))"
 --     [| do
@@ -167,7 +167,7 @@ redundantRulesAllProps = [ -- unreferencedReplicateNest
 -- | Remove a ReplicateNest if the outer vector is aligned with a
 -- NestJoin that uses the same outer vector.
 -- FIXME try to generalize to NestJoinS
-distLiftNestJoin :: SLRule VectorExpr VectorExpr BottomUpProps
+distLiftNestJoin :: SLRule TExpr TExpr BottomUpProps
 distLiftNestJoin q =
   $(dagPatMatch 'q "R1 ((qo) ReplicateNest (R1 ((qo1) NestJoin p (qi))))"
     [| do
@@ -188,7 +188,7 @@ distLiftNestJoin q =
             r1Node   <- insert $ UnOp R1 prodNode
             void $ replaceWithNew q $ UnOp (Project e) r1Node |])
 
-distLiftProjectLeft :: SLRule VectorExpr VectorExpr ()
+distLiftProjectLeft :: SLRule TExpr TExpr ()
 distLiftProjectLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) ReplicateNest (q2))"
     [| do
@@ -201,7 +201,7 @@ distLiftProjectLeft q =
           r1Node   <- insert $ UnOp R1 distNode
           void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-distLiftProjectRight :: SLRule VectorExpr VectorExpr ()
+distLiftProjectRight :: SLRule TExpr TExpr ()
 distLiftProjectRight q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateNest (Project e (q2)))"
     [| do
@@ -215,7 +215,7 @@ distLiftProjectRight q =
 -- If the same outer vector is propagated twice to an inner vector, one
 -- ReplicateNest can be removed. Reasoning: ReplicateNest does not change the
 -- shape of the inner vector.
-distLiftStacked :: SLRule VectorExpr VectorExpr ()
+distLiftStacked :: SLRule TExpr TExpr ()
 distLiftStacked q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateNest (r1=R1 ((q11) ReplicateNest (_))))"
      [| do
@@ -240,7 +240,7 @@ distLiftStacked q =
 -- to push selections down, though.
 --
 -- FIXME this rewrite is on rather shaky ground semantically.
--- distLiftSelect :: SLRule VectorExpr VectorExpr BottomUpProps
+-- distLiftSelect :: SLRule TExpr TExpr BottomUpProps
 -- distLiftSelect q =
 --   $(dagPatMatch 'q "R1 ((q1) ReplicateNest (R1 (Select p (q2))))"
 --      [| do
@@ -257,7 +257,7 @@ distLiftStacked q =
 -- input, we can eliminate the Align. Reasoning: ReplicateNest does not
 -- change the shape of the vector, only adds columns from its right
 -- input.
-alignedDistRight :: SLRule VectorExpr VectorExpr ()
+alignedDistRight :: SLRule TExpr TExpr ()
 alignedDistRight q =
   $(dagPatMatch 'q "(q21) Align (qr1=R1 ((_) [ReplicateNest | ReplicateScalar] (q22)))"
     [| do
@@ -274,7 +274,7 @@ alignedDistRight q =
 -- input, we can eliminate the Align. Reasoning: ReplicateNest does not
 -- change the shape of the vector, only adds columns from its right
 -- input.
-alignedDistLeft :: SLRule VectorExpr VectorExpr ()
+alignedDistLeft :: SLRule TExpr TExpr ()
 alignedDistLeft q =
   $(dagPatMatch 'q "(qr1=R1 ((_) [ReplicateNest | ReplicateScalar] (q21))) Align (q22)"
     [| do
@@ -297,7 +297,7 @@ alignedDistLeft q =
 
 -- | Replace an Align operator with a projection if both inputs are the
 -- same.
-sameInputAlign :: SLRule VectorExpr VectorExpr ()
+sameInputAlign :: SLRule TExpr TExpr ()
 sameInputAlign q =
   $(dagPatMatch 'q "(q1) Align (q2)"
     [| do
@@ -310,7 +310,7 @@ sameInputAlign q =
 
 -- | Replace an Align operator with a projection if both inputs are the
 -- same.
-sameInputZip :: SLRule VectorExpr VectorExpr ()
+sameInputZip :: SLRule TExpr TExpr ()
 sameInputZip q =
   $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
     [| do
@@ -321,7 +321,7 @@ sameInputZip q =
           let e = VMkTuple [VInput, VInput]
           void $ replaceWithNew q $ UnOp (Project e) $(v "q1") |])
 
--- sameInputZipProject :: SLRule VectorExpr VectorExpr BottomUpProps
+-- sameInputZipProject :: SLRule TExpr TExpr BottomUpProps
 -- sameInputZipProject q =
 --   $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align] (Project ps2 (q2))"
 --     [| do
@@ -331,7 +331,7 @@ sameInputZip q =
 --           logRewrite "Redundant.Zip/Align.Self.Project" q
 --           void $ replaceWithNew q $ UnOp (Project ($(v "ps1") ++ $(v "ps2"))) $(v "q1") |])
 
--- sameInputZipProjectLeft :: SLRule VectorExpr VectorExpr BottomUpProps
+-- sameInputZipProjectLeft :: SLRule TExpr TExpr BottomUpProps
 -- sameInputZipProjectLeft q =
 --   $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align] (q2)"
 --     [| do
@@ -343,7 +343,7 @@ sameInputZip q =
 --           let proj = $(v "ps1") ++ (map Column [1..w1])
 --           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
--- sameInputZipProjectRight :: SLRule VectorExpr VectorExpr BottomUpProps
+-- sameInputZipProjectRight :: SLRule TExpr TExpr BottomUpProps
 -- sameInputZipProjectRight q =
 --   $(dagPatMatch 'q "(q1) [Zip | Align] (Project ps2 (q2))"
 --     [| do
@@ -355,7 +355,7 @@ sameInputZip q =
 --           let proj = (map Column [1 .. w]) ++ $(v "ps2")
 --           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
-alignProjectLeft :: SLRule VectorExpr VectorExpr ()
+alignProjectLeft :: SLRule TExpr TExpr ()
 alignProjectLeft q =
   $(dagPatMatch 'q "(Project e (q1)) Align (q2)"
     [| do
@@ -367,7 +367,7 @@ alignProjectLeft q =
           alignNode <- insert $ BinOp Align $(v "q1") $(v "q2")
           void $ replaceWithNew q $ UnOp (Project e') alignNode |])
 
-zipProjectLeft :: SLRule VectorExpr VectorExpr ()
+zipProjectLeft :: SLRule TExpr TExpr ()
 zipProjectLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) Zip (q2))"
     [| do
@@ -380,7 +380,7 @@ zipProjectLeft q =
           r1Node  <- insert $ UnOp R1 zipNode
           void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-alignProjectRight :: SLRule VectorExpr VectorExpr ()
+alignProjectRight :: SLRule TExpr TExpr ()
 alignProjectRight q =
   $(dagPatMatch 'q "(q1) Align (Project e (q2))"
     [| do
@@ -393,7 +393,7 @@ alignProjectRight q =
           zipNode <- insert $ BinOp Align $(v "q1") $(v "q2")
           void $ replaceWithNew q $ UnOp (Project e') zipNode |])
 
-zipProjectRight :: SLRule VectorExpr VectorExpr ()
+zipProjectRight :: SLRule TExpr TExpr ()
 zipProjectRight q =
   $(dagPatMatch 'q "R1 ((q1) Zip (Project e (q2)))"
     [| do
@@ -413,7 +413,7 @@ zipProjectRight q =
 
 -- -- | This rewrite is valid because we statically know that both
 -- -- vectors have the same length.
--- alignConstLeft :: SLRule VectorExpr VectorExpr BottomUpProps
+-- alignConstLeft :: SLRule TExpr TExpr BottomUpProps
 -- alignConstLeft q =
 --   $(dagPatMatch 'q "(q1) Align (q2)"
 --     [| do
@@ -426,7 +426,7 @@ zipProjectRight q =
 --             let proj = map Constant vals ++ map Column [1..w2]
 --             void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
 
--- alignConstRight :: SLRule VectorExpr VectorExpr BottomUpProps
+-- alignConstRight :: SLRule TExpr TExpr BottomUpProps
 -- alignConstRight q =
 --   $(dagPatMatch 'q "(q1) Align (q2)"
 --     [| do
@@ -448,7 +448,7 @@ zipProjectRight q =
 -- -- Since we use Zip here, we have to ensure that the constant is in the same
 -- -- segment as the entry from the non-constant tuple. At the moment, we can
 -- -- guarantee this only for unit-segment vectors.
--- zipConstLeft :: SLRule VectorExpr VectorExpr BottomUpProps
+-- zipConstLeft :: SLRule TExpr TExpr BottomUpProps
 -- zipConstLeft q =
 --   $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
 --     [| do
@@ -471,7 +471,7 @@ zipProjectRight q =
 --             let proj = map Constant vals ++ map Column [1..w2]
 --             void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
 
--- zipConstRight :: SLRule VectorExpr VectorExpr BottomUpProps
+-- zipConstRight :: SLRule TExpr TExpr BottomUpProps
 -- zipConstRight q =
 --   $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
 --     [| do
@@ -494,7 +494,7 @@ zipProjectRight q =
 --             let proj = map Column [1..w1] ++ map Constant vals
 --             void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
-zipZipLeft :: SLRule VectorExpr VectorExpr ()
+zipZipLeft :: SLRule TExpr TExpr ()
 zipZipLeft q =
   $(dagPatMatch 'q "(q1) Zip (qz=(q11) [Zip | Align] (_))"
      [| do
@@ -507,7 +507,7 @@ zipZipLeft q =
                               ]
              void $ replaceWithNew q $ UnOp (Project e) $(v "qz") |])
 
-alignWinRight :: SLRule VectorExpr VectorExpr ()
+alignWinRight :: SLRule TExpr TExpr ()
 alignWinRight q =
   $(dagPatMatch 'q "(q1) Align (qw=WinFun _ (q2))"
      [| do
@@ -523,7 +523,7 @@ alignWinRight q =
                               ]
              void $ replaceWithNew q $ UnOp (Project e) $(v "qw") |])
 
-zipWinRight :: SLRule VectorExpr VectorExpr ()
+zipWinRight :: SLRule TExpr TExpr ()
 zipWinRight q =
   $(dagPatMatch 'q "R1 ((q1) Zip (qw=WinFun _ (q2)))"
      [| do
@@ -543,7 +543,7 @@ zipWinRight q =
 -- operators.
 --
 -- FIXME this should be solved properly for the general case.
--- zipWinRight2 :: SLRule VectorExpr VectorExpr BottomUpProps
+-- zipWinRight2 :: SLRule TExpr TExpr BottomUpProps
 -- zipWinRight2 q =
 --   $(dagPatMatch 'q "R1 ((q1) Zip (qw=WinFun _ (WinFun _ (q2))))"
 --      [| do
@@ -560,7 +560,7 @@ zipWinRight q =
 --              -- logGeneral ("zipWinRight " ++ show proj)
 --              void $ replaceWithNew q $ UnOp (Project proj) $(v "qw") |])
 
-alignWinLeft :: SLRule VectorExpr VectorExpr ()
+alignWinLeft :: SLRule TExpr TExpr ()
 alignWinLeft q =
   $(dagPatMatch 'q "(qw=WinFun _ (q1)) Align (q2)"
      [| do
@@ -578,7 +578,7 @@ alignWinLeft q =
 
 -- | If the output of a window operator is zipped with its own input, we can
 -- remove the Zip operator.
-zipWinLeft :: SLRule VectorExpr VectorExpr ()
+zipWinLeft :: SLRule TExpr TExpr ()
 zipWinLeft q =
   $(dagPatMatch 'q "R1 ((qw=WinFun _ (q1)) Zip (q2))"
      [| do
@@ -600,7 +600,7 @@ isPrecedingFrameSpec fs =
         FAllPreceding -> True
         FNPreceding _ -> True
 
-alignWinRightPush :: SLRule VectorExpr VectorExpr ()
+alignWinRightPush :: SLRule TExpr TExpr ()
 alignWinRightPush q =
   $(dagPatMatch 'q "(q1) Align (WinFun args (q2))"
     [| do
@@ -614,7 +614,7 @@ alignWinRightPush q =
                 args'   = (winFun', frameSpec)
             void $ replaceWithNew q $ UnOp (WinFun args') zipNode |])
 
-alignGroupJoinRight :: SLRule VectorExpr VectorExpr ()
+alignGroupJoinRight :: SLRule TExpr TExpr ()
 alignGroupJoinRight q =
   $(dagPatMatch 'q "(qo) Align (gj=(qo1) GroupJoin _ (_))"
     [| do
@@ -628,7 +628,7 @@ alignGroupJoinRight q =
                              ]
             void $ replaceWithNew q $ UnOp (Project e) $(v "gj") |])
 
-alignGroupJoinLeft :: SLRule VectorExpr VectorExpr ()
+alignGroupJoinLeft :: SLRule TExpr TExpr ()
 alignGroupJoinLeft q =
   $(dagPatMatch 'q "(gj=(qo1) GroupJoin _ (_)) Align (qo)"
     [| do
@@ -656,7 +656,7 @@ alignGroupJoinLeft q =
 --
 -- FIXME This could be extended to all operators that do not modify
 -- the vertical shape.
--- unboxNumber :: SLRule VectorExpr VectorExpr Properties
+-- unboxNumber :: SLRule TExpr TExpr Properties
 -- unboxNumber q =
 --   $(dagPatMatch 'q "R1 ((Number (qo)) UnboxSng (qi))"
 --     [| do
@@ -684,7 +684,7 @@ alignGroupJoinLeft q =
 -- operator. We exploit the fact that UnboxSng is only a
 -- specialized join which nevertheless produces payload columns from
 -- both inputs.
-alignUnboxSngRight :: SLRule VectorExpr VectorExpr ()
+alignUnboxSngRight :: SLRule TExpr TExpr ()
 alignUnboxSngRight q =
   $(dagPatMatch 'q "(q11) Align (qu=R1 ((q12) UnboxSng (_)))"
      [| do
@@ -705,7 +705,7 @@ alignUnboxSngRight q =
              void $ replaceWithNew q $ UnOp (Project e) $(v "qu") |])
 
 -- | See Align.UnboxSng.Right
-alignUnboxSngLeft :: SLRule VectorExpr VectorExpr ()
+alignUnboxSngLeft :: SLRule TExpr TExpr ()
 alignUnboxSngLeft q =
   $(dagPatMatch 'q "(qu=R1 ((q11) UnboxSng (_))) Align (q12)"
      [| do
@@ -731,7 +731,7 @@ alignUnboxSngLeft q =
 -- structure we can derive that 'q11' and the CartProduct result are
 -- aligned. Consequentially, 'q11 and 'q12' (the left CartProduct
 -- input) must be aligned as well.
-alignCartProdRight :: SLRule VectorExpr VectorExpr BottomUpProps
+alignCartProdRight :: SLRule TExpr TExpr BottomUpProps
 alignCartProdRight q =
   $(dagPatMatch 'q "(q11) Align (R1 ((q12) CartProduct (q2)))"
     [| do
@@ -750,7 +750,7 @@ alignCartProdRight q =
 -- simply mapped to an 'if' expression evaluated on the input vector.
 --
 -- FIXME need payload type of the branch vectors to determine if they are atomic
--- scalarConditional :: SLRule VectorExpr VectorExpr ()
+-- scalarConditional :: SLRule TExpr TExpr ()
 -- scalarConditional q =
 --   $(dagPatMatch 'q "R1 (Combine (Project predProj (q1)) (Project thenProj (R1 (Select pred2 (q2)))) (Project elseProj (R1 (Select negPred (q3)))))"
 --     [| do
@@ -778,7 +778,7 @@ alignCartProdRight q =
 ------------------------------------------------------------------------------
 -- Projection pullup
 
-pullProjectGroupJoinLeft :: SLRule VectorExpr VectorExpr ()
+pullProjectGroupJoinLeft :: SLRule TExpr TExpr ()
 pullProjectGroupJoinLeft q =
   $(dagPatMatch 'q "(Project e (q1)) GroupJoin args (q2)"
     [| do
@@ -792,7 +792,7 @@ pullProjectGroupJoinLeft q =
             joinNode <- insert $ BinOp (GroupJoin (p', as')) $(v "q1") $(v "q2")
             void $ replaceWithNew q $ UnOp (Project e') joinNode |])
 
-pullProjectGroupJoinRight :: SLRule VectorExpr VectorExpr ()
+pullProjectGroupJoinRight :: SLRule TExpr TExpr ()
 pullProjectGroupJoinRight q =
   $(dagPatMatch 'q "(q1) GroupJoin args (Project e (q2))"
     [| do
@@ -806,7 +806,7 @@ pullProjectGroupJoinRight q =
 
             void $ replaceWithNew q $ BinOp (GroupJoin (p', as')) $(v "q1") $(v "q2") |])
 
-pullProjectReplicateVecLeft :: SLRule VectorExpr VectorExpr ()
+pullProjectReplicateVecLeft :: SLRule TExpr TExpr ()
 pullProjectReplicateVecLeft q =
   $(dagPatMatch 'q "R1 ((Project proj (q1)) ReplicateVector (q2))"
     [| return $ do
@@ -818,7 +818,7 @@ pullProjectReplicateVecLeft q =
             -- FIXME relink R2 parents
             |])
 
-pullProjectReplicateVecRight :: SLRule VectorExpr VectorExpr ()
+pullProjectReplicateVecRight :: SLRule TExpr TExpr ()
 pullProjectReplicateVecRight q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateVector (Project _ (q2)))"
     [| return $ do
@@ -829,7 +829,7 @@ pullProjectReplicateVecRight q =
             -- FIXME relink R2 parents
             |])
 
-pullProjectNestJoinLeft :: SLRule VectorExpr VectorExpr ()
+pullProjectNestJoinLeft :: SLRule TExpr TExpr ()
 pullProjectNestJoinLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) NestJoin p (q2))"
     [| do
@@ -845,7 +845,7 @@ pullProjectNestJoinLeft q =
             -- FIXME relink R2 and R3 parents
             |])
 
-pullProjectNestJoinRight :: SLRule VectorExpr VectorExpr ()
+pullProjectNestJoinRight :: SLRule TExpr TExpr ()
 pullProjectNestJoinRight q =
   $(dagPatMatch 'q "R1 ((q1) NestJoin p (Project e (q2)))"
     [| do
@@ -861,7 +861,7 @@ pullProjectNestJoinRight q =
             -- FIXME relink R2 and R3 parents
             |])
 
-pullProjectCartProductLeft :: SLRule VectorExpr VectorExpr ()
+pullProjectCartProductLeft :: SLRule TExpr TExpr ()
 pullProjectCartProductLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) CartProduct (q2))"
     [| do
@@ -876,7 +876,7 @@ pullProjectCartProductLeft q =
             -- FIXME relink R2 and R3 parents
             |])
 
-pullProjectCartProductRight :: SLRule VectorExpr VectorExpr ()
+pullProjectCartProductRight :: SLRule TExpr TExpr ()
 pullProjectCartProductRight q =
   $(dagPatMatch 'q "R1 ((q1) CartProduct (Project e (q2)))"
     [| do
@@ -892,7 +892,7 @@ pullProjectCartProductRight q =
             |])
 
 
-pullProjectNumber :: SLRule VectorExpr VectorExpr ()
+pullProjectNumber :: SLRule TExpr TExpr ()
 pullProjectNumber q =
   $(dagPatMatch 'q "Number (Project e (q1))"
     [| do
@@ -905,7 +905,7 @@ pullProjectNumber q =
              numberNode <- insert $ UnOp Number $(v "q1")
              void $ replaceWithNew q $ UnOp (Project e') numberNode |])
 
-pullProjectSort :: SLRule VectorExpr VectorExpr ()
+pullProjectSort :: SLRule TExpr TExpr ()
 pullProjectSort q =
   $(dagPatMatch 'q "R1 (Sort se (Project e (q1)))"
     [| return $ do
@@ -921,7 +921,7 @@ pullProjectSort q =
 -- assume that the cost of having unrequired columns around is
 -- negligible (best case: column store).
 
-pullProjectAppKey :: SLRule VectorExpr VectorExpr ()
+pullProjectAppKey :: SLRule TExpr TExpr ()
 pullProjectAppKey q =
   $(dagPatMatch 'q "R1 ((qp) AppKey (Project proj (qv)))"
     [| return $ do
@@ -930,7 +930,7 @@ pullProjectAppKey q =
            r1Node    <- insert $ UnOp R1 rekeyNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
-pullProjectUnboxSngLeft :: SLRule VectorExpr VectorExpr ()
+pullProjectUnboxSngLeft :: SLRule TExpr TExpr ()
 pullProjectUnboxSngLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) UnboxSng (q2))"
     [| do
@@ -945,7 +945,7 @@ pullProjectUnboxSngLeft q =
 
            void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-pullProjectUnboxSngRight :: SLRule VectorExpr VectorExpr ()
+pullProjectUnboxSngRight :: SLRule TExpr TExpr ()
 pullProjectUnboxSngRight q =
   $(dagPatMatch 'q "R1 ((q1) UnboxSng (Project e (q2)))"
     [| do
@@ -962,7 +962,7 @@ pullProjectUnboxSngRight q =
 
            void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-pullProjectReplicateScalarRight :: SLRule VectorExpr VectorExpr ()
+pullProjectReplicateScalarRight :: SLRule TExpr TExpr ()
 pullProjectReplicateScalarRight q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateScalar (Project e (q2)))"
     [| do
@@ -973,7 +973,7 @@ pullProjectReplicateScalarRight q =
            r1Node   <- insert $ UnOp R1 distNode
            void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-pullProjectAppRep :: SLRule VectorExpr VectorExpr ()
+pullProjectAppRep :: SLRule TExpr TExpr ()
 pullProjectAppRep q =
   $(dagPatMatch 'q "R1 ((qp) AppRep (Project proj (qv)))"
     [| return $ do
@@ -982,7 +982,7 @@ pullProjectAppRep q =
            r1Node  <- insert $ UnOp R1 repNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
-pullProjectAppFilter :: SLRule VectorExpr VectorExpr ()
+pullProjectAppFilter :: SLRule TExpr TExpr ()
 pullProjectAppFilter q =
   $(dagPatMatch 'q "R1 ((q1) AppFilter (Project proj (q2)))"
     [| return $ do
@@ -991,7 +991,7 @@ pullProjectAppFilter q =
            r1Node     <- insert $ UnOp R1 filterNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
-pullProjectAppSort :: SLRule VectorExpr VectorExpr ()
+pullProjectAppSort :: SLRule TExpr TExpr ()
 pullProjectAppSort q =
   $(dagPatMatch 'q "R1 ((q1) AppSort (Project proj (q2)))"
     [| return $ do
@@ -1000,7 +1000,7 @@ pullProjectAppSort q =
            r1Node   <- insert $ UnOp R1 sortNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
-pullProjectUnboxKey :: SLRule VectorExpr VectorExpr ()
+pullProjectUnboxKey :: SLRule TExpr TExpr ()
 pullProjectUnboxKey q =
   $(dagPatMatch 'q "UnboxKey (Project _ (q1))"
     [| return $ do
@@ -1009,7 +1009,7 @@ pullProjectUnboxKey q =
 
 -- | Any projections on the left input of Fold are irrelevant, as
 -- only the segment information are required from the vector.
-pullProjectFold :: SLRule VectorExpr VectorExpr ()
+pullProjectFold :: SLRule TExpr TExpr ()
 pullProjectFold q =
   $(dagPatMatch 'q "(Project _ (q1)) Fold args (q2)"
     [| return $ do
@@ -1054,7 +1054,7 @@ pullProjectFold q =
 -- As usual, a proper join tree should give the engine the freedom to re-arrange
 -- the joins and drive them in a pipelined manner.
 -- FIXME Generalize to NestJoinS
-nestJoinChain :: SLRule VectorExpr VectorExpr BottomUpProps
+nestJoinChain :: SLRule TExpr TExpr BottomUpProps
 nestJoinChain q =
   $(dagPatMatch 'q "R1 ((R3 (lj=(xs) NestJoin _ (ys))) AppRep (R1 ((ys1) NestJoin p (zs))))"
    [| do
@@ -1104,7 +1104,7 @@ nestJoinChain q =
 --------------------------------------------------------------------------------
 -- Eliminating operators whose output is not required
 
--- notReqNumber :: SLRule VectorExpr VectorExpr Properties
+-- notReqNumber :: SLRule TExpr TExpr Properties
 -- notReqNumber q =
 --   $(dagPatMatch 'q "Number (q1)"
 --     [| do
@@ -1126,7 +1126,7 @@ nestJoinChain q =
 
 -- | Merge a selection that refers to both sides of a cartesian
 -- product operators' inputs into a join.
-selectCartProd :: SLRule VectorExpr VectorExpr ()
+selectCartProd :: SLRule TExpr TExpr ()
 selectCartProd q =
   $(dagPatMatch 'q "R1 (Select p (R1 ((q1) CartProduct (q2))))"
     [| do
@@ -1158,7 +1158,7 @@ selectCartProd q =
 
 -- | If segments are aggregated after they have been filtered due to an outer
 -- selection, we can aggregate early before filtering the segments.
-pushFoldSelect :: SLRule VectorExpr VectorExpr ()
+pushFoldSelect :: SLRule TExpr TExpr ()
 pushFoldSelect q =
   $(dagPatMatch 'q "(R1 (qs1=Select _ (qo))) Fold af (R1 ((q2=R2 (qs2=Select _ (_))) AppFilter (qi)))"
     [| do
@@ -1172,7 +1172,7 @@ pushFoldSelect q =
 
 -- | Aggregate segments from a right join input before they are replicated as a
 -- consequence of a ThetaJoin operator.
-pushFoldThetaJoinRight :: SLRule VectorExpr VectorExpr ()
+pushFoldThetaJoinRight :: SLRule TExpr TExpr ()
 pushFoldThetaJoinRight q =
     $(dagPatMatch 'q "(R1 (qj1)) Fold args (R1 ((qr3=R3 (qj2=(_) ThetaJoin _ (qo2))) AppRep (qi)))"
       [| do
@@ -1187,7 +1187,7 @@ pushFoldThetaJoinRight q =
 -- | Unbox singleton segments before they are filtered because of a selection.
 -- This rewrite is valid because we only add columns at the end: column
 -- references in the selection predicate remain valid.
-pushUnboxSngSelect :: SLRule VectorExpr VectorExpr ()
+pushUnboxSngSelect :: SLRule TExpr TExpr ()
 pushUnboxSngSelect q =
   $(dagPatMatch 'q "R1 ((R1 (qs1=Select p (qo))) UnboxSng (R1 ((q2=R2 (qs2=Select _ (_))) AppFilter (qi))))"
     [| do
@@ -1201,7 +1201,7 @@ pushUnboxSngSelect q =
 
 -- | Unbox singleton segments before a join (right input). This is an
 -- improvement because the replication join is no longer necessary.
-pushUnboxSngThetaJoinRight :: SLRule VectorExpr VectorExpr ()
+pushUnboxSngThetaJoinRight :: SLRule TExpr TExpr ()
 pushUnboxSngThetaJoinRight q =
     $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qj1=(qo1) ThetaJoin p (qo2))) UnboxSng (R1 ((R3 (qj2)) AppRep (qi))))"
       [| do
@@ -1234,14 +1234,14 @@ pushUnboxSngThetaJoinRight q =
 --------------------------------------------------------------------------------
 -- Normalization rules for segment aggregation
 
-pushFoldAlign :: SLRule VectorExpr VectorExpr ()
+pushFoldAlign :: SLRule TExpr TExpr ()
 pushFoldAlign q =
   $(dagPatMatch 'q "((_) Align (q1)) Fold af (q2)"
     [| return $ do
            logRewrite "Redundant.Fold.Push.Align" q
            void $ replaceWithNew q $ BinOp (Fold $(v "af")) $(v "q1") $(v "q2") |])
 
-pushFoldReplicateScalar :: SLRule VectorExpr VectorExpr ()
+pushFoldReplicateScalar :: SLRule TExpr TExpr ()
 pushFoldReplicateScalar q =
   $(dagPatMatch 'q "(R1 ((_) ReplicateScalar (q1))) Fold af (q2)"
     [| return $ do
@@ -1256,7 +1256,7 @@ pushFoldReplicateScalar q =
 -- reason, we choose the right side. When we deal with a self-align, this will
 -- not matter. There might however be plans where the left side would make more
 -- sense and we might get stuck.
-pushUnboxSngAlign :: SLRule VectorExpr VectorExpr ()
+pushUnboxSngAlign :: SLRule TExpr TExpr ()
 pushUnboxSngAlign q =
   $(dagPatMatch 'q "R1 (((q1) Align (q2)) UnboxSng (q3))"
     [| return $ do
@@ -1275,7 +1275,7 @@ pushUnboxSngAlign q =
 -- | Unbox singletons early, namely before distributing another singleton.
 --
 -- Note: the same comment as for pushUnboxSngAlign applies.
-pushUnboxSngReplicateScalar :: SLRule VectorExpr VectorExpr ()
+pushUnboxSngReplicateScalar :: SLRule TExpr TExpr ()
 pushUnboxSngReplicateScalar q =
   $(dagPatMatch 'q "R1 ((R1 ((q1) ReplicateScalar (q2))) UnboxSng (q3))"
     [| return $ do
@@ -1294,7 +1294,7 @@ pushUnboxSngReplicateScalar q =
 
 --------------------------------------------------------------------------------
 
-pullNumberReplicateNest :: SLRule VectorExpr VectorExpr ()
+pullNumberReplicateNest :: SLRule TExpr TExpr ()
 pullNumberReplicateNest q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateNest (Number (q2)))"
     [| return $ do
@@ -1310,7 +1310,7 @@ pullNumberReplicateNest q =
           void $ replaceWithNew q $ UnOp (Project e) numberNode
      |])
 
-pullNumberAlignLeft :: SLRule VectorExpr VectorExpr ()
+pullNumberAlignLeft :: SLRule TExpr TExpr ()
 pullNumberAlignLeft q =
   $(dagPatMatch 'q "(Number (q1)) Align (q2)"
      [| do
@@ -1329,7 +1329,7 @@ pullNumberAlignLeft q =
       |]
    )
 
-pullNumberAlignRight :: SLRule VectorExpr VectorExpr ()
+pullNumberAlignRight :: SLRule TExpr TExpr ()
 pullNumberAlignRight q =
   $(dagPatMatch 'q "(q1) Align (Number (q2))"
      [| do

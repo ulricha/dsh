@@ -41,7 +41,7 @@ pattern MatVec v = DelayedVec IDMap v
 --------------------------------------------------------------------------------
 -- Unary scalar operators
 
-unOpL :: L.ScalarUnOp -> Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+unOpL :: L.ScalarUnOp -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 unOpL o (VShape (DelayedVec m v) LCol) = do
     vp <- C.project (VUnApp o VInput) v
     return $ VShape (DelayedVec m vp) LCol
@@ -49,7 +49,7 @@ unOpL o (VShape (DelayedVec m v) LCol) = do
 --------------------------------------------------------------------------------
 -- Binary scalar operators
 
-binOpL :: L.ScalarBinOp -> Shape DelayedVec -> Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+binOpL :: L.ScalarBinOp -> Shape DelayedVec -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 binOpL o (VShape dv1 LCol) (VShape dv2 LCol) = do
     case (dvSegMap dv1, dvSegMap dv2) of
         (RMap m1, RMap _) -> do
@@ -82,7 +82,7 @@ binOpL o (VShape dv1 LCol) (VShape dv2 LCol) = do
 --------------------------------------------------------------------------------
 -- Tuple indexing
 
-tupElemL :: TupleIndex -> Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+tupElemL :: TupleIndex -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 tupElemL i (VShape dv (LTuple ls)) = do
     let l = ls !! (tupleIndex i - 1)
     vp <- C.project (VTupElem i VInput) (dvPhysVec dv)
@@ -91,7 +91,7 @@ tupElemL i (VShape dv (LTuple ls)) = do
 --------------------------------------------------------------------------------
 -- Singleton list construction
 
-sngL :: Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+sngL :: Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 sngL (VShape (DelayedVec m v) l) = do
     vo <- C.project VIndex v
     vi <- C.segment v
@@ -100,7 +100,7 @@ sngL (VShape (DelayedVec m v) l) = do
 --------------------------------------------------------------------------------
 -- Aggregation
 
-aggrL :: (VectorExpr -> AggrFun VectorExpr) -> Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+aggrL :: (TExpr -> AggrFun TExpr) -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 aggrL afun (VShape dvo (LNest dvi _)) = do
     let a = afun VInput
     -- Aggregate the physical segments without considering the segment map.
@@ -112,7 +112,7 @@ aggrL afun (VShape dvo (LNest dvi _)) = do
     vp      <- C.project (VTupElem (Next First) VInput) vu
     return $ VShape (dvo { dvPhysVec = vp }) LCol
 
-defaultUnboxOp :: AggrFun VectorExpr -> DVec -> DVec -> VSLBuild VectorExpr VectorExpr (DVec, RVec)
+defaultUnboxOp :: AggrFun TExpr -> DVec -> DVec -> VSLBuild TExpr TExpr (DVec, RVec)
 defaultUnboxOp (AggrSum t _)         = C.unboxdefault (pure $ sumDefault t)
   where
     sumDefault T.IntT = L.IntV 0
@@ -127,13 +127,13 @@ defaultUnboxOp _                     = C.unboxsng
 --------------------------------------------------------------------------------
 -- Concatenation
 
-concat :: Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+concat :: Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 concat (VShape _ (LNest dv l)) = do
     (v, l') <- materializeShape dv l
     v'      <- C.unsegment v
     return $ VShape (MatVec v') l'
 
-concatL :: Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+concatL :: Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 concatL (VShape dvo (LNest dvi l)) = do
     -- Generate a segment map that merges segments of inner vectors and maps
     -- them to the segment identifiers of 'dvi'
@@ -151,7 +151,7 @@ concatL (VShape dvo (LNest dvi l)) = do
 --------------------------------------------------------------------------------
 -- Tuple Construction
 
-tupleL :: [Shape DelayedVec] -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+tupleL :: [Shape DelayedVec] -> VSLBuild TExpr TExpr (Shape DelayedVec)
 tupleL shapes =
     case shapes of
         (VShape (DelayedVec (UnitMap m) v) l) : shs
@@ -164,7 +164,7 @@ tupleL shapes =
           v        <- alignVectors vs
           return $ VShape (MatVec v) (LTuple ls)
 
-alignVectors :: [DVec] -> VSLBuild VectorExpr VectorExpr DVec
+alignVectors :: [DVec] -> VSLBuild TExpr TExpr DVec
 alignVectors [v] = return v
 alignVectors (v:vs) = do
     vsa <- alignVectors vs
@@ -177,7 +177,7 @@ isUnitShape _                                     = False
 --------------------------------------------------------------------------------
 -- Singleton list conversion
 
-onlyL :: Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+onlyL :: Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 onlyL (VShape dvo (LNest dvi li)) = do
     (vim, lim) <- materializeShape dvi li
     (vu, r) <- C.unboxsng (dvPhysVec dvo) vim
@@ -187,7 +187,7 @@ onlyL (VShape dvo (LNest dvi li)) = do
 --------------------------------------------------------------------------------
 -- Unary vectorization macros
 
-type UnVectMacro = DelayedVec -> Layout DelayedVec -> VSLBuild VectorExpr VectorExpr (DelayedVec, Layout DelayedVec)
+type UnVectMacro = DelayedVec -> Layout DelayedVec -> VSLBuild TExpr TExpr (DelayedVec, Layout DelayedVec)
 
 --------------------------------------------------------------------------------
 -- number
@@ -261,7 +261,7 @@ restrict dv (LTuple [l, LCol]) = do
 --------------------------------------------------------------------------------
 -- Applying unary vectorization macros
 
-unMacroL :: UnVectMacro -> Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+unMacroL :: UnVectMacro -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 unMacroL macro (VShape dvo (LNest dvi l)) = VShape dvo <$> uncurry LNest <$> macro dvi l
 
 --------------------------------------------------------------------------------
@@ -269,12 +269,12 @@ unMacroL macro (VShape dvo (LNest dvi l)) = VShape dvo <$> uncurry LNest <$> mac
 
 type BinVectMacro =    DelayedVec -> Layout DelayedVec
                     -> DelayedVec -> Layout DelayedVec
-                    -> VSLBuild VectorExpr VectorExpr (DelayedVec, Layout DelayedVec)
+                    -> VSLBuild TExpr TExpr (DelayedVec, Layout DelayedVec)
 
 --------------------------------------------------------------------------------
 -- Applying binary vectorization macros
 
-binMacroL :: BinVectMacro -> Shape DelayedVec -> Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+binMacroL :: BinVectMacro -> Shape DelayedVec -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 binMacroL macro (VShape dvo (LNest dvi1 l1)) (VShape _ (LNest dvi2 l2)) =
     VShape dvo <$> uncurry LNest <$> macro dvi1 l1 dvi2 l2
 
@@ -408,7 +408,7 @@ semijoin p dv1 l1 dv2 l2 =
             l1'' <- updateLayoutMaps (RMap r1) l1'
             return (DelayedVec IDMap v, l1'')
 
-groupjoin :: L.JoinPredicate L.ScalarExpr -> L.NE (AggrFun VectorExpr) -> BinVectMacro
+groupjoin :: L.JoinPredicate L.ScalarExpr -> L.NE (AggrFun TExpr) -> BinVectMacro
 groupjoin p as dv1 l1 dv2 l2 =
     case (dvSegMap dv1, dvSegMap dv2) of
         (UnitMap m1, UnitMap _) -> do
@@ -434,13 +434,13 @@ groupjoin p as dv1 l1 dv2 l2 =
 type TerVectMacro =    DelayedVec -> Layout DelayedVec
                     -> DelayedVec -> Layout DelayedVec
                     -> DelayedVec -> Layout DelayedVec
-                    -> VSLBuild VectorExpr VectorExpr (DelayedVec, Layout DelayedVec)
+                    -> VSLBuild TExpr TExpr (DelayedVec, Layout DelayedVec)
 
 terMacroL :: TerVectMacro
           -> Shape DelayedVec
           -> Shape DelayedVec
           -> Shape DelayedVec
-          -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+          -> VSLBuild TExpr TExpr (Shape DelayedVec)
 terMacroL macro (VShape dvo (LNest dvi1 l1)) (VShape _ (LNest dvi2 l2)) (VShape _ (LNest dvi3 l3)) =
     VShape dvo <$> uncurry LNest <$> macro dvi1 l1 dvi2 l2 dvi3 l3
 
@@ -461,14 +461,14 @@ combine dvb LCol dv1 l1 dv2 l2 = do
 --------------------------------------------------------------------------------
 -- Distribution/Replication
 
-dist :: Shape DelayedVec -> Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+dist :: Shape DelayedVec -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 dist (VShape (DelayedVec IDMap v1) l1) (VShape dv2 _) = do
     outerVec <- C.project VIndex (dvPhysVec dv2)
     innerMap <- UnitMap <$> C.unitmap (dvPhysVec dv2)
     return $ VShape (dv2 { dvPhysVec = outerVec }) (LNest (DelayedVec innerMap v1) l1)
 dist _ _ = error "VSL.Vectorize.dist"
 
-distL :: Shape DelayedVec -> Shape DelayedVec -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+distL :: Shape DelayedVec -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 distL (VShape dv1 l1) (VShape dvo (LNest dv2 l2)) = do
     (v1, l1') <- materializeShape dv1 l1
     (v2, l2') <- materializeShape dv2 l2
@@ -483,7 +483,7 @@ distL (VShape dv1 l1) (VShape dvo (LNest dv2 l2)) = do
 
 --------------------------------------------------------------------------------
 
-materializeShape :: DelayedVec -> Layout DelayedVec -> VSLBuild VectorExpr VectorExpr (DVec, Layout DelayedVec)
+materializeShape :: DelayedVec -> Layout DelayedVec -> VSLBuild TExpr TExpr (DVec, Layout DelayedVec)
 materializeShape (DelayedVec sm v) l =
     case sm of
         IDMap -> return (v, l)
@@ -497,7 +497,7 @@ materializeShape (DelayedVec sm v) l =
             return (v', l')
 
 
-updateLayoutMaps :: SegMap -> Layout DelayedVec -> VSLBuild VectorExpr VectorExpr (Layout DelayedVec)
+updateLayoutMaps :: SegMap -> Layout DelayedVec -> VSLBuild TExpr TExpr (Layout DelayedVec)
 updateLayoutMaps newMap = go
   where
     updateDelayedVec (DelayedVec oldMap v) = DelayedVec <$> updateSegMap newMap oldMap <*> pure v
@@ -506,13 +506,13 @@ updateLayoutMaps newMap = go
     go (LTuple lyts)  = LTuple <$> traverse (updateLayoutMaps newMap) lyts
     go LCol           = pure LCol
 
-updateSegMap :: SegMap -> SegMap -> VSLBuild VectorExpr VectorExpr SegMap
+updateSegMap :: SegMap -> SegMap -> VSLBuild TExpr TExpr SegMap
 updateSegMap (RMap mapUpdate) (RMap oldMap) = RMap <$> C.updatemap mapUpdate oldMap
 updateSegMap (RMap mapUpdate) (UnitMap _)   = UnitMap <$> C.updateunit mapUpdate
 updateSegMap (RMap mapUpdate) IDMap         = pure $ RMap mapUpdate
 updateSegMap _ _ = error "updateSegMap"
 
-appendLayouts :: Layout DelayedVec -> Layout DelayedVec -> VSLBuild VectorExpr VectorExpr (Layout DelayedVec)
+appendLayouts :: Layout DelayedVec -> Layout DelayedVec -> VSLBuild TExpr TExpr (Layout DelayedVec)
 appendLayouts LCol LCol = return LCol
 appendLayouts (LNest dv1 l1) (LNest dv2 l2) = do
     (v1, l1')   <- materializeShape dv1 l1
@@ -529,7 +529,7 @@ appendLayouts (LTuple ls1) (LTuple ls2) =
 -- Construction of base tables and literal tables
 
 -- | Create a SL reference to a base table.
-dbTable :: String -> L.BaseTableSchema -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+dbTable :: String -> L.BaseTableSchema -> VSLBuild TExpr TExpr (Shape DelayedVec)
 dbTable n schema = do
     tab <- C.tableref n schema
     -- Single-column tables are represented by a flat list and map to
@@ -570,12 +570,12 @@ payloadType (T.ScalarT t) = PScalarT t
 payloadType (T.TupleT ts) = PTupleT $ map payloadType ts
 payloadType (T.ListT _)   = PIndexT
 
-literalVectors :: Layout (PType, S.Seq SegD) -> VSLBuild VectorExpr VectorExpr (Layout DelayedVec)
+literalVectors :: Layout (PType, S.Seq SegD) -> VSLBuild TExpr TExpr (Layout DelayedVec)
 literalVectors lyt = traverse go lyt
   where
     go (ty, segs) = DelayedVec IDMap <$> C.lit (ty, Segs segs)
 
-literalShape :: Shape (PType, S.Seq SegD) -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+literalShape :: Shape (PType, S.Seq SegD) -> VSLBuild TExpr TExpr (Shape DelayedVec)
 literalShape (VShape (ty, segs) lyt) = do
     let seg = if S.null segs then $impossible else S.index segs 0
     shapeVec <- C.lit (ty, UnitSeg seg)
@@ -583,7 +583,7 @@ literalShape (VShape (ty, segs) lyt) = do
     return $ VShape (DelayedVec IDMap shapeVec) vecLyt
 literalShape SShape{} = $impossible
 
-shredLiteral :: T.Type -> L.Val -> VSLBuild VectorExpr VectorExpr (Shape DelayedVec)
+shredLiteral :: T.Type -> L.Val -> VSLBuild TExpr TExpr (Shape DelayedVec)
 shredLiteral (T.ListT t) (L.ListV vs) = literalShape $ VShape (payloadType t, S.singleton seg) lyt
   where
     initLyt    = shredType t

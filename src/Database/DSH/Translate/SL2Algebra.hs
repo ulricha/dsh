@@ -102,7 +102,7 @@ refreshShape shape = T.mapM refreshVec shape
             Nothing -> $impossible
 
 translate :: SegmentAlgebra a
-          => NodeMap SL.FSL
+          => NodeMap SL.RSL
           -> AlgNode
           -> VecBuild a (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a) (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
 translate vlNodes n = do
@@ -133,15 +133,15 @@ translate vlNodes n = do
             insertTranslation n r'
             return r'
 
-getSL :: AlgNode -> NodeMap SL.FSL -> SL.FSL
+getSL :: AlgNode -> NodeMap SL.RSL -> SL.RSL
 getSL n vlNodes = case IM.lookup n vlNodes of
     Just op -> op
     Nothing -> error $ "getSL: node " ++ (show n) ++ " not in SL nodes map " ++ (pp vlNodes)
 
-pp :: NodeMap SL.FSL -> String
+pp :: NodeMap SL.RSL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
-vl2Algebra :: SegmentAlgebra a => NodeMap SL.FSL -> Shape V.DVec -> B.Build a (Shape (SLDVec a))
+vl2Algebra :: SegmentAlgebra a => NodeMap SL.RSL -> Shape V.DVec -> B.Build a (Shape (SLDVec a))
 vl2Algebra vlNodes plan = runVecBuild $ do
     mapM_ (translate vlNodes) roots
     refreshShape plan
@@ -162,7 +162,7 @@ translateTerOp t c1 c2 c3 =
             return $ RTriple (fromDVec d) (fromKVec r1) (fromKVec r2)
 
 translateBinOp :: SegmentAlgebra a
-               => SL.BinOp FlatExpr
+               => SL.BinOp RExpr
                -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
                -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
                -> B.Build a (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
@@ -234,7 +234,7 @@ translateBinOp b c1 c2 = case b of
         return $ RLPair (fromDVec v) (fromFVec r)
 
 translateUnOp :: SegmentAlgebra a
-              => SL.UnOp FlatTuple FlatExpr
+              => SL.UnOp VRow RExpr
               -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
               -> B.Build a (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
 translateUnOp unop c = case unop of

@@ -12,10 +12,10 @@ import           Database.DSH.VSL.Opt.Rewrite.Common
 -- import           Database.Algebra.Dag.Common
 -- import           Database.DSH.VSL.Lang
 
-pruneEmpty :: VSLRewrite VectorExpr VectorExpr Bool
+pruneEmpty :: VSLRewrite TExpr TExpr Bool
 pruneEmpty = applyToAll inferBottomUp emptyRules
 
-emptyRules :: VSLRuleSet VectorExpr VectorExpr BottomUpProps
+emptyRules :: VSLRuleSet TExpr TExpr BottomUpProps
 emptyRules = [ -- emptyAppendLeftR1
              -- , emptyAppendLeftR2
              -- , emptyAppendLeftR3

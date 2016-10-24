@@ -103,5 +103,5 @@ $(deriveJSON defaultOptions ''TerOp)
 -- DAG-based representation of VSL programs
 
 type VSL r e = Algebra TerOp (BinOp e) (UnOp r e) NullOp AlgNode
-type RVSL = VSL VectorExpr VectorExpr
-type FVSL = VSL FlatTuple FlatExpr
+type TVSL = VSL TExpr TExpr
+type RVSL = VSL VRow RExpr

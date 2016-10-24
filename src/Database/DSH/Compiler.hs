@@ -195,7 +195,7 @@ fileId = replicateM 8 (randomRIO ('a', 'z'))
 showVectorizedQ :: CLOptimizer -> Q a -> IO ()
 showVectorizedQ clOpt (Q q) = do
     let cl = toComprehensions q
-    let vl = compileQ clOpt cl :: QueryPlan RSL DVec
+    let vl = compileQ clOpt cl :: QueryPlan TSL DVec
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
@@ -204,7 +204,7 @@ showVectorizedQ clOpt (Q q) = do
 -- | Show optimized vector plan (SL)
 showVectorizedOptQ :: CLOptimizer -> Q a -> IO ()
 showVectorizedOptQ clOpt (Q q) = do
-    let vl = compileOptQ clOpt $ toComprehensions q :: QueryPlan RSL DVec
+    let vl = compileOptQ clOpt $ toComprehensions q :: QueryPlan TSL DVec
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
@@ -214,7 +214,7 @@ showVectorizedOptQ clOpt (Q q) = do
 showDelayedQ :: CLOptimizer -> Q a -> IO ()
 showDelayedQ clOpt (Q q) = do
     let cl = toComprehensions q
-    let vl = compileQ clOpt cl :: QueryPlan RVSL DVec
+    let vl = compileQ clOpt cl :: QueryPlan TVSL DVec
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
@@ -224,7 +224,7 @@ showDelayedQ clOpt (Q q) = do
 showDelayedOptQ :: CLOptimizer -> Q a -> IO ()
 showDelayedOptQ clOpt (Q q) = do
     let cl = toComprehensions q
-    let vl = compileOptQ clOpt cl :: QueryPlan RVSL DVec
+    let vl = compileOptQ clOpt cl :: QueryPlan TVSL DVec
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl

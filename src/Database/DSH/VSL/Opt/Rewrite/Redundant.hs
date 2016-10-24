@@ -20,7 +20,7 @@ import           Database.DSH.VSL.Opt.Rewrite.Expressions
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
 
-removeRedundancy :: VSLRewrite VectorExpr VectorExpr Bool
+removeRedundancy :: VSLRewrite TExpr TExpr Bool
 removeRedundancy =
     iteratively $ sequenceRewrites [ cleanup
                                    , applyToAll noProps redundantRules
@@ -29,10 +29,10 @@ removeRedundancy =
                                    , groupingToAggregation
                                    ]
 
-cleanup :: VSLRewrite VectorExpr VectorExpr Bool
+cleanup :: VSLRewrite TExpr TExpr Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
-redundantRules :: VSLRuleSet VectorExpr VectorExpr ()
+redundantRules :: VSLRuleSet TExpr TExpr ()
 redundantRules = [ pullProjectSort
                  , pullProjectMergeMap
                  , pullProjectUnitMap
@@ -94,13 +94,13 @@ redundantRules = [ pullProjectSort
                  ]
 
 
-redundantRulesBottomUp :: VSLRuleSet VectorExpr VectorExpr BottomUpProps
+redundantRulesBottomUp :: VSLRuleSet TExpr TExpr BottomUpProps
 redundantRulesBottomUp = [ pullProjectMaterialize
                          , distLiftNestJoin
                          , alignCartProdRight
                          ]
 
-redundantRulesAllProps :: VSLRuleSet VectorExpr VectorExpr Properties
+redundantRulesAllProps :: VSLRuleSet TExpr TExpr Properties
 redundantRulesAllProps = [ -- unreferencedReplicateSeg
                          -- , notReqNumber
                          -- , unboxNumber
@@ -116,7 +116,7 @@ redundantRulesAllProps = [ -- unreferencedReplicateSeg
 -- -- | If the left input of a dist operator is constant, a normal projection
 -- -- can be used because the Dist* operators keeps the shape of the
 -- -- right input.
--- constDist ::VSLRule VectorExpr VectorExpr BottomUpProps
+-- constDist ::VSLRule TExpr TExpr BottomUpProps
 -- constDist q =
 --   $(dagPatMatch 'q "R1 ((q1) [ReplicateSeg | ReplicateScalar] (q2))"
 --     [| do
@@ -133,7 +133,7 @@ redundantRulesAllProps = [ -- unreferencedReplicateSeg
 -- -- way, check if the vector's columns are actually referenced/required
 -- -- downstream. If not, we can remove the ReplicateSeg altogether, as the
 -- -- shape of the inner vector is not changed by ReplicateSeg.
--- unreferencedReplicateSeg ::VSLRule VectorExpr VectorExpr Properties
+-- unreferencedReplicateSeg ::VSLRule TExpr TExpr Properties
 -- unreferencedReplicateSeg q =
 --   $(dagPatMatch 'q  "R1 ((q1) ReplicateSeg (q2))"
 --     [| do
@@ -157,7 +157,7 @@ redundantRulesAllProps = [ -- unreferencedReplicateSeg
 -- | Remove a ReplicateSeg if the outer vector is aligned with a
 -- NestJoin that uses the same outer vector.
 -- FIXME try to generalize to NestJoinS
-distLiftNestJoin ::VSLRule VectorExpr VectorExpr BottomUpProps
+distLiftNestJoin ::VSLRule TExpr TExpr BottomUpProps
 distLiftNestJoin q =
   $(dagPatMatch 'q "R1 ((qo) ReplicateSeg (R1 ((qo1) NestJoin p (qi))))"
     [| do
@@ -178,7 +178,7 @@ distLiftNestJoin q =
             r1Node   <- insert $ UnOp R1 prodNode
             void $ replaceWithNew q $ UnOp (Project e) r1Node |])
 
-distLiftProjectLeft ::VSLRule VectorExpr VectorExpr ()
+distLiftProjectLeft ::VSLRule TExpr TExpr ()
 distLiftProjectLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) ReplicateSeg (q2))"
     [| do
@@ -191,7 +191,7 @@ distLiftProjectLeft q =
           r1Node   <- insert $ UnOp R1 distNode
           void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-distLiftProjectRight ::VSLRule VectorExpr VectorExpr ()
+distLiftProjectRight ::VSLRule TExpr TExpr ()
 distLiftProjectRight q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateSeg (Project e (q2)))"
     [| do
@@ -205,7 +205,7 @@ distLiftProjectRight q =
 -- If the same outer vector is propagated twice to an inner vector, one
 -- ReplicateSeg can be removed. Reasoning: ReplicateSeg does not change the
 -- shape of the inner vector.
-distLiftStacked ::VSLRule VectorExpr VectorExpr ()
+distLiftStacked ::VSLRule TExpr TExpr ()
 distLiftStacked q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateSeg (r1=R1 ((q11) ReplicateSeg (_))))"
      [| do
@@ -230,7 +230,7 @@ distLiftStacked q =
 -- to push selections down, though.
 --
 -- FIXME this rewrite is on rather shaky ground semantically.
--- distLiftSelect ::VSLRule VectorExpr VectorExpr BottomUpProps
+-- distLiftSelect ::VSLRule TExpr TExpr BottomUpProps
 -- distLiftSelect q =
 --   $(dagPatMatch 'q "R1 ((q1) ReplicateSeg (R1 (Select p (q2))))"
 --      [| do
@@ -247,7 +247,7 @@ distLiftStacked q =
 -- input, we can eliminate the Align. Reasoning: ReplicateSeg does not
 -- change the shape of the vector, only adds columns from its right
 -- input.
-alignedDistRight ::VSLRule VectorExpr VectorExpr ()
+alignedDistRight ::VSLRule TExpr TExpr ()
 alignedDistRight q =
   $(dagPatMatch 'q "(q21) Align (qr1=R1 ((_) [ReplicateSeg | ReplicateScalar] (q22)))"
     [| do
@@ -264,7 +264,7 @@ alignedDistRight q =
 -- input, we can eliminate the Align. Reasoning: ReplicateSeg does not
 -- change the shape of the vector, only adds columns from its right
 -- input.
-alignedDistLeft ::VSLRule VectorExpr VectorExpr ()
+alignedDistLeft ::VSLRule TExpr TExpr ()
 alignedDistLeft q =
   $(dagPatMatch 'q "(qr1=R1 ((_) [ReplicateSeg | ReplicateScalar] (q21))) Align (q22)"
     [| do
@@ -287,7 +287,7 @@ alignedDistLeft q =
 
 -- | Replace an Align operator with a projection if both inputs are the
 -- same.
-sameInputAlign ::VSLRule VectorExpr VectorExpr ()
+sameInputAlign ::VSLRule TExpr TExpr ()
 sameInputAlign q =
   $(dagPatMatch 'q "(q1) Align (q2)"
     [| do
@@ -300,7 +300,7 @@ sameInputAlign q =
 
 -- | Replace an Align operator with a projection if both inputs are the
 -- same.
-sameInputZip ::VSLRule VectorExpr VectorExpr ()
+sameInputZip ::VSLRule TExpr TExpr ()
 sameInputZip q =
   $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
     [| do
@@ -311,7 +311,7 @@ sameInputZip q =
           let e = VMkTuple [VInput, VInput]
           void $ replaceWithNew q $ UnOp (Project e) $(v "q1") |])
 
--- sameInputZipProject ::VSLRule VectorExpr VectorExpr BottomUpProps
+-- sameInputZipProject ::VSLRule TExpr TExpr BottomUpProps
 -- sameInputZipProject q =
 --   $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align] (Project ps2 (q2))"
 --     [| do
@@ -321,7 +321,7 @@ sameInputZip q =
 --           logRewrite "Redundant.Zip/Align.Self.Project" q
 --           void $ replaceWithNew q $ UnOp (Project ($(v "ps1") ++ $(v "ps2"))) $(v "q1") |])
 
--- sameInputZipProjectLeft ::VSLRule VectorExpr VectorExpr BottomUpProps
+-- sameInputZipProjectLeft ::VSLRule TExpr TExpr BottomUpProps
 -- sameInputZipProjectLeft q =
 --   $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align] (q2)"
 --     [| do
@@ -333,7 +333,7 @@ sameInputZip q =
 --           let proj = $(v "ps1") ++ (map Column [1..w1])
 --           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
--- sameInputZipProjectRight ::VSLRule VectorExpr VectorExpr BottomUpProps
+-- sameInputZipProjectRight ::VSLRule TExpr TExpr BottomUpProps
 -- sameInputZipProjectRight q =
 --   $(dagPatMatch 'q "(q1) [Zip | Align] (Project ps2 (q2))"
 --     [| do
@@ -345,7 +345,7 @@ sameInputZip q =
 --           let proj = (map Column [1 .. w]) ++ $(v "ps2")
 --           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
-alignProjectLeft ::VSLRule VectorExpr VectorExpr ()
+alignProjectLeft ::VSLRule TExpr TExpr ()
 alignProjectLeft q =
   $(dagPatMatch 'q "(Project e (q1)) Align (q2)"
     [| do
@@ -357,7 +357,7 @@ alignProjectLeft q =
           alignNode <- insert $ BinOp Align $(v "q1") $(v "q2")
           void $ replaceWithNew q $ UnOp (Project e') alignNode |])
 
-zipProjectLeft ::VSLRule VectorExpr VectorExpr ()
+zipProjectLeft ::VSLRule TExpr TExpr ()
 zipProjectLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) Zip (q2))"
     [| do
@@ -370,7 +370,7 @@ zipProjectLeft q =
           r1Node  <- insert $ UnOp R1 zipNode
           void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-alignProjectRight ::VSLRule VectorExpr VectorExpr ()
+alignProjectRight ::VSLRule TExpr TExpr ()
 alignProjectRight q =
   $(dagPatMatch 'q "(q1) Align (Project e (q2))"
     [| do
@@ -383,7 +383,7 @@ alignProjectRight q =
           zipNode <- insert $ BinOp Align $(v "q1") $(v "q2")
           void $ replaceWithNew q $ UnOp (Project e') zipNode |])
 
-zipProjectRight ::VSLRule VectorExpr VectorExpr ()
+zipProjectRight ::VSLRule TExpr TExpr ()
 zipProjectRight q =
   $(dagPatMatch 'q "R1 ((q1) Zip (Project e (q2)))"
     [| do
@@ -403,7 +403,7 @@ zipProjectRight q =
 
 -- -- | This rewrite is valid because we statically know that both
 -- -- vectors have the same length.
--- alignConstLeft ::VSLRule VectorExpr VectorExpr BottomUpProps
+-- alignConstLeft ::VSLRule TExpr TExpr BottomUpProps
 -- alignConstLeft q =
 --   $(dagPatMatch 'q "(q1) Align (q2)"
 --     [| do
@@ -416,7 +416,7 @@ zipProjectRight q =
 --             let proj = map Constant vals ++ map Column [1..w2]
 --             void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
 
--- alignConstRight ::VSLRule VectorExpr VectorExpr BottomUpProps
+-- alignConstRight ::VSLRule TExpr TExpr BottomUpProps
 -- alignConstRight q =
 --   $(dagPatMatch 'q "(q1) Align (q2)"
 --     [| do
@@ -438,7 +438,7 @@ zipProjectRight q =
 -- -- Since we use Zip here, we have to ensure that the constant is in the same
 -- -- segment as the entry from the non-constant tuple. At the moment, we can
 -- -- guarantee this only for unit-segment vectors.
--- zipConstLeft ::VSLRule VectorExpr VectorExpr BottomUpProps
+-- zipConstLeft ::VSLRule TExpr TExpr BottomUpProps
 -- zipConstLeft q =
 --   $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
 --     [| do
@@ -461,7 +461,7 @@ zipProjectRight q =
 --             let proj = map Constant vals ++ map Column [1..w2]
 --             void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
 
--- zipConstRight ::VSLRule VectorExpr VectorExpr BottomUpProps
+-- zipConstRight ::VSLRule TExpr TExpr BottomUpProps
 -- zipConstRight q =
 --   $(dagPatMatch 'q "R1 ((q1) Zip (q2))"
 --     [| do
@@ -484,7 +484,7 @@ zipProjectRight q =
 --             let proj = map Column [1..w1] ++ map Constant vals
 --             void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
-zipZipLeft ::VSLRule VectorExpr VectorExpr ()
+zipZipLeft ::VSLRule TExpr TExpr ()
 zipZipLeft q =
   $(dagPatMatch 'q "(q1) Zip (qz=(q11) [Zip | Align] (_))"
      [| do
@@ -497,7 +497,7 @@ zipZipLeft q =
                               ]
              void $ replaceWithNew q $ UnOp (Project e) $(v "qz") |])
 
-alignWinRight ::VSLRule VectorExpr VectorExpr ()
+alignWinRight ::VSLRule TExpr TExpr ()
 alignWinRight q =
   $(dagPatMatch 'q "(q1) Align (qw=WinFun _ (q2))"
      [| do
@@ -513,7 +513,7 @@ alignWinRight q =
                               ]
              void $ replaceWithNew q $ UnOp (Project e) $(v "qw") |])
 
-zipWinRight ::VSLRule VectorExpr VectorExpr ()
+zipWinRight ::VSLRule TExpr TExpr ()
 zipWinRight q =
   $(dagPatMatch 'q "R1 ((q1) Zip (qw=WinFun _ (q2)))"
      [| do
@@ -533,7 +533,7 @@ zipWinRight q =
 -- operators.
 --
 -- FIXME this should be solved properly for the general case.
--- zipWinRight2 ::VSLRule VectorExpr VectorExpr BottomUpProps
+-- zipWinRight2 ::VSLRule TExpr TExpr BottomUpProps
 -- zipWinRight2 q =
 --   $(dagPatMatch 'q "R1 ((q1) Zip (qw=WinFun _ (WinFun _ (q2))))"
 --      [| do
@@ -550,7 +550,7 @@ zipWinRight q =
 --              -- logGeneral ("zipWinRight " ++ show proj)
 --              void $ replaceWithNew q $ UnOp (Project proj) $(v "qw") |])
 
-alignWinLeft ::VSLRule VectorExpr VectorExpr ()
+alignWinLeft ::VSLRule TExpr TExpr ()
 alignWinLeft q =
   $(dagPatMatch 'q "(qw=WinFun _ (q1)) Align (q2)"
      [| do
@@ -568,7 +568,7 @@ alignWinLeft q =
 
 -- | If the output of a window operator is zipped with its own input, we can
 -- remove the Zip operator.
-zipWinLeft ::VSLRule VectorExpr VectorExpr ()
+zipWinLeft ::VSLRule TExpr TExpr ()
 zipWinLeft q =
   $(dagPatMatch 'q "R1 ((qw=WinFun _ (q1)) Zip (q2))"
      [| do
@@ -590,7 +590,7 @@ isPrecedingFrameSpec fs =
         FAllPreceding -> True
         FNPreceding _ -> True
 
-alignWinRightPush ::VSLRule VectorExpr VectorExpr ()
+alignWinRightPush ::VSLRule TExpr TExpr ()
 alignWinRightPush q =
   $(dagPatMatch 'q "(q1) Align (WinFun args (q2))"
     [| do
@@ -604,7 +604,7 @@ alignWinRightPush q =
                 args'   = (winFun', frameSpec)
             void $ replaceWithNew q $ UnOp (WinFun args') zipNode |])
 
-alignGroupJoinRight ::VSLRule VectorExpr VectorExpr ()
+alignGroupJoinRight ::VSLRule TExpr TExpr ()
 alignGroupJoinRight q =
   $(dagPatMatch 'q "(qo) Align (gj=(qo1) GroupJoin _ (_))"
     [| do
@@ -618,7 +618,7 @@ alignGroupJoinRight q =
                              ]
             void $ replaceWithNew q $ UnOp (Project e) $(v "gj") |])
 
-alignGroupJoinLeft ::VSLRule VectorExpr VectorExpr ()
+alignGroupJoinLeft ::VSLRule TExpr TExpr ()
 alignGroupJoinLeft q =
   $(dagPatMatch 'q "(gj=(qo1) GroupJoin _ (_)) Align (qo)"
     [| do
@@ -646,7 +646,7 @@ alignGroupJoinLeft q =
 --
 -- FIXME This could be extended to all operators that do not modify
 -- the vertical shape.
--- unboxNumber ::VSLRule VectorExpr VectorExpr Properties
+-- unboxNumber ::VSLRule TExpr TExpr Properties
 -- unboxNumber q =
 --   $(dagPatMatch 'q "R1 ((Number (qo)) UnboxSng (qi))"
 --     [| do
@@ -674,7 +674,7 @@ alignGroupJoinLeft q =
 -- operator. We exploit the fact that UnboxSng is only a
 -- specialized join which nevertheless produces payload columns from
 -- both inputs.
-alignUnboxSngRight ::VSLRule VectorExpr VectorExpr ()
+alignUnboxSngRight ::VSLRule TExpr TExpr ()
 alignUnboxSngRight q =
   $(dagPatMatch 'q "(q11) Align (qu=R1 ((q12) UnboxSng (_)))"
      [| do
@@ -695,7 +695,7 @@ alignUnboxSngRight q =
              void $ replaceWithNew q $ UnOp (Project e) $(v "qu") |])
 
 -- | See Align.UnboxSng.Right
-alignUnboxSngLeft ::VSLRule VectorExpr VectorExpr ()
+alignUnboxSngLeft ::VSLRule TExpr TExpr ()
 alignUnboxSngLeft q =
   $(dagPatMatch 'q "(qu=R1 ((q11) UnboxSng (_))) Align (q12)"
      [| do
@@ -722,7 +722,7 @@ alignUnboxSngLeft q =
 -- operator. We exploit the fact that UnboxSng is only a
 -- specialized join which nevertheless produces payload columns from
 -- both inputs.
-alignUnboxDefaultRight ::VSLRule VectorExpr VectorExpr ()
+alignUnboxDefaultRight ::VSLRule TExpr TExpr ()
 alignUnboxDefaultRight q =
   $(dagPatMatch 'q "(q11) Align (qu=R1 ((q12) UnboxDefault _ (_)))"
      [| do
@@ -743,7 +743,7 @@ alignUnboxDefaultRight q =
              void $ replaceWithNew q $ UnOp (Project e) $(v "qu") |])
 
 -- | See Align.UnboxSng.Right
-alignUnboxDefaultLeft ::VSLRule VectorExpr VectorExpr ()
+alignUnboxDefaultLeft ::VSLRule TExpr TExpr ()
 alignUnboxDefaultLeft q =
   $(dagPatMatch 'q "(qu=R1 ((q11) UnboxDefault _ (_))) Align (q12)"
      [| do
@@ -769,7 +769,7 @@ alignUnboxDefaultLeft q =
 -- structure we can derive that 'q11' and the CartProduct result are
 -- aligned. Consequentially, 'q11 and 'q12' (the left CartProduct
 -- input) must be aligned as well.
-alignCartProdRight ::VSLRule VectorExpr VectorExpr BottomUpProps
+alignCartProdRight ::VSLRule TExpr TExpr BottomUpProps
 alignCartProdRight q =
   $(dagPatMatch 'q "(q11) Align (R1 ((q12) CartProduct (q2)))"
     [| do
@@ -786,7 +786,7 @@ alignCartProdRight q =
 -- | Under a number of conditions, a combination of Combine and Select
 -- (Restrict) operators implements a scalar conditional that can be
 -- simply mapped to an 'if' expression evaluated on the input vector.
--- scalarConditional ::VSLRule VectorExpr VectorExpr ()
+-- scalarConditional ::VSLRule TExpr TExpr ()
 -- scalarConditional q =
 --   $(dagPatMatch 'q "R1 (Combine (Project predProj (q1)) (Project thenProj (R1 (Select pred2 (q2)))) (Project elseProj (R1 (Select negPred (q3)))))"
 --     [| do
@@ -814,7 +814,7 @@ alignCartProdRight q =
 ------------------------------------------------------------------------------
 -- Projection pullup
 
-pullProjectGroupJoinLeft ::VSLRule VectorExpr VectorExpr ()
+pullProjectGroupJoinLeft ::VSLRule TExpr TExpr ()
 pullProjectGroupJoinLeft q =
   $(dagPatMatch 'q "(Project e (q1)) GroupJoin args (q2)"
     [| do
@@ -828,7 +828,7 @@ pullProjectGroupJoinLeft q =
             joinNode <- insert $ BinOp (GroupJoin (l1, l2, p', as')) $(v "q1") $(v "q2")
             void $ replaceWithNew q $ UnOp (Project e') joinNode |])
 
-pullProjectGroupJoinRight ::VSLRule VectorExpr VectorExpr ()
+pullProjectGroupJoinRight ::VSLRule TExpr TExpr ()
 pullProjectGroupJoinRight q =
   $(dagPatMatch 'q "(q1) GroupJoin args (Project e (q2))"
     [| do
@@ -842,7 +842,7 @@ pullProjectGroupJoinRight q =
 
             void $ replaceWithNew q $ BinOp (GroupJoin (l1, l2, p', as')) $(v "q1") $(v "q2") |])
 
-pullProjectMaterialize ::VSLRule VectorExpr VectorExpr BottomUpProps
+pullProjectMaterialize ::VSLRule TExpr TExpr BottomUpProps
 pullProjectMaterialize q =
   $(dagPatMatch 'q "R1 ((q1) Materialize (Project p (q2)))"
     [| return $ do
@@ -854,7 +854,7 @@ pullProjectMaterialize q =
             -- FIXME relink R2 parents
             |])
 
-pullProjectNestJoinLeft ::VSLRule VectorExpr VectorExpr ()
+pullProjectNestJoinLeft ::VSLRule TExpr TExpr ()
 pullProjectNestJoinLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) NestJoin args (q2))"
     [| do
@@ -871,7 +871,7 @@ pullProjectNestJoinLeft q =
             -- FIXME relink R2 and R3 parents
             |])
 
-pullProjectNestJoinRight ::VSLRule VectorExpr VectorExpr ()
+pullProjectNestJoinRight ::VSLRule TExpr TExpr ()
 pullProjectNestJoinRight q =
   $(dagPatMatch 'q "R1 ((q1) NestJoin args (Project e (q2)))"
     [| do
@@ -888,7 +888,7 @@ pullProjectNestJoinRight q =
             -- FIXME relink R2 and R3 parents
             |])
 
-pullProjectCartProductLeft ::VSLRule VectorExpr VectorExpr ()
+pullProjectCartProductLeft ::VSLRule TExpr TExpr ()
 pullProjectCartProductLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) CartProduct (q2))"
     [| do
@@ -903,7 +903,7 @@ pullProjectCartProductLeft q =
             -- FIXME relink R2 and R3 parents
             |])
 
-pullProjectCartProductRight ::VSLRule VectorExpr VectorExpr ()
+pullProjectCartProductRight ::VSLRule TExpr TExpr ()
 pullProjectCartProductRight q =
   $(dagPatMatch 'q "R1 ((q1) CartProduct (Project e (q2)))"
     [| do
@@ -919,7 +919,7 @@ pullProjectCartProductRight q =
             |])
 
 
-pullProjectNumber ::VSLRule VectorExpr VectorExpr ()
+pullProjectNumber ::VSLRule TExpr TExpr ()
 pullProjectNumber q =
   $(dagPatMatch 'q "Number (Project e (q1))"
     [| do
@@ -932,7 +932,7 @@ pullProjectNumber q =
              numberNode <- insert $ UnOp Number $(v "q1")
              void $ replaceWithNew q $ UnOp (Project e') numberNode |])
 
-pullProjectSort ::VSLRule VectorExpr VectorExpr ()
+pullProjectSort ::VSLRule TExpr TExpr ()
 pullProjectSort q =
   $(dagPatMatch 'q "R1 (Sort se (Project e (q1)))"
     [| return $ do
@@ -942,7 +942,7 @@ pullProjectSort q =
            r1Node   <- insert (UnOp R1 sortNode)
            void $ replaceWithNew q $ UnOp (Project $(v "e")) r1Node |])
 
-pullProjectUnboxSngLeft ::VSLRule VectorExpr VectorExpr ()
+pullProjectUnboxSngLeft ::VSLRule TExpr TExpr ()
 pullProjectUnboxSngLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) UnboxSng (q2))"
     [| do
@@ -957,7 +957,7 @@ pullProjectUnboxSngLeft q =
 
            void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-pullProjectUnboxDefaultLeft ::VSLRule VectorExpr VectorExpr ()
+pullProjectUnboxDefaultLeft ::VSLRule TExpr TExpr ()
 pullProjectUnboxDefaultLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) UnboxDefault d (q2))"
     [| do
@@ -972,7 +972,7 @@ pullProjectUnboxDefaultLeft q =
 
            void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-pullProjectUnboxSngRight ::VSLRule VectorExpr VectorExpr ()
+pullProjectUnboxSngRight ::VSLRule TExpr TExpr ()
 pullProjectUnboxSngRight q =
   $(dagPatMatch 'q "R1 ((q1) UnboxSng (Project e (q2)))"
     [| do
@@ -989,7 +989,7 @@ pullProjectUnboxSngRight q =
 
            void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-pullProjectReplicateScalarRight ::VSLRule VectorExpr VectorExpr ()
+pullProjectReplicateScalarRight ::VSLRule TExpr TExpr ()
 pullProjectReplicateScalarRight q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateScalar (Project e (q2)))"
     [| do
@@ -1000,14 +1000,14 @@ pullProjectReplicateScalarRight q =
            r1Node   <- insert $ UnOp R1 distNode
            void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-pullProjectMergeMap ::VSLRule VectorExpr VectorExpr ()
+pullProjectMergeMap ::VSLRule TExpr TExpr ()
 pullProjectMergeMap q =
   $(dagPatMatch 'q "MergeMap (Project _ (q1))"
     [| return $ do
            logRewrite "Redundant.Project.MergeMap" q
            void $ replaceWithNew q $ UnOp MergeMap $(v "q1") |])
 
-pullProjectUnitMap ::VSLRule VectorExpr VectorExpr ()
+pullProjectUnitMap ::VSLRule TExpr TExpr ()
 pullProjectUnitMap q =
   $(dagPatMatch 'q "UnitMap (Project _ (q1))"
     [| return $ do
@@ -1020,7 +1020,7 @@ pullProjectUnitMap q =
 --------------------------------------------------------------------------------
 -- Eliminating operators whose output is not required
 
--- notReqNumber ::VSLRule VectorExpr VectorExpr Properties
+-- notReqNumber ::VSLRule TExpr TExpr Properties
 -- notReqNumber q =
 --   $(dagPatMatch 'q "Number (q1)"
 --     [| do
@@ -1042,7 +1042,7 @@ pullProjectUnitMap q =
 
 -- | Merge a selection that refers to both sides of a cartesian
 -- product operators' inputs into a join.
-selectCartProd ::VSLRule VectorExpr VectorExpr ()
+selectCartProd ::VSLRule TExpr TExpr ()
 selectCartProd q =
   $(dagPatMatch 'q "R1 (Select p (R1 ((q1) CartProduct (q2))))"
     [| do
@@ -1072,7 +1072,7 @@ selectCartProd q =
 -- reason, we choose the right side. When we deal with a self-align, this will
 -- not matter. There might however be plans where the left side would make more
 -- sense and we might get stuck.
-pushUnboxSngAlign ::VSLRule VectorExpr VectorExpr ()
+pushUnboxSngAlign ::VSLRule TExpr TExpr ()
 pushUnboxSngAlign q =
   $(dagPatMatch 'q "R1 (((q1) Align (q2)) UnboxSng (q3))"
     [| return $ do
@@ -1091,7 +1091,7 @@ pushUnboxSngAlign q =
 -- | Unbox singletons early, namely before distributing another singleton.
 --
 -- Note: the same comment as for pushUnboxSngAlign applies.
-pushUnboxSngReplicateScalar ::VSLRule VectorExpr VectorExpr ()
+pushUnboxSngReplicateScalar ::VSLRule TExpr TExpr ()
 pushUnboxSngReplicateScalar q =
   $(dagPatMatch 'q "R1 ((R1 ((q1) ReplicateScalar (q2))) UnboxSng (q3))"
     [| return $ do
@@ -1111,7 +1111,7 @@ pushUnboxSngReplicateScalar q =
 --------------------------------------------------------------------------------
 -- Pull up number operators
 
-pullNumberReplicateSeg ::VSLRule VectorExpr VectorExpr ()
+pullNumberReplicateSeg ::VSLRule TExpr TExpr ()
 pullNumberReplicateSeg q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateSeg (Number (q2)))"
     [| return $ do
@@ -1127,7 +1127,7 @@ pullNumberReplicateSeg q =
           void $ replaceWithNew q $ UnOp (Project e) numberNode
      |])
 
-pullNumberAlignLeft ::VSLRule VectorExpr VectorExpr ()
+pullNumberAlignLeft ::VSLRule TExpr TExpr ()
 pullNumberAlignLeft q =
   $(dagPatMatch 'q "(Number (q1)) Align (q2)"
      [| do
@@ -1146,7 +1146,7 @@ pullNumberAlignLeft q =
       |]
    )
 
-pullNumberAlignRight ::VSLRule VectorExpr VectorExpr ()
+pullNumberAlignRight ::VSLRule TExpr TExpr ()
 pullNumberAlignRight q =
   $(dagPatMatch 'q "(q1) Align (Number (q2))"
      [| do

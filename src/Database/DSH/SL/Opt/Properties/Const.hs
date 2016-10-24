@@ -62,10 +62,10 @@ evalBinOp _              _            _            = $impossible
 evalUnOp :: ScalarUnOp -> ScalarVal -> ConstPayload
 evalUnOp _ _ = CPNoVal
 
-constExpr :: ConstPayload -> VectorExpr -> ConstPayload
+constExpr :: ConstPayload -> TExpr -> ConstPayload
 constExpr constInput expr = eval constInput expr
 
-eval :: ConstPayload -> VectorExpr -> ConstPayload
+eval :: ConstPayload -> TExpr -> ConstPayload
 eval v (VConstant c)       = CPVal c
 eval v VInput              = v
 eval v (VBinApp op e1 e2)  =

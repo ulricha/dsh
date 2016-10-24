@@ -77,7 +77,7 @@ refreshShape shape = T.mapM refreshVec shape
             Nothing -> $impossible
 
 translate :: VirtualSegmentAlgebra a
-          => NodeMap VSL.FVSL
+          => NodeMap VSL.RVSL
           -> AlgNode
           -> VecBuild a (VSLDVec a) (VSLRVec a) (Res (VSLDVec a) (VSLRVec a))
 translate vlNodes n = do
@@ -108,16 +108,16 @@ translate vlNodes n = do
             insertTranslation n r'
             return r'
 
-getVSL :: AlgNode -> NodeMap VSL.FVSL -> VSL.FVSL
+getVSL :: AlgNode -> NodeMap VSL.RVSL -> VSL.RVSL
 getVSL n vlNodes = case IM.lookup n vlNodes of
     Just op -> op
     Nothing -> error $ "getVSL: node " ++ (show n) ++ " not in VSL nodes map " ++ (pp vlNodes)
 
-pp :: NodeMap VSL.FVSL -> String
+pp :: NodeMap VSL.RVSL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
 vl2Algebra :: VirtualSegmentAlgebra a
-           => NodeMap VSL.FVSL
+           => NodeMap VSL.RVSL
            -> Shape V.DVec
            -> B.Build a (Shape (VSLDVec a))
 vl2Algebra vlNodes plan = runVecBuild $ do
@@ -140,7 +140,7 @@ translateTerOp t c1 c2 c3 =
             return $ RTriple (fromDVec d) (fromRVec r1) (fromRVec r2)
 
 translateBinOp :: VirtualSegmentAlgebra a
-               => VSL.BinOp FlatExpr
+               => VSL.BinOp RExpr
                -> Res (VSLDVec a) (VSLRVec a)
                -> Res (VSLDVec a) (VSLRVec a)
                -> B.Build a (Res (VSLDVec a) (VSLRVec a))
@@ -201,7 +201,7 @@ translateBinOp b c1 c2 = case b of
     VSL.UpdateMap -> fromRVec <$> vecUpdateMap (toRVec c1) (toRVec c2)
 
 translateUnOp :: VirtualSegmentAlgebra a
-              => VSL.UnOp FlatTuple FlatExpr
+              => VSL.UnOp VRow RExpr
               -> Res (VSLDVec a) (VSLRVec a)
               -> B.Build a (Res (VSLDVec a) (VSLRVec a))
 translateUnOp unop c = case unop of
