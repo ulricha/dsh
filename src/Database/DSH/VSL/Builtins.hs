@@ -43,7 +43,7 @@ pattern MatVec v = DelayedVec IDMap v
 
 unOpL :: L.ScalarUnOp -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 unOpL o (VShape (DelayedVec m v) LCol) = do
-    vp <- C.project (VUnApp o VInput) v
+    vp <- C.project (TUnApp o TInput) v
     return $ VShape (DelayedVec m vp) LCol
 
 --------------------------------------------------------------------------------
@@ -54,29 +54,29 @@ binOpL o (VShape dv1 LCol) (VShape dv2 LCol) = do
     case (dvSegMap dv1, dvSegMap dv2) of
         (RMap m1, RMap _) -> do
             v  <- C.align (dvPhysVec dv1) (dvPhysVec dv2)
-            v' <- C.project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) v
+            v' <- C.project (TBinApp o (TTupElem First TInput) (TTupElem (Next First) TInput)) v
             return $ VShape (DelayedVec (RMap m1) v') LCol
         (UnitMap m1, UnitMap _) -> do
             v  <- C.align (dvPhysVec dv1) (dvPhysVec dv2)
-            v' <- C.project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) v
+            v' <- C.project (TBinApp o (TTupElem First TInput) (TTupElem (Next First) TInput)) v
             return $ VShape (DelayedVec (UnitMap m1) v') LCol
         (IDMap, IDMap) -> do
             v  <- C.align (dvPhysVec dv1) (dvPhysVec dv2)
-            v' <- C.project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) v
+            v' <- C.project (TBinApp o (TTupElem First TInput) (TTupElem (Next First) TInput)) v
             return $ VShape (DelayedVec IDMap v') LCol
         (RMap m1, IDMap) -> do
             -- Materialize the left input
             -- We do not need the replication vector because the layout is flat
             (mv1, _) <- C.materialize m1 (dvPhysVec dv1)
             v        <- C.align mv1 (dvPhysVec dv2)
-            v'       <- C.project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) v
+            v'       <- C.project (TBinApp o (TTupElem First TInput) (TTupElem (Next First) TInput)) v
             return $ VShape (DelayedVec IDMap v') LCol
         (IDMap, RMap m2) -> do
             -- Materialize the right input
             -- We do not need the replication vector because the layout is flat
             (mv2, _) <- C.materialize m2 (dvPhysVec dv2)
             v        <- C.align (dvPhysVec dv1) mv2
-            v'       <- C.project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) v
+            v'       <- C.project (TBinApp o (TTupElem First TInput) (TTupElem (Next First) TInput)) v
             return $ VShape (DelayedVec IDMap v') LCol
 
 --------------------------------------------------------------------------------
@@ -85,7 +85,7 @@ binOpL o (VShape dv1 LCol) (VShape dv2 LCol) = do
 tupElemL :: TupleIndex -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 tupElemL i (VShape dv (LTuple ls)) = do
     let l = ls !! (tupleIndex i - 1)
-    vp <- C.project (VTupElem i VInput) (dvPhysVec dv)
+    vp <- C.project (TTupElem i TInput) (dvPhysVec dv)
     return $ VShape (dv { dvPhysVec = vp }) (l)
 
 --------------------------------------------------------------------------------
@@ -93,7 +93,7 @@ tupElemL i (VShape dv (LTuple ls)) = do
 
 sngL :: Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 sngL (VShape (DelayedVec m v) l) = do
-    vo <- C.project VIndex v
+    vo <- C.project TIndex v
     vi <- C.segment v
     return $ VShape (DelayedVec m vo) (LNest (DelayedVec IDMap vi) l)
 
@@ -102,14 +102,14 @@ sngL (VShape (DelayedVec m v) l) = do
 
 aggrL :: (TExpr -> AggrFun TExpr) -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 aggrL afun (VShape dvo (LNest dvi _)) = do
-    let a = afun VInput
+    let a = afun TInput
     -- Aggregate the physical segments without considering the segment map.
     va      <- C.aggrseg a (dvPhysVec dvi)
     -- To unbox, we need to materialize the inner vector. Crucially, we
     -- materialize *after* aggregation.
     (vm, _) <- materializeShape (dvi { dvPhysVec = va }) LCol
     vu      <- fst <$> defaultUnboxOp a (dvPhysVec dvo) vm
-    vp      <- C.project (VTupElem (Next First) VInput) vu
+    vp      <- C.project (TTupElem (Next First) TInput) vu
     return $ VShape (dvo { dvPhysVec = vp }) LCol
 
 defaultUnboxOp :: AggrFun TExpr -> DVec -> DVec -> VSLBuild TExpr TExpr (DVec, RVec)
@@ -220,9 +220,9 @@ reverse dv l = do
 sort :: UnVectMacro
 sort dv (LTuple [xl, _]) = do
     -- Sort by all sorting columns from the right tuple component
-    (v', r) <- C.sort (VTupElem (Next First) VInput) (dvPhysVec dv)
+    (v', r) <- C.sort (TTupElem (Next First) TInput) (dvPhysVec dv)
     -- After sorting, discard the sorting criteria columns
-    v''     <- C.project (VTupElem First VInput) v'
+    v''     <- C.project (TTupElem First TInput) v'
 
     l'      <- updateLayoutMaps (RMap r) xl
 
@@ -233,8 +233,8 @@ sort dv (LTuple [xl, _]) = do
 
 group :: UnVectMacro
 group dv (LTuple [xl, gl]) = do
-    (vo, vi, r) <- C.group (VTupElem (Next First) VInput) (dvPhysVec dv)
-    vi'         <- C.project (VTupElem First VInput) vi
+    (vo, vi, r) <- C.group (TTupElem (Next First) TInput) (dvPhysVec dv)
+    vi'         <- C.project (TTupElem First TInput) vi
     xl'         <- updateLayoutMaps (RMap r) xl
     return (dv { dvPhysVec = vo }, LTuple [gl, LNest (DelayedVec IDMap vi') xl'])
 
@@ -243,7 +243,7 @@ group dv (LTuple [xl, gl]) = do
 
 ext :: L.ScalarVal -> UnVectMacro
 ext val dv lyt = do
-    v' <- C.project (VMkTuple [VInput, VConstant val]) (dvPhysVec dv)
+    v' <- C.project (TMkTuple [TInput, TConstant val]) (dvPhysVec dv)
     return (dv { dvPhysVec = v' }, LTuple [lyt, LCol])
 
 --------------------------------------------------------------------------------
@@ -252,8 +252,8 @@ ext val dv lyt = do
 restrict :: UnVectMacro
 restrict dv (LTuple [l, LCol]) = do
     -- Filter the vector according to the boolean column
-    (v, r) <- C.select (VTupElem (Next First) VInput) (dvPhysVec dv)
-    v'     <- C.project (VTupElem First VInput) v
+    (v, r) <- C.select (TTupElem (Next First) TInput) (dvPhysVec dv)
+    v'     <- C.project (TTupElem First TInput) v
     l'     <- updateLayoutMaps (RMap r) l
 
     return (dv { dvPhysVec = v' }, l')
@@ -308,14 +308,14 @@ nestjoin p dv1 l1 (DelayedVec m2 v2) l2 = do
     case m2 of
         IDMap -> do
             (v, r1, r2) <- C.nestjoinMM (scalarExpr <$> p) v1 v2
-            vo          <- C.project (VMkTuple [VInput, VIndex]) v1
+            vo          <- C.project (TMkTuple [TInput, TIndex]) v1
             l1'' <- updateLayoutMaps (RMap r1) l1'
             l2'  <- updateLayoutMaps (RMap r2) l2
             return ( DelayedVec IDMap vo
                    , LTuple [l1', LNest (DelayedVec IDMap v) (LTuple [l1'', l2'])])
         UnitMap _ -> do
             (v, r1, r2) <- C.nestjoinMU (scalarExpr <$> p) v1 v2
-            vo          <- C.project (VMkTuple [VInput, VIndex]) v1
+            vo          <- C.project (TMkTuple [TInput, TIndex]) v1
             l1'' <- updateLayoutMaps (RMap r1) l1'
             l2'  <- updateLayoutMaps (RMap r2) l2
             return ( DelayedVec IDMap vo
@@ -323,7 +323,7 @@ nestjoin p dv1 l1 (DelayedVec m2 v2) l2 = do
         RMap m -> do
             (v2', l2') <- materializeShape (DelayedVec (RMap m) v2) l2
             (v, r1, r2) <- C.nestjoinMM (scalarExpr <$> p) v1 v2'
-            vo          <- C.project (VMkTuple [VInput, VIndex]) v1
+            vo          <- C.project (TMkTuple [TInput, TIndex]) v1
             l1'' <- updateLayoutMaps (RMap r1) l1'
             l2''  <- updateLayoutMaps (RMap r2) l2'
             return ( DelayedVec IDMap vo
@@ -463,7 +463,7 @@ combine dvb LCol dv1 l1 dv2 l2 = do
 
 dist :: Shape DelayedVec -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
 dist (VShape (DelayedVec IDMap v1) l1) (VShape dv2 _) = do
-    outerVec <- C.project VIndex (dvPhysVec dv2)
+    outerVec <- C.project TIndex (dvPhysVec dv2)
     innerMap <- UnitMap <$> C.unitmap (dvPhysVec dv2)
     return $ VShape (dv2 { dvPhysVec = outerVec }) (LNest (DelayedVec innerMap v1) l1)
 dist _ _ = error "VSL.Vectorize.dist"
@@ -552,7 +552,7 @@ shredList vs lyt = List.foldl' go (S.empty, lyt) vs
 shredValue :: L.Val -> Layout (PType (), S.Seq SegD) -> (VecVal, Layout (PType (), S.Seq SegD))
 shredValue (L.ListV vs)  (LNest (ty, segs) lyt) =
     let (seg, lyt') = shredList vs lyt
-    in (VVIndex, LNest (ty, segs S.|> seg) lyt')
+    in (VTIndex, LNest (ty, segs S.|> seg) lyt')
 shredValue (L.TupleV vs) (LTuple lyts)          =
     let (vvs, ls) = unzip $ zipWith shredValue vs lyts
     in (VVTuple vvs, LTuple ls)

@@ -171,8 +171,8 @@ distLiftNestJoin q =
         return $ do
             logRewrite "Redundant.ReplicateSeg.NestJoin" q
             -- Preserve the original schema
-            let e = VMkTuple [ VTupElem First VInput
-                             , VInput
+            let e = TMkTuple [ TTupElem First TInput
+                             , TInput
                              ]
             prodNode <- insert $ BinOp (NestJoin $(v "p")) $(v "qo") $(v "qi")
             r1Node   <- insert $ UnOp R1 prodNode
@@ -213,9 +213,9 @@ distLiftStacked q =
 
          return $ do
              logRewrite "Redundant.ReplicateSeg.Stacked" q
-             let e = VMkTuple [ VTupElem First VInput
-                              , VMkTuple [ VTupElem First VInput
-                                         , VTupElem (Next First) VInput
+             let e = TMkTuple [ TTupElem First TInput
+                              , TMkTuple [ TTupElem First TInput
+                                         , TTupElem (Next First) TInput
                                          ]
                               ]
              void $ replaceWithNew q $ UnOp (Project e) $(v "r1") |])
@@ -255,8 +255,8 @@ alignedDistRight q =
 
         return $ do
             logRewrite "Redundant.Dist.Align.Right" q
-            let e = VMkTuple [ VTupElem (Next First) VInput
-                             , VInput
+            let e = TMkTuple [ TTupElem (Next First) TInput
+                             , TInput
                              ]
             void $ replaceWithNew q $ UnOp (Project e) $(v "qr1") |])
 
@@ -272,8 +272,8 @@ alignedDistLeft q =
 
         return $ do
             logRewrite "Redundant.Dist.Align.Left" q
-            let e = VMkTuple [ VInput
-                             , VTupElem (Next First) VInput
+            let e = TMkTuple [ TInput
+                             , TTupElem (Next First) TInput
                              ]
             void $ replaceWithNew q $ UnOp (Project e) $(v "qr1") |])
 
@@ -295,7 +295,7 @@ sameInputAlign q =
 
         return $ do
           logRewrite "Redundant.Align.Self" q
-          let e = VMkTuple [VInput, VInput]
+          let e = TMkTuple [TInput, TInput]
           void $ replaceWithNew q $ UnOp (Project e) $(v "q1") |])
 
 -- | Replace an Align operator with a projection if both inputs are the
@@ -308,7 +308,7 @@ sameInputZip q =
 
         return $ do
           logRewrite "Redundant.Zip.Self" q
-          let e = VMkTuple [VInput, VInput]
+          let e = TMkTuple [TInput, TInput]
           void $ replaceWithNew q $ UnOp (Project e) $(v "q1") |])
 
 -- sameInputZipProject ::VSLRule TExpr TExpr BottomUpProps
@@ -492,8 +492,8 @@ zipZipLeft q =
 
          return $ do
              logRewrite "Redundant.Zip/Align.Zip.Left" q
-             let e = VMkTuple [ VTupElem First VInput
-                              , VInput
+             let e = TMkTuple [ TTupElem First TInput
+                              , TInput
                               ]
              void $ replaceWithNew q $ UnOp (Project e) $(v "qz") |])
 
@@ -508,8 +508,8 @@ alignWinRight q =
              -- We get all columns from the left input. The WinAggr
              -- operator produces the input column followed by the
              -- window function result.
-             let e = VMkTuple [ VTupElem First VInput
-                              , VInput
+             let e = TMkTuple [ TTupElem First TInput
+                              , TInput
                               ]
              void $ replaceWithNew q $ UnOp (Project e) $(v "qw") |])
 
@@ -524,8 +524,8 @@ zipWinRight q =
              -- We get all columns from the left input. The WinAggr
              -- operator produces the input column followed the window
              -- function result.
-             let e = VMkTuple [ VTupElem First VInput
-                              , VInput
+             let e = TMkTuple [ TTupElem First TInput
+                              , TInput
                               ]
              void $ replaceWithNew q $ UnOp (Project e) $(v "qw") |])
 
@@ -561,8 +561,8 @@ alignWinLeft q =
              -- We get all input columns plus the window function
              -- output from the left. From the right we get all input
              -- columns.
-             let e = VMkTuple [ VInput
-                              , VTupElem First VInput
+             let e = TMkTuple [ TInput
+                              , TTupElem First TInput
                               ]
              void $ replaceWithNew q $ UnOp (Project e) $(v "qw") |])
 
@@ -579,8 +579,8 @@ zipWinLeft q =
              -- We get all input columns plus the window function
              -- output from the left. From the right we get all input
              -- columns.
-             let e = VMkTuple [ VInput
-                              , VTupElem First VInput
+             let e = TMkTuple [ TInput
+                              , TTupElem First TInput
                               ]
              void $ replaceWithNew q $ UnOp (Project e) $(v "qw") |])
 
@@ -613,8 +613,8 @@ alignGroupJoinRight q =
             logRewrite "Redundant.Align.GroupJoin.Right" q
             -- In the result, replicate the columns from the outer
             -- vector to keep the schema intact.
-            let e = VMkTuple [ VTupElem First VInput
-                             , VInput
+            let e = TMkTuple [ TTupElem First TInput
+                             , TInput
                              ]
             void $ replaceWithNew q $ UnOp (Project e) $(v "gj") |])
 
@@ -627,8 +627,8 @@ alignGroupJoinLeft q =
             logRewrite "Redundant.Align.GroupJoin.Left" q
             -- In the result, replicate the columns from the outer
             -- vector to keep the schema intact.
-            let e = VMkTuple [ VInput
-                             , VTupElem First VInput
+            let e = TMkTuple [ TInput
+                             , TTupElem First TInput
                              ]
             void $ replaceWithNew q $ UnOp (Project e) $(v "gj") |])
 
@@ -685,8 +685,8 @@ alignUnboxSngRight q =
              -- Keep the original schema intact by duplicating columns
              -- from the left input (UnboxSng produces columns from
              -- its left and right inputs).
-             let e = VMkTuple [ VTupElem First VInput
-                              , VInput
+             let e = TMkTuple [ TTupElem First TInput
+                              , TInput
                               ]
 
              -- Keep only the unboxing operator, together with a
@@ -706,8 +706,8 @@ alignUnboxSngLeft q =
              -- Keep the original schema intact by duplicating columns
              -- from the left input (UnboxSng produces columns from
              -- its left and right inputs).
-             let e = VMkTuple [ VInput
-                              , VTupElem First VInput
+             let e = TMkTuple [ TInput
+                              , TTupElem First TInput
                               ]
 
              -- Keep only the unboxing operator, together with a
@@ -733,8 +733,8 @@ alignUnboxDefaultRight q =
              -- Keep the original schema intact by duplicating columns
              -- from the left input (UnboxSng produces columns from
              -- its left and right inputs).
-             let e = VMkTuple [ VTupElem First VInput
-                              , VInput
+             let e = TMkTuple [ TTupElem First TInput
+                              , TInput
                               ]
 
              -- Keep only the unboxing operator, together with a
@@ -754,8 +754,8 @@ alignUnboxDefaultLeft q =
              -- Keep the original schema intact by duplicating columns
              -- from the left input (UnboxDefault produces columns from
              -- its left and right inputs).
-             let e = VMkTuple [ VInput
-                              , VTupElem First VInput
+             let e = TMkTuple [ TInput
+                              , TTupElem First TInput
                               ]
 
              -- Keep only the unboxing operator, together with a
@@ -1046,7 +1046,7 @@ selectCartProd ::VSLRule TExpr TExpr ()
 selectCartProd q =
   $(dagPatMatch 'q "R1 (Select p (R1 ((q1) CartProduct (q2))))"
     [| do
-        VBinApp (SBRelOp op) e1 e2 <- return $(v "p")
+        TBinApp (SBRelOp op) e1 e2 <- return $(v "p")
 
         -- The left operand column has to be from the left input, the
         -- right operand from the right input.
@@ -1055,8 +1055,8 @@ selectCartProd q =
 
         return $ do
             logRewrite "Redundant.Relational.Join" q
-            let e1' = mergeExpr (VMkTuple [VInput, VInput]) e1
-            let e2' = mergeExpr (VMkTuple [VInput, VInput]) e2
+            let e1' = mergeExpr (TMkTuple [TInput, TInput]) e1
+            let e2' = mergeExpr (TMkTuple [TInput, TInput]) e2
             let joinPred = singlePred $ JoinConjunct e1' op e2'
             joinNode <- insert $ BinOp (ThetaJoin (Direct, Direct, joinPred)) $(v "q1") $(v "q2")
             void $ replaceWithNew q $ UnOp R1 joinNode |])
@@ -1077,10 +1077,10 @@ pushUnboxSngAlign q =
   $(dagPatMatch 'q "R1 (((q1) Align (q2)) UnboxSng (q3))"
     [| return $ do
            logRewrite "Redundant.UnboxSng.Push.Align" q
-           let e = VMkTuple [ VMkTuple [ VTupElem First VInput
-                                       , VTupElem First (VTupElem (Next First) VInput)
+           let e = TMkTuple [ TMkTuple [ TTupElem First TInput
+                                       , TTupElem First (TTupElem (Next First) TInput)
                                        ]
-                            , VTupElem (Next First) (VTupElem (Next First) VInput)
+                            , TTupElem (Next First) (TTupElem (Next First) TInput)
                             ]
            unboxNode <- insert $ BinOp UnboxSng $(v "q2") $(v "q3")
            r1Node    <- insert $ UnOp R1 unboxNode
@@ -1096,10 +1096,10 @@ pushUnboxSngReplicateScalar q =
   $(dagPatMatch 'q "R1 ((R1 ((q1) ReplicateScalar (q2))) UnboxSng (q3))"
     [| return $ do
            logRewrite "Redundant.UnboxSng.Push.ReplicateScalar" q
-           let e = VMkTuple [ VMkTuple [ VTupElem First VInput
-                                       , VTupElem First (VTupElem (Next First) VInput)
+           let e = TMkTuple [ TMkTuple [ TTupElem First TInput
+                                       , TTupElem First (TTupElem (Next First) TInput)
                                        ]
-                            , VTupElem (Next First) (VTupElem (Next First) VInput)
+                            , TTupElem (Next First) (TTupElem (Next First) TInput)
                             ]
            unboxNode <- insert $ BinOp UnboxSng $(v "q2") $(v "q3")
            r1Node    <- insert $ UnOp R1 unboxNode
@@ -1116,10 +1116,10 @@ pullNumberReplicateSeg q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateSeg (Number (q2)))"
     [| return $ do
           logRewrite "Redundant.ReplicateSeg.Number" q
-          let e = VMkTuple [ VMkTuple [ VTupElem First VInput
-                                      , VTupElem First (VTupElem (Next First) VInput)
+          let e = TMkTuple [ TMkTuple [ TTupElem First TInput
+                                      , TTupElem First (TTupElem (Next First) TInput)
                                       ]
-                           , VTupElem (Next First) (VTupElem (Next First) VInput)
+                           , TTupElem (Next First) (TTupElem (Next First) TInput)
                            ]
           repNode    <- insert $ BinOp ReplicateSeg $(v "q1") $(v "q2")
           r1Node     <- insert $ UnOp R1 repNode
@@ -1135,10 +1135,10 @@ pullNumberAlignLeft q =
             logRewrite "Redundant.Align.Number.Left" q
             -- Project the number output between left and right columns to
             -- preserve the schema.
-            let e = VMkTuple [ VMkTuple [ VTupElem First (VTupElem First VInput)
-                                        , VTupElem (Next First) VInput
+            let e = TMkTuple [ TMkTuple [ TTupElem First (TTupElem First TInput)
+                                        , TTupElem (Next First) TInput
                                         ]
-                             , VTupElem (Next First) (VTupElem First VInput)
+                             , TTupElem (Next First) (TTupElem First TInput)
                              ]
             alignNode  <- insert $ BinOp Align $(v "q1") $(v "q2")
             numberNode <- insert $ UnOp Number alignNode
@@ -1152,9 +1152,9 @@ pullNumberAlignRight q =
      [| do
           return $ do
             logRewrite "Redundant.Align.Number.Right" q
-            let e = VMkTuple [ VTupElem First (VTupElem First VInput)
-                             , VMkTuple [ VTupElem (Next First) (VTupElem First VInput)
-                                        , VTupElem (Next First) VInput
+            let e = TMkTuple [ TTupElem First (TTupElem First TInput)
+                             , TMkTuple [ TTupElem (Next First) (TTupElem First TInput)
+                                        , TTupElem (Next First) TInput
                                         ]
                              ]
             alignNode  <- insert $ BinOp Align $(v "q1") $(v "q2")

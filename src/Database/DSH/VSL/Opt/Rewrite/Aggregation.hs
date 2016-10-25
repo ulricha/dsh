@@ -262,5 +262,5 @@ countDistinct q =
 
         return $ do
             logRewrite "CountDistinct" q
-            void $ replaceWithNew q $ UnOp (Fold (AggrCountDistinct VInput)) $(v "q1")
+            void $ replaceWithNew q $ UnOp (Fold (AggrCountDistinct TInput)) $(v "q1")
         |])

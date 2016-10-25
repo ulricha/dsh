@@ -199,9 +199,9 @@ mergeGroupWithGroupAggrLeft q =
 
             -- To keep the schema, we have to duplicate the grouping
             -- columns.
-            let e = VMkTuple [ VTupElem First VInput
-                             , VMkTuple [ VTupElem First VInput
-                                        , VTupElem (Next First) VInput
+            let e = TMkTuple [ TTupElem First TInput
+                             , TMkTuple [ TTupElem First TInput
+                                        , TTupElem (Next First) TInput
                                         ]
                              ]
 
@@ -225,10 +225,10 @@ mergeGroupWithGroupAggrRight q =
 
             -- To keep the schema, we have to duplicate the grouping
             -- columns.
-            let e = VMkTuple [ VMkTuple [ VTupElem First VInput
-                                        , VTupElem (Next First) VInput
+            let e = TMkTuple [ TMkTuple [ TTupElem First TInput
+                                        , TTupElem (Next First) TInput
                                         ]
-                             , VTupElem First VInput
+                             , TTupElem First TInput
                              ]
 
             groupNode <- insert $ UnOp (GroupAggr (ges', afuns)) $(v "q1")
@@ -242,5 +242,5 @@ countDistinct q =
 
         return $ do
             logRewrite "CountDistinct" q
-            void $ replaceWithNew q $ BinOp (Fold (AggrCountDistinct VInput)) $(v "q1") $(v "q2")
+            void $ replaceWithNew q $ BinOp (Fold (AggrCountDistinct TInput)) $(v "q1") $(v "q2")
         |])

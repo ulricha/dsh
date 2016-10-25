@@ -35,7 +35,7 @@ dist (VShape dv lyt) (VShape dvo _) = do
 
     -- The outer vector does not have columns, it only describes the
     -- shape.
-    outerVec         <- slProject VIndex dvo
+    outerVec         <- slProject TIndex dvo
 
     -- Replicate any inner vectors
     lyt'             <- repLayout rv lyt
@@ -59,10 +59,10 @@ combine _ _ _ = $impossible
 restrict :: Shape DVec -> Build TSL (Shape DVec)
 restrict (VShape dv (LTuple [l, LCol])) = do
     -- Filter the vector according to the boolean column
-    (dv', fv) <- slSelect (VTupElem (Next First) VInput) dv
+    (dv', fv) <- slSelect (TTupElem (Next First) TInput) dv
 
     -- After the selection, discard the boolean column
-    dv''      <- slProject (VTupElem First VInput) dv'
+    dv''      <- slProject (TTupElem First TInput) dv'
 
     -- Filter any inner vectors
     l'        <- filterLayout fv l
@@ -74,7 +74,7 @@ restrict _ = $impossible
 
 extL :: L.ScalarVal -> Shape DVec -> Build TSL (Shape DVec)
 extL val (VShape dvo (LNest dvi lyt)) = do
-    dvi' <- slProject (VMkTuple [VInput, VConstant val]) dvi
+    dvi' <- slProject (TMkTuple [TInput, TConstant val]) dvi
     return (VShape dvo (LNest dvi' (LTuple [lyt, LCol])))
 extL _ _ = $impossible
 
@@ -88,17 +88,17 @@ onlyL _                           = $impossible
 binOpL :: L.ScalarBinOp -> Shape DVec -> Shape DVec -> Build TSL (Shape DVec)
 binOpL o (VShape dv1 _) (VShape dv2 _) = do
     da <- slAlign dv1 dv2
-    dv <- slProject (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput)) da
+    dv <- slProject (TBinApp o (TTupElem First TInput) (TTupElem (Next First) TInput)) da
     return $ VShape dv LCol
 binOpL _ _ _ = $impossible
 
 restrictL :: Shape DVec -> Build TSL (Shape DVec)
 restrictL (VShape qo (LNest dv (LTuple [l, LCol]))) = do
     -- Filter the vector according to the boolean column
-    (dv', fv) <- slSelect (VTupElem (Next First) VInput) dv
+    (dv', fv) <- slSelect (TTupElem (Next First) TInput) dv
 
     -- After the selection, discard the boolean column
-    dv''      <- slProject (VTupElem First VInput) dv'
+    dv''      <- slProject (TTupElem First TInput) dv'
 
     -- Filter any inner vectors
     l'        <- filterLayout fv l
@@ -144,7 +144,7 @@ thetaJoinL _ _ _ = $impossible
 nestJoinL :: L.JoinPredicate L.ScalarExpr -> Shape DVec -> Shape DVec -> Build TSL (Shape DVec)
 nestJoinL joinPred (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do
     (dvi, rv1, rv2) <- slNestJoin joinPred dvi1 dvi2
-    dvm             <- slProject (VMkTuple [VInput, VIndex]) dvi1
+    dvm             <- slProject (TMkTuple [TInput, TIndex]) dvi1
     lyt1'           <- repLayout rv1 lyt1
     lyt2'           <- repLayout rv2 lyt2
     let lyt  = LTuple [lyt1', lyt2']
@@ -199,20 +199,20 @@ reverseL _ = $impossible
 sortL ::  Shape DVec -> Build TSL (Shape DVec)
 sortL (VShape dvo (LNest dvi (LTuple [xl, _]))) = do
     -- Sort by all sorting columns from the right tuple component
-    (sortedVec, sv) <- slSort (VTupElem (Next First) VInput) dvi
+    (sortedVec, sv) <- slSort (TTupElem (Next First) TInput) dvi
 
     -- After sorting, discard the sorting criteria columns
-    resVec          <- slProject (VTupElem First VInput) sortedVec
+    resVec          <- slProject (TTupElem First TInput) sortedVec
     xl'             <- sortLayout sv xl
     return $ VShape dvo (LNest resVec xl')
 sortL _ = $impossible
 
 groupL ::  Shape DVec -> Build TSL (Shape DVec)
 groupL (VShape dvo (LNest dvi (LTuple [xl, gl]))) = do
-    (dvo', dvi', rv) <- slGroup (VTupElem (Next First) VInput) dvi
+    (dvo', dvi', rv) <- slGroup (TTupElem (Next First) TInput) dvi
 
     -- Discard the grouping columns in the inner vector
-    dvi''            <- slProject (VTupElem First VInput) dvi'
+    dvi''            <- slProject (TTupElem First TInput) dvi'
 
     xl'              <- sortLayout rv xl
     return $ VShape dvo (LNest dvo' (LTuple [gl, LNest dvi'' xl']))
@@ -229,7 +229,7 @@ lengthL ::  Shape DVec -> Build TSL (Shape DVec)
 lengthL (VShape q (LNest qi _)) = do
     ls  <- slFold AggrCount q qi
     lsu <- fst <$> slUnboxSng q ls
-    lp  <- slProject (VTupElem (Next First) VInput) lsu
+    lp  <- slProject (TTupElem (Next First) TInput) lsu
     return $ VShape lp LCol
 lengthL _ = $impossible
 
@@ -239,9 +239,9 @@ outer (VShape q _)        = return q
 
 aggrL :: (TExpr -> AggrFun TExpr) -> Shape DVec -> Build TSL (Shape DVec)
 aggrL afun (VShape d (LNest q LCol)) = do
-    qr <- slFold (afun VInput) d q
+    qr <- slFold (afun TInput) d q
     qu <- fst <$> slUnboxSng d qr
-    qp <- slProject (VTupElem (Next First) VInput) qu
+    qp <- slProject (TTupElem (Next First) TInput) qu
     return $ VShape qp LCol
 aggrL _ _ = $impossible
 
@@ -263,13 +263,13 @@ tupleL _ = $impossible
 tupElemL :: TupleIndex -> Shape DVec -> Build TSL (Shape DVec)
 tupElemL i (VShape q (LTuple lyts)) = do
     let lyt = lyts !! (tupleIndex i - 1)
-    proj <- slProject (VTupElem i VInput) q
+    proj <- slProject (TTupElem i TInput) q
     return $ VShape proj lyt
 tupElemL _ _ = $impossible
 
 singletonL :: Shape DVec -> Build TSL (Shape DVec)
 singletonL (VShape q lyt) = do
-    dvo <- slProject VIndex q
+    dvo <- slProject TIndex q
     dvi <- slSegment q
     return $ VShape dvo (LNest dvi lyt)
 singletonL _ = $impossible
@@ -301,7 +301,7 @@ shredList vs lyt = List.foldl' go (S.empty, lyt) vs
 shredValue :: L.Val -> Layout (PType (), S.Seq SegD) -> (VecVal, Layout (PType (), S.Seq SegD))
 shredValue (L.ListV vs)  (LNest (ty, segs) lyt) =
     let (seg, lyt') = shredList vs lyt
-    in (VVIndex, LNest (ty, segs S.|> seg) lyt')
+    in (VTIndex, LNest (ty, segs S.|> seg) lyt')
 shredValue (L.TupleV vs) (LTuple lyts)          =
     let (vvs, ls) = unzip $ zipWith shredValue vs lyts
     in (VVTuple vvs, LTuple ls)

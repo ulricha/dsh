@@ -66,17 +66,17 @@ constExpr :: ConstPayload -> TExpr -> ConstPayload
 constExpr constInput expr = eval constInput expr
 
 eval :: ConstPayload -> TExpr -> ConstPayload
-eval v (VConstant c)       = CPVal c
-eval v VInput              = v
-eval v (VBinApp op e1 e2)  =
+eval v (TConstant c)       = CPVal c
+eval v TInput              = v
+eval v (TBinApp op e1 e2)  =
     case (eval v e1, eval v e2) of
         (CPVal v1, CPVal v2) -> evalBinOp op v1 v2
         _                          -> CPNoVal
-eval v (VUnApp op e1)      =
+eval v (TUnApp op e1)      =
     case eval v e1 of
         CPVal v1 -> evalUnOp op v1
         _           -> CPNoVal
-eval v (VIf c t e)         =
+eval v (TIf c t e)         =
     case eval v c of
         CPVal (BoolV True)  -> eval v t
         CPVal (BoolV False) -> eval v e
@@ -90,13 +90,13 @@ updateConst CPNoVal      (VVScalar s) = CPNoVal
 updateConst (CPVal s')   (VVScalar s)
     | s == s'                         = CPVal s
     | otherwise                       = CPNoVal
-updateConst _            VVIndex      = CPNoVal
+updateConst _            VTIndex      = CPNoVal
 updateConst _            _            = $impossible
 
 initConst :: VecVal -> ConstPayload
 initConst (VVTuple vs) = CPTuple $ map initConst vs
 initConst (VVScalar s) = CPVal s
-initConst VVIndex      = CPNoVal
+initConst VTIndex      = CPNoVal
 
 noConst :: PType -> ConstPayload
 noConst (PTupleT ts) = CPTuple $ map noConst ts

@@ -25,13 +25,13 @@ import           Database.DSH.Common.Type
 
 data VecVal = VVTuple [VecVal]
             | VVScalar L.ScalarVal
-            | VVIndex
+            | VTIndex
             deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''VecVal)
 
 instance Pretty VecVal where
-    pretty VVIndex      = text "Idx"
+    pretty VTIndex      = text "Idx"
     pretty (VVTuple vs) = tupled $ map pretty vs
     pretty (VVScalar v) = pretty v
 
@@ -43,14 +43,14 @@ instance Pretty VecVal where
 -- 'TExpr' expresses scalar computations on vector payloads, in contrast to
 -- non-scalar computations (list operations) which are handled at the
 -- vector/segment level.
-data TExpr = VBinApp L.ScalarBinOp TExpr TExpr
-           | VUnApp L.ScalarUnOp TExpr
-           | VInput
-           | VTupElem TupleIndex TExpr
-           | VMkTuple [TExpr]
-           | VConstant L.ScalarVal
-           | VIf TExpr TExpr TExpr
-           | VIndex
+data TExpr = TBinApp L.ScalarBinOp TExpr TExpr
+           | TUnApp L.ScalarUnOp TExpr
+           | TInput
+           | TTupElem TupleIndex TExpr
+           | TMkTuple [TExpr]
+           | TConstant L.ScalarVal
+           | TIf TExpr TExpr TExpr
+           | TIndex
           deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''TExpr)
@@ -59,11 +59,11 @@ $(deriveJSON defaultOptions ''TExpr)
 --
 -- This type expresses scalar payload computations on vectors with flat records
 -- of scalar values.
-data RExpr = FBinApp L.ScalarBinOp RExpr RExpr
-           | FUnApp L.ScalarUnOp RExpr
-           | FInputElem TupleIndex
-           | FConstant L.ScalarVal
-           | FIf RExpr RExpr RExpr
+data RExpr = RBinApp L.ScalarBinOp RExpr RExpr
+           | RUnApp L.ScalarUnOp RExpr
+           | RInputElem TupleIndex
+           | RConstant L.ScalarVal
+           | RIf RExpr RExpr RExpr
            deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''RExpr)
@@ -152,11 +152,11 @@ scalarVal _             = $impossible
 
 -- | Convert join expressions into SL expressions.
 scalarExpr :: L.ScalarExpr -> TExpr
-scalarExpr (L.JBinOp op e1 e2)  = VBinApp op (scalarExpr e1) (scalarExpr e2)
-scalarExpr (L.JUnOp op e)       = VUnApp op (scalarExpr e)
-scalarExpr (L.JTupElem i e)     = VTupElem i (scalarExpr e)
-scalarExpr (L.JLit _ v)         = VConstant $ scalarVal v
-scalarExpr (L.JInput _)         = VInput
+scalarExpr (L.JBinOp op e1 e2)  = TBinApp op (scalarExpr e1) (scalarExpr e2)
+scalarExpr (L.JUnOp op e)       = TUnApp op (scalarExpr e)
+scalarExpr (L.JTupElem i e)     = TTupElem i (scalarExpr e)
+scalarExpr (L.JLit _ v)         = TConstant $ scalarVal v
+scalarExpr (L.JInput _)         = TInput
 
 --------------------------------------------------------------------------------
 -- Type conversion
@@ -189,16 +189,16 @@ instance Pretty a => Pretty (PType a) where
 
 -- | 'mergeExpr e1 e2' inlines 'e1' into 'e2'.
 mergeExpr :: TExpr -> TExpr -> TExpr
-mergeExpr inp (VBinApp o e1 e2) = VBinApp o (mergeExpr inp e1) (mergeExpr inp e2)
-mergeExpr inp (VUnApp o e)      = VUnApp o (mergeExpr inp e)
-mergeExpr inp VInput            = inp
-mergeExpr inp (VTupElem i e)    = VTupElem i (mergeExpr inp e)
-mergeExpr inp (VMkTuple es)     = VMkTuple $ map (mergeExpr inp) es
-mergeExpr _   (VConstant v)     = VConstant v
-mergeExpr inp (VIf c t e)       = VIf (mergeExpr inp c)
+mergeExpr inp (TBinApp o e1 e2) = TBinApp o (mergeExpr inp e1) (mergeExpr inp e2)
+mergeExpr inp (TUnApp o e)      = TUnApp o (mergeExpr inp e)
+mergeExpr inp TInput            = inp
+mergeExpr inp (TTupElem i e)    = TTupElem i (mergeExpr inp e)
+mergeExpr inp (TMkTuple es)     = TMkTuple $ map (mergeExpr inp) es
+mergeExpr _   (TConstant v)     = TConstant v
+mergeExpr inp (TIf c t e)       = TIf (mergeExpr inp c)
                                       (mergeExpr inp t)
                                       (mergeExpr inp e)
-mergeExpr _   VIndex            = VIndex
+mergeExpr _   TIndex            = TIndex
 
 -- | Construct a pair where the first component is an expression applied to the
 -- first component of the input pair. This rewrite is used whenever projections
@@ -206,8 +206,8 @@ mergeExpr _   VIndex            = VIndex
 --
 -- (e[x.1/x], x.2)
 appExprFst :: TExpr -> TExpr
-appExprFst e = VMkTuple [ mergeExpr (VTupElem First VInput) e
-                        , VTupElem (Next First) VInput
+appExprFst e = TMkTuple [ mergeExpr (TTupElem First TInput) e
+                        , TTupElem (Next First) TInput
                         ]
 
 -- | Construct a pair where the second component is an expression applied to the
@@ -216,8 +216,8 @@ appExprFst e = VMkTuple [ mergeExpr (VTupElem First VInput) e
 --
 -- (x.1, e[x.2/x])
 appExprSnd :: TExpr -> TExpr
-appExprSnd e = VMkTuple [ VTupElem First VInput
-                        , mergeExpr (VTupElem (Next First) VInput) e
+appExprSnd e = TMkTuple [ TTupElem First TInput
+                        , mergeExpr (TTupElem (Next First) TInput) e
                         ]
 
 -- | Returns the list element denoted by a tuple index.
@@ -231,30 +231,30 @@ safeIndex _        _      = Nothing
 -- * 'if' conditionals with constant conditions
 -- * Tuple selectors on tuple constructors
 simplify :: TExpr -> TExpr
-simplify (VBinApp o e1 e2)                     =
-    VBinApp o (simplify e1) (simplify e2)
-simplify (VUnApp o e)                          =
-    VUnApp o (simplify e)
-simplify VInput                                =
-    VInput
-simplify (VTupElem i (VMkTuple es))            =
+simplify (TBinApp o e1 e2)                     =
+    TBinApp o (simplify e1) (simplify e2)
+simplify (TUnApp o e)                          =
+    TUnApp o (simplify e)
+simplify TInput                                =
+    TInput
+simplify (TTupElem i (TMkTuple es))            =
     case safeIndex i es of
         Just e  -> simplify e
         Nothing -> $impossible
-simplify (VTupElem i e)                        =
-    VTupElem i (simplify e)
-simplify (VMkTuple es)                         =
-    VMkTuple $ map simplify es
-simplify (VConstant v)                         =
-    VConstant v
-simplify (VIf (VConstant (L.BoolV True)) t _)  =
+simplify (TTupElem i e)                        =
+    TTupElem i (simplify e)
+simplify (TMkTuple es)                         =
+    TMkTuple $ map simplify es
+simplify (TConstant v)                         =
+    TConstant v
+simplify (TIf (TConstant (L.BoolV True)) t _)  =
     simplify t
-simplify (VIf (VConstant (L.BoolV False)) _ e) =
+simplify (TIf (TConstant (L.BoolV False)) _ e) =
     simplify e
-simplify (VIf c t e)                           =
-   VIf (simplify c) (simplify t) (simplify e)
-simplify VIndex                                =
-    VIndex
+simplify (TIf c t e)                           =
+   TIf (simplify c) (simplify t) (simplify e)
+simplify TIndex                                =
+    TIndex
 
 partialEval :: TExpr -> TExpr
 partialEval e = if e == e' then e else partialEval e'
@@ -274,15 +274,15 @@ inlineJoinPredRight e (L.JoinPred conjs) = L.JoinPred $ fmap inlineRight conjs
 -- | Returns 'True' iff only the tuple component of the input determined by the
 -- predicate is accessed.
 idxOnly :: (TupleIndex -> Bool) -> TExpr -> Bool
-idxOnly p (VBinApp _ e1 e2)   = idxOnly p e1 && idxOnly p e2
-idxOnly p (VUnApp _ e)        = idxOnly p e
-idxOnly p (VTupElem i VInput) = p i
-idxOnly _ VInput              = False
-idxOnly p (VTupElem _ e)      = idxOnly p e
-idxOnly p (VMkTuple es)       = all (idxOnly p) es
-idxOnly _   (VConstant _)     = True
-idxOnly p (VIf c t e)         = all (idxOnly p) [c, t, e]
-idxOnly _   VIndex            = True
+idxOnly p (TBinApp _ e1 e2)   = idxOnly p e1 && idxOnly p e2
+idxOnly p (TUnApp _ e)        = idxOnly p e
+idxOnly p (TTupElem i TInput) = p i
+idxOnly _ TInput              = False
+idxOnly p (TTupElem _ e)      = idxOnly p e
+idxOnly p (TMkTuple es)       = all (idxOnly p) es
+idxOnly _   (TConstant _)     = True
+idxOnly p (TIf c t e)         = all (idxOnly p) [c, t, e]
+idxOnly _   TIndex            = True
 
 --------------------------------------------------------------------------------
 -- Common patterns
@@ -295,10 +295,10 @@ pattern DoubleJoinPred e11 op1 e12 e21 op2 e22 = L.JoinPred ((L.JoinConjunct e11
                                                              :|
                                                              [L.JoinConjunct e21 op2 e22])
 pattern VAddExpr :: TExpr -> TExpr -> TExpr
-pattern VAddExpr e1 e2 = VBinApp (L.SBNumOp L.Add) e1 e2
+pattern VAddExpr e1 e2 = TBinApp (L.SBNumOp L.Add) e1 e2
 
 pattern VSubExpr :: TExpr -> TExpr -> TExpr
-pattern VSubExpr e1 e2 = VBinApp (L.SBNumOp L.Sub) e1 e2
+pattern VSubExpr e1 e2 = TBinApp (L.SBNumOp L.Sub) e1 e2
 
 --------------------------------------------------------------------------------
 -- Pretty Printing
@@ -316,14 +316,14 @@ renderRecord :: [Doc] -> Doc
 renderRecord = encloseSep (char '<') (char '>') comma
 
 renderExpr :: TExpr -> Doc
-renderExpr (VBinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
-renderExpr (VUnApp op e)      = text (pp op) <+> parens (renderExpr e)
-renderExpr (VConstant val)    = pretty val
-renderExpr VInput             = text "x"
-renderExpr (VMkTuple es)      = renderRecord $ map renderExpr es
-renderExpr (VTupElem i e)     = renderExpr e <> dot <> (int $ tupleIndex i)
-renderExpr VIndex             = text "Idx"
-renderExpr (VIf c t e)        = text "if"
+renderExpr (TBinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
+renderExpr (TUnApp op e)      = text (pp op) <+> parens (renderExpr e)
+renderExpr (TConstant val)    = pretty val
+renderExpr TInput             = text "x"
+renderExpr (TMkTuple es)      = renderRecord $ map renderExpr es
+renderExpr (TTupElem i e)     = renderExpr e <> dot <> (int $ tupleIndex i)
+renderExpr TIndex             = text "Idx"
+renderExpr (TIf c t e)        = text "if"
                                  <+> renderExpr c
                                  <+> text "then"
                                  <+> renderExpr t
@@ -331,24 +331,24 @@ renderExpr (VIf c t e)        = text "if"
                                  <+> renderExpr e
 
 parenthize1 :: TExpr -> Doc
-parenthize1 e@(VConstant _) = renderExpr e
-parenthize1 e@VBinApp{}     = parens $ renderExpr e
-parenthize1 e@VUnApp{}      = parens $ renderExpr e
-parenthize1 e@VIf{}         = renderExpr e
-parenthize1 VIndex          = renderExpr VIndex
-parenthize1 VInput          = renderExpr VInput
-parenthize1 e@VMkTuple{}    = renderExpr e
-parenthize1 e@VTupElem{}    = renderExpr e
+parenthize1 e@(TConstant _) = renderExpr e
+parenthize1 e@TBinApp{}     = parens $ renderExpr e
+parenthize1 e@TUnApp{}      = parens $ renderExpr e
+parenthize1 e@TIf{}         = renderExpr e
+parenthize1 TIndex          = renderExpr TIndex
+parenthize1 TInput          = renderExpr TInput
+parenthize1 e@TMkTuple{}    = renderExpr e
+parenthize1 e@TTupElem{}    = renderExpr e
 
 renderVRow :: VRow -> Doc
 renderVRow (VR es) = renderRecord $ map renderRExpr es
 
 renderRExpr :: RExpr -> Doc
-renderRExpr (FBinApp op e1 e2) = parenthizeF e1 <+> text (pp op) <+> parenthizeF e2
-renderRExpr (FUnApp op e)      = text (pp op) <+> parens (renderRExpr e)
-renderRExpr (FConstant val)    = pretty val
-renderRExpr (FInputElem i)     = text "x" <> dot <> (int $ tupleIndex i)
-renderRExpr (FIf c t e)        = text "if"
+renderRExpr (RBinApp op e1 e2) = parenthizeF e1 <+> text (pp op) <+> parenthizeF e2
+renderRExpr (RUnApp op e)      = text (pp op) <+> parens (renderRExpr e)
+renderRExpr (RConstant val)    = pretty val
+renderRExpr (RInputElem i)     = text "x" <> dot <> (int $ tupleIndex i)
+renderRExpr (RIf c t e)        = text "if"
                                     <+> renderRExpr c
                                     <+> text "then"
                                     <+> renderRExpr t
@@ -356,10 +356,10 @@ renderRExpr (FIf c t e)        = text "if"
                                     <+> renderRExpr e
 
 parenthizeF :: RExpr -> Doc
-parenthizeF e@(FConstant _) = renderRExpr e
-parenthizeF e@FBinApp{}     = parens $ renderRExpr e
-parenthizeF e@FUnApp{}      = parens $ renderRExpr e
-parenthizeF e@FIf{}         = renderRExpr e
-parenthizeF e@FInputElem{}  = renderRExpr e
+parenthizeF e@(RConstant _) = renderRExpr e
+parenthizeF e@RBinApp{}     = parens $ renderRExpr e
+parenthizeF e@RUnApp{}      = parens $ renderRExpr e
+parenthizeF e@RIf{}         = renderRExpr e
+parenthizeF e@RInputElem{}  = renderRExpr e
 
 type Ordish r e = (Ord r, Ord e, Show r, Show e)

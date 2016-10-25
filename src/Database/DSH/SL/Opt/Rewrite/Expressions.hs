@@ -60,7 +60,7 @@ identityProject :: SLRule TExpr TExpr BottomUpProps
 identityProject q =
   $(dagPatMatch 'q "Project e (q1)"
     [| do
-        VInput <- return $(v "e")
+        TInput <- return $(v "e")
 
         return $ do
           logRewrite "Project.Identity" q

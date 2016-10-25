@@ -129,12 +129,12 @@ slTableRef :: String -> L.BaseTableSchema -> Build TSL DVec
 slTableRef n schema = vec (SL $ NullaryOp $ TableRef (n, schema)) dvec
 
 slUnExpr :: L.ScalarUnOp -> DVec -> Build TSL DVec
-slUnExpr o (DVec c) = vec (SL $ UnOp (Project (VUnApp o VInput)) c) dvec
+slUnExpr o (DVec c) = vec (SL $ UnOp (Project (TUnApp o TInput)) c) dvec
 
 slBinExpr :: L.ScalarBinOp -> DVec -> DVec -> Build TSL DVec
 slBinExpr o (DVec c1) (DVec c2) = do
     z <- insert $ SL $ BinOp Align c1 c2
-    dvec $ insert $ SL $ UnOp (Project (VBinApp o (VTupElem First VInput) (VTupElem (Next First) VInput))) z
+    dvec $ insert $ SL $ UnOp (Project (TBinApp o (TTupElem First TInput) (TTupElem (Next First) TInput))) z
 
 slSelect :: TExpr -> DVec -> Build TSL (DVec, FVec)
 slSelect p (DVec c) = pairVec (SL $ UnOp (Select p) c) dvec fvec
