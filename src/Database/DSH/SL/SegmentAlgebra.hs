@@ -30,7 +30,7 @@ class SegmentAlgebra a where
     vecNest :: SLDVec a -> Build a (SLDVec a, SLDVec a)
 
     -- | A vector representing a literal list.
-    vecLit :: PType -> VecSegs -> Build a (SLDVec a)
+    vecLit :: PType () -> VecSegs -> Build a (SLDVec a)
 
     -- | A reference to a database-resident table.
     vecTableRef :: String -> L.BaseTableSchema -> Build a (SLDVec a)

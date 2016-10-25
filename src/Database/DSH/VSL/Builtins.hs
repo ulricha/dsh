@@ -543,13 +543,13 @@ dbTable n schema = do
 --------------------------------------------------------------------------------
 -- Shredding literal values
 
-shredList :: [L.Val] -> Layout (PType, S.Seq SegD) -> (S.Seq VecVal, Layout (PType, S.Seq SegD))
+shredList :: [L.Val] -> Layout (PType (), S.Seq SegD) -> (S.Seq VecVal, Layout (PType (), S.Seq SegD))
 shredList vs lyt = List.foldl' go (S.empty, lyt) vs
   where
     go (vvs, l) v = let (vv, l') = shredValue v l
                     in (vvs S.|> vv, l')
 
-shredValue :: L.Val -> Layout (PType, S.Seq SegD) -> (VecVal, Layout (PType, S.Seq SegD))
+shredValue :: L.Val -> Layout (PType (), S.Seq SegD) -> (VecVal, Layout (PType (), S.Seq SegD))
 shredValue (L.ListV vs)  (LNest (ty, segs) lyt) =
     let (seg, lyt') = shredList vs lyt
     in (VVIndex, LNest (ty, segs S.|> seg) lyt')
@@ -560,22 +560,22 @@ shredValue (L.ScalarV v) LCol                   =
     (VVScalar v, LCol)
 shredValue _ _ = $impossible
 
-shredType :: T.Type -> Layout (PType, S.Seq SegD)
+shredType :: T.Type -> Layout (PType (), S.Seq SegD)
 shredType (T.ScalarT _) = LCol
 shredType (T.TupleT ts) = LTuple $ map shredType ts
 shredType (T.ListT t)   = LNest (payloadType t, S.empty) (shredType t)
 
-payloadType :: T.Type -> PType
-payloadType (T.ScalarT t) = PScalarT t
-payloadType (T.TupleT ts) = PTupleT $ map payloadType ts
-payloadType (T.ListT _)   = PIndexT
+payloadType :: T.Type -> PType ()
+payloadType (T.ScalarT t) = PScalarT t ()
+payloadType (T.TupleT ts) = PTupleT (map payloadType ts) ()
+payloadType (T.ListT _)   = PIndexT ()
 
-literalVectors :: Layout (PType, S.Seq SegD) -> VSLBuild TExpr TExpr (Layout DelayedVec)
+literalVectors :: Layout (PType (), S.Seq SegD) -> VSLBuild TExpr TExpr (Layout DelayedVec)
 literalVectors lyt = traverse go lyt
   where
     go (ty, segs) = DelayedVec IDMap <$> C.lit (ty, Segs segs)
 
-literalShape :: Shape (PType, S.Seq SegD) -> VSLBuild TExpr TExpr (Shape DelayedVec)
+literalShape :: Shape (PType (), S.Seq SegD) -> VSLBuild TExpr TExpr (Shape DelayedVec)
 literalShape (VShape (ty, segs) lyt) = do
     let seg = if S.null segs then $impossible else S.index segs 0
     shapeVec <- C.lit (ty, UnitSeg seg)

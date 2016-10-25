@@ -16,7 +16,7 @@ instance Show a => Show (VectorProp a) where
   show (VPropPair a1 a2) = show (a1, a2)
   show (VPropTriple a1 a2 a3) = show (a1, a2, a3)
 
-data VectorType = VTDataVec PType
+data VectorType = VTDataVec (PType ())
                 | VTNA
                 deriving Show
 

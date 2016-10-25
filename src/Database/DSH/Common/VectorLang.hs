@@ -172,17 +172,17 @@ typeToScalarType (ScalarT t) = t
 --
 -- This type corresponds directly to the element type of a list, with nested
 -- list type constructors replaced by the index type.
-data PType = PTupleT ![PType]
-           | PScalarT !ScalarType
-           | PIndexT
-           deriving (Eq, Ord, Show)
+data PType a = PTupleT ![PType a] !a
+             | PScalarT !ScalarType !a
+             | PIndexT !a
+             deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''PType)
 
-instance Pretty PType where
-    pretty PIndexT      = text "Idx"
-    pretty (PTupleT vs) = tupled $ map pretty vs
-    pretty (PScalarT v) = pretty v
+instance Pretty a => Pretty (PType a) where
+    pretty (PIndexT a)    = text "Idx" <> char '^' <> pretty a
+    pretty (PTupleT vs a) = (tupled $ map pretty vs) <> char '^' <> pretty a
+    pretty (PScalarT v a) = pretty v <> char '^' <> pretty a
 
 --------------------------------------------------------------------------------
 -- Rewrite Utilities

@@ -24,7 +24,7 @@ import           Database.DSH.Common.VectorLang
 --------------------------------------------------------------------------------
 -- Operator definition
 
-data NullOp = Lit (PType, VecSegs)
+data NullOp = Lit (PType (), VecSegs)
             | TableRef (String, L.BaseTableSchema)
             deriving (Eq, Ord, Show)
 

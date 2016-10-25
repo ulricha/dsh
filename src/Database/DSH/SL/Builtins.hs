@@ -292,13 +292,13 @@ dbTable n schema = do
 --------------------------------------------------------------------------------
 -- Shredding literal values
 
-shredList :: [L.Val] -> Layout (PType, S.Seq SegD) -> (S.Seq VecVal, Layout (PType, S.Seq SegD))
+shredList :: [L.Val] -> Layout (PType (), S.Seq SegD) -> (S.Seq VecVal, Layout (PType (), S.Seq SegD))
 shredList vs lyt = List.foldl' go (S.empty, lyt) vs
   where
     go (vvs, l) v = let (vv, l') = shredValue v l
                     in (vvs S.|> vv, l')
 
-shredValue :: L.Val -> Layout (PType, S.Seq SegD) -> (VecVal, Layout (PType, S.Seq SegD))
+shredValue :: L.Val -> Layout (PType (), S.Seq SegD) -> (VecVal, Layout (PType (), S.Seq SegD))
 shredValue (L.ListV vs)  (LNest (ty, segs) lyt) =
     let (seg, lyt') = shredList vs lyt
     in (VVIndex, LNest (ty, segs S.|> seg) lyt')
@@ -309,22 +309,22 @@ shredValue (L.ScalarV v) LCol                   =
     (VVScalar v, LCol)
 shredValue _ _ = $impossible
 
-shredType :: Type -> Layout (PType, S.Seq SegD)
+shredType :: Type -> Layout (PType (), S.Seq SegD)
 shredType (ScalarT _) = LCol
 shredType (TupleT ts) = LTuple $ map shredType ts
 shredType (ListT t)   = LNest (payloadType t, S.empty) (shredType t)
 
-payloadType :: Type -> PType
-payloadType (ScalarT t) = PScalarT t
-payloadType (TupleT ts) = PTupleT $ map payloadType ts
-payloadType (ListT _)   = PIndexT
+payloadType :: Type -> PType ()
+payloadType (ScalarT t) = PScalarT t ()
+payloadType (TupleT ts) = PTupleT (map payloadType ts) ()
+payloadType (ListT _)   = PIndexT ()
 
-literalVectors :: Layout (PType, S.Seq SegD) -> Build TSL (Layout DVec)
+literalVectors :: Layout (PType (), S.Seq SegD) -> Build TSL (Layout DVec)
 literalVectors lyt = traverse go lyt
   where
     go (ty, segs) = slLit (ty, Segs segs)
 
-literalShape :: Shape (PType, S.Seq SegD) -> Build TSL (Shape DVec)
+literalShape :: Shape (PType (), S.Seq SegD) -> Build TSL (Shape DVec)
 literalShape (VShape (ty, segs) lyt) = do
     let seg = if S.null segs then $impossible else S.index segs 0
     shapeVec <- slLit (ty, UnitSeg seg)
