@@ -22,7 +22,7 @@ class VirtualSegmentAlgebra a where
     vecNest :: VSLDVec a -> Build a (VSLDVec a, VSLDVec a)
 
     -- | A vector representing a literal list.
-    vecLit :: PType () -> VecSegs -> Build a (VSLDVec a)
+    vecLit :: PType -> VecSegs -> Build a (VSLDVec a)
 
     -- | A reference to a database-resident table.
     vecTableRef :: String -> L.BaseTableSchema -> Build a (VSLDVec a)

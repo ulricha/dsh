@@ -122,7 +122,7 @@ slCombine :: DVec -> DVec -> DVec -> Build TSL (DVec, KVec, KVec)
 slCombine (DVec c1) (DVec c2) (DVec c3) =
     tripleVec (SL $ TerOp Combine c1 c2 c3) dvec kvec kvec
 
-slLit :: (PType (), VecSegs) -> Build TSL DVec
+slLit :: (PType, VecSegs) -> Build TSL DVec
 slLit i = vec (SL $ NullaryOp $ Lit i) dvec
 
 slTableRef :: String -> L.BaseTableSchema -> Build TSL DVec

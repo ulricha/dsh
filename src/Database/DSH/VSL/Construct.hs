@@ -91,7 +91,7 @@ unsegment dv = bindOp $ VSL $ UnOp VSL.Unsegment (extract dv)
 combine :: Ordish r e => DVec -> DVec -> DVec -> VSLBuild r e (DVec, RVec, RVec)
 combine dv1 dv2 dv3 = bindOp3 $ VSL $ TerOp VSL.Combine (extract dv1) (extract dv2) (extract dv3)
 
-lit :: Ordish r e => (PType (), VecSegs) -> VSLBuild r e DVec
+lit :: Ordish r e => (PType, VecSegs) -> VSLBuild r e DVec
 lit i = bindOp $ VSL $ NullaryOp $ VSL.Lit i
 
 tableref :: Ordish r e => String -> L.BaseTableSchema -> VSLBuild r e DVec

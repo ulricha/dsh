@@ -180,22 +180,17 @@ typeToScalarType (ScalarT t) = t
 --
 -- This type corresponds directly to the element type of a list, with nested
 -- list type constructors replaced by the index type.
-data PType a = PTupleT !(NonEmpty (PType a)) !a
-             | PScalarT !ScalarType !a
-             | PIndexT !a
-             deriving (Eq, Ord, Show)
+data PType = PTupleT !(NonEmpty PType)
+           | PScalarT !ScalarType
+           | PIndexT
+           deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''PType)
 
-instance Pretty a => Pretty (PType a) where
-    pretty (PIndexT a)    = text "Idx" P.<> char '^' P.<> pretty a
-    pretty (PTupleT vs a) = (tupled $ map pretty $ N.toList vs) P.<> char '^' P.<> pretty a
-    pretty (PScalarT v a) = pretty v P.<> char '^' P.<> pretty a
-
-pTypeAnn :: PType a -> a
-pTypeAnn (PTupleT _ a)  = a
-pTypeAnn (PScalarT _ a) = a
-pTypeAnn (PIndexT a)    = a
+instance Pretty PType where
+    pretty PIndexT      = text "Idx"
+    pretty (PTupleT vs) = tupled $ map pretty $ N.toList vs
+    pretty (PScalarT v) = pretty v
 
 --------------------------------------------------------------------------------
 -- Rewrite Utilities
@@ -368,10 +363,10 @@ type Ordish r e = (Ord r, Ord e, Show r, Show e)
 --------------------------------------------------------------------------------
 
 -- | Determine the number of flat columns for each tuple type constructor.
-tyWidth :: PType () -> RowWidth
-tyWidth (PIndexT ())     = BaseW
-tyWidth (PScalarT _ ()) = BaseW
-tyWidth (PTupleT tys ()) = TupW ws (sum $ fmap rowWidth ws)
+tyWidth :: PType -> RowWidth
+tyWidth PIndexT       = BaseW
+tyWidth (PScalarT _)  = BaseW
+tyWidth (PTupleT tys) = TupW ws (sum $ fmap rowWidth ws)
   where
     ws = fmap tyWidth tys
 
@@ -437,12 +432,12 @@ toRow (TUnApp op e) = do
     pure (pure $ RUnApp op r, BaseW)
 
 -- | Convert a tuple payload expression into a flat row constructor.
-flatRow :: PType () -> TExpr -> VRow
+flatRow :: PType -> TExpr -> VRow
 flatRow inputTy e = VR $ fst $ runReader (toRow e) (tyWidth inputTy)
 
 -- | Convert a tuple payload expression that results in a scalar type to a flat
 -- row expression.
-flatExpr :: PType () -> TExpr -> RExpr
+flatExpr :: PType -> TExpr -> RExpr
 flatExpr inputTy e =
     case flatRow inputTy e of
         VR (re :| []) -> re
