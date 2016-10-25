@@ -1,5 +1,6 @@
 {-# LANGUAGE ParallelListComp #-}
 {-# LANGUAGE TemplateHaskell  #-}
+{-# LANGUAGE OverloadedLists  #-}
 
 -- | Vectorising constructor functions that implement FKL primitives
 -- using SL operators.
@@ -316,7 +317,7 @@ shredType (ListT t)   = LNest (payloadType t, S.empty) (shredType t)
 
 payloadType :: Type -> PType ()
 payloadType (ScalarT t) = PScalarT t ()
-payloadType (TupleT ts) = PTupleT (map payloadType ts) ()
+payloadType (TupleT ts) = PTupleT (N.fromList $ map payloadType ts) ()
 payloadType (ListT _)   = PIndexT ()
 
 literalVectors :: Layout (PType (), S.Seq SegD) -> Build TSL (Layout DVec)

@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedLists #-}
 
 module Database.DSH.VSL.Opt.Rewrite.Redundant (removeRedundancy) where
 

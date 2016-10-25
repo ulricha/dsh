@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedLists #-}
 
 module Database.DSH.SL.Opt.Rewrite.Aggregation
     ( groupingToAggregation

@@ -1,5 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedLists #-}
 
 {-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 
@@ -567,7 +568,7 @@ shredType (T.ListT t)   = LNest (payloadType t, S.empty) (shredType t)
 
 payloadType :: T.Type -> PType ()
 payloadType (T.ScalarT t) = PScalarT t ()
-payloadType (T.TupleT ts) = PTupleT (map payloadType ts) ()
+payloadType (T.TupleT ts) = PTupleT (N.fromList $ map payloadType ts) ()
 payloadType (T.ListT _)   = PIndexT ()
 
 literalVectors :: Layout (PType (), S.Seq SegD) -> VSLBuild TExpr TExpr (Layout DelayedVec)

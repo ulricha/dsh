@@ -1,23 +1,25 @@
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE GADTs                #-}
-{-# LANGUAGE PatternSynonyms      #-}
-{-# LANGUAGE RankNTypes           #-}
-{-# LANGUAGE TemplateHaskell      #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE ConstraintKinds      #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Common.VectorLang where
 
+import           Control.Arrow                  hiding ((<+>))
+import           Control.Monad.Reader
 import           Data.Aeson.TH
 import qualified Data.Foldable                  as F
 import           Data.List.NonEmpty             (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty             as N
+import           Data.Semigroup                 hiding (First)
 import qualified Data.Sequence                  as S
-import           Text.PrettyPrint.ANSI.Leijen   hiding ((<$>))
+import           Text.PrettyPrint.ANSI.Leijen   hiding ((<$>), (<>))
+import qualified Text.PrettyPrint.ANSI.Leijen   as P
 
 import           Database.DSH.Common.Impossible
 import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Nat
-import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.Pretty     hiding (join)
 import           Database.DSH.Common.Type
 
 --------------------------------------------------------------------------------
@@ -47,7 +49,7 @@ data TExpr = TBinApp L.ScalarBinOp TExpr TExpr
            | TUnApp L.ScalarUnOp TExpr
            | TInput
            | TTupElem TupleIndex TExpr
-           | TMkTuple [TExpr]
+           | TMkTuple (NonEmpty TExpr)
            | TConstant L.ScalarVal
            | TIf TExpr TExpr TExpr
            | TIndex
@@ -68,10 +70,16 @@ data RExpr = RBinApp L.ScalarBinOp RExpr RExpr
 
 $(deriveJSON defaultOptions ''RExpr)
 
--- | Construction of a flat payload tuple.
-newtype VRow = VR [RExpr] deriving (Eq, Ord, Show)
+-- | Construction of a flat payload row.
+newtype VRow = VR { unVR :: NonEmpty RExpr } deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''VRow)
+
+sngRow :: RExpr -> VRow
+sngRow = VR . pure
+
+instance Semigroup VRow where
+    r1 <> r2 = VR $ unVR r1 <> unVR r2
 
 data AggrFun e = AggrSum ScalarType e
                | AggrMin e
@@ -172,7 +180,7 @@ typeToScalarType (ScalarT t) = t
 --
 -- This type corresponds directly to the element type of a list, with nested
 -- list type constructors replaced by the index type.
-data PType a = PTupleT ![PType a] !a
+data PType a = PTupleT !(NonEmpty (PType a)) !a
              | PScalarT !ScalarType !a
              | PIndexT !a
              deriving (Eq, Ord, Show)
@@ -180,9 +188,14 @@ data PType a = PTupleT ![PType a] !a
 $(deriveJSON defaultOptions ''PType)
 
 instance Pretty a => Pretty (PType a) where
-    pretty (PIndexT a)    = text "Idx" <> char '^' <> pretty a
-    pretty (PTupleT vs a) = (tupled $ map pretty vs) <> char '^' <> pretty a
-    pretty (PScalarT v a) = pretty v <> char '^' <> pretty a
+    pretty (PIndexT a)    = text "Idx" P.<> char '^' P.<> pretty a
+    pretty (PTupleT vs a) = (tupled $ map pretty $ N.toList vs) P.<> char '^' P.<> pretty a
+    pretty (PScalarT v a) = pretty v P.<> char '^' P.<> pretty a
+
+pTypeAnn :: PType a -> a
+pTypeAnn (PTupleT _ a)  = a
+pTypeAnn (PScalarT _ a) = a
+pTypeAnn (PIndexT a)    = a
 
 --------------------------------------------------------------------------------
 -- Rewrite Utilities
@@ -193,7 +206,7 @@ mergeExpr inp (TBinApp o e1 e2) = TBinApp o (mergeExpr inp e1) (mergeExpr inp e2
 mergeExpr inp (TUnApp o e)      = TUnApp o (mergeExpr inp e)
 mergeExpr inp TInput            = inp
 mergeExpr inp (TTupElem i e)    = TTupElem i (mergeExpr inp e)
-mergeExpr inp (TMkTuple es)     = TMkTuple $ map (mergeExpr inp) es
+mergeExpr inp (TMkTuple es)     = TMkTuple $ fmap (mergeExpr inp) es
 mergeExpr _   (TConstant v)     = TConstant v
 mergeExpr inp (TIf c t e)       = TIf (mergeExpr inp c)
                                       (mergeExpr inp t)
@@ -226,6 +239,10 @@ safeIndex First    (x:_)  = Just x
 safeIndex (Next i) (_:xs) = safeIndex i xs
 safeIndex _        _      = Nothing
 
+safeIndexN :: TupleIndex -> NonEmpty a -> Maybe a
+safeIndexN First xs           = Just $ N.head xs
+safeIndexN (Next i) (_ :| xs) = safeIndex i xs
+
 -- | Partially evaluate scalar vector expressions. This covers:
 --
 -- * 'if' conditionals with constant conditions
@@ -238,13 +255,13 @@ simplify (TUnApp o e)                          =
 simplify TInput                                =
     TInput
 simplify (TTupElem i (TMkTuple es))            =
-    case safeIndex i es of
+    case safeIndexN i es of
         Just e  -> simplify e
         Nothing -> $impossible
 simplify (TTupElem i e)                        =
     TTupElem i (simplify e)
 simplify (TMkTuple es)                         =
-    TMkTuple $ map simplify es
+    TMkTuple $ fmap simplify es
 simplify (TConstant v)                         =
     TConstant v
 simplify (TIf (TConstant (L.BoolV True)) t _)  =
@@ -281,24 +298,8 @@ idxOnly _ TInput              = False
 idxOnly p (TTupElem _ e)      = idxOnly p e
 idxOnly p (TMkTuple es)       = all (idxOnly p) es
 idxOnly _   (TConstant _)     = True
-idxOnly p (TIf c t e)         = all (idxOnly p) [c, t, e]
+idxOnly p (TIf c t e)         = all (idxOnly p) (c:t:e:[])
 idxOnly _   TIndex            = True
-
---------------------------------------------------------------------------------
--- Common patterns
-
-pattern SingleJoinPred :: t -> L.BinRelOp -> t -> L.JoinPredicate t
-pattern SingleJoinPred e1 op e2 = L.JoinPred ((L.JoinConjunct e1 op e2) :| [])
-
-pattern DoubleJoinPred :: t -> L.BinRelOp -> t -> t -> L.BinRelOp -> t -> L.JoinPredicate t
-pattern DoubleJoinPred e11 op1 e12 e21 op2 e22 = L.JoinPred ((L.JoinConjunct e11 op1 e12)
-                                                             :|
-                                                             [L.JoinConjunct e21 op2 e22])
-pattern VAddExpr :: TExpr -> TExpr -> TExpr
-pattern VAddExpr e1 e2 = TBinApp (L.SBNumOp L.Add) e1 e2
-
-pattern VSubExpr :: TExpr -> TExpr -> TExpr
-pattern VSubExpr e1 e2 = TBinApp (L.SBNumOp L.Sub) e1 e2
 
 --------------------------------------------------------------------------------
 -- Pretty Printing
@@ -320,8 +321,8 @@ renderExpr (TBinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 
 renderExpr (TUnApp op e)      = text (pp op) <+> parens (renderExpr e)
 renderExpr (TConstant val)    = pretty val
 renderExpr TInput             = text "x"
-renderExpr (TMkTuple es)      = renderRecord $ map renderExpr es
-renderExpr (TTupElem i e)     = renderExpr e <> dot <> (int $ tupleIndex i)
+renderExpr (TMkTuple es)      = renderRecord $ N.toList $ fmap renderExpr es
+renderExpr (TTupElem i e)     = renderExpr e P.<> dot P.<> (int $ tupleIndex i)
 renderExpr TIndex             = text "Idx"
 renderExpr (TIf c t e)        = text "if"
                                  <+> renderExpr c
@@ -341,13 +342,13 @@ parenthize1 e@TMkTuple{}    = renderExpr e
 parenthize1 e@TTupElem{}    = renderExpr e
 
 renderVRow :: VRow -> Doc
-renderVRow (VR es) = renderRecord $ map renderRExpr es
+renderVRow (VR es) = renderRecord $ map renderRExpr $ N.toList es
 
 renderRExpr :: RExpr -> Doc
 renderRExpr (RBinApp op e1 e2) = parenthizeF e1 <+> text (pp op) <+> parenthizeF e2
 renderRExpr (RUnApp op e)      = text (pp op) <+> parens (renderRExpr e)
 renderRExpr (RConstant val)    = pretty val
-renderRExpr (RInputElem i)     = text "x" <> dot <> (int $ tupleIndex i)
+renderRExpr (RInputElem i)     = text "x" P.<> dot P.<> (int $ tupleIndex i)
 renderRExpr (RIf c t e)        = text "if"
                                     <+> renderRExpr c
                                     <+> text "then"
@@ -363,3 +364,86 @@ parenthizeF e@RIf{}         = renderRExpr e
 parenthizeF e@RInputElem{}  = renderRExpr e
 
 type Ordish r e = (Ord r, Ord e, Show r, Show e)
+
+--------------------------------------------------------------------------------
+
+-- | Determine the number of flat columns for each tuple type constructor.
+tyWidth :: PType () -> RowWidth
+tyWidth (PIndexT ())     = BaseW
+tyWidth (PScalarT _ ()) = BaseW
+tyWidth (PTupleT tys ()) = TupW ws (sum $ fmap rowWidth ws)
+  where
+    ws = fmap tyWidth tys
+
+-- | 'RowWidth' represents the flat column width of tuple payload types.
+data RowWidth = TupW (N.NonEmpty RowWidth) Int | BaseW deriving (Eq)
+
+rowWidth :: RowWidth -> Int
+rowWidth BaseW      = 1
+rowWidth (TupW _ w) = w
+
+-- | For a tuple index and a list of corresponding widths, determine the width
+-- of elements preceding the indexed element as well as the width of the element
+-- itself.
+elemWidth :: TupleIndex -> [RowWidth] -> (Int, RowWidth)
+elemWidth = go 0
+  where
+    go preSum First (w:_)     = (preSum, w)
+    go _      First []        = $impossible
+    go preSum (Next i) (w:ws) = go (preSum + rowWidth w) i ws
+    go _      (Next _) []     = $impossible
+
+-- | Map a tuple payload expression to a list of flat row expressions.
+--
+-- Translation happens in an environment consisting of width information for the
+-- input type of the expression. 'toRow' tracks width information for all
+-- sub-expressions to establish the mapping between flat columns and nested
+-- payload tuples.
+toRow :: TExpr -> Reader RowWidth (N.NonEmpty RExpr, RowWidth)
+toRow TIndex         = pure (pure $ RConstant L.UnitV, BaseW)
+toRow (TConstant c)  = pure (pure $ RConstant c, BaseW)
+toRow TInput         = do
+    w <- ask
+    let rowIndexes = fmap intIndex $ N.fromList [1..rowWidth w]
+        row        = fmap RInputElem rowIndexes
+    pure (row, w)
+toRow (TTupElem i e) = do
+    (inpRow, TupW ws _) <- toRow e
+    let (preLen, elemWid) = elemWidth i (N.toList ws)
+        elemFields        = take (rowWidth elemWid) (N.drop preLen inpRow)
+    pure (N.fromList elemFields, elemWid)
+toRow (TMkTuple es)  = do
+    (rows, widths) <- N.unzip <$> mapM toRow es
+    let tupWidth = TupW widths (sum $ fmap rowWidth widths)
+    pure (sconcat rows, tupWidth)
+toRow (TIf e1 e2 e3) = do
+    (rs1, BaseW) <- toRow e1
+    (rs2, w2)    <- toRow e2
+    (rs3, w3)    <- toRow e3
+
+    unless (N.length rs2 == N.length rs3) $impossible
+    unless (w2 == w3) $impossible
+
+    let r1  = N.head rs1
+        row = N.zipWith (RIf r1) rs2 rs3
+
+    pure (row, w2)
+toRow (TBinApp op e1 e2) = do
+    (r1, BaseW) <- (N.head *** id) <$> toRow e1
+    (r2, BaseW) <- (N.head *** id) <$> toRow e2
+    pure (pure $ RBinApp op r1 r2, BaseW)
+toRow (TUnApp op e) = do
+    (r, BaseW) <- (N.head *** id) <$> toRow e
+    pure (pure $ RUnApp op r, BaseW)
+
+-- | Convert a tuple payload expression into a flat row constructor.
+flatRow :: PType () -> TExpr -> VRow
+flatRow inputTy e = VR $ fst $ runReader (toRow e) (tyWidth inputTy)
+
+-- | Convert a tuple payload expression that results in a scalar type to a flat
+-- row expression.
+flatExpr :: PType () -> TExpr -> RExpr
+flatExpr inputTy e =
+    case flatRow inputTy e of
+        VR (re :| []) -> re
+        _             -> $impossible
