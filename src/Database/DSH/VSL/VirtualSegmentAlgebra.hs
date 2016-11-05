@@ -57,22 +57,22 @@ class VirtualSegmentAlgebra a where
     -- segment.
     vecUnsegment :: VSLDVec a -> Build a (VSLDVec a)
 
-    vecAggr :: N.NonEmpty (AggrFun RExpr) -> VSLDVec a -> Build a (VSLDVec a)
-    vecFold :: AggrFun RExpr -> VSLDVec a -> Build a (VSLDVec a)
+    vecAggr :: N.NonEmpty (AggrFun TExpr) -> VSLDVec a -> Build a (VSLDVec a)
+    vecFold :: AggrFun TExpr -> VSLDVec a -> Build a (VSLDVec a)
 
-    vecWinFun :: WinFun RExpr -> FrameSpec -> VSLDVec a -> Build a (VSLDVec a)
+    vecWinFun :: WinFun TExpr -> FrameSpec -> VSLDVec a -> Build a (VSLDVec a)
 
     -- | Reverse each segment of a vector individually.
     vecReverse :: VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
 
     -- | Filter a vector by applying a scalar boolean predicate.
-    vecSelect:: RExpr -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
+    vecSelect:: TExpr -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
 
     -- | Per-segment sorting of a vector.
-    vecSort :: VRow -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
+    vecSort :: TExpr -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
 
     -- | Per-segment grouping of a vector
-    vecGroup :: VRow -> VSLDVec a -> Build a (VSLDVec a, VSLDVec a, VSLRVec a)
+    vecGroup :: TExpr -> VSLDVec a -> Build a (VSLDVec a, VSLDVec a, VSLRVec a)
 
     -- | The VL aggregation operator groups every segment of the input vector by the
     -- given columns and then performs the list of aggregations described by the
@@ -80,11 +80,11 @@ class VirtualSegmentAlgebra a where
     -- input vector since all segments are grouped individually. The output
     -- payload columns are the grouping columns followed by the aggregation
     -- results.
-    vecGroupAggr :: VRow -> AggrFun RExpr -> VSLDVec a -> Build a (VSLDVec a)
+    vecGroupAggr :: TExpr -> AggrFun TExpr -> VSLDVec a -> Build a (VSLDVec a)
 
     -- | Construct a new vector as the result of a list of scalar
     -- expressions per result column.
-    vecProject :: VRow -> VSLDVec a -> Build a (VSLDVec a)
+    vecProject :: TExpr -> VSLDVec a -> Build a (VSLDVec a)
 
     -- | Combine a replication vector and a vector containing physical segments.
     vecMaterialize :: VSLRVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
@@ -120,10 +120,10 @@ class VirtualSegmentAlgebra a where
     vecZip :: VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
 
     vecCartProduct :: VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
-    vecThetaJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate RExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
-    vecNestJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate RExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
-    vecSemiJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate RExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
-    vecAntiJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate RExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
-    vecGroupJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate RExpr -> L.NE (AggrFun RExpr) -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a)
+    vecThetaJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate TExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
+    vecNestJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate TExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
+    vecSemiJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate TExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
+    vecAntiJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate TExpr -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a)
+    vecGroupJoin :: SegmentLookup -> SegmentLookup -> L.JoinPredicate TExpr -> L.NE (AggrFun TExpr) -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a)
 
     vecCombine :: VSLDVec a -> VSLDVec a -> VSLDVec a -> Build a (VSLDVec a, VSLRVec a, VSLRVec a)
