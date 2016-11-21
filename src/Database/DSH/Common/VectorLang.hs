@@ -358,6 +358,39 @@ parenthizeF e@RUnApp{}      = parens $ renderRExpr e
 parenthizeF e@RIf{}         = renderRExpr e
 parenthizeF e@RInputElem{}  = renderRExpr e
 
+instance Pretty e => Pretty (AggrFun e) where
+    pretty (AggrSum t c)         = prettyFun (text "sum" P.<> char '_' P.<> pretty t) [pretty c]
+    pretty (AggrMin c)           = prettyFun (text "min") [pretty c]
+    pretty (AggrMax c)           = prettyFun (text "max") [pretty c]
+    pretty (AggrAvg c)           = prettyFun (text "avg") [pretty c]
+    pretty (AggrAny c)           = prettyFun (text "any") [pretty c]
+    pretty (AggrAll c)           = prettyFun (text "all") [pretty c]
+    pretty AggrCount             = prettyFun (text "count") []
+    pretty (AggrCountDistinct c) = prettyFun (text "countDistinct") [pretty c]
+
+instance Pretty e => Pretty (WinFun e) where
+    pretty (WinSum c)        = prettyFun (text "sum") [pretty c]
+    pretty (WinMin c)        = prettyFun (text "min") [pretty c]
+    pretty (WinMax c)        = prettyFun (text "max") [pretty c]
+    pretty (WinAvg c)        = prettyFun (text "avg") [pretty c]
+    pretty (WinAny c)        = prettyFun (text "any") [pretty c]
+    pretty (WinAll c)        = prettyFun (text "all") [pretty c]
+    pretty (WinFirstValue c) = prettyFun (text "first_value") [pretty c]
+    pretty WinCount          = prettyFun (text "count") []
+
+instance Pretty FrameSpec where
+    pretty FAllPreceding   = text "allprec"
+    pretty (FNPreceding n) = int n P.<+> text "prec"
+
+instance Pretty VecSegs where
+    pretty (UnitSeg seg) = pretty seg
+    pretty (Segs segs)   = vcat $ map pretty $ F.toList segs
+
+instance Pretty a => Pretty (S.Seq a) where
+    pretty s = list $ map pretty $ F.toList s
+
+--------------------------------------------------------------------------------
+
 type Ordish r e = (Ord r, Ord e, Show r, Show e)
 
 --------------------------------------------------------------------------------

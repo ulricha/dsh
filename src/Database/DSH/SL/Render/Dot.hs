@@ -1,7 +1,6 @@
 module Database.DSH.SL.Render.Dot(renderSLDot) where
 
 import           Control.Monad.Reader
-import qualified Data.Foldable                  as F
 import qualified Data.IntMap                    as Map
 import           Data.List
 import qualified Data.List.NonEmpty             as N
@@ -15,39 +14,8 @@ import           Database.Algebra.Dag.Common    as C
 import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
-import           Database.DSH.Common.VectorLang
+import           Database.DSH.Common.VectorLang ()
 import           Database.DSH.SL.Lang
-
-renderFun :: Doc -> [Doc] -> Doc
-renderFun name args = name <> parens (hsep $ punctuate comma args)
-
-renderFrameSpec :: FrameSpec -> Doc
-renderFrameSpec FAllPreceding   = text "allprec"
-renderFrameSpec (FNPreceding n) = int n <+> text "prec"
-
-renderAggrFun :: Pretty e => AggrFun e -> Doc
-renderAggrFun (AggrSum t c)         = renderFun (text "sum" <> char '_' <> renderColumnType t)
-                                                [pretty c]
-renderAggrFun (AggrMin c)           = renderFun (text "min") [pretty c]
-renderAggrFun (AggrMax c)           = renderFun (text "max") [pretty c]
-renderAggrFun (AggrAvg c)           = renderFun (text "avg") [pretty c]
-renderAggrFun (AggrAny c)           = renderFun (text "any") [pretty c]
-renderAggrFun (AggrAll c)           = renderFun (text "all") [pretty c]
-renderAggrFun AggrCount             = renderFun (text "count") []
-renderAggrFun (AggrCountDistinct c) = renderFun (text "countDistinct") [pretty c]
-
-renderWinFun :: Pretty e => WinFun e -> Doc
-renderWinFun (WinSum c)        = renderFun (text "sum") [pretty c]
-renderWinFun (WinMin c)        = renderFun (text "min") [pretty c]
-renderWinFun (WinMax c)        = renderFun (text "max") [pretty c]
-renderWinFun (WinAvg c)        = renderFun (text "avg") [pretty c]
-renderWinFun (WinAny c)        = renderFun (text "any") [pretty c]
-renderWinFun (WinAll c)        = renderFun (text "all") [pretty c]
-renderWinFun (WinFirstValue c) = renderFun (text "first_value") [pretty c]
-renderWinFun WinCount          = renderFun (text "count") []
-
-renderColumnType :: ScalarType -> Doc
-renderColumnType = text . show
 
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
@@ -56,27 +24,10 @@ renderColName :: L.ColName -> Doc
 renderColName (L.ColName c) = text c
 
 renderCol :: (L.ColName, ScalarType) -> Doc
-renderCol (c, t) = renderColName c <> text "::" <> renderColumnType t
-
-renderJoinConjunct :: Pretty e => L.JoinConjunct e -> Doc
-renderJoinConjunct (L.JoinConjunct e1 o e2) =
-    pretty e1 <+> text (pp o) <+> pretty e2
-
-renderJoinPred :: Pretty e => L.JoinPredicate e -> Doc
-renderJoinPred (L.JoinPred conjs) = brackets
-                                    $ hsep
-                                    $ punctuate (text "&&")
-                                    $ map renderJoinConjunct $ N.toList conjs
+renderCol (c, t) = renderColName c <> text "::" <> pretty t
 
 renderLambda :: Pretty e => e -> Doc
 renderLambda e = text "\\x." <> pretty e
-
-renderSegments :: VecSegs -> Doc
-renderSegments (UnitSeg seg) = renderSegment seg
-renderSegments (Segs segs)   = vcat $ map renderSegment $ F.toList segs
-
-renderSegment :: SegD -> Doc
-renderSegment s = list $ map pretty $ F.toList s
 
 type Render = Reader (NodeMap [Tag])
 
@@ -99,8 +50,8 @@ renderLabelArg nodeId opName arg = labelDoc nodeId opName (braces arg)
 
 -- | Create the node label from an operator description
 opDotLabel :: (Pretty r, Pretty e) => AlgNode -> SLOp r e -> Render Doc
-opDotLabel i (UnOp (WinFun (wfun, wspec)) _) = renderLabelArg i "winaggr" (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
-opDotLabel i (NullaryOp (Lit (ty, segs))) = renderLabelArg i "lit" (pretty ty <> comma <$> renderSegments segs)
+opDotLabel i (UnOp (WinFun (wfun, wspec)) _) = renderLabelArg i "winaggr" (pretty wfun <> comma <+> pretty wspec)
+opDotLabel i (NullaryOp (Lit (ty, segs))) = renderLabelArg i "lit" (pretty ty <> comma <$> pretty segs)
 opDotLabel i (NullaryOp (TableRef (n, schema))) = renderLabelArg i "table" arg
   where
     arg  = text n <> text "\n" <> align (bracketList (\c -> renderCol c <> text "\n") cols)
@@ -118,8 +69,8 @@ opDotLabel i (UnOp (Project e) _) = renderLabelArg i "project" arg
   where
     arg = renderLambda e
 opDotLabel i (UnOp (Select e) _) = renderLabelArg i "select" (renderLambda e)
-opDotLabel i (UnOp (GroupAggr (g, a)) _) = renderLabelArg i "groupaggr" (renderLambda g <+> bracketList renderAggrFun [a])
-opDotLabel i (BinOp (Fold a) _ _) = renderLabelArg i "fold" (renderAggrFun a)
+opDotLabel i (UnOp (GroupAggr (g, a)) _) = renderLabelArg i "groupaggr" (renderLambda g <+> bracketList pretty [a])
+opDotLabel i (BinOp (Fold a) _ _) = renderLabelArg i "fold" (pretty a)
 opDotLabel i (UnOp (Sort e) _) = renderLabelArg i "sort" (renderLambda e)
 opDotLabel i (UnOp (Group e) _) = renderLabelArg i "group" (renderLambda e)
 opDotLabel i (BinOp ReplicateNest _ _) = renderLabel i "replicatenest"
@@ -135,17 +86,17 @@ opDotLabel i (BinOp Zip _ _) = renderLabel i "zip"
 opDotLabel i (BinOp CartProduct _ _) = renderLabel i "cartproduct"
 opDotLabel i (BinOp ReplicateVector _ _) = renderLabel i "replicatevector"
 opDotLabel i (BinOp (ThetaJoin p) _ _) =
-  renderLabelArg i "thetajoin" (renderJoinPred p)
+  renderLabelArg i "thetajoin" (pretty p)
 opDotLabel i (BinOp (NestJoin p) _ _) =
-  renderLabelArg i "nestjoin" (renderJoinPred p)
+  renderLabelArg i "nestjoin" (pretty p)
 opDotLabel i (BinOp (SemiJoin p) _ _) =
-  renderLabelArg i "semijoin" (renderJoinPred p)
+  renderLabelArg i "semijoin" (pretty p)
 opDotLabel i (BinOp (AntiJoin p) _ _) =
-  renderLabelArg i "antijoin" (renderJoinPred p)
+  renderLabelArg i "antijoin" (pretty p)
 opDotLabel i (BinOp (GroupJoin (p, as)) _ _) =
     renderLabelArg i "groupjoin" arg
   where
-    arg = renderJoinPred p <+> bracketList renderAggrFun (N.toList $ L.getNE as)
+    arg = pretty p <+> bracketList pretty (N.toList $ L.getNE as)
 opDotLabel i (TerOp Combine _ _ _) = renderLabel i "combine"
 
 opDotColor :: SLOp r e -> DotColor
