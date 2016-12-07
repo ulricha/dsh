@@ -475,3 +475,30 @@ flatExpr inputTy e =
     case flatRow inputTy e of
         VR (re :| []) -> re
         _             -> $impossible
+
+--------------------------------------------------------------------------------
+-- Patterns for tuple expressions
+
+pattern TFirst :: TExpr -> TExpr
+pattern TFirst e = TTupElem First e
+
+pattern TSecond :: TExpr -> TExpr
+pattern TSecond e = TTupElem (Next First) e
+
+pattern TThird :: TExpr -> TExpr
+pattern TThird e = TTupElem (Next (Next First)) e
+
+pattern TFourth :: TExpr -> TExpr
+pattern TFourth e = TTupElem (Next (Next (Next First))) e
+
+pattern TInpFirst :: TExpr
+pattern TInpFirst = TFirst TInput
+
+pattern TInpSecond :: TExpr
+pattern TInpSecond = TSecond TInput
+
+pattern TEq :: TExpr -> TExpr -> TExpr
+pattern TEq e1 e2 = TBinApp (L.SBRelOp L.Eq) e1 e2
+
+tPair :: TExpr -> TExpr -> TExpr
+tPair e1 e2 = TMkTuple (e1 :| [e2])

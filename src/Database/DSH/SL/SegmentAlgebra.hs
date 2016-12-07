@@ -77,7 +77,7 @@ class SegmentAlgebra a where
     -- input vector since all segments are grouped individually. The output
     -- payload columns are the grouping columns followed by the aggregation
     -- results.
-    vecGroupAggr :: TExpr -> (AggrFun TExpr) -> SLDVec a -> Build a (SLDVec a)
+    vecGroupAggr :: TExpr -> L.NE (AggrFun TExpr) -> SLDVec a -> Build a (SLDVec a)
 
     -- | Construct a new vector as the result of a list of scalar
     -- expressions per result column.

@@ -105,7 +105,7 @@ flatGrouping q =
 
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
-          void $ replaceWithNew q $ UnOp (GroupAggr ($(v "groupExpr"), $(v "afun"))) $(v "q1")
+          void $ replaceWithNew q $ UnOp (GroupAggr ($(v "groupExpr"), pure $(v "afun"))) $(v "q1")
         |])
 
 -- | Cleanup rewrite: merge a segment aggregate with a group

@@ -34,7 +34,7 @@ data UnOp r e = UnboxKey
               | R3
               | Project r
               | Select e
-              | GroupAggr (r, AggrFun e)
+              | GroupAggr (r, L.NE (AggrFun e))
               | Number
               | Unique
               | Reverse

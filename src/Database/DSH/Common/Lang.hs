@@ -8,12 +8,14 @@ module Database.DSH.Common.Lang where
 
 import           Control.Monad.Except
 import           Data.Aeson
+import           Data.Semigroup hiding (Sum)
 import           Data.Aeson.TH
 import qualified Data.List.NonEmpty           as N
 import           Data.Scientific
 import qualified Data.Text                    as T
 import qualified Data.Time.Calendar           as C
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>),(<>))
+import qualified Text.PrettyPrint.ANSI.Leijen as P
 import           Text.Printf
 
 import           Database.DSH.Common.Nat
@@ -98,6 +100,10 @@ instance Pretty a => Pretty (NE a) where
 
 instance Functor NE where
     fmap f (NE xs) = NE (fmap f xs)
+
+instance Applicative NE where
+    pure x = NE (pure x)
+    (NE f) <*> (NE a) = NE (f <*> a)
 
 $(deriveJSON defaultOptions ''NE)
 
@@ -243,6 +249,9 @@ newtype JoinPredicate e = JoinPred { jpConjuncts :: N.NonEmpty (JoinConjunct e) 
 
 instance Functor JoinPredicate where
     fmap f jp = jp { jpConjuncts = fmap (fmap f) (jpConjuncts jp) }
+
+instance Semigroup (JoinPredicate e) where
+    (JoinPred p1) <> (JoinPred p2) = JoinPred (p1 <> p2)
 
 instance ToJSON e => ToJSON (JoinPredicate e) where
     toJSON (JoinPred conjs) = toJSON conjs
@@ -415,7 +424,7 @@ instance Pretty ScalarExpr where
     pretty (JLit _ v)        = pretty v
     pretty (JInput _)        = text "I"
     pretty (JTupElem i e1)   =
-        parenthize e1 <> dot <> int (tupleIndex i)
+        parenthize e1 P.<> dot P.<> int (tupleIndex i)
 
 instance Pretty e => Pretty (JoinConjunct e) where
     pretty (JoinConjunct e1 op e2) = pretty e1 <+> pretty op <+> pretty e2
@@ -453,7 +462,7 @@ instance Pretty AggrFun where
   pretty Or              = combinator $ text "or"
 
 instance Pretty AggrApp where
-    pretty aa = pretty (aaFun aa) <> parens (pretty $ aaArg aa)
+    pretty aa = pretty (aaFun aa) P.<> parens (pretty $ aaArg aa)
 
 
 --------------------------------------------------------------------------------
