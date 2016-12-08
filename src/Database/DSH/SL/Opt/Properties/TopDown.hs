@@ -45,6 +45,7 @@ seed (UnOp op _)   =
         R2               -> vPropSeed
         R3               -> vPropSeed
         Number           -> vPropSeed
+        Fold _           -> vPropSeed
 
 seed (BinOp op _ _) =
     case op of
@@ -57,7 +58,7 @@ seed (BinOp op _ _) =
         AppFilter       -> vPropPairSeed
         AppRep          -> vPropPairSeed
         UnboxSng        -> vPropPairSeed
-        Fold _          -> vPropSeed
+        UnboxDefault _  -> vPropSeed
         Align           -> vPropSeed
         CartProduct     -> vPropTripleSeed
         ThetaJoin _     -> vPropTripleSeed

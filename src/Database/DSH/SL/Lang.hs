@@ -41,6 +41,7 @@ data UnOp r e = UnboxKey
               | Sort r
               | Group r
               | WinFun (WinFun e, FrameSpec)
+              | Fold (AggrFun e)
               deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''UnOp)
@@ -55,9 +56,9 @@ data BinOp e = ReplicateNest
              | AppRep
 
              | UnboxSng
+             | UnboxDefault e
              | Align
 
-             | Fold (AggrFun e)
              | Append
              | Zip
              | CartProduct

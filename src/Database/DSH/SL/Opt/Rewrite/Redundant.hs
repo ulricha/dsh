@@ -40,14 +40,10 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectAppFilter
                  , pullProjectAppSort
                  , pullProjectUnboxKey
-                 , pullProjectFold
                  , pullProjectSort
                  -- , scalarConditional
-                 , pushFoldSelect
-                 , pushFoldThetaJoinRight
+                 , pushFoldAppMap
                  , pushUnboxSngSelect
-                 , pushFoldAlign
-                 , pushFoldReplicateScalar
                  , pushUnboxSngAlign
                  , pushUnboxSngReplicateScalar
                  , pullNumberReplicateNest
@@ -1008,15 +1004,6 @@ pullProjectUnboxKey q =
            logRewrite "Redundant.Project.UnboxKey" q
            void $ replaceWithNew q $ UnOp UnboxKey $(v "q1") |])
 
--- | Any projections on the left input of Fold are irrelevant, as
--- only the segment information are required from the vector.
-pullProjectFold :: SLRule TExpr TExpr ()
-pullProjectFold q =
-  $(dagPatMatch 'q "(Project _ (q1)) Fold args (q2)"
-    [| return $ do
-           logRewrite "Redundant.Project.Fold" q
-           void $ replaceWithNew q $ BinOp (Fold $(v "args")) $(v "q1") $(v "q2") |])
-
 --------------------------------------------------------------------------------
 -- Rewrites that deal with nested structures and propagation vectors.
 
@@ -1157,34 +1144,18 @@ selectCartProd q =
 -- Amongst others, these rewrites are important to deal with HAVING-like
 -- patterns.
 
--- | If segments are aggregated after they have been filtered due to an outer
--- selection, we can aggregate early before filtering the segments.
-pushFoldSelect :: SLRule TExpr TExpr ()
-pushFoldSelect q =
-  $(dagPatMatch 'q "(R1 (qs1=Select _ (qo))) Fold af (R1 ((q2=R2 (qs2=Select _ (_))) AppFilter (qi)))"
-    [| do
-        predicate $ $(v "qs1") == $(v "qs2")
-
-        return $ do
-            logRewrite "Redundant.Fold.Push.Select" q
-            aggNode <- insert $ BinOp (Fold $(v "af")) $(v "qo") $(v "qi")
-            appNode <- insert $ BinOp AppFilter $(v "q2") aggNode
-            void $ replaceWithNew q $ UnOp R1 appNode |])
-
--- | Aggregate segments from a right join input before they are replicated as a
--- consequence of a ThetaJoin operator.
-pushFoldThetaJoinRight :: SLRule TExpr TExpr ()
-pushFoldThetaJoinRight q =
-    $(dagPatMatch 'q "(R1 (qj1)) Fold args (R1 ((qr3=R3 (qj2=(_) ThetaJoin _ (qo2))) AppRep (qi)))"
+pushFoldAppMap :: SLRule TExpr TExpr ()
+pushFoldAppMap q =
+    $(dagPatMatch 'q "Fold agg (R1 ((qm) [AppRep | AppKey | AppSort | AppFilter]@op (qv)))"
       [| do
-          predicate $ $(v "qj1") == $(v "qj2")
-          return $ do
-              logRewrite "Redundant.Fold.Push.ThetaJoin.Right" q
-              aggNode <- insert $ BinOp (Fold $(v "args")) $(v "qo2") $(v "qi")
-              repNode <- insert $ BinOp AppRep $(v "qr3") aggNode
-              void $ replaceWithNew q $ UnOp R1 repNode
-      |])
+            return $ do
+                logRewrite "Redundant.Fold.Push.AppMap" q
+                aggNode <- insert $ UnOp (Fold $(v "agg")) $(v "qv")
+                appNode <- insert $ BinOp $(v "op") $(v "qm") aggNode
+                void $ replaceWithNew q $ UnOp R1 appNode
+       |])
 
+-- FIXME duplicate all pushUnbox rewrites for unboxdefault
 -- | Unbox singleton segments before they are filtered because of a selection.
 -- This rewrite is valid because we only add columns at the end: column
 -- references in the selection predicate remain valid.
@@ -1234,20 +1205,6 @@ pushUnboxSngThetaJoinRight q =
 
 --------------------------------------------------------------------------------
 -- Normalization rules for segment aggregation
-
-pushFoldAlign :: SLRule TExpr TExpr ()
-pushFoldAlign q =
-  $(dagPatMatch 'q "((_) Align (q1)) Fold af (q2)"
-    [| return $ do
-           logRewrite "Redundant.Fold.Push.Align" q
-           void $ replaceWithNew q $ BinOp (Fold $(v "af")) $(v "q1") $(v "q2") |])
-
-pushFoldReplicateScalar :: SLRule TExpr TExpr ()
-pushFoldReplicateScalar q =
-  $(dagPatMatch 'q "(R1 ((_) ReplicateScalar (q1))) Fold af (q2)"
-    [| return $ do
-           logRewrite "Redundant.Fold.Push.ReplicateScalar" q
-           void $ replaceWithNew q $ BinOp (Fold $(v "af")) $(v "q1") $(v "q2") |])
 
 -- | Apply a singleton unbox operator before an align operator. By unboxing
 -- early, we hope to be able to eliminate unboxing (e.g. by combining it with an

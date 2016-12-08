@@ -228,8 +228,8 @@ concatL _ = $impossible
 
 lengthL ::  Shape DVec -> Build TSL (Shape DVec)
 lengthL (VShape q (LNest qi _)) = do
-    ls  <- slFold AggrCount q qi
-    lsu <- fst <$> slUnboxSng q ls
+    ls  <- slFold AggrCount qi
+    lsu <- defaultUnboxOp AggrCount q ls
     lp  <- slProject (TTupElem (Next First) TInput) lsu
     return $ VShape lp LCol
 lengthL _ = $impossible
@@ -240,8 +240,8 @@ outer (VShape q _)        = return q
 
 aggrL :: (TExpr -> AggrFun TExpr) -> Shape DVec -> Build TSL (Shape DVec)
 aggrL afun (VShape d (LNest q LCol)) = do
-    qr <- slFold (afun TInput) d q
-    qu <- fst <$> slUnboxSng d qr
+    qr <- slFold (afun TInput) q
+    qu <- defaultUnboxOp (afun TInput) d qr
     qp <- slProject (TTupElem (Next First) TInput) qu
     return $ VShape qp LCol
 aggrL _ _ = $impossible
@@ -403,3 +403,16 @@ appendLayout (LNest dv1 lyt1) (LNest dv2 lyt2) = do
 appendLayout (LTuple lyts1) (LTuple lyts2) =
     LTuple <$> zipWithM appendLayout lyts1 lyts2
 appendLayout _ _ = $impossible
+
+defaultUnboxOp :: AggrFun TExpr -> DVec -> DVec -> Build TSL DVec
+defaultUnboxOp (AggrSum t _)         = slUnboxDefault (TConstant $ sumDefault t)
+  where
+    sumDefault IntT     = L.IntV 0
+    sumDefault DecimalT = L.DecimalV 0
+    sumDefault DoubleT  = L.DoubleV 0
+    sumDefault _        = error "SL.Builtins.defaultUnboxOp: not a numeric type"
+defaultUnboxOp (AggrAny _)           = slUnboxDefault (TConstant $ L.BoolV False)
+defaultUnboxOp (AggrAll _)           = slUnboxDefault (TConstant $ L.BoolV True)
+defaultUnboxOp AggrCount             = slUnboxDefault (TConstant $ L.IntV 0)
+defaultUnboxOp (AggrCountDistinct _) = slUnboxDefault (TConstant $ L.IntV 0)
+defaultUnboxOp _                     = \v1 v2 -> fst <$> slUnboxSng v1 v2

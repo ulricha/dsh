@@ -84,19 +84,19 @@ groupingToAggregation =
 -- | Merge a projection into a segmented aggregate operator.
 inlineFoldProject :: SLRule TExpr TExpr ()
 inlineFoldProject q =
-  $(dagPatMatch 'q "(qo) Fold afun (Project e (qi))"
+  $(dagPatMatch 'q "Fold afun (Project e (qi))"
     [| do
         let afun' = (partialEval . mergeExpr e) <$> $(v "afun")
 
         return $ do
             logRewrite "Aggregation.Normalize.Fold.Project" q
-            void $ replaceWithNew q $ BinOp (Fold afun') $(v "qo") $(v "qi") |])
+            void $ replaceWithNew q $ UnOp (Fold afun') $(v "qi") |])
 
 -- | We rewrite a combination of GroupS and aggregation operators into a single
 -- GroupAggr operator.
 flatGrouping :: SLRule TExpr TExpr ()
 flatGrouping q =
-  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng ((_) Fold afun (R2 (qg1=Group groupExpr (q1)))))"
+  $(dagPatMatch 'q "R1 (qu=(qr1=R1 (qg)) UnboxSng (Fold afun (R2 (qg1=Group groupExpr (q1)))))"
     [| do
 
         -- Ensure that the aggregate results are unboxed using the
@@ -237,11 +237,11 @@ mergeGroupWithGroupAggrRight q =
 
 countDistinct :: SLRule TExpr TExpr BottomUpProps
 countDistinct q =
-  $(dagPatMatch 'q "(q1) Fold a (Unique (q2))"
+  $(dagPatMatch 'q "Fold a (Unique (q2))"
     [| do
         AggrCount           <- return $(v "a")
 
         return $ do
             logRewrite "CountDistinct" q
-            void $ replaceWithNew q $ BinOp (Fold (AggrCountDistinct TInput)) $(v "q1") $(v "q2")
+            void $ replaceWithNew q $ UnOp (Fold (AggrCountDistinct TInput)) $(v "q2")
         |])

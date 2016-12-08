@@ -199,11 +199,12 @@ translateBinOp b c1 c2 = case b of
         (v, k) <- vecUnboxSng (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromKVec k)
 
+    SL.UnboxDefault e -> fromDVec <$> vecUnboxDefault e (toDVec c1) (toDVec c2)
+
     SL.Append -> do
         (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromKVec r1) (fromKVec r2)
 
-    SL.Fold a -> fromDVec <$> vecFold a (toDVec c1) (toDVec c2)
 
     SL.Align -> fromDVec <$> vecAlign (toDVec c1) (toDVec c2)
 
@@ -238,6 +239,7 @@ translateUnOp :: SegmentAlgebra a
               -> Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a)
               -> B.Build a (Res (SLDVec a) (SLRVec a) (SLKVec a) (SLFVec a) (SLSVec a))
 translateUnOp unop c = case unop of
+    SL.Fold a          -> fromDVec <$> vecFold a (toDVec c)
     SL.Unique          -> fromDVec <$> vecUnique (toDVec c)
     SL.Number          -> fromDVec <$> vecNumber (toDVec c)
     SL.UnboxKey         -> fromKVec <$> vecUnboxKey (toDVec c)

@@ -48,6 +48,7 @@ inferSegmentsUnOp c op =
     Group _    -> [ VPropTriple f SegdP SegNAP | f <- unp c ]
     GroupAggr _ -> pure c
     Number     -> pure c
+    Fold _      -> pure $ VProp SegdP
     R1          ->
       case c of
         VProp _           -> throwError "Properties.Segments: not a pair/triple"
@@ -66,7 +67,6 @@ inferSegmentsUnOp c op =
 inferSegmentsBinOp :: VectorProp SegP -> VectorProp SegP -> BinOp e -> Either String (VectorProp SegP)
 inferSegmentsBinOp c1 c2 op =
   case op of
-    Fold _          -> pure $ VProp SegdP
     ReplicateNest   -> pure $ VPropPair SegdP SegNAP
     ReplicateScalar -> [ VPropPair f SegNAP | f <- unp c2 ]
     AppKey          -> pure $ VPropPair SegdP SegNAP
@@ -74,6 +74,7 @@ inferSegmentsBinOp c1 c2 op =
     AppFilter       -> pure $ VPropPair SegdP SegNAP
     AppRep          -> pure $ VPropPair SegdP SegNAP
     UnboxSng        -> [ VPropPair f SegNAP | f <- unp c1 ]
+    UnboxDefault _  -> [ VPropPair f SegNAP | f <- unp c1 ]
     Append          -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
     Align           -> join [ VProp <$> flatInputs f1 f2 | f1 <- unp c1, f2 <- unp c2 ]
     CartProduct     -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]

@@ -115,6 +115,7 @@ inferVectorTypeBinOp s1 s2 op =
     CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "CartProductS"
     ReplicateVector -> reqValVectors s1 s2 (\w1 _ -> VPropPair (VTDataVec w1 ) VTNA) "ReplicateVector"
     UnboxSng -> reqValVectors s1 s2 (\w1 w2 -> VPropPair (VTDataVec $ w1 + w2) VTNA) "UnboxSng"
+    UnboxDefault _ -> reqValVectors s1 s2 (\w1 w2 -> VProp (VTDataVec $ w1 + w2) VTNA) "UnboxDefault"
     ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "ThetaJoinS"
     NestJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (VTDataVec $ w1 + w2) VTNA VTNA) "NestJoinS"
     GroupJoin (_, as) -> do

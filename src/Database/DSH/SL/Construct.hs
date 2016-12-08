@@ -79,8 +79,8 @@ slGroup groupExprs (DVec c) = tripleVec (SL $ UnOp (Group groupExprs) c) dvec dv
 slSort :: TExpr -> DVec -> Build TSL (DVec, SVec)
 slSort sortExprs (DVec c1) = pairVec (SL $ UnOp (Sort sortExprs) c1) dvec svec
 
-slFold :: AggrFun TExpr -> DVec -> DVec -> Build TSL DVec
-slFold aFun (DVec c1) (DVec c2) = vec (SL $ BinOp (Fold aFun) c1 c2) dvec
+slFold :: AggrFun TExpr -> DVec -> Build TSL DVec
+slFold aFun (DVec c) = vec (SL $ UnOp (Fold aFun) c) dvec
 
 slUnboxKey :: DVec -> Build TSL KVec
 slUnboxKey (DVec c) = vec (SL $ UnOp UnboxKey c) kvec
@@ -96,6 +96,9 @@ slReplicateScalar (DVec c1) (DVec c2) = pairVec (SL $ BinOp ReplicateScalar c1 c
 
 slUnboxSng :: DVec -> DVec -> Build TSL (DVec, KVec)
 slUnboxSng (DVec c1) (DVec c2) = pairVec (SL $ BinOp UnboxSng c1 c2) dvec kvec
+
+slUnboxDefault :: TExpr -> DVec -> DVec -> Build TSL DVec
+slUnboxDefault e (DVec c1) (DVec c2) = vec (SL $ BinOp (UnboxDefault e) c1 c2) dvec
 
 slAppSort :: SVec -> DVec -> Build TSL (DVec, SVec)
 slAppSort (SVec c1) (DVec c2) = pairVec (SL $ BinOp AppSort c1 c2) dvec svec

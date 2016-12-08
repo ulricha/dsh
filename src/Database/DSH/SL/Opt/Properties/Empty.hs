@@ -46,6 +46,7 @@ inferEmptyUnOp e op =
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr (_, _) -> Right $ VProp False
     Number          -> Right e
+    Fold _ -> return $ VProp False
 
     R1 ->
       case e of
@@ -69,8 +70,8 @@ inferEmptyBinOp e1 e2 op =
     ReplicateNest   -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     ReplicateScalar -> mapUnp e1 e2 (\_ ue2 -> VPropPair ue2 ue2)
     UnboxSng -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    UnboxDefault _ -> mapUnp e1 e2 (\ue1 _ -> VPropPair ue1 ue1)
     Append -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
-    Fold _ -> return $ VProp False
     Align -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     Zip -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     CartProduct -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))

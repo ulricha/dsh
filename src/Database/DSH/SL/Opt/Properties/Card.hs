@@ -51,11 +51,11 @@ inferCardOneUnOp c op =
         _                 -> Left "Properties.Card: not a triple"
     GroupAggr (_, _)      -> Right c
     Number -> Right c
+    Fold _ -> return $ VProp False
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp e -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
   case op of
-    Fold _ -> return $ VProp False
     ReplicateNest -> return $ VPropPair False False
     ReplicateScalar -> unp c2 >>= (\uc -> return $ VPropPair uc uc)
     AppKey -> return $ VPropPair False False
@@ -63,6 +63,7 @@ inferCardOneBinOp c1 c2 op =
     AppFilter -> return $ VPropPair False False
     AppRep -> return $ VPropPair False False
     UnboxSng -> return $ VPropPair False False
+    UnboxDefault _ -> return $ VPropPair False False
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
     Append -> Right $ VPropTriple False False False
     Align -> VProp <$> ((||) <$> unp c1 <*> unp c2)
