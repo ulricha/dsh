@@ -26,8 +26,7 @@ data NullOp = Lit (PType, VecSegs)
 
 $(deriveJSON defaultOptions ''NullOp)
 
-data UnOp r e = UnboxKey
-              | Segment
+data UnOp r e = Segment
               | Unsegment
               | R1
               | R2

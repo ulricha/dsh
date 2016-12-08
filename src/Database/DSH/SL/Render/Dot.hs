@@ -58,7 +58,6 @@ opDotLabel i (NullaryOp (TableRef (n, schema))) = renderLabelArg i "table" arg
     cols = N.toList $ L.tableCols schema
 opDotLabel i (UnOp Unique _) = renderLabel i "unique"
 opDotLabel i (UnOp Number _) = renderLabel i "number"
-opDotLabel i (UnOp UnboxKey _) = renderLabel i "unboxkey"
 opDotLabel i (UnOp Segment _) = renderLabel i "segment"
 opDotLabel i (UnOp Unsegment _) = renderLabel i "unsegment"
 opDotLabel i (UnOp Reverse _) = renderLabel i "reverse"

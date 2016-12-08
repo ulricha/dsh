@@ -26,9 +26,6 @@ class SegmentAlgebra a where
     -- | Filtering Vector
     type SLFVec a
 
-    -- | Turn a flat vector into a nested vector with one segment.
-    vecNest :: SLDVec a -> Build a (SLDVec a, SLDVec a)
-
     -- | A vector representing a literal list.
     vecLit :: PType -> VecSegs -> Build a (SLDVec a)
 
@@ -43,8 +40,6 @@ class SegmentAlgebra a where
     -- vector's elements in each segment.
     vecNumber :: SLDVec a -> Build a (SLDVec a)
 
-    vecUnboxKey :: SLDVec a -> Build a (SLKVec a)
-
     -- | Merge segments of an inner vector into the segment structure of the
     -- outer vector.
     vecMergeSeg :: SLDVec a -> SLDVec a -> Build a (SLDVec a)
@@ -58,7 +53,6 @@ class SegmentAlgebra a where
     -- segment.
     vecUnsegment :: SLDVec a -> Build a (SLDVec a)
 
-    vecAggr :: N.NonEmpty (AggrFun TExpr) -> SLDVec a -> Build a (SLDVec a)
     vecFold :: AggrFun TExpr -> SLDVec a -> Build a (SLDVec a)
 
     vecWinFun :: WinFun TExpr -> FrameSpec -> SLDVec a -> Build a (SLDVec a)

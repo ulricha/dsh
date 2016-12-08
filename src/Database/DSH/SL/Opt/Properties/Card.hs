@@ -27,7 +27,6 @@ inferCardOneUnOp c op =
   case op of
     Unique -> Right c
     WinFun _ -> Right c
-    UnboxKey -> Right c
     Segment -> Right c
     Unsegment -> Right c
     Project _  -> Right c

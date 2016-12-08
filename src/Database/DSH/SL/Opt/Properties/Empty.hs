@@ -34,7 +34,6 @@ inferEmptyUnOp e op =
   case op of
     WinFun _  -> Right e
     Unique    -> Right e
-    UnboxKey  -> Right e
     Segment   -> Right e
     Unsegment -> Right e
     Reverse   -> let ue = unp e in liftM2 VPropPair ue ue

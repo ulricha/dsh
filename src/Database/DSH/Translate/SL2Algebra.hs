@@ -207,6 +207,7 @@ translateBinOp b c1 c2 = case b of
 
 
     SL.Align -> fromDVec <$> vecAlign (toDVec c1) (toDVec c2)
+    SL.MergeSeg -> fromDVec <$> vecMergeSeg (toDVec c1) (toDVec c2)
 
     SL.Zip -> do
         (v, r1 ,r2) <- vecZip (toDVec c1) (toDVec c2)
@@ -242,7 +243,6 @@ translateUnOp unop c = case unop of
     SL.Fold a          -> fromDVec <$> vecFold a (toDVec c)
     SL.Unique          -> fromDVec <$> vecUnique (toDVec c)
     SL.Number          -> fromDVec <$> vecNumber (toDVec c)
-    SL.UnboxKey         -> fromKVec <$> vecUnboxKey (toDVec c)
     SL.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
     SL.Segment          -> fromDVec <$> vecSegment (toDVec c)
     SL.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)

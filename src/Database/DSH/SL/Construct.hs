@@ -82,9 +82,6 @@ slSort sortExprs (DVec c1) = pairVec (SL $ UnOp (Sort sortExprs) c1) dvec svec
 slFold :: AggrFun TExpr -> DVec -> Build TSL DVec
 slFold aFun (DVec c) = vec (SL $ UnOp (Fold aFun) c) dvec
 
-slUnboxKey :: DVec -> Build TSL KVec
-slUnboxKey (DVec c) = vec (SL $ UnOp UnboxKey c) kvec
-
 slMergeSeg :: DVec -> DVec -> Build TSL DVec
 slMergeSeg (DVec c1) (DVec c2) = vec (SL $ BinOp MergeSeg c1 c2) dvec
 

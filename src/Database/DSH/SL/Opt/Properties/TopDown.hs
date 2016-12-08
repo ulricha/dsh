@@ -33,7 +33,6 @@ seed (UnOp op _)   =
         WinFun _         -> vPropSeed
         Reverse          -> vPropPairSeed
         Unique           -> vPropSeed
-        UnboxKey         -> vPropSeed
         Segment          -> vPropSeed
         Unsegment        -> vPropSeed
         Select     _     -> vPropPairSeed

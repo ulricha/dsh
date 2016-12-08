@@ -39,8 +39,9 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectAppRep
                  , pullProjectAppFilter
                  , pullProjectAppSort
-                 , pullProjectUnboxKey
                  , pullProjectSort
+                 , pullProjectMergeSegLeft
+                 , pullProjectMergeSegRight
                  -- , scalarConditional
                  , pushFoldAppMap
                  , pushUnboxSngSelect
@@ -997,12 +998,20 @@ pullProjectAppSort q =
            r1Node   <- insert $ UnOp R1 sortNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
-pullProjectUnboxKey :: SLRule TExpr TExpr ()
-pullProjectUnboxKey q =
-  $(dagPatMatch 'q "UnboxKey (Project _ (q1))"
+pullProjectMergeSegLeft :: SLRule TExpr TExpr ()
+pullProjectMergeSegLeft q =
+  $(dagPatMatch 'q "(Project _ (q1)) MergeSeg (q2)"
     [| return $ do
-           logRewrite "Redundant.Project.UnboxKey" q
-           void $ replaceWithNew q $ UnOp UnboxKey $(v "q1") |])
+           logRewrite "Redundant.Project.MergeSeg.Left" q
+           void $ replaceWithNew q $ BinOp MergeSeg $(v "q1") $(v "q2") |])
+
+pullProjectMergeSegRight :: SLRule TExpr TExpr ()
+pullProjectMergeSegRight q =
+  $(dagPatMatch 'q "(q1) MergeSeg (Project e (q2))"
+    [| return $ do
+           logRewrite "Redundant.Project.MergeSeg.Right" q
+           mergeNode <- insert $ BinOp MergeSeg $(v "q1") $(v "q2")
+           void $ replaceWithNew q $ UnOp (Project $(v "e")) mergeNode |])
 
 --------------------------------------------------------------------------------
 -- Rewrites that deal with nested structures and propagation vectors.

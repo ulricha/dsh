@@ -38,7 +38,6 @@ inferSegmentsUnOp c op =
   case op of
     Unique     -> pure c
     WinFun _    -> pure c
-    UnboxKey    -> pure c
     Segment     -> pure $ VProp SegdP
     Unsegment   -> pure $ VProp UnitSegP
     Project _   -> pure c
