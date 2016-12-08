@@ -85,6 +85,9 @@ slFold aFun (DVec c) = vec (SL $ UnOp (Fold aFun) c) dvec
 slUnboxKey :: DVec -> Build TSL KVec
 slUnboxKey (DVec c) = vec (SL $ UnOp UnboxKey c) kvec
 
+slMergeSeg :: DVec -> DVec -> Build TSL DVec
+slMergeSeg (DVec c1) (DVec c2) = vec (SL $ BinOp MergeSeg c1 c2) dvec
+
 slReplicateNest :: DVec -> DVec -> Build TSL (DVec, RVec)
 slReplicateNest (DVec c1) (DVec c2) = pairVec (SL $ BinOp ReplicateNest c1 c2) dvec rvec
 

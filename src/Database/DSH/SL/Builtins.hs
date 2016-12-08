@@ -220,10 +220,9 @@ groupL (VShape dvo (LNest dvi (LTuple [xl, gl]))) = do
 groupL _ = $impossible
 
 concatL ::  Shape DVec -> Build TSL (Shape DVec)
-concatL (VShape d (LNest d' vs)) = do
-    p   <- slUnboxKey d'
-    vs' <- rekeyOuter p vs
-    return $ VShape d vs'
+concatL (VShape vo (LNest vm (LNest vi l))) = do
+    vm' <- slMergeSeg vm vi
+    return $ VShape vo (LNest vm' l)
 concatL _ = $impossible
 
 lengthL ::  Shape DVec -> Build TSL (Shape DVec)

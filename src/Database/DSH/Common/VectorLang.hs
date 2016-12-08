@@ -57,6 +57,12 @@ data TExpr = TBinApp L.ScalarBinOp TExpr TExpr
 
 $(deriveJSON defaultOptions ''TExpr)
 
+valExpr :: VecVal -> TExpr
+valExpr (VVTuple (v:vs)) = TMkTuple $ valExpr v :| map valExpr vs
+valExpr (VVTuple [])     = $impossible
+valExpr (VVScalar v)     = TConstant v
+valExpr VTIndex          = TIndex
+
 -- | *Flat* payload expressions for segment vectors.
 --
 -- This type expresses scalar payload computations on vectors with flat records

@@ -73,6 +73,7 @@ inferEmptyBinOp e1 e2 op =
     UnboxDefault _ -> mapUnp e1 e2 (\ue1 _ -> VPropPair ue1 ue1)
     Append -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
     Align -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    MergeSeg -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     Zip -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     CartProduct -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     ReplicateVector -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))

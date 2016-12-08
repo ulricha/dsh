@@ -55,6 +55,7 @@ data BinOp e = ReplicateNest
              | AppFilter
              | AppRep
 
+             | MergeSeg
              | UnboxSng
              | UnboxDefault e
              | Align

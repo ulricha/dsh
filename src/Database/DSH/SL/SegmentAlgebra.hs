@@ -45,6 +45,10 @@ class SegmentAlgebra a where
 
     vecUnboxKey :: SLDVec a -> Build a (SLKVec a)
 
+    -- | Merge segments of an inner vector into the segment structure of the
+    -- outer vector.
+    vecMergeSeg :: SLDVec a -> SLDVec a -> Build a (SLDVec a)
+
     -- | From a vector with only one segment, create a segmented
     -- version in which every value in the original segment inhabits
     -- its own segment.

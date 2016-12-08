@@ -77,6 +77,7 @@ inferSegmentsBinOp c1 c2 op =
     UnboxDefault _  -> [ VPropPair f SegNAP | f <- unp c1 ]
     Append          -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
     Align           -> join [ VProp <$> flatInputs f1 f2 | f1 <- unp c1, f2 <- unp c2 ]
+    MergeSeg        -> VProp <$> unp c1 
     CartProduct     -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
     ReplicateVector -> pure $ VPropPair SegdP SegNAP
     ThetaJoin  _    -> join [ VPropTriple <$> flatInputs f1 f2 <*> pure SegNAP <*> pure SegNAP | f1 <- unp c1, f2 <- unp c2 ]
