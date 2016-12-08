@@ -44,6 +44,7 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectMergeSegRight
                  -- , scalarConditional
                  , pushFoldAppMap
+                 , pushFoldAppKey
                  , pushUnboxSngSelect
                  , pushUnboxSngAlign
                  , pushUnboxSngReplicateScalar
@@ -921,12 +922,11 @@ pullProjectSort q =
 
 pullProjectAppKey :: SLRule TExpr TExpr ()
 pullProjectAppKey q =
-  $(dagPatMatch 'q "R1 ((qp) AppKey (Project proj (qv)))"
+  $(dagPatMatch 'q "(qp) AppKey (Project proj (qv))"
     [| return $ do
            logRewrite "Redundant.Project.AppKey" q
            rekeyNode <- insert $ BinOp AppKey $(v "qp") $(v "qv")
-           r1Node    <- insert $ UnOp R1 rekeyNode
-           void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
+           void $ replaceWithNew q $ UnOp (Project $(v "proj")) rekeyNode |])
 
 pullProjectUnboxSngLeft :: SLRule TExpr TExpr ()
 pullProjectUnboxSngLeft q =
@@ -1155,13 +1155,23 @@ selectCartProd q =
 
 pushFoldAppMap :: SLRule TExpr TExpr ()
 pushFoldAppMap q =
-    $(dagPatMatch 'q "Fold agg (R1 ((qm) [AppRep | AppKey | AppSort | AppFilter]@op (qv)))"
+    $(dagPatMatch 'q "Fold agg (R1 ((qm) [AppRep | AppSort | AppFilter]@op (qv)))"
       [| do
             return $ do
                 logRewrite "Redundant.Fold.Push.AppMap" q
                 aggNode <- insert $ UnOp (Fold $(v "agg")) $(v "qv")
                 appNode <- insert $ BinOp $(v "op") $(v "qm") aggNode
                 void $ replaceWithNew q $ UnOp R1 appNode
+       |])
+
+pushFoldAppKey :: SLRule TExpr TExpr ()
+pushFoldAppKey q =
+    $(dagPatMatch 'q "Fold agg ((qm) AppKey (qv))"
+      [| do
+            return $ do
+                logRewrite "Redundant.Fold.Push.AppKey" q
+                aggNode <- insert $ UnOp (Fold $(v "agg")) $(v "qv")
+                void $ replaceWithNew q $ BinOp AppKey $(v "qm") aggNode
        |])
 
 -- FIXME duplicate all pushUnbox rewrites for unboxdefault

@@ -68,7 +68,7 @@ inferSegmentsBinOp c1 c2 op =
   case op of
     ReplicateNest   -> pure $ VPropPair SegdP SegNAP
     ReplicateScalar -> [ VPropPair f SegNAP | f <- unp c2 ]
-    AppKey          -> pure $ VPropPair SegdP SegNAP
+    AppKey          -> pure $ VProp SegdP
     AppSort         -> pure $ VPropPair SegdP SegNAP
     AppFilter       -> pure $ VPropPair SegdP SegNAP
     AppRep          -> pure $ VPropPair SegdP SegNAP

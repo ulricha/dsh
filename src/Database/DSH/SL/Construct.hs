@@ -106,8 +106,8 @@ slAppSort (SVec c1) (DVec c2) = pairVec (SL $ BinOp AppSort c1 c2) dvec svec
 slAppFilter :: FVec -> DVec -> Build TSL (DVec, FVec)
 slAppFilter (FVec c1) (DVec c2) = pairVec (SL $ BinOp AppFilter c1 c2) dvec fvec
 
-slAppKey :: KVec -> DVec -> Build TSL (DVec, KVec)
-slAppKey (KVec c1) (DVec c2) = pairVec (SL $ BinOp AppKey c1 c2) dvec kvec
+slAppKey :: KVec -> DVec -> Build TSL DVec
+slAppKey (KVec c1) (DVec c2) = vec (SL $ BinOp AppKey c1 c2) dvec
 
 slAppRep :: RVec -> DVec -> Build TSL (DVec, RVec)
 slAppRep (RVec c1) (DVec c2) = pairVec (SL $ BinOp AppRep c1 c2) dvec rvec

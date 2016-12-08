@@ -57,7 +57,7 @@ inferCardOneBinOp c1 c2 op =
   case op of
     ReplicateNest -> return $ VPropPair False False
     ReplicateScalar -> unp c2 >>= (\uc -> return $ VPropPair uc uc)
-    AppKey -> return $ VPropPair False False
+    AppKey -> return $ VProp False
     AppSort -> return $ VPropPair False False
     AppFilter -> return $ VPropPair False False
     AppRep -> return $ VPropPair False False

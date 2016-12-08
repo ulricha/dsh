@@ -51,8 +51,8 @@ concat _e                       = $impossible
 combine :: Shape DVec -> Shape DVec -> Shape DVec -> Build TSL (Shape DVec)
 combine (VShape dvb LCol) (VShape dv1 lyt1) (VShape dv2 lyt2) = do
     (dv, kv1, kv2) <- slCombine dvb dv1 dv2
-    lyt1'          <- rekeyOuter kv1 lyt1
-    lyt2'          <- rekeyOuter kv2 lyt2
+    lyt1'          <- rekeyLayout kv1 lyt1
+    lyt2'          <- rekeyLayout kv2 lyt2
     lyt'           <- appendLayout lyt1' lyt2'
     return $ VShape dv lyt'
 combine _ _ _ = $impossible
@@ -82,7 +82,7 @@ extL _ _ = $impossible
 onlyL :: Shape DVec -> Build TSL (Shape DVec)
 onlyL (VShape dvo (LNest dvi lyt)) = do
     (dv, kv) <- slUnboxSng dvo dvi
-    lyt'     <- rekeyOuter kv lyt
+    lyt'     <- rekeyLayout kv lyt
     return $ VShape dv lyt'
 onlyL _                           = $impossible
 
@@ -111,8 +111,8 @@ combineL (VShape qo (LNest dvb LCol))
          (VShape _ (LNest dv1 lyt1))
          (VShape _ (LNest dv2 lyt2)) = do
     (dv, kv1, kv2) <- slCombine dvb dv1 dv2
-    lyt1'          <- rekeyOuter kv1 lyt1
-    lyt2'          <- rekeyOuter kv2 lyt2
+    lyt1'          <- rekeyLayout kv1 lyt1
+    lyt2'          <- rekeyLayout kv2 lyt2
     lyt'           <- appendLayout lyt1' lyt2'
     return $ VShape qo (LNest dv lyt')
 combineL _ _ _ = $impossible
@@ -375,15 +375,12 @@ repLayout v = appLayout v slAppRep
 sortLayout :: SVec -> Layout DVec -> Build TSL (Layout DVec)
 sortLayout v = appLayout v slAppSort
 
-rekeyLayout :: KVec -> Layout DVec -> Build TSL (Layout DVec)
-rekeyLayout v = appLayout v slAppKey
-
 -- | Apply a rekeying vector to the outermost nested vectors in the
 -- layout.
-rekeyOuter :: KVec -> Layout DVec -> Build TSL (Layout DVec)
-rekeyOuter _ LCol          = return LCol
-rekeyOuter r (LNest q lyt) = LNest <$> (fst <$> slAppKey r q) <*> pure lyt
-rekeyOuter r (LTuple lyts) = LTuple <$> mapM (rekeyOuter r) lyts
+rekeyLayout :: KVec -> Layout DVec -> Build TSL (Layout DVec)
+rekeyLayout _ LCol          = return LCol
+rekeyLayout r (LNest q lyt) = LNest <$> (slAppKey r q) <*> pure lyt
+rekeyLayout r (LTuple lyts) = LTuple <$> mapM (rekeyLayout r) lyts
 
 -- | Traverse a layout and append all nested vectors that are
 -- encountered.
@@ -394,8 +391,8 @@ appendLayout (LNest dv1 lyt1) (LNest dv2 lyt2) = do
     -- Append the current vectors
     (dv12, kv1, kv2) <- slAppend dv1 dv2
     -- Propagate position changes to descriptors of any inner vectors
-    lyt1'       <- rekeyOuter kv1 lyt1
-    lyt2'       <- rekeyOuter kv2 lyt2
+    lyt1'       <- rekeyLayout kv1 lyt1
+    lyt2'       <- rekeyLayout kv2 lyt2
     -- Append the layouts, i.e. actually append all inner vectors
     lyt'        <- appendLayout lyt1' lyt2'
     return $ LNest dv12 lyt'

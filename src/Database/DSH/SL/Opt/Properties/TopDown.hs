@@ -52,7 +52,7 @@ seed (BinOp op _ _) =
         Zip             -> vPropTripleSeed
         ReplicateNest   -> vPropPairSeed
         ReplicateScalar -> vPropPairSeed
-        AppKey          -> vPropPairSeed
+        AppKey          -> vPropSeed
         AppSort         -> vPropPairSeed
         AppFilter       -> vPropPairSeed
         AppRep          -> vPropPairSeed

@@ -179,9 +179,7 @@ translateBinOp b c1 c2 = case b of
         (v, p) <- vecReplicateVector (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec p)
 
-    SL.AppKey -> do
-        (v, k) <- vecAppKey (toKVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromKVec k)
+    SL.AppKey -> fromDVec <$> vecAppKey (toKVec c1) (toDVec c2)
 
     SL.AppSort -> do
         (v, s) <- vecAppSort (toSVec c1) (toDVec c2)
