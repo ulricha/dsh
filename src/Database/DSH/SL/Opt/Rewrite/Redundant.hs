@@ -36,9 +36,7 @@ cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: SLRuleSet TExpr TExpr ()
 redundantRules = [ pullProjectAppKey
-                 , pullProjectAppRep
-                 , pullProjectAppFilter
-                 , pullProjectAppSort
+                 , pullProjectAppMap
                  , pullProjectSort
                  , pullProjectMergeSegLeft
                  , pullProjectMergeSegRight
@@ -971,31 +969,13 @@ pullProjectReplicateScalarRight q =
            r1Node   <- insert $ UnOp R1 distNode
            void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
-pullProjectAppRep :: SLRule TExpr TExpr ()
-pullProjectAppRep q =
-  $(dagPatMatch 'q "R1 ((qp) AppRep (Project proj (qv)))"
+pullProjectAppMap :: SLRule TExpr TExpr ()
+pullProjectAppMap q =
+  $(dagPatMatch 'q "R1 ((qp) [AppRep | AppSort | AppFilter]@op (Project proj (qv)))"
     [| return $ do
-           logRewrite "Redundant.Project.AppRep" q
-           repNode <- insert $ BinOp AppRep $(v "qp") $(v "qv")
+           logRewrite "Redundant.Project.AppMap" q
+           repNode <- insert $ BinOp $(v "op") $(v "qp") $(v "qv")
            r1Node  <- insert $ UnOp R1 repNode
-           void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
-
-pullProjectAppFilter :: SLRule TExpr TExpr ()
-pullProjectAppFilter q =
-  $(dagPatMatch 'q "R1 ((q1) AppFilter (Project proj (q2)))"
-    [| return $ do
-           logRewrite "Redundant.Project.AppFilter" q
-           filterNode <- insert $ BinOp AppFilter $(v "q1") $(v "q2")
-           r1Node     <- insert $ UnOp R1 filterNode
-           void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
-
-pullProjectAppSort :: SLRule TExpr TExpr ()
-pullProjectAppSort q =
-  $(dagPatMatch 'q "R1 ((q1) AppSort (Project proj (q2)))"
-    [| return $ do
-           logRewrite "Redundant.Project.AppSort" q
-           sortNode <- insert $ BinOp AppSort $(v "q1") $(v "q2")
-           r1Node   <- insert $ UnOp R1 sortNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
 pullProjectMergeSegLeft :: SLRule TExpr TExpr ()
