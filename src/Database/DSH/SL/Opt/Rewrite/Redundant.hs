@@ -40,7 +40,7 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectSort
                  , pullProjectMergeSegLeft
                  , pullProjectMergeSegRight
-                 -- , scalarConditional
+                 , scalarConditional
                  , pushFoldAppMap
                  , pushFoldAppKey
                  , pushUnboxSngSelect
@@ -745,32 +745,24 @@ alignCartProdRight q =
 -- | Under a number of conditions, a combination of Combine and Select
 -- (Restrict) operators implements a scalar conditional that can be
 -- simply mapped to an 'if' expression evaluated on the input vector.
---
--- FIXME need payload type of the branch vectors to determine if they are atomic
--- scalarConditional :: SLRule TExpr TExpr ()
--- scalarConditional q =
---   $(dagPatMatch 'q "R1 (Combine (Project predProj (q1)) (Project thenProj (R1 (Select pred2 (q2)))) (Project elseProj (R1 (Select negPred (q3)))))"
---     [| do
---         -- All branches must work on the same input vector
---         predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3")
+scalarConditional :: SLRule TExpr TExpr ()
+scalarConditional q =
+  $(dagPatMatch 'q "R1 (Combine (Project predProj (q1)) (Project thenProj (R1 (Select pred2 (q2)))) (Project elseProj (R1 (Select negPred (q3)))))"
+    [| do
+        -- All branches must work on the same input vector
+        predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3")
 
---         -- The condition projection as well as the projections for
---         -- then and else branches must produce single columns.
---         [predExpr] <- return $(v "predProj")
---         [thenExpr] <- return $(v "thenProj")
---         [elseExpr] <- return $(v "elseProj")
+        -- The condition for the boolean vector must be the same as
+        -- the selection condition for the then-branch.
+        predicate $ $(v "predProj") == $(v "pred2")
 
---         -- The condition for the boolean vector must be the same as
---         -- the selection condition for the then-branch.
---         predicate $ predExpr == $(v "pred2")
+        -- The selection condition must be the negated form of the
+        -- then-condition.
+        predicate $ TUnApp (SUBoolOp Not) $(v "predProj") == $(v "negPred")
 
---         -- The selection condition must be the negated form of the
---         -- then-condition.
---         predicate $ UnApp (SUBoolOp Not) predExpr == $(v "negPred")
-
---         return $ do
---           logRewrite "Redundant.ScalarConditional" q
---           void $ replaceWithNew q $ UnOp (Project [If predExpr thenExpr elseExpr]) $(v "q1") |])
+        return $ do
+          logRewrite "Redundant.ScalarConditional" q
+          void $ replaceWithNew q $ UnOp (Project (TIf $(v "predProj") $(v "thenProj") $(v "elseProj"))) $(v "q1") |])
 
 ------------------------------------------------------------------------------
 -- Projection pullup
