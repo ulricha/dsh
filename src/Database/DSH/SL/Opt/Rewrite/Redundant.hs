@@ -82,6 +82,7 @@ redundantRules = [ pullProjectAppKey
                  -- , runningAggWinUnboundedGroupJoin
                  -- , inlineWinAggrProject
                  , pullProjectNumber
+                 , pullProjectGroupAggr
                  -- , constDist
                  , pullProjectUnboxSngLeft
                  , pullProjectUnboxSngRight
@@ -789,8 +790,6 @@ pullProjectGroupJoinRight q =
         return $ do
             logRewrite "Redundant.Project.GroupJoin.Right" q
             let p'        = inlineJoinPredRight e p
-                -- Shift column names in the projection expressions to account
-                -- for the name shift due to the join.
                 as' = fmap (fmap (mergeExpr $ appExprSnd $(v "e"))) as
 
             void $ replaceWithNew q $ BinOp (GroupJoin (p', as')) $(v "q1") $(v "q2") |])
@@ -893,6 +892,18 @@ pullProjectNumber q =
              let e' = appExprFst $(v "e")
              numberNode <- insert $ UnOp Number $(v "q1")
              void $ replaceWithNew q $ UnOp (Project e') numberNode |])
+
+pullProjectGroupAggr :: SLRule TExpr TExpr ()
+pullProjectGroupAggr q =
+    $(dagPatMatch 'q "GroupAggr args (Project e (q1))"
+      [| do
+            return $ do
+                logRewrite "Redundant.Project.GroupAggr" q
+                let (g, as) = $(v "args")
+                    g'      = partialEval $ mergeExpr $(v "e") g
+                    as'     = fmap (mergeExpr $(v "e") <$>) as
+                void $ replaceWithNew q $ UnOp (GroupAggr (g', as')) $(v "q1")
+       |])
 
 pullProjectSort :: SLRule TExpr TExpr ()
 pullProjectSort q =
