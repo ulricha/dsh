@@ -50,14 +50,17 @@ data ScalarVal = IntV      {-# UNPACK #-} !Int
 
 $(deriveJSON defaultOptions ''ScalarVal)
 
+litScalarTy :: ScalarVal -> ScalarType
+litScalarTy IntV{}     = IntT
+litScalarTy BoolV{}    = BoolT
+litScalarTy StringV{}  = StringT
+litScalarTy DoubleV{}  = DoubleT
+litScalarTy DecimalV{} = DecimalT
+litScalarTy DateV{}    = DateT
+litScalarTy UnitV{}    = UnitT
+
 instance Typed ScalarVal where
-    typeOf IntV{}     = PIntT
-    typeOf BoolV{}    = PBoolT
-    typeOf StringV{}  = PStringT
-    typeOf DoubleV{}  = PDoubleT
-    typeOf DecimalV{} = PDecimalT
-    typeOf DateV{}    = PDateT
-    typeOf UnitV{}    = PUnitT
+    typeOf = ScalarT . litScalarTy
 
 newtype ColName = ColName String deriving (Eq, Ord, Show)
 
@@ -287,7 +290,7 @@ instance Typed ScalarExpr where
 --------------------------------------------------------------------------------
 -- Typing of expressions
 
-typeError :: (MonadError String m, Pretty a) => a -> [Type] -> m b
+typeError :: (MonadError String m, Pretty a, Pretty b) => a -> [b] -> m b
 typeError op argTys = throwError $ printf "type error for %s: %s" (pp op) (pp argTys)
 
 inferTupleElem :: MonadError String m => Type -> TupleIndex -> m Type
@@ -296,44 +299,52 @@ inferTupleElem (TupleT ts) i
     | otherwise                 = throwError $ printf "type error for _.%d: %s" (tupleIndex i) (pp (TupleT ts))
 inferTupleElem t i              = throwError $ printf "type error for _.%d: %s" (tupleIndex i) (pp t)
 
-inferUnOp :: MonadError String m => Type -> ScalarUnOp -> m Type
-inferUnOp t        (SUNumOp o)
-    | isNum t                                 = pure t
-    | otherwise                               = typeError o [t]
-inferUnOp PBoolT   (SUBoolOp _)               = pure PBoolT
-inferUnOp t        (SUBoolOp o)               = typeError o [t]
-inferUnOp PIntT    (SUCastOp CastDouble)      = pure PDoubleT
-inferUnOp PIntT    (SUCastOp CastDecimal)     = pure PDecimalT
-inferUnOp t        (SUCastOp o)               = typeError o [t]
-inferUnOp PStringT (SUTextOp (SubString _ _)) = pure PStringT
-inferUnOp t        (SUTextOp o)               = typeError o [t]
-inferUnOp PDateT   (SUDateOp _)               = pure PIntT
-inferUnOp t        (SUDateOp o)               = typeError o [t]
+inferUnOpScalar :: MonadError String m => ScalarType -> ScalarUnOp -> m ScalarType
+inferUnOpScalar t        (SUNumOp o)
+    | isNum (ScalarT t)                            = pure t
+    | otherwise                                    = typeError o [t]
+inferUnOpScalar BoolT   (SUBoolOp _)               = pure BoolT
+inferUnOpScalar t        (SUBoolOp o)              = typeError o [t]
+inferUnOpScalar IntT    (SUCastOp CastDouble)      = pure DoubleT
+inferUnOpScalar IntT    (SUCastOp CastDecimal)     = pure DecimalT
+inferUnOpScalar t        (SUCastOp o)              = typeError o [t]
+inferUnOpScalar StringT (SUTextOp (SubString _ _)) = pure StringT
+inferUnOpScalar t        (SUTextOp o)              = typeError o [t]
+inferUnOpScalar DateT   (SUDateOp _)               = pure IntT
+inferUnOpScalar t        (SUDateOp o)              = typeError o [t]
 
-inferBinOp :: MonadError String m => Type -> Type -> ScalarBinOp -> m Type
-inferBinOp t1 t2 op =
+inferUnOp :: MonadError String m => Type -> ScalarUnOp -> m Type
+inferUnOp (ScalarT t) op = ScalarT <$> inferUnOpScalar t op
+inferUnOp t           op = typeError op [t]
+
+inferBinOpScalar :: MonadError String m => ScalarType -> ScalarType -> ScalarBinOp -> m ScalarType
+inferBinOpScalar t1 t2 op =
     case op of
         SBNumOp o
-            | isNum t1 && t1 == t2             -> pure t1
-            | otherwise                        -> typeError o [t1, t2]
+            | isNum (ScalarT t1) && t1 == t2 -> pure t1
+            | otherwise                      -> typeError o [t1, t2]
         SBRelOp o
-            | t1 == t2                         -> pure PBoolT
-            | otherwise                        -> typeError o [t1, t2]
+            | t1 == t2                       -> pure BoolT
+            | otherwise                      -> typeError o [t1, t2]
         SBBoolOp o
-            | t1 == PBoolT && t2 == PBoolT     -> pure PBoolT
-            | otherwise                        -> typeError o [t1, t2]
+            | t1 == BoolT && t2 == BoolT     -> pure BoolT
+            | otherwise                      -> typeError o [t1, t2]
         SBStringOp o
-            | t1 == PStringT && t2 == PStringT -> pure PStringT
-            | otherwise                        -> typeError o [t1, t2]
+            | t1 == StringT && t2 == StringT -> pure StringT
+            | otherwise                      -> typeError o [t1, t2]
         SBDateOp AddDays
-            | t1 == PIntT && t2 == PDateT      -> pure PDateT
-            | otherwise                        -> typeError AddDays [t1, t2]
+            | t1 == IntT && t2 == DateT      -> pure DateT
+            | otherwise                      -> typeError AddDays [t1, t2]
         SBDateOp SubDays
-            | t1 == PIntT && t2 == PDateT      -> pure PDateT
-            | otherwise                        -> typeError SubDays [t1, t2]
+            | t1 == IntT && t2 == DateT      -> pure DateT
+            | otherwise                      -> typeError SubDays [t1, t2]
         SBDateOp DiffDays
-            | t1 == PDateT && t2 == PDateT     -> pure PIntT
-            | otherwise                        -> typeError DiffDays [t1, t2]
+            | t1 == DateT && t2 == DateT     -> pure IntT
+            | otherwise                      -> typeError DiffDays [t1, t2]
+
+inferBinOp :: MonadError String m => Type -> Type -> ScalarBinOp -> m Type
+inferBinOp (ScalarT t1) (ScalarT t2) op = ScalarT <$> inferBinOpScalar t1 t2 op
+inferBinOp t1           t2           op = typeError op [t1, t2]
 
 -----------------------------------------------------------------------------
 -- Pretty-printing of stuff
@@ -358,7 +369,7 @@ instance Pretty ScalarVal where
     pretty (StringV t)     = dquotes $ string $ T.unpack t
     pretty (DoubleV d)     = double d
     pretty (DecimalV d)    = text $ show d
-    pretty UnitV           = text "()"
+    pretty UnitV           = text "〈〉"
     pretty (DateV d)       = text $ C.showGregorian $ unDate d
 
 instance Pretty BinRelOp where

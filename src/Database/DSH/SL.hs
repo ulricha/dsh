@@ -6,9 +6,11 @@ module Database.DSH.SL
     , module Database.DSH.SL.SegmentAlgebra
     , module Database.DSH.Translate.SL2Algebra
     , module Database.DSH.Common.VectorLang
+    , module Database.DSH.Common.Nat
     ) where
 
 import           Database.DSH.Common.VectorLang
+import           Database.DSH.Common.Nat
 import           Database.DSH.SL.Lang              (RSL, SL, TSL)
 import           Database.DSH.SL.Opt.OptimizeSL
 import           Database.DSH.SL.SegmentAlgebra

@@ -1,12 +1,15 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ConstraintKinds  #-}
+{-# LANGUAGE OverloadedLists  #-}
+{-# LANGUAGE PatternSynonyms  #-}
+{-# LANGUAGE TemplateHaskell  #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Database.DSH.Common.VectorLang where
 
+import Text.Printf
 import           Control.Arrow                  hiding ((<+>))
 import           Control.Monad.Reader
+import           Control.Monad.Except
 import           Data.Aeson.TH
 import qualified Data.Foldable                  as F
 import           Data.List.NonEmpty             (NonEmpty ((:|)))
@@ -258,7 +261,7 @@ simplify TInput                                =
 simplify (TTupElem i (TMkTuple es))            =
     case safeIndexN i es of
         Just e  -> simplify e
-        Nothing -> $impossible
+        Nothing -> error (printf "simplify %s (%s)" (show $ tupleIndex i) (pp $ TMkTuple es))
 simplify (TTupElem i e)                        =
     TTupElem i (simplify e)
 simplify (TMkTuple es)                         =
@@ -315,7 +318,7 @@ instance Pretty VRow where
     pretty = renderVRow
 
 renderRecord :: [Doc] -> Doc
-renderRecord = encloseSep (char '<') (char '>') comma
+renderRecord = encloseSep (char '〈') (char '〉') comma
 
 renderExpr :: TExpr -> Doc
 renderExpr (TBinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
@@ -481,6 +484,106 @@ flatExpr inputTy e =
     case flatRow inputTy e of
         VR (re :| []) -> re
         _             -> $impossible
+
+--------------------------------------------------------------------------------
+-- Type inference and checking for tuple expressions
+
+data TypedTExpr = TE TExpr PType
+
+instance Pretty TypedTExpr where
+    pretty (TE e ty) = pretty e P.<> char ':' P.<> pretty ty
+
+tupElemTyErr :: TypedTExpr -> TupleIndex -> String
+tupElemTyErr e i = printf "tExpTy: (%s).%d" (pp e) (show $ tupleIndex i)
+
+condTyErr :: TypedTExpr -> TypedTExpr -> TypedTExpr -> String
+condTyErr e1 e2 e3 = printf "tExpTy: if %s then %s else %s" (pp e1) (pp e2) (pp e3)
+
+unOpTyErr :: L.ScalarUnOp -> TypedTExpr -> String
+unOpTyErr op e = printf "tExpTy: %s(%s)" (pp op) (pp e)
+
+binOpTyErr :: L.ScalarBinOp -> TypedTExpr -> TypedTExpr -> String
+binOpTyErr op e1 e2 = printf "tExpTy: (%s) %s (%s)" (pp e1) (pp op) (pp e2)
+
+aggFunTyErr :: AggrFun TypedTExpr -> String
+aggFunTyErr op = printf "tExpTy: %s" (pp op)
+
+conjTyErr :: L.JoinConjunct TypedTExpr -> String
+conjTyErr c = printf "predTy: (%s) %s (%s)" (pp $ L.jcLeft c) (pp $ L.jcOp c) (pp $ L.jcRight c)
+
+tExpTy :: (MonadError String m, MonadReader (Maybe PType) m) => TExpr -> m PType
+tExpTy TIndex             = pure PIndexT
+tExpTy (TConstant c)      = pure $ PScalarT $ L.litScalarTy c
+tExpTy TInput             = do
+    mTy <- ask
+    case mTy of
+        Just ty -> pure ty
+        Nothing -> throwError "tExpTy: TInput with empty env"
+tExpTy (TTupElem i e)     = do
+    ty <- tExpTy e
+    case ty of
+        PTupleT ts ->
+            case safeIndexN i ts of
+                Just t  -> pure t
+                Nothing -> throwError $ tupElemTyErr (TE e ty) i
+        _          -> throwError $ tupElemTyErr (TE e ty) i
+tExpTy (TMkTuple es)      = PTupleT <$> sequenceA (tExpTy <$> es)
+tExpTy (TIf e1 e2 e3)     = do
+    t1 <- tExpTy e1
+    t2 <- tExpTy e2
+    t3 <- tExpTy e3
+    case t1 of
+        PScalarT BoolT -> do
+            if t2 == t3
+               then pure t2
+               else throwError $ condTyErr (TE e1 t1) (TE e2 t2) (TE e3 t3)
+        _              -> throwError $ condTyErr (TE e1 t1) (TE e2 t2) (TE e3 t3)
+
+tExpTy (TBinApp op e1 e2) = do
+    ty1 <- tExpTy e1
+    ty2 <- tExpTy e2
+    case (ty1, ty2) of
+        (PScalarT sty1, PScalarT sty2) -> PScalarT <$> L.inferBinOpScalar sty1 sty2 op
+        _                              -> throwError $ binOpTyErr op (TE e1 ty1) (TE e2 ty2)
+tExpTy (TUnApp op e)      = do
+    ty <- tExpTy e
+    case ty of
+        PScalarT sty -> PScalarT <$> L.inferUnOpScalar sty op
+        _            -> throwError $ unOpTyErr op (TE e ty)
+
+tAggrTy :: (MonadError String m, MonadReader (Maybe PType) m) => AggrFun TExpr -> m PType
+tAggrTy (AggrSum _ e)         = tExpTy e
+tAggrTy (AggrMin e)           = tExpTy e
+tAggrTy (AggrMax e)           = tExpTy e
+tAggrTy (AggrAvg e)           = tExpTy e
+tAggrTy (AggrAll e)           = do
+    ty <- tExpTy e
+    if ty == PScalarT BoolT
+       then pure ty
+       else throwError $ aggFunTyErr $ AggrAll (TE e ty)
+tAggrTy (AggrAny e)   = do
+    ty <- tExpTy e
+    if ty == PScalarT BoolT
+       then pure ty
+       else throwError $ aggFunTyErr $ AggrAny (TE e ty)
+tAggrTy AggrCount             = pure $ PScalarT IntT
+tAggrTy (AggrCountDistinct e) = do
+    _ <- tExpTy e
+    pure $ PScalarT IntT
+
+conjTy :: MonadError String m => PType -> PType -> L.JoinConjunct TExpr -> m ()
+conjTy ty1 ty2 c = do
+    leftTy  <- runReaderT (tExpTy (L.jcLeft c)) (Just ty1)
+    rightTy <- runReaderT (tExpTy (L.jcRight c)) (Just ty2)
+    if leftTy == rightTy
+       then pure ()
+       else throwError $ conjTyErr $ c { L.jcLeft = TE (L.jcLeft c) leftTy
+                                       , L.jcRight = TE (L.jcRight c) rightTy
+                                       }
+
+predTy :: MonadError String m => PType -> PType -> L.JoinPredicate TExpr -> m ()
+predTy ty1 ty2 p = void $ sequenceA $ fmap (conjTy ty1 ty2) (L.jpConjuncts p)
+
 
 --------------------------------------------------------------------------------
 -- Patterns for tuple expressions
