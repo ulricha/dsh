@@ -60,13 +60,8 @@ main = do
 
     plan <- pack <$> input
 
-    let dag = fromJust $ decode plan :: AlgebraDag TVSL
-
-    let rs' = fromMaybe (rootNodes dag) mRootNodes
-    {-
-        tags' = if printProperties
-                then propertyTags rs' m tags
-                else tags
--}
-
-    putStr $ renderVSLDot M.empty rs' (nodeMap dag)
+    case eitherDecode plan of
+        Left msg  -> putStrLn msg >> exitFailure
+        Right dag -> do
+            let rs' = fromMaybe (rootNodes dag) mRootNodes
+            putStr $ renderVSLDot M.empty rs' (nodeMap (dag :: AlgebraDag TVSL))
