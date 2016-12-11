@@ -93,6 +93,8 @@ redundantRules = [ pullProjectAppKey
                  , alignWinRightPush
                  , alignUnboxSngRight
                  , alignUnboxSngLeft
+                 , alignUnboxDefaultRight
+                 , alignUnboxDefaultLeft
                  , alignGroupJoinLeft
                  , alignGroupJoinRight
                  -- , runningAggWinBounded
@@ -718,6 +720,54 @@ alignUnboxSngLeft q =
 
              -- Keep the original schema intact by duplicating columns
              -- from the left input (UnboxSng produces columns from
+             -- its left and right inputs).
+             let e = TMkTuple [ TInput
+                              , TTupElem First TInput
+                              ]
+
+             -- Keep only the unboxing operator, together with a
+             -- projection that keeps the original output schema
+             -- intact.
+             void $ replaceWithNew q $ UnOp (Project e) $(v "qu") |])
+
+-- | If singleton scalar elements in an inner vector (with singleton
+-- segments) are unboxed using an outer vector and then aligned with
+-- the same outer vector, we can eliminate the align, because the
+-- positional alignment is implicitly performed by the UnboxDefault
+-- operator. We exploit the fact that UnboxDefault is only a
+-- specialized join which nevertheless produces payload columns from
+-- both inputs.
+alignUnboxDefaultRight :: SLRule TExpr TExpr ()
+alignUnboxDefaultRight q =
+  $(dagPatMatch 'q "(q11) Align (qu=(q12) UnboxDefault _ (_))"
+     [| do
+         predicate $ $(v "q11") == $(v "q12")
+         return $ do
+             logRewrite "Redundant.Align.UnboxDefault.Right" q
+
+             -- Keep the original schema intact by duplicating columns
+             -- from the left input (UnboxDefault produces columns from
+             -- its left and right inputs).
+             let e = TMkTuple [ TTupElem First TInput
+                              , TInput
+                              ]
+
+             -- Keep only the unboxing operator, together with a
+             -- projection that keeps the original output schema
+             -- intact.
+             void $ replaceWithNew q $ UnOp (Project e) $(v "qu") |])
+
+-- | See Align.UnboxDefault.Right
+alignUnboxDefaultLeft :: SLRule TExpr TExpr ()
+alignUnboxDefaultLeft q =
+  $(dagPatMatch 'q "(qu=(q11) UnboxDefault _ (_)) Align (q12)"
+     [| do
+         predicate $ $(v "q11") == $(v "q12")
+         return $ do
+             logRewrite "Redundant.Align.UnboxDefault.Left" q
+
+             -- Keep the original schema intact by duplicating columns
+             -- from the left input (UnboxDefault produces columns from
              -- its left and right inputs).
              let e = TMkTuple [ TInput
                               , TTupElem First TInput
