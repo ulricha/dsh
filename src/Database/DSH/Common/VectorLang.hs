@@ -198,7 +198,7 @@ $(deriveJSON defaultOptions ''PType)
 
 instance Pretty PType where
     pretty PIndexT      = text "Idx"
-    pretty (PTupleT vs) = tupled $ map pretty $ N.toList vs
+    pretty (PTupleT vs) = renderRecord $ map pretty $ N.toList vs
     pretty (PScalarT v) = pretty v
 
 --------------------------------------------------------------------------------
@@ -494,7 +494,7 @@ instance Pretty TypedTExpr where
     pretty (TE e ty) = pretty e P.<> char ':' P.<> pretty ty
 
 tupElemTyErr :: TypedTExpr -> TupleIndex -> String
-tupElemTyErr e i = printf "tExpTy: (%s).%d" (pp e) (show $ tupleIndex i)
+tupElemTyErr e i = printf "tExpTy: (%s).%d" (pp e) (tupleIndex i)
 
 condTyErr :: TypedTExpr -> TypedTExpr -> TypedTExpr -> String
 condTyErr e1 e2 e3 = printf "tExpTy: if %s then %s else %s" (pp e1) (pp e2) (pp e3)
@@ -507,6 +507,9 @@ binOpTyErr op e1 e2 = printf "tExpTy: (%s) %s (%s)" (pp e1) (pp op) (pp e2)
 
 aggFunTyErr :: AggrFun TypedTExpr -> String
 aggFunTyErr op = printf "tExpTy: %s" (pp op)
+
+winFunTyErr :: WinFun TypedTExpr -> String
+winFunTyErr op = printf "tExpTy: %s" (pp op)
 
 conjTyErr :: L.JoinConjunct TypedTExpr -> String
 conjTyErr c = printf "predTy: (%s) %s (%s)" (pp $ L.jcLeft c) (pp $ L.jcOp c) (pp $ L.jcRight c)
@@ -570,6 +573,24 @@ tAggrTy AggrCount             = pure $ PScalarT IntT
 tAggrTy (AggrCountDistinct e) = do
     _ <- tExpTy e
     pure $ PScalarT IntT
+
+tWinTy :: (MonadError String m, MonadReader (Maybe PType) m) => WinFun TExpr -> m PType
+tWinTy (WinSum e)         = tExpTy e
+tWinTy (WinMin e)           = tExpTy e
+tWinTy (WinMax e)           = tExpTy e
+tWinTy (WinAvg e)           = tExpTy e
+tWinTy (WinAll e)           = do
+    ty <- tExpTy e
+    if ty == PScalarT BoolT
+       then pure ty
+       else throwError $ winFunTyErr $ WinAll (TE e ty)
+tWinTy (WinAny e)   = do
+    ty <- tExpTy e
+    if ty == PScalarT BoolT
+       then pure ty
+       else throwError $ winFunTyErr $ WinAny (TE e ty)
+tWinTy WinCount             = pure $ PScalarT IntT
+tWinTy (WinFirstValue e)    = tExpTy e
 
 conjTy :: MonadError String m => PType -> PType -> L.JoinConjunct TExpr -> m ()
 conjTy ty1 ty2 c = do

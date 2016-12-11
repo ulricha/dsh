@@ -214,9 +214,10 @@ groupL (VShape dvo (LNest dvi (LTuple [xl, gl]))) = do
 
     -- Discard the grouping columns in the inner vector
     dvi''            <- slProject (TTupElem First TInput) dvi'
+    dvo''            <- slProject (TMkTuple [TInput, TIndex]) dvo'
 
     xl'              <- sortLayout rv xl
-    return $ VShape dvo (LNest dvo' (LTuple [gl, LNest dvi'' xl']))
+    return $ VShape dvo (LNest dvo'' (LTuple [gl, LNest dvi'' xl']))
 groupL _ = $impossible
 
 concatL ::  Shape DVec -> Build TSL (Shape DVec)
