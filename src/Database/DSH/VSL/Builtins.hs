@@ -9,6 +9,7 @@ module Database.DSH.VSL.Builtins where
 import           Control.Monad
 import qualified Data.List                      as List
 import qualified Data.List.NonEmpty             as N
+import           Data.List.NonEmpty             (NonEmpty((:|)))
 import qualified Data.Sequence                  as S
 
 import           Database.Algebra.Dag.Common
@@ -158,18 +159,22 @@ tupleL shapes =
         (VShape (DelayedVec (UnitMap m) v) l) : shs
             | all isUnitShape shs -> do
           let (vs, ls) = unzip $ map (\(VShape (DelayedVec _ v') l') -> (v', l')) shs
-          va <- alignVectors $ v : vs
-          return $ VShape (DelayedVec (UnitMap m) va) (LTuple $ l:ls)
-        _ -> do
-          (vs, ls) <- unzip <$> mapM (\(VShape dv l) -> materializeShape dv l) shapes
-          v        <- alignVectors vs
-          return $ VShape (MatVec v) (LTuple ls)
+          (va, es) <- alignVectors $ v :| vs
+          vd       <- C.project (TMkTuple es) va
+          return $ VShape (DelayedVec (UnitMap m) vd) (LTuple $ l:ls)
+        (VShape dv1 l1) : shs -> do
+          (v1, l1') <- materializeShape dv1 l1
+          (vs, ls)  <- unzip <$> mapM (\(VShape dv l) -> materializeShape dv l) shs
+          (va, es)  <- alignVectors $ v1 :| vs
+          vd        <- C.project (TMkTuple es) va
+          return $ VShape (MatVec vd) (LTuple $ l1' : ls)
 
-alignVectors :: [DVec] -> VSLBuild TExpr TExpr DVec
-alignVectors [v] = return v
-alignVectors (v:vs) = do
-    vsa <- alignVectors vs
-    C.align v vsa
+alignVectors :: NonEmpty DVec -> VSLBuild TExpr TExpr (DVec, NonEmpty TExpr)
+alignVectors (v :| [])        = pure (v, pure TInput)
+alignVectors (v :| (v' : vs)) = do
+    (vsa, es) <- alignVectors $ v' :| vs
+    va        <- C.align v vsa
+    pure (va, TInpFirst N.<| fmap (mergeExpr TInpSecond) es)
 
 isUnitShape :: Shape DelayedVec -> Bool
 isUnitShape (VShape (DelayedVec (UnitMap _) _) _) = True
