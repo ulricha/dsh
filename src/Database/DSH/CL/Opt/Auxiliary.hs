@@ -21,6 +21,7 @@ module Database.DSH.CL.Opt.Auxiliary
       -- * Helpers on scalar expressions
     , firstOnly
     , untuplifyScalarExpr
+    , flipRelOp
       -- * Pushing guards towards the front of a qualifier list
     , isThetaJoinPred
     , isSemiJoinPred

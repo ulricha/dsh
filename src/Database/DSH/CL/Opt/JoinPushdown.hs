@@ -57,6 +57,8 @@ pushFilterjoinNestjoinR = do
     let joinPred' = untuplifyJoinPredLeft joinPred
     return $ inject $ NestJoinP ty predNest (AppE2 (typeOf xs) (joinConst joinPred') xs zs) ys
 
+-- | Check whether all left sides of predicate conjuncts refer only to the first
+-- tuple component of the left input.
 firstOnlyJoinPred :: JoinPredicate ScalarExpr -> Bool
 firstOnlyJoinPred p = all firstOnly $ jcLeft <$> jpConjuncts p
 

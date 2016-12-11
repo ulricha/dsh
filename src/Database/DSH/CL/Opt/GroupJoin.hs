@@ -169,13 +169,43 @@ mkGroupJoin agg p xs ys =
 -- GroupJoin-NestJoin combination.
 --
 -- Basic idea: Execute the GroupJoin only for those elements of ys that will
--- actually find a join partner in the NestJoin.
+-- actually find a join partner in the NestJoin. If the right child of a
+-- NestJoin is a GroupJoin, we can not reorder the corresponding vector
+-- operators. Consequently, the GroupJoin will be executed for all elements from
+-- its left input, even if those will not match any elements in the outer left
+-- input.
+-- 
+-- We attempt to ease this problem by applying a form of side-ways information
+-- passing: Before performing the GroupJoin, its left input is filtered to
+-- retain only those elements which will find a match in the outermost vector.
+--
+-- This rewrite triggers for example in regionsTopCustomers.
 sidewaysR :: RewriteC CL
 sidewaysR = logR "groupjoin.sideways" $ do
     NestJoinP ty1 p1 xs (GroupJoinP ty2 p2 as ys zs) <- promoteT idR
-    JoinConjunct c1 Eq c2 :| [] <- return $ jpConjuncts p1
-    let semiPred = JoinPred $ JoinConjunct c2 Eq c1 :| []
+    guardM $ sidewaysCompatible p1
+    -- JoinConjunct c1 Eq c2 :| [] <- return $ jpConjuncts p1
+    -- let semiPred = JoinPred $ JoinConjunct c2 Eq c1 :| []
+    let semiPred = sidewaysPred p1
     return $ inject $ NestJoinP ty1 p1 xs (GroupJoinP ty2 p2 as (SemiJoinP (typeOf ys) semiPred ys xs) zs)
+
+-- | Check whether all right conjunct right sides refer only to the first tuple
+-- component of the right input.
+--
+-- c_1 op c_2 with only I.1 in c_2
+sidewaysCompatible :: JoinPredicate ScalarExpr -> Bool
+sidewaysCompatible p = all firstOnly $ jcRight <$> jpConjuncts p
+
+-- | Transform the nestjoin predicate for the semijoin:
+-- c1 op c2
+-- =>
+-- c2[I/I.1] (flip op) c1
+sidewaysPred :: JoinPredicate ScalarExpr -> JoinPredicate ScalarExpr
+sidewaysPred (JoinPred cs) = JoinPred $ fmap updateConjunct cs
+  where
+    updateConjunct jc = JoinConjunct (untuplifyScalarExpr $ jcRight jc)
+                                     (flipRelOp $ jcOp jc)
+                                     (jcLeft jc)
 
 --------------------------------------------------------------------------------
 -- Merging of GroupJoin operators
