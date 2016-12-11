@@ -212,16 +212,16 @@ showVectorizedOptQ :: CLOptimizer -> Q a -> IO ()
 showVectorizedOptQ clOpt (Q q) = do
     let vl = compileQ clOpt $ toComprehensions q :: QueryPlan TSL DVec
     case inferSLTypes (queryDag vl) of
-        Left e    -> putStrLn $ "Type inference failed for unoptimized plan\n" ++ e
-        Right tys -> putStrLn $ pp $ IM.toList tys
-    let vlOpt = optimizeVectorPlan vl
-    case inferSLTypes (queryDag vlOpt) of
-        Left e    -> putStrLn $ "Type inference failed for optimized plan\n" ++ e
-        Right tys -> putStrLn $ pp $ IM.toList tys
-    h <- fileId
-    let fileName = "q_vl_" ++ h
-    exportPlan fileName vlOpt
-    void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+        Left e  -> putStrLn $ "Type inference failed for unoptimized plan\n" ++ e
+        Right _ -> do
+            let vlOpt = optimizeVectorPlan vl
+            case inferSLTypes (queryDag vlOpt) of
+                Left e    -> putStrLn $ "Type inference failed for optimized plan\n" ++ e
+                Right tys -> putStrLn $ pp $ IM.toList tys
+            h <- fileId
+            let fileName = "q_vl_" ++ h
+            exportPlan fileName vlOpt
+            void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
 
 -- | Show unoptimized vector plan (SL)
 showDelayedQ :: CLOptimizer -> Q a -> IO ()
