@@ -10,6 +10,7 @@ import           Control.Applicative
 import           Control.Monad
 import qualified Data.List                      as List
 import qualified Data.List.NonEmpty             as N
+import           Data.List.NonEmpty             (NonEmpty((:|)))
 import qualified Data.Sequence                  as S
 import           Prelude                        hiding (reverse, zip)
 
@@ -256,9 +257,12 @@ distL (VShape dv1 lyt1) (VShape dvo2 (LNest dvi2 lyt2)) = do
 distL _e1 _e2 = $impossible
 
 tupleL :: [Shape DVec] -> Build TSL (Shape DVec)
-tupleL shapes@(_ : _) = do
-    (q, lyts) <- alignVectors shapes
-    return $ VShape q (LTuple lyts)
+tupleL (s : ss) = do
+    -- Construct a right-deep tree of aligns to bring all vectors together
+    (q, lyts, es) <- tupleVectors (s :| ss)
+    -- Flatten the resulting nested pair structure
+    qd            <- slProject (TMkTuple es) q
+    return $ VShape qd (LTuple lyts)
 tupleL _ = $impossible
 
 tupElemL :: TupleIndex -> Shape DVec -> Build TSL (Shape DVec)
@@ -344,13 +348,13 @@ shredLiteral _ _ = $impossible
 -- Helper functions for zipping/tuple construction
 
 -- | Simply align a list of shapes and collect their layouts.
-alignVectors :: [Shape DVec] -> Build TSL (DVec, [Layout DVec])
-alignVectors [VShape q1 lyt1]          = return (q1, [lyt1])
-alignVectors (VShape q1 lyt1 : shapes) = do
-    (q, lyts) <- alignVectors shapes
+tupleVectors :: NonEmpty (Shape DVec) -> Build TSL (DVec, [Layout DVec], NonEmpty TExpr)
+tupleVectors (VShape q1 lyt1 :| [])       = return (q1, [lyt1], pure TInput)
+tupleVectors (VShape q1 lyt1 :| (s : ss)) = do
+    (q, lyts, es) <- tupleVectors $ s :| ss
     qz' <- slAlign q1 q
-    return (qz', lyt1 : lyts)
-alignVectors _ = $impossible
+    return (qz', lyt1 : lyts, TInpFirst N.<| fmap (mergeExpr TInpSecond) es)
+tupleVectors _ = $impossible
 
 --------------------------------------------------------------------------------
 -- Vectorization Helper Functions
