@@ -40,6 +40,24 @@ redundantRules = [ pullProjectAppKey
                  , pullProjectSort
                  , pullProjectMergeSegLeft
                  , pullProjectMergeSegRight
+                 , pullProjectNumber
+                 , pullProjectSegment
+                 , pullProjectUnsegment
+                 , pullProjectGroupR1
+                 , pullProjectGroupR2
+                 , pullProjectGroupAggr
+                 , pullProjectUnboxDefaultLeft
+                 , pullProjectUnboxSngLeft
+                 , pullProjectUnboxSngRight
+                 , pullProjectNestJoinLeft
+                 , pullProjectNestJoinRight
+                 , pullProjectReplicateVecLeft
+                 , pullProjectReplicateVecRight
+                 , pullProjectCartProductLeft
+                 , pullProjectCartProductRight
+                 , pullProjectGroupJoinLeft
+                 , pullProjectGroupJoinRight
+                 , pullProjectReplicateScalarRight
                  , scalarConditional
                  , pushFoldAppMap
                  , pushFoldAppKey
@@ -81,20 +99,7 @@ redundantRules = [ pullProjectAppKey
                  -- , runningAggWinUnbounded
                  -- , runningAggWinUnboundedGroupJoin
                  -- , inlineWinAggrProject
-                 , pullProjectNumber
-                 , pullProjectGroupAggr
                  -- , constDist
-                 , pullProjectUnboxSngLeft
-                 , pullProjectUnboxSngRight
-                 , pullProjectNestJoinLeft
-                 , pullProjectNestJoinRight
-                 , pullProjectReplicateVecLeft
-                 , pullProjectReplicateVecRight
-                 , pullProjectCartProductLeft
-                 , pullProjectCartProductRight
-                 , pullProjectGroupJoinLeft
-                 , pullProjectGroupJoinRight
-                 , pullProjectReplicateScalarRight
                  , selectCartProd
                  , pushUnboxSngThetaJoinRight
                  , pullNumberAlignLeft
@@ -776,7 +781,7 @@ pullProjectGroupJoinLeft q =
         return $ do
             logRewrite "Redundant.Project.GroupJoin.Left" q
             let p'  = inlineJoinPredLeft $(v "e") p
-                as' = fmap (fmap (mergeExpr $ appExprFst $(v "e"))) as
+                as' = fmap (fmap (partialEval . (mergeExpr $ appExprFst $(v "e")))) as
                 e'  = appExprFst $(v "e")
 
             joinNode <- insert $ BinOp (GroupJoin (p', as')) $(v "q1") $(v "q2")
@@ -790,7 +795,7 @@ pullProjectGroupJoinRight q =
         return $ do
             logRewrite "Redundant.Project.GroupJoin.Right" q
             let p'        = inlineJoinPredRight e p
-                as' = fmap (fmap (mergeExpr $ appExprSnd $(v "e"))) as
+                as' = fmap (fmap (partialEval . (mergeExpr $ appExprSnd $(v "e")))) as
 
             void $ replaceWithNew q $ BinOp (GroupJoin (p', as')) $(v "q1") $(v "q2") |])
 
@@ -901,7 +906,7 @@ pullProjectGroupAggr q =
                 logRewrite "Redundant.Project.GroupAggr" q
                 let (g, as) = $(v "args")
                     g'      = partialEval $ mergeExpr $(v "e") g
-                    as'     = fmap (mergeExpr $(v "e") <$>) as
+                    as'     = fmap ((partialEval . mergeExpr $(v "e")) <$>) as
                 void $ replaceWithNew q $ UnOp (GroupAggr (g', as')) $(v "q1")
        |])
 
@@ -934,7 +939,7 @@ pullProjectUnboxSngLeft q =
   $(dagPatMatch 'q "R1 ((Project e (q1)) UnboxSng (q2))"
     [| do
          return $ do
-           logRewrite "Redundant.Project.UnboxSng" q
+           logRewrite "Redundant.Project.UnboxSng.Left" q
 
            -- Employ projection expressions on top of the unboxing
            -- operator, add right input columns.
@@ -944,12 +949,26 @@ pullProjectUnboxSngLeft q =
 
            void $ replaceWithNew q $ UnOp (Project e') r1Node |])
 
+pullProjectUnboxDefaultLeft :: SLRule TExpr TExpr ()
+pullProjectUnboxDefaultLeft q =
+  $(dagPatMatch 'q "(Project e (q1)) UnboxDefault d (q2)"
+    [| do
+         return $ do
+           logRewrite "Redundant.Project.UnboxDefault.Left" q
+
+           -- Employ projection expressions on top of the unboxing
+           -- operator, add right input columns.
+           let e' = partialEval $ appExprFst $(v "e")
+           unboxNode <- insert $ BinOp (UnboxDefault $(v "d")) $(v "q1") $(v "q2")
+
+           void $ replaceWithNew q $ UnOp (Project e') unboxNode |])
+
 pullProjectUnboxSngRight :: SLRule TExpr TExpr ()
 pullProjectUnboxSngRight q =
   $(dagPatMatch 'q "R1 ((q1) UnboxSng (Project e (q2)))"
     [| do
          return $ do
-           logRewrite "Redundant.Project.UnboxSng" q
+           logRewrite "Redundant.Project.UnboxSng.Right" q
 
            -- Preserve left input columns on top of the unboxing
            -- operator and add right input expressions with shifted
@@ -995,6 +1014,49 @@ pullProjectMergeSegRight q =
            logRewrite "Redundant.Project.MergeSeg.Right" q
            mergeNode <- insert $ BinOp MergeSeg $(v "q1") $(v "q2")
            void $ replaceWithNew q $ UnOp (Project $(v "e")) mergeNode |])
+
+pullProjectUnsegment :: SLRule TExpr TExpr ()
+pullProjectUnsegment q =
+  $(dagPatMatch 'q "Unsegment (Project e (q1))"
+     [| return $ do
+           logRewrite "Redundant.Project.Unsegment" q
+           segNode <- insert $ UnOp Unsegment $(v "q1")
+           void $ replaceWithNew q $ UnOp (Project $(v "e")) segNode
+      |]
+   )
+
+pullProjectSegment :: SLRule TExpr TExpr ()
+pullProjectSegment q =
+  $(dagPatMatch 'q "Segment (Project e (q1))"
+     [| return $ do
+           logRewrite "Redundant.Project.Segment" q
+           segNode <- insert $ UnOp Segment $(v "q1")
+           void $ replaceWithNew q $ UnOp (Project $(v "e")) segNode
+      |]
+   )
+
+pullProjectGroupR2 :: SLRule TExpr TExpr ()
+pullProjectGroupR2 q =
+  $(dagPatMatch 'q "R2 (Group g (Project e (q1)))"
+     [| return $ do
+           logRewrite "Redundant.Project.Group.Inner" q
+           let g' = partialEval $ mergeExpr $(v "e") $(v "g")
+           groupNode <- insert $ UnOp (Group g') $(v "q1")
+           r2Node    <- insert $ UnOp R2 groupNode
+           void $ replaceWithNew q $ UnOp (Project $(v "e")) r2Node
+      |]
+   )
+
+pullProjectGroupR1 :: SLRule TExpr TExpr ()
+pullProjectGroupR1 q =
+  $(dagPatMatch 'q "R1 (Group g (Project e (q1)))"
+     [| return $ do
+           logRewrite "Redundant.Project.Group.Outer" q
+           let g' = partialEval $ mergeExpr $(v "e") $(v "g")
+           groupNode <- insert $ UnOp (Group g') $(v "q1")
+           void $ replaceWithNew q $ UnOp R1 groupNode
+      |]
+   )
 
 --------------------------------------------------------------------------------
 -- Rewrites that deal with nested structures and propagation vectors.
@@ -1119,8 +1181,8 @@ selectCartProd q =
 
         return $ do
             logRewrite "Redundant.Relational.Join" q
-            let e1' = mergeExpr (TMkTuple [TInput, TInput]) e1
-            let e2' = mergeExpr (TMkTuple [TInput, TInput]) e2
+            let e1' = partialEval $ mergeExpr (TMkTuple [TInput, TInput]) e1
+            let e2' = partialEval $ mergeExpr (TMkTuple [TInput, TInput]) e2
             let joinPred = singlePred $ JoinConjunct e1' op e2'
             joinNode <- insert $ BinOp (ThetaJoin joinPred) $(v "q1") $(v "q2")
             void $ replaceWithNew q $ UnOp R1 joinNode |])
