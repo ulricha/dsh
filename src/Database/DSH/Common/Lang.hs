@@ -329,9 +329,9 @@ inferBinOpScalar t1 t2 op =
         SBBoolOp o
             | t1 == BoolT && t2 == BoolT     -> pure BoolT
             | otherwise                      -> typeError o [t1, t2]
-        SBStringOp o
-            | t1 == StringT && t2 == StringT -> pure StringT
-            | otherwise                      -> typeError o [t1, t2]
+        SBStringOp Like
+            | t1 == StringT && t2 == StringT -> pure BoolT
+            | otherwise                      -> typeError Like [t1, t2]
         SBDateOp AddDays
             | t1 == IntT && t2 == DateT      -> pure DateT
             | otherwise                      -> typeError AddDays [t1, t2]
