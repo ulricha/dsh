@@ -184,7 +184,8 @@ data BinBoolOp = Conj
 $(deriveJSON defaultOptions ''BinBoolOp)
 
 data BinStringOp = Like
-                   deriving (Show, Eq, Ord)
+                 | ReMatch
+                 deriving (Show, Eq, Ord)
 
 $(deriveJSON defaultOptions ''BinStringOp)
 
@@ -329,9 +330,9 @@ inferBinOpScalar t1 t2 op =
         SBBoolOp o
             | t1 == BoolT && t2 == BoolT     -> pure BoolT
             | otherwise                      -> typeError o [t1, t2]
-        SBStringOp Like
+        SBStringOp o
             | t1 == StringT && t2 == StringT -> pure BoolT
-            | otherwise                      -> typeError Like [t1, t2]
+            | otherwise                      -> typeError o [t1, t2]
         SBDateOp AddDays
             | t1 == IntT && t2 == DateT      -> pure DateT
             | otherwise                      -> typeError AddDays [t1, t2]
@@ -381,7 +382,8 @@ instance Pretty BinRelOp where
     pretty NEq = text "/="
 
 instance Pretty BinStringOp where
-    pretty Like = text "LIKE"
+    pretty Like    = text "LIKE"
+    pretty ReMatch = text "~"
 
 instance Pretty BinNumOp where
     pretty Add = text "+"
