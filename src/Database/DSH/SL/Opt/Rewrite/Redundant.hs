@@ -830,7 +830,7 @@ pullProjectGroupJoinLeft q =
         let (p, as) = $(v "args")
         return $ do
             logRewrite "Redundant.Project.GroupJoin.Left" q
-            let p'  = inlineJoinPredLeft $(v "e") p
+            let p'  = partialEval <$> inlineJoinPredLeft $(v "e") p
                 as' = fmap (fmap (partialEval . (mergeExpr $ appExprFst $(v "e")))) as
                 e'  = appExprFst $(v "e")
 
@@ -844,7 +844,7 @@ pullProjectGroupJoinRight q =
         let (p, as) = $(v "args")
         return $ do
             logRewrite "Redundant.Project.GroupJoin.Right" q
-            let p'        = inlineJoinPredRight e p
+            let p'  = partialEval <$> inlineJoinPredRight e p
                 as' = fmap (fmap (partialEval . (mergeExpr $ appExprSnd $(v "e")))) as
 
             void $ replaceWithNew q $ BinOp (GroupJoin (p', as')) $(v "q1") $(v "q2") |])
@@ -879,7 +879,7 @@ pullProjectNestJoinLeft q =
         return $ do
             logRewrite "Redundant.Project.NestJoin.Left" q
             let e' = appExprFst $(v "e")
-                p' = inlineJoinPredLeft $(v "e") $(v "p")
+                p' = partialEval <$> inlineJoinPredLeft $(v "e") $(v "p")
 
             joinNode <- insert $ BinOp (NestJoin p') $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 joinNode
@@ -895,7 +895,7 @@ pullProjectNestJoinRight q =
         return $ do
             logRewrite "Redundant.Project.NestJoin.Right" q
             let e' = appExprSnd $(v "e")
-                p' = inlineJoinPredRight $(v "e") $(v "p")
+                p' = partialEval <$> inlineJoinPredRight $(v "e") $(v "p")
 
             joinNode <- insert $ BinOp (NestJoin p') $(v "q1") $(v "q2")
             r1Node   <- insert $ UnOp R1 joinNode
@@ -1169,7 +1169,7 @@ nestJoinChain q =
              -- As the left input of the top nestjoin now includes the
              -- columns from xs, we have to shift column references in
              -- the left predicate side.
-             p' = inlineJoinPredLeft (TTupElem (Next First) TInput) $(v "p")
+             p' = partialEval <$> inlineJoinPredLeft (TTupElem (Next First) TInput) $(v "p")
 
          -- The R1 node on the left nest join might already exist, but
          -- we simply rely on hash consing.
@@ -1294,7 +1294,7 @@ pushUnboxSngThetaJoinRight q =
           predicate $ $(v "qj1") == $(v "qj2")
           return $ do
               logRewrite "Redundant.UnboxSng.Push.ThetaJoin.Right" q
-              let p' = inlineJoinPredRight (TTupElem First TInput) $(v "p")
+              let p' = partialEval <$> inlineJoinPredRight (TTupElem First TInput) $(v "p")
               let te = TMkTuple [ TMkTuple [ TTupElem First TInput
                                            , TTupElem First (TTupElem (Next First) TInput)
                                            ]
