@@ -33,6 +33,7 @@ module Database.DSH.Compiler
 import           Control.Arrow
 import           Control.Monad
 import qualified Data.Foldable                      as F
+import qualified Data.IntMap                        as IM
 import           System.Process
 import           System.Random
 import           Text.Printf
@@ -51,6 +52,7 @@ import           Database.DSH.FKL.Rewrite
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.NKL.Rewrite
 import           Database.DSH.SL
+import           Database.DSH.SL.Typing
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.Vectorize
@@ -197,6 +199,9 @@ showVectorizedQ :: CLOptimizer -> Q a -> IO ()
 showVectorizedQ clOpt (Q q) = do
     let cl = toComprehensions q
     let vl = compileQ clOpt cl :: QueryPlan TSL DVec
+    case inferSLTypes (queryDag vl) of
+        Left e    -> putStrLn $ "Type inference failed for unoptimized plan\n" ++ e
+        Right tys -> putStrLn $ pp $ IM.toList tys
     h <- fileId
     let fileName = "q_vl_" ++ h
     exportPlan fileName vl
@@ -205,10 +210,17 @@ showVectorizedQ clOpt (Q q) = do
 -- | Show optimized vector plan (SL)
 showVectorizedOptQ :: CLOptimizer -> Q a -> IO ()
 showVectorizedOptQ clOpt (Q q) = do
-    let vl = compileOptQ clOpt $ toComprehensions q :: QueryPlan TSL DVec
+    let vl = compileQ clOpt $ toComprehensions q :: QueryPlan TSL DVec
+    case inferSLTypes (queryDag vl) of
+        Left e    -> putStrLn $ "Type inference failed for unoptimized plan\n" ++ e
+        Right tys -> putStrLn $ pp $ IM.toList tys
+    let vlOpt = optimizeVectorPlan vl
+    case inferSLTypes (queryDag vlOpt) of
+        Left e    -> putStrLn $ "Type inference failed for optimized plan\n" ++ e
+        Right tys -> putStrLn $ pp $ IM.toList tys
     h <- fileId
     let fileName = "q_vl_" ++ h
-    exportPlan fileName vl
+    exportPlan fileName vlOpt
     void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
 
 -- | Show unoptimized vector plan (SL)
