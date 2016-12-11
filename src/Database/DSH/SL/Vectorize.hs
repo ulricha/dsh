@@ -11,6 +11,7 @@ import           Database.Algebra.Dag.Build
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Pretty     hiding (forget)
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Vector
@@ -129,7 +130,7 @@ papp1 _ f NotLifted =
     case f of
         Concat           -> Builtins.concat
         Restrict         -> Builtins.restrict
-        _                -> $impossible
+        o                -> error $ (pp o) ++ " not lifted"
 
 papp2 :: Prim2 -> Lifted -> Shape DVec -> Shape DVec -> Build SL.TSL (Shape DVec)
 papp2 f Lifted =

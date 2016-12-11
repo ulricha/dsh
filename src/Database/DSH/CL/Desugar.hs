@@ -8,6 +8,7 @@ module Database.DSH.CL.Desugar
   , wrapComprehension
   , desugarBuiltins
   , eliminateScalarSingletons
+  , mergeExtLiterals
   ) where
 
 import           Control.Arrow
@@ -219,6 +220,26 @@ bindScalarLiteralsR = do
 -- list generators in the enclosing comprehension.
 bindScalarLiterals :: Expr -> Expr
 bindScalarLiterals = tryRewrite (anytdR bindScalarLiteralsR)
+
+--------------------------------------------------------------------------------
+-- Merge extensions into literal lists
+
+mergeExtLiteralR :: RewriteC CL
+mergeExtLiteralR = do
+    AppE1 ty1 (Ext v) (Lit _ (ListV vs)) <- promoteT idR
+    let vs' = map (\litVal -> TupleV [litVal, ScalarV v]) vs
+    pure $ inject $ Lit ty1 (ListV vs')
+
+-- | Merge scalar extensions into literal lists:
+--
+-- @ext{v} [v_1,...,v_n] => [<v_1,v>,...,<v_n,v>]@
+--
+-- This rewrite is important to prevent ext from floating to the top-level unit
+-- comprehension wrapper and appear unlifted.
+--
+-- See TPC-H Q14 for an example.
+mergeExtLiterals :: Expr -> Expr
+mergeExtLiterals = tryRewrite (repeatR $ anytdR mergeExtLiteralR)
 
 --------------------------------------------------------------------------------
 

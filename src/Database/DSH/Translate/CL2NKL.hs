@@ -337,3 +337,4 @@ desugarComprehensions e = runReader (expr $ desugar e) []
               >>> D.wrapComprehension
               >>> D.bindScalarLiterals
               >>> D.eliminateScalarSingletons
+              >>> D.mergeExtLiterals
