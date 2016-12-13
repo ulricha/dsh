@@ -199,7 +199,7 @@ Library
                      -- Database.DSH.SL.Opt.Properties.VectorType
                      Database.DSH.SL.Opt.OptimizeSL
                      Database.DSH.SL.Opt.Rewrite.Common
-                     Database.DSH.SL.Opt.Rewrite.Expressions
+                     Database.DSH.SL.Opt.Rewrite.Projections
                      Database.DSH.SL.Opt.Rewrite.PruneEmpty
                      Database.DSH.SL.Opt.Rewrite.Redundant
                      Database.DSH.SL.Opt.Rewrite.Aggregation

@@ -13,7 +13,7 @@ import           Database.DSH.Common.Vector
 
 import           Database.DSH.Common.Opt
 import           Database.DSH.Common.VectorLang
-import           Database.DSH.SL.Opt.Rewrite.Expressions
+import           Database.DSH.SL.Opt.Rewrite.Projections
 import           Database.DSH.SL.Opt.Rewrite.PruneEmpty
 import           Database.DSH.SL.Opt.Rewrite.Redundant
 
