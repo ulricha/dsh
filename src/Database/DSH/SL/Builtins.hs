@@ -19,6 +19,7 @@ import           Database.Algebra.Dag.Build
 import           Database.DSH.Common.Impossible
 import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Vector
@@ -270,7 +271,7 @@ tupElemL i (VShape q (LTuple lyts)) = do
     let lyt = lyts !! (tupleIndex i - 1)
     proj <- slProject (TTupElem i TInput) q
     return $ VShape proj lyt
-tupElemL _ _ = $impossible
+tupElemL i s = error $ "tupElemL: " ++ show i ++ " " ++ show s
 
 singletonL :: Shape DVec -> Build TSL (Shape DVec)
 singletonL (VShape q lyt) = do

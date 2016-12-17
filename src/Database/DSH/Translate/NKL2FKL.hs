@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+
 -- | The Flattening Transformation
 module Database.DSH.Translate.NKL2FKL
     ( flatTransform
