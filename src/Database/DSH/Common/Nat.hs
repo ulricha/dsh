@@ -2,10 +2,12 @@
 
 module Database.DSH.Common.Nat where
 
-import Data.Aeson
-import Data.Maybe
+import           Data.Aeson
+import           Data.List.NonEmpty             (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty             as N
+import           Data.Maybe
 
-import Database.DSH.Common.Impossible
+import           Database.DSH.Common.Impossible
 
 -- | Natural numbers that encode lifting levels
 data Nat = Zero | Succ Nat deriving (Show, Eq)
@@ -71,3 +73,14 @@ instance Enum TupleIndex where
              | otherwise = error "toEnum: negative or zero TupleIndex"
 
     fromEnum = tupleIndex
+
+-- | Returns the (one-based) list element denoted by a tuple index.
+safeIndex :: TupleIndex -> [a] -> Maybe a
+safeIndex First    (x:_)  = Just x
+safeIndex (Next i) (_:xs) = safeIndex i xs
+safeIndex _        _      = Nothing
+
+-- | Returns the (one-based) list element denoted by a tuple index.
+safeIndexN :: TupleIndex -> NonEmpty a -> Maybe a
+safeIndexN First xs           = Just $ N.head xs
+safeIndexN (Next i) (_ :| xs) = safeIndex i xs

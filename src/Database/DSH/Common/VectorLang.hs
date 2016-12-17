@@ -237,16 +237,6 @@ appExprSnd e = TMkTuple [ TTupElem First TInput
                         , mergeExpr (TTupElem (Next First) TInput) e
                         ]
 
--- | Returns the list element denoted by a tuple index.
-safeIndex :: TupleIndex -> [a] -> Maybe a
-safeIndex First    (x:_)  = Just x
-safeIndex (Next i) (_:xs) = safeIndex i xs
-safeIndex _        _      = Nothing
-
-safeIndexN :: TupleIndex -> NonEmpty a -> Maybe a
-safeIndexN First xs           = Just $ N.head xs
-safeIndexN (Next i) (_ :| xs) = safeIndex i xs
-
 -- | Partially evaluate scalar vector expressions. This covers:
 --
 -- * 'if' conditionals with constant conditions
