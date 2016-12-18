@@ -159,10 +159,12 @@ Library
                      Database.DSH.CL.Opt.GroupJoin
                      Database.DSH.CL.Opt.ProjectionPullup
                      Database.DSH.FKL.Lang
+--                     Database.DSH.FKL.Typing
                      Database.DSH.FKL.Primitives
                      Database.DSH.FKL.Rewrite
                      Database.DSH.FKL.Kure
                      Database.DSH.NKL.Lang
+                     Database.DSH.NKL.Typing
                      Database.DSH.NKL.Kure
                      Database.DSH.NKL.Rewrite
                      Database.DSH.NKL.Primitives
