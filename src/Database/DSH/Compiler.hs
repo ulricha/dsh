@@ -12,7 +12,6 @@ module Database.DSH.Compiler
     , vectorPlanQ
     , showComprehensionsQ
     , showComprehensionsLogQ
-    , showComprehensionsOptQ
     , showDesugaredQ
     , showDesugaredOptQ
     , showLiftedQ
@@ -30,6 +29,8 @@ module Database.DSH.Compiler
     , module Database.DSH.Translate.Vectorize
     ) where
 
+import           Debug.Trace
+
 import           Control.Arrow
 import           Control.Monad
 import qualified Data.Foldable                      as F
@@ -43,8 +44,10 @@ import           Database.DSH.Translate.Frontend2CL
 import           Database.DSH.Backend
 import qualified Database.DSH.CL.Lang               as CL
 import           Database.DSH.CL.Opt
+import           Database.DSH.CL.Typing
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.QueryPlan
+import qualified Database.DSH.Common.Type           as Ty
 import           Database.DSH.Common.Vector
 import           Database.DSH.Common.VectorLang
 import           Database.DSH.Execute
@@ -60,9 +63,18 @@ import           Database.DSH.VSL
 
 --------------------------------------------------------------------------------
 
+typeCheck :: Pretty a => (a -> Either String Ty.Type) -> a -> a
+typeCheck checker e =
+    case checker e of
+        Left msg -> error $ printf "Type checking expression\n>>>\n%s\n<<<\nfailed: %s" (pp e) msg
+        Right ty -> trace ("Inferred type: " ++ pp ty) e
+
+optimizeCL :: CLOptimizer -> CL.Expr -> CL.Expr
+optimizeCL clOpt = typeCheck inferCLTy >>> (fst . clOpt) >>> typeCheck inferCLTy
+
 -- | The frontend- and backend-independent part of the compiler.
 compileQ :: VectorLang v => CLOptimizer -> CL.Expr -> QueryPlan (v TExpr TExpr) DVec
-compileQ clOpt = (fst . clOpt) >>>
+compileQ clOpt = optimizeCL clOpt       >>>
                  desugarComprehensions  >>>
                  optimizeNKL            >>>
                  flatTransform          >>>
@@ -111,28 +123,25 @@ decorate msg = sepLine ++ msg ++ "\n" ++ sepLine
 -- | Show comprehensions with an optional optimizer (CL)
 showComprehensionsQ :: CLOptimizer -> Q a -> IO ()
 showComprehensionsQ clOpt (Q q) = do
-    let cl = fst $ clOpt $ toComprehensions q
+    let cl = optimizeCL clOpt $ toComprehensions q
     putStrLn $ decorate $ pp cl
 
 -- | Show comprehensions with an optional optimizer and display the rewriting
 -- log (CL)
 showComprehensionsLogQ :: CLOptimizer -> Q a -> IO ()
 showComprehensionsLogQ clOpt (Q q) = do
-    let (cl, rewriteLog) = clOpt $ toComprehensions q
+    let (cl, rewriteLog) = first (typeCheck inferCLTy)
+                           $ clOpt
+                           $ typeCheck inferCLTy
+                           $ toComprehensions q
     putStrLn rewriteLog
-    putStrLn $ decorate $ pp cl
-
--- | Show optimized comprehensions (CL)
-showComprehensionsOptQ :: Q a -> IO ()
-showComprehensionsOptQ (Q q) = do
-    let cl = fst $ optBU $ toComprehensions q
     putStrLn $ decorate $ pp cl
 
 -- | Show unoptimized desugared iterators (CL)
 showDesugaredQ :: CLOptimizer -> Q a -> IO ()
 showDesugaredQ clOpt (Q q) = do
     let nkl = desugarComprehensions
-              $ (fst . clOpt)
+              $ optimizeCL clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp nkl
 
@@ -141,7 +150,7 @@ showDesugaredOptQ :: CLOptimizer -> Q a -> IO ()
 showDesugaredOptQ clOpt (Q q) = do
     let nkl = optimizeNKL
               $ desugarComprehensions
-              $ (fst . clOpt)
+              $ optimizeCL clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp nkl
 
@@ -151,7 +160,7 @@ showLiftedQ clOpt (Q q) = do
     let fkl = liftOperators
               $ optimizeNKL
               $ desugarComprehensions
-              $ (fst . clOpt)
+              $ optimizeCL clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 
@@ -162,7 +171,7 @@ showLiftedOptQ clOpt (Q q) = do
               $ liftOperators
               $ optimizeNKL
               $ desugarComprehensions
-              $ (fst . clOpt)
+              $ optimizeCL clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 
@@ -174,7 +183,7 @@ showFlattenedQ clOpt (Q q) = do
               $ liftOperators
               $ optimizeNKL
               $ desugarComprehensions
-              $ (fst . clOpt)
+              $ optimizeCL clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 
@@ -187,7 +196,7 @@ showFlattenedOptQ clOpt (Q q) = do
               $ liftOperators
               $ optimizeNKL
               $ desugarComprehensions
-              $ (fst . clOpt)
+              $ optimizeCL clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 

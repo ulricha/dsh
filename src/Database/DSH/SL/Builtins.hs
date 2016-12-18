@@ -19,7 +19,6 @@ import           Database.Algebra.Dag.Build
 import           Database.DSH.Common.Impossible
 import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Nat
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Vector

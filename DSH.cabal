@@ -136,6 +136,7 @@ Library
                      Database.DSH.Common.TH
 
                      Database.DSH.CL.Lang
+                     Database.DSH.CL.Typing
                      Database.DSH.CL.Kure
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt

@@ -7,6 +7,7 @@
 module Database.DSH.Common.Lang where
 
 import           Control.Monad.Except
+import           Control.Monad.Reader
 import           Data.Aeson
 import           Data.Semigroup hiding (Sum)
 import           Data.Aeson.TH
@@ -287,6 +288,92 @@ instance Typed ScalarExpr where
     typeOf (JTupElem i e)   = either error id $ inferTupleElem (typeOf e) i
     typeOf (JLit t _)       = t
     typeOf (JInput t)       = t
+
+--------------------------------------------------------------------------------
+-- Typing of scalar expressions and join predicates
+
+data TypedSExpr = TE ScalarExpr Type
+
+instance Pretty TypedSExpr where
+    pretty (TE e ty) = pretty e P.<> char ':' P.<> pretty ty
+
+tupElemTyErr :: TypedSExpr -> TupleIndex -> String
+tupElemTyErr e i = printf "jExpTy: (%s).%d" (pp e) (tupleIndex i)
+
+condTyErr :: TypedSExpr -> TypedSExpr -> TypedSExpr -> String
+condTyErr e1 e2 e3 = printf "jExpTy: if %s then %s else %s" (pp e1) (pp e2) (pp e3)
+
+unOpTyErr :: ScalarUnOp -> TypedSExpr -> String
+unOpTyErr op e = printf "jExpTy: %s(%s)" (pp op) (pp e)
+
+binOpTyErr :: ScalarBinOp -> TypedSExpr -> TypedSExpr -> String
+binOpTyErr op e1 e2 = printf "jExpTy: (%s) %s (%s)" (pp e1) (pp op) (pp e2)
+
+conjTyErr :: JoinConjunct TypedSExpr -> String
+conjTyErr c = printf "predTy: (%s) %s (%s)" (pp $ jcLeft c) (pp $ jcOp c) (pp $ jcRight c)
+
+jExpTy :: (MonadError String m, MonadReader (Maybe Type) m) => ScalarExpr -> m Type
+jExpTy (JLit ty _)      = pure ty
+jExpTy (JInput _)       = do
+    mTy <- ask
+    case mTy of
+        Just ty -> pure ty
+        Nothing -> throwError "jExpTy: TInput with empty env"
+jExpTy (JTupElem i e)     = do
+    ty <- jExpTy e
+    case ty of
+        TupleT ts ->
+            case safeIndex i ts of
+                Just t  -> pure t
+                Nothing -> throwError $ tupElemTyErr (TE e ty) i
+        _          -> throwError $ tupElemTyErr (TE e ty) i
+jExpTy (JBinOp op e1 e2) = do
+    ty1 <- jExpTy e1
+    ty2 <- jExpTy e2
+    case (ty1, ty2) of
+        (ScalarT sty1, ScalarT sty2) -> ScalarT <$> inferBinOpScalar sty1 sty2 op
+        _                            -> throwError $ binOpTyErr op (TE e1 ty1) (TE e2 ty2)
+jExpTy (JUnOp op e)      = do
+    ty <- jExpTy e
+    case ty of
+        ScalarT sty -> ScalarT <$> inferUnOpScalar sty op
+        _           -> throwError $ unOpTyErr op (TE e ty)
+
+conjTy :: MonadError String m => Type -> Type -> JoinConjunct ScalarExpr -> m ()
+conjTy ty1 ty2 c = do
+    leftTy  <- runReaderT (jExpTy (jcLeft c)) (Just ty1)
+    rightTy <- runReaderT (jExpTy (jcRight c)) (Just ty2)
+    if leftTy == rightTy
+       then pure ()
+       else throwError $ conjTyErr $ c { jcLeft = TE (jcLeft c) leftTy
+                                       , jcRight = TE (jcRight c) rightTy
+                                       }
+
+checkPredTy :: MonadError String m => Type -> Type -> JoinPredicate ScalarExpr -> m ()
+checkPredTy ty1 ty2 p = mapM_ (conjTy ty1 ty2) (jpConjuncts p)
+
+--------------------------------------------------------------------------------
+-- Typing of aggregate functions
+
+aggFunTyErr :: AggrFun -> String
+aggFunTyErr op = printf "tExpTy: %s" (pp op)
+
+aggrTy :: (MonadError String m, MonadReader (Maybe Type) m) => AggrApp -> m Type
+aggrTy (AggrApp Length e)      = void (jExpTy e) >> pure (ScalarT IntT)
+aggrTy (AggrApp Sum e)         = jExpTy e
+aggrTy (AggrApp Minimum e)     = jExpTy e
+aggrTy (AggrApp Maximum e)     = jExpTy e
+aggrTy (AggrApp Avg e)         = jExpTy e
+aggrTy (AggrApp And e)         = do
+    ty <- jExpTy e
+    if ty == ScalarT BoolT
+       then pure ty
+       else throwError $ aggFunTyErr And
+aggrTy (AggrApp Or e)   = do
+    ty <- jExpTy e
+    if ty == ScalarT BoolT
+       then pure ty
+       else throwError $ aggFunTyErr Or
 
 --------------------------------------------------------------------------------
 -- Typing of expressions

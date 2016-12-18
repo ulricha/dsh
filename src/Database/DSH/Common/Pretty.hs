@@ -77,8 +77,8 @@ prettyTuple es =
                           [right]
 
   where
-    left  = tuple langle
-    right = tuple rangle
+    left  = tuple $ char '〈'
+    right = tuple $ char '〉'
 
 prettyComp :: Doc -> [Doc] -> Doc
 prettyComp headExpr quals
