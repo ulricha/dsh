@@ -98,10 +98,10 @@ tyPrim1 Group ty       = do
         _                         -> opTyErr "group" [ty]
 tyPrim1 (TupElem i) ty =
     case ty of
-        TupleT tys -> maybe (opTyErr (printf "_.%s" (tupleIndex i)) [ty])
+        TupleT tys -> maybe (opTyErr (printf "_.%d" (tupleIndex i)) [ty])
                             pure
                             (safeIndex i tys)
-        _          -> opTyErr (printf "_.%s" (tupleIndex i)) [ty]
+        _          -> opTyErr (printf "_.%d" (tupleIndex i)) [ty]
 tyPrim1 (Agg a) ty     = flip catchError (const $ opTyErr (pp a) [ty]) $ do
     eTy <- elemTy ty
     case a of
