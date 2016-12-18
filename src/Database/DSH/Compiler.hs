@@ -51,7 +51,9 @@ import qualified Database.DSH.Common.Type           as Ty
 import           Database.DSH.Common.Vector
 import           Database.DSH.Common.VectorLang
 import           Database.DSH.Execute
+import qualified Database.DSH.FKL.Lang              as FKL
 import           Database.DSH.FKL.Rewrite
+import           Database.DSH.FKL.Typing
 import           Database.DSH.Frontend.Internals
 import qualified Database.DSH.NKL.Lang              as NKL
 import           Database.DSH.NKL.Rewrite
@@ -77,13 +79,25 @@ optimizeCLCheck clOpt = typeCheck inferCLTy "CL" >>> (fst . clOpt) >>> typeCheck
 optimizeNKLCheck :: NKL.Expr -> NKL.Expr
 optimizeNKLCheck = typeCheck inferNKLTy "NKL" >>> optimizeNKL >>> typeCheck inferNKLTy "NKL opt"
 
+optimizeNormFKLCheck :: FKL.FExpr -> FKL.FExpr
+optimizeNormFKLCheck = typeCheck inferFKLTy "FKL" >>> optimizeNormFKL >>> typeCheck inferFKLTy "FKL opt"
+
+-- | Transform an expression in the Nested Kernel Language into its equivalent
+-- Flat Kernel Language expression by means of the flattening transformation.
+-- Apply standard optimization rewrites.
+flatTransform :: NKL.Expr -> FKL.FExpr
+flatTransform = liftOperators        >>>
+                optimizeFKL          >>>
+                normalizeLifted      >>>
+                optimizeNormFKLCheck
 
 -- | The frontend- and backend-independent part of the compiler.
 compileQ :: VectorLang v => CLOptimizer -> CL.Expr -> QueryPlan (v TExpr TExpr) DVec
-compileQ clOpt = optimizeCLCheck clOpt       >>>
-                 desugarComprehensions  >>>
-                 optimizeNKLCheck            >>>
-                 flatTransform          >>>
+compileQ clOpt = optimizeCLCheck clOpt          >>>
+                 desugarComprehensions          >>>
+                 optimizeNKLCheck               >>>
+                 flatTransform                  >>>
+                 typeCheck inferFKLTy "FKL opt" >>>
                  vectorize
 
 -- | The frontend- and backend-independent part of the compiler. Compile a

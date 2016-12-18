@@ -2,8 +2,7 @@
 
 -- | The Flattening Transformation
 module Database.DSH.Translate.NKL2FKL
-    ( flatTransform
-    , normalizeLifted
+    ( normalizeLifted
     , liftOperators
     ) where
 
@@ -19,17 +18,7 @@ import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Type
 import qualified Database.DSH.FKL.Lang       as F
 import qualified Database.DSH.FKL.Primitives as P
-import           Database.DSH.FKL.Rewrite
 import qualified Database.DSH.NKL.Lang       as N
-
--- | Transform an expression in the Nested Kernel Language into its
--- equivalent Flat Kernel Language expression by means of the
--- flattening transformation. Apply standard optimization rewrites.
-flatTransform :: N.Expr -> F.FExpr
-flatTransform expr = optimizeNormFKL
-                     $ normalizeLifted
-                     $ optimizeFKL
-                     $ runFlat initEnv (flatten expr)
 
 --------------------------------------------------------------------------------
 -- The Flattening Transformation

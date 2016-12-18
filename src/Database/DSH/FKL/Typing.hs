@@ -1,8 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 
--- | Type checking for NKL expressions
-module Database.DSH.NKL.Typing
-    ( inferNKLTy
+-- | Type checking for FKL expressions
+module Database.DSH.FKL.Typing
+    ( inferFKLTy
     ) where
 
 import           Control.Monad.Except
@@ -11,7 +11,7 @@ import           Data.List
 import qualified Data.List.NonEmpty         as N
 import           Text.Printf
 
-import           Database.DSH.NKL.Lang
+import           Database.DSH.FKL.Lang
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Pretty
@@ -22,11 +22,11 @@ import           Database.DSH.Common.Nat
 
 type TyEnv = [(Ident, Type)]
 
-expTyErr :: Pretty e => e -> String -> Typing a
-expTyErr a msg = throwError $ printf "NKL type inference failed in expression\n>>>\n%s\n<<<\n\n%s" (pp a) msg
+expTyErr :: FExpr -> String -> Typing a
+expTyErr a msg = throwError $ printf "FKL type inference failed in expression\n>>>\n%s\n<<<\n\n%s" (pp a) msg
 
 opTyErr :: String -> [Type] -> Typing a
-opTyErr msg tys = throwError $ printf "NKL type error: %s {%s}" msg tyMsg
+opTyErr msg tys = throwError $ printf "FKL type error: %s {%s}" msg tyMsg
   where
     tyMsg = concat $ intersperse "," $ fmap pp tys
 
@@ -38,7 +38,7 @@ lookupTy x = do
     tyEnv <- ask
     case lookup x tyEnv of
         Just ty -> pure ty
-        Nothing -> throwError $ printf "NKL type error: %s not in type env %s" x (pp tyEnv)
+        Nothing -> throwError $ printf "FKL type error: %s not in type env %s" x (pp tyEnv)
 
 type Typing = ReaderT TyEnv (Either String)
 
@@ -47,30 +47,30 @@ type Typing = ReaderT TyEnv (Either String)
 
 elemTy :: Type -> Typing Type
 elemTy (ListT ty) = pure ty
-elemTy ty         = throwError $ printf "NKL type error: %s not a list type" (pp ty)
+elemTy ty         = throwError $ printf "FKL type error: %s not a list type" (pp ty)
 
 listTy :: Type -> Typing ()
 listTy (ListT _) = pure ()
-listTy ty        = throwError $ printf "NKL type error: %s not a list type" (pp ty)
+listTy ty        = throwError $ printf "FKL type error: %s not a list type" (pp ty)
 
 numTy :: Type -> Typing ()
 numTy (ScalarT IntT)     = pure ()
 numTy (ScalarT DoubleT)  = pure ()
 numTy (ScalarT DecimalT) = pure ()
-numTy ty                 = throwError $ printf "NKL type error: %s not a numeric type" (pp ty)
+numTy ty                 = throwError $ printf "FKL type error: %s not a numeric type" (pp ty)
 
 boolTy :: Type -> Typing ()
 boolTy (ScalarT BoolT) = pure ()
-boolTy ty              = throwError $ printf "NKL type error: %s not boolean" (pp ty)
+boolTy ty              = throwError $ printf "FKL type error: %s not boolean" (pp ty)
 
 fractTy :: Type -> Typing ()
 fractTy (ScalarT DoubleT)  = pure ()
 fractTy (ScalarT DecimalT) = pure ()
-fractTy ty                 = throwError $ printf "NKL type error: %s not a fractional type" (pp ty)
+fractTy ty                 = throwError $ printf "FKL type error: %s not a fractional type" (pp ty)
 
 scalarTy :: Type -> Typing ScalarType
 scalarTy (ScalarT sty) = pure sty
-scalarTy ty            = throwError $ printf "NKL type error: %s not a scalar type" (pp ty)
+scalarTy ty            = throwError $ printf "FKL type error: %s not a scalar type" (pp ty)
 
 --------------------------------------------------------------------------------
 -- Type inference
@@ -112,7 +112,7 @@ tyPrim1 (Agg a) ty     = flip catchError (const $ opTyErr (pp a) [ty]) $ do
         Or      -> boolTy eTy >> pure eTy
         Maximum -> void (scalarTy eTy) >> pure eTy
         Minimum -> void (scalarTy eTy) >> pure eTy
-tyPrim1 (Ext v) ty     = flip catchError (const $ opTyErr "ext" [ty]) $ do
+tyPrim1 (LitExt v) ty  = flip catchError (const $ opTyErr "ext" [ty]) $ do
     eTy <- elemTy ty
     pure $ ListT $ TupleT [eTy, typeOf v]
 tyPrim1 Restrict ty    =
@@ -162,46 +162,116 @@ tyPrim2 (GroupJoin p as) ty1 ty2 = flip catchError (const $ opTyErr "groupjoin" 
     case aTys of
         [aTy] -> pure $ ListT $ TupleT [ety1, aTy]
         _     -> pure $ ListT $ TupleT [ety1, TupleT aTys]
+tyPrim2 Dist ty1 ty2             = flip catchError (const $ opTyErr "dist" [ty1, ty2]) $ do
+    if isList ty2
+       then pure $ ListT ty1
+       else throwError "FKL.Typing.dist: not a list"
 
--- | Typing of NKL expressions
-inferTy :: Expr -> Typing Type
-inferTy (Table _ _ schema) =
-    pure $ ListT $ TupleT $ N.toList $ fmap (ScalarT . snd) $ tableCols schema
-inferTy a@(AppE1 _ p e)      = catchError (inferTy e >>= tyPrim1 p) (expTyErr a)
-inferTy a@(AppE2 _ p e1 e2)  = do
-    ty1 <- inferTy e1
-    ty2 <- inferTy e2
-    catchError (tyPrim2 p ty1 ty2) (expTyErr a)
-inferTy (BinOp _ o e1 e2)    = do
-    ty1 <- inferTy e1
-    ty2 <- inferTy e2
+tyPrim3 :: Prim3 -> Type -> Type -> Type -> Typing Type
+tyPrim3 Combine ty1 ty2 ty3 = flip catchError (const $ opTyErr "combine" [ty1, ty2, ty3]) $ do
+    eTy1 <- elemTy ty1
+    eTy2 <- elemTy ty2
+    eTy3 <- elemTy ty3
+    if eTy1 == ScalarT BoolT && eTy2 == eTy3
+       then pure $ ListT eTy2
+       else throwError "FKL.Typing.combine: type error"
+
+tyPrim3Lift :: Lifted -> Prim3 -> Type -> Type -> Type -> Typing Type
+tyPrim3Lift Lifted p ty1 ty2 ty3    = do
+    eTy1 <- elemTy ty1
+    eTy2 <- elemTy ty2
+    eTy3 <- elemTy ty3
+    ListT <$> tyPrim3 p eTy1 eTy2 eTy3
+tyPrim3Lift NotLifted p ty1 ty2 ty3 = tyPrim3 p ty1 ty2 ty3
+
+tyPrim2Lift :: Lifted -> Prim2 -> Type -> Type -> Typing Type
+tyPrim2Lift Lifted p ty1 ty2    = do
+    eTy1 <- elemTy ty1
+    eTy2 <- elemTy ty2
+    ListT <$> tyPrim2 p eTy1 eTy2
+tyPrim2Lift NotLifted p ty1 ty2 = tyPrim2 p ty1 ty2
+
+tyPrim1Lift :: Lifted -> Prim1 -> Type -> Typing Type
+tyPrim1Lift Lifted    p ty = do
+    eTy <- elemTy ty
+    ListT <$> tyPrim1 p eTy
+tyPrim1Lift NotLifted p ty = tyPrim1 p ty
+
+tyMkTuple :: Type -> Lifted -> [FExpr] -> Typing Type
+tyMkTuple _     NotLifted es = TupleT <$> mapM inferTy es
+tyMkTuple tyAnn Lifted    es = flip catchError (expTyErr $ MkTuple tyAnn Lifted es) $ do
+    eTys <- mapM (\e -> inferTy e >>= elemTy) es
+    pure $ ListT $ TupleT eTys
+
+tyBinOpLift :: Lifted -> ScalarBinOp -> Type -> Type -> Typing Type
+tyBinOpLift NotLifted o ty1 ty2 =
     case (ty1, ty2) of
         (ScalarT sTy1, ScalarT sTy2) -> ScalarT <$> inferBinOpScalar sTy1 sTy2 o
         _                            -> opTyErr (pp o) [ty1, ty2]
-inferTy (UnOp _ o e)         = do
-    ty <- inferTy e
+tyBinOpLift Lifted    o ty1 ty2 = do
+    eTy1 <- elemTy ty1
+    eTy2 <- elemTy ty2
+    case (eTy1, eTy2) of
+        (ScalarT sTy1, ScalarT sTy2) -> ListT <$> ScalarT <$> inferBinOpScalar sTy1 sTy2 o
+        _                            -> opTyErr (pp o) [ty1, ty2]
+
+tyUnOpLift :: Lifted -> ScalarUnOp -> Type -> Typing Type
+tyUnOpLift NotLifted o ty =
     case ty of
         ScalarT sTy -> ScalarT <$> inferUnOpScalar sTy o
         _           -> opTyErr (pp o) [ty]
-inferTy (If _ c t e)         = do
-    tyC <- inferTy c
-    tyT <- inferTy t
-    tyE <- inferTy e
-    if tyC /= ScalarT BoolT || tyT /= tyE
-       then opTyErr "if" [tyC, tyT, tyE]
-       else pure tyT
-inferTy (Const ty _)         = pure ty
-inferTy (Var _ x)            = lookupTy x
-inferTy (Iterator _ h x g)     = do
-    genTy <- inferTy g >>= elemTy
-    ListT <$> local (bindTy x genTy) (inferTy h)
-inferTy (MkTuple _ es)       = do
-    tys <- mapM inferTy es
-    pure $ TupleT tys
-inferTy (Let _ x e1 e2)    = do
+tyUnOpLift Lifted    o ty = do
+    eTy <- elemTy ty
+    case eTy of
+        ScalarT sTy -> ListT <$> ScalarT <$> inferUnOpScalar sTy o
+        _           -> opTyErr (pp o) [ty]
+
+unwrapListType :: Nat -> Type -> Typing Type
+unwrapListType Zero t               = pure t
+unwrapListType (Succ n') (ListT xt) = unwrapListType n' xt
+unwrapListType _         _          = throwError "NKL.Typing.forget"
+
+wrapListType :: Nat -> Type -> Type
+wrapListType Zero t     = t
+wrapListType (Succ n') t = wrapListType n' (ListT t)
+
+tyShapeExt :: ShapeExt -> Typing Type
+tyShapeExt s@(Forget n _ e)      = catchError (inferTy e >>= unwrapListType n) (expTyErr $ Ext s)
+tyShapeExt s@(Imprint n _ e1 e2) = flip catchError (expTyErr $ Ext s) $ do
+    ty1 <- inferTy e1
+    ty2 <- inferTy e2
+    void $ unwrapListType n ty1
+    pure $ wrapListType n ty2
+
+-- | Typing of FKL expressions
+inferTy :: FExpr -> Typing Type
+inferTy (Table _ _ schema)     =
+    pure $ ListT $ TupleT $ N.toList $ fmap (ScalarT . snd) $ tableCols schema
+inferTy a@(PApp1 _ p l e)      = catchError (inferTy e >>= tyPrim1Lift l p) (expTyErr a)
+inferTy a@(PApp2 _ p l e1 e2)  = do
+    ty1 <- inferTy e1
+    ty2 <- inferTy e2
+    catchError (tyPrim2Lift l p ty1 ty2) (expTyErr a)
+inferTy a@(PApp3 _ p l e1 e2 e3) = do
+    ty1 <- inferTy e1
+    ty2 <- inferTy e2
+    ty3 <- inferTy e3
+    catchError (tyPrim3Lift l p ty1 ty2 ty3) (expTyErr a)
+inferTy a@(BinOp _ o l e1 e2)  = do
+    ty1 <- inferTy e1
+    ty2 <- inferTy e2
+    catchError (tyBinOpLift l o ty1 ty2) (expTyErr a)
+inferTy a@(UnOp _ o l e)       = do
+    ty <- inferTy e
+    catchError (tyUnOpLift l o ty) (expTyErr a)
+inferTy (Const ty _)           = pure ty
+inferTy (Var _ x)              = lookupTy x
+inferTy (MkTuple ty l es)      = tyMkTuple ty l es
+inferTy (Let _ x e1 e2)        = do
     ty1 <- inferTy e1
     local (bindTy x ty1) $ inferTy e2
+inferTy (Ext e)                = tyShapeExt e
 
--- | Infer the type of a NKL expression
-inferNKLTy :: Expr -> Either String Type
-inferNKLTy e = runReaderT (inferTy e) []
+-- | Infer the type of a FKL expression
+inferFKLTy :: FExpr -> Either String Type
+inferFKLTy e = runReaderT (inferTy e) []
