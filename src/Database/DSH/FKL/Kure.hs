@@ -27,10 +27,10 @@ module Database.DSH.FKL.Kure
 
       -- * Congruence combinators
     , tableT, papp1T, papp2T, papp3T, binopT, unopT
-    , ifT, constExprT, varT, letT
+    , constExprT, varT, letT
 
     , tableR, papp1R, papp2R, papp3R, binopR, unopR
-    , ifR, constExprR, varR, letR
+    , constExprR, varR, letR
 
     , inScopeNames, freeIn, boundIn, freshNameT
 
@@ -69,9 +69,6 @@ data CrumbF = AppFun
             | BinOpArg1
             | BinOpArg2
             | UnOpArg
-            | IfCond
-            | IfThen
-            | IfElse
             | ImprintArg1
             | ImprintArg2
             | ForgetArg
@@ -148,25 +145,6 @@ tableT f = contextfreeT $ \expr -> case expr of
 tableR :: Monad m => Rewrite FlatCtx m (ExprTempl l e)
 tableR = tableT Table
 {-# INLINE tableR #-}
-
-ifT :: Monad m => Transform FlatCtx m (ExprTempl l e) a1
-               -> Transform FlatCtx m (ExprTempl l e) a2
-               -> Transform FlatCtx m (ExprTempl l e) a3
-               -> (Type -> a1 -> a2 -> a3 -> b)
-               -> Transform FlatCtx m (ExprTempl l e) b
-ifT t1 t2 t3 f = transform $ \c expr -> case expr of
-                    If ty e1 e2 e3 -> f ty <$> applyT t1 (c@@IfCond) e1
-                                           <*> applyT t2 (c@@IfThen) e2
-                                           <*> applyT t3 (c@@IfElse) e3
-                    _              -> fail "not an if expression"
-{-# INLINE ifT #-}
-
-ifR :: Monad m => Rewrite FlatCtx m (ExprTempl l e)
-               -> Rewrite FlatCtx m (ExprTempl l e)
-               -> Rewrite FlatCtx m (ExprTempl l e)
-               -> Rewrite FlatCtx m (ExprTempl l e)
-ifR t1 t2 t3 = ifT t1 t2 t3 If
-{-# INLINE ifR #-}
 
 binopT :: Monad m => Transform FlatCtx m (ExprTempl l e) a1
                   -> Transform FlatCtx m (ExprTempl l e) a2
@@ -413,7 +391,6 @@ allRExpr r = readerT $ \e -> case e of
         PApp3{}       -> papp3R (extractR r) (extractR r) (extractR r)
         BinOp{}       -> binopR (extractR r) (extractR r)
         UnOp{}        -> unopR (extractR r)
-        If{}          -> ifR (extractR r) (extractR r) (extractR r)
         Const{}       -> idR
         Let{}         -> letR (extractR r) (extractR r)
         Var{}         -> idR

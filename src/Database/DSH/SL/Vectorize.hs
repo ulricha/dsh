@@ -81,7 +81,6 @@ fkl2SL expr =
             lift $ Builtins.tupleL args'
         UnOp _ _ NotLifted _ -> $impossible
         BinOp _ _ NotLifted _ _    -> $impossible
-        If{} -> $impossible
         MkTuple _ NotLifted _ -> $impossible
 
 papp3 :: Prim3 -> Lifted -> Shape DVec -> Shape DVec -> Shape DVec -> Build SL.TSL (Shape DVec)

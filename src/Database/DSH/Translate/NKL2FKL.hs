@@ -154,17 +154,18 @@ liftEnv ctx d headExpr env = mkLiftingLet env
 -- | Transform top-level expressions which are not nested in an
 -- iterator.
 flatten :: N.Expr -> Flatten F.LExpr
-flatten (N.Table t n schema) = return $ F.Table t n schema
-flatten (N.UnOp t op e1)     = P.un t op <$> flatten e1 <*> pure Zero
-flatten (N.BinOp t op e1 e2) = P.bin t op <$> flatten e1 <*> flatten e2 <*> pure Zero
-flatten (N.Const t v)        = return $ F.Const t v
-flatten (N.Var t v)          = return $ F.Var t v
-flatten (N.If t ce te ee)    = F.If t <$> flatten ce <*> flatten te <*> flatten ee
-flatten (N.AppE1 _ p e)      = prim1 p <$> flatten e <*> pure Zero
-flatten (N.AppE2 _ p e1 e2)  = prim2 p <$> flatten e1 <*> flatten e2 <*> pure Zero
-flatten (N.Let _ x xs e)     = P.let_ x <$> flatten xs <*> local (bindEnv x (typeOf xs)) (flatten e)
-flatten (N.MkTuple _ es)     = P.tuple <$> mapM flatten es <*> pure Zero
-flatten (N.Iterator _ h x xs)    = do
+flatten N.Table{}              = $impossible
+flatten N.UnOp{}               = $impossible
+flatten N.BinOp{}              = $impossible
+flatten N.Var{}                = $impossible
+flatten N.If{}                 = $impossible
+flatten N.AppE2{}              = $impossible
+flatten N.Let{}                = $impossible
+flatten N.MkTuple{}            = $impossible
+flatten (N.Const t v)          = return $ F.Const t v
+flatten (N.AppE1 _ N.Concat e) = prim1 N.Concat <$> flatten e <*> pure Zero
+flatten N.AppE1{}              = $impossible
+flatten (N.Iterator _ h x xs)  = do
     -- Prepare an environment in which the current generator is the
     -- context
     let initCtx    = (x, typeOf xs)
@@ -261,7 +262,6 @@ implementBroadcast (F.Broadcast d _ e1 e2) = do
 -- restoring the original list shape on the result.
 normLifting :: F.LExpr -> NormFlat F.FExpr
 normLifting (F.Table t n schema)   = return $ F.Table t n schema
-normLifting (F.If t ce te ee)      = F.If t <$> normLifting ce <*> normLifting te <*> normLifting ee
 normLifting (F.Const t v)          = return $ F.Const t v
 normLifting (F.Var t n)            = return $ F.Var t n
 normLifting (F.Let t x e1 e2)      = F.Let t x <$> normLifting e1 <*> normLifting e2

@@ -77,7 +77,6 @@ fkl2SL expr =
             args' <- mapM fkl2SL args
             lift $ Builtins.tupleL args'
         MkTuple _ NotLifted _ -> $impossible
-        If{} -> $impossible
         UnOp _ _ NotLifted _ -> $impossible
         BinOp _ _ NotLifted _ _ -> $impossible
 

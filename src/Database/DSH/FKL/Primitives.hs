@@ -6,14 +6,11 @@ module Database.DSH.FKL.Primitives where
 
 import           Prelude                        hiding (concat, fst, snd)
 
-import           Text.Printf
-
 import           Data.Foldable
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Lang
 
@@ -170,13 +167,6 @@ tupElem :: TupleIndex -> LExpr -> Nat -> LExpr
 tupElem f e d =
     let t = tupleElemT (unliftTypeN d $ typeOf e) f
     in PApp1 (liftTypeN d t) (TupElem f) (LiftedN d) e
-
-if_ :: Typed e => ExprTempl l e -> ExprTempl l e -> ExprTempl l e -> ExprTempl l e
-if_ eb et ee =
-    let (PBoolT, tt, te) = (typeOf eb, typeOf et, typeOf ee)
-    in if tt == te
-       then If tt eb et ee
-       else error $ printf "FKL.if: incompatible types: %s %s" (pp tt) (pp te)
 
 let_ :: Typed e => Ident -> ExprTempl l e -> ExprTempl l e -> ExprTempl l e
 let_ x e1 e2 = Let (typeOf e2) x e1 e2

@@ -28,7 +28,6 @@ data ExprTempl l e = Table Type String L.BaseTableSchema
                    | PApp1 Type Prim1 l (ExprTempl l e)
                    | PApp2 Type Prim2 l (ExprTempl l e) (ExprTempl l e)
                    | PApp3 Type Prim3 l (ExprTempl l e) (ExprTempl l e) (ExprTempl l e)
-                   | If Type (ExprTempl l e) (ExprTempl l e) (ExprTempl l e)
                    | BinOp Type L.ScalarBinOp l (ExprTempl l e) (ExprTempl l e)
                    | UnOp Type L.ScalarUnOp l (ExprTempl l e)
                    | Const Type [L.Val]
@@ -99,7 +98,6 @@ instance Typed e => Typed (ExprTempl l e) where
     typeOf (PApp1 t _ _ _)     = t
     typeOf (PApp2 t _ _ _ _)   = t
     typeOf (PApp3 t _ _ _ _ _) = t
-    typeOf (If t _ _ _)        = t
     typeOf (BinOp t _ _ _ _)   = t
     typeOf (UnOp t _ _ _)      = t
     typeOf (Const t _)         = t
@@ -196,14 +194,6 @@ instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
     pretty (PApp3 _ f l e1 e2 e3) =
         pretty f <> pretty l
         <+> align (parenthize e1 </> parenthize e2 </> parenthize e3)
-    pretty (If _ e1 e2 e3) =
-        let e1' = pretty e1
-            e2' = pretty e2
-            e3' = pretty e3
-        in text "if" <+> e1'
-           </> nest 2 (text "then" <+> e2')
-           </> nest 2 (text "else" <+> e3')
-
     pretty (BinOp _ o l e1 e2)
         | L.isBinInfixOp o = prettyInfixBinOp (pretty o <> pretty l)
                                               (parenthize e1)
