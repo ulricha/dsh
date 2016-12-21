@@ -70,7 +70,7 @@ m_norm_2R = logR "compnorm.M-Norm-2" $ normSingletonCompR <+ normCompR
     normSingletonCompR = do
         Comp _ h (S q) <- promoteT idR
         (x, e)         <- constT $ matchingQualM q
-        scopeNames     <- contextonlyT (pure . M.keysSet . clBindings)
+        scopeNames     <- inScopeNamesT
         pure $ inject $ substE scopeNames x e (P.sng h)
 
     -- The main rewrite
@@ -98,7 +98,7 @@ m_norm_2R = logR "compnorm.M-Norm-2" $ normSingletonCompR <+ normCompR
     normQualsEndR = do
         q1 :* S q2 <- promoteT idR
         (x, e)     <- constT $ matchingQualM q2
-        scopeNames <- contextonlyT (pure . M.keysSet . clBindings)
+        scopeNames <- inScopeNamesT
         constT $ modify $ substE scopeNames x e
         pure $ inject $ S q1
 
@@ -108,7 +108,7 @@ m_norm_2R = logR "compnorm.M-Norm-2" $ normSingletonCompR <+ normCompR
         q1 :* q2 :* qs <- promoteT idR
         (x, e)         <- constT $ matchingQualM q2
         h              <- constT get
-        scopeNames     <- contextonlyT (pure . M.keysSet . clBindings)
+        scopeNames     <- inScopeNamesT
         let (qs', h') = substCompE scopeNames x e qs h
         constT $ put h'
         pure $ inject $ q1 :* qs'
@@ -135,7 +135,7 @@ m_norm_3R = logR "compnorm.M-Norm-3" $ do
     normQualsEndR = do
         (S q) <- idR
         (x, h, qs) <- constT $ matchingQualM q
-        scopeNames <- contextonlyT (pure . M.keysSet . clBindings)
+        scopeNames <- inScopeNamesT
         constT $ modify $ substE scopeNames x h
         pure qs
 
@@ -144,7 +144,7 @@ m_norm_3R = logR "compnorm.M-Norm-3" $ do
         q :* qs      <- idR
         (x, hi, qsi) <- constT $ matchingQualM q
         h <- constT get
-        scopeNames   <- contextonlyT (pure . M.keysSet . clBindings)
+        scopeNames   <- inScopeNamesT
         let (qs', h') = substCompE scopeNames x hi qs h
         constT $ put h'
         pure $ appendNL qsi qs'

@@ -22,7 +22,7 @@ module Database.DSH.CL.Kure
 
       -- * The KURE context
     , CompCtx(..), CrumbC(..), PathC, initialCtx, freeIn, boundIn
-    , inScopeNames, bindQual, bindVar, withLocalPathT
+    , inScopeNames, inScopeNamesT, bindQual, bindVar, withLocalPathT
 
       -- * Congruence combinators
     , tableT, appe1T, appe2T, binopT, ifT, litT, varT, compT, letT
@@ -39,16 +39,17 @@ module Database.DSH.CL.Kure
 import           Control.Monad
 import qualified Data.Foldable                as F
 import qualified Data.Map                     as M
+import qualified Data.Set                     as S
 import           Text.PrettyPrint.ANSI.Leijen (text)
 
 import           Language.KURE
 import           Language.KURE.Lens
 
 import           Database.DSH.CL.Lang
+import           Database.DSH.Common.Kure
 import qualified Database.DSH.Common.Lang     as L
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.RewriteM
-import           Database.DSH.Common.Kure
 
 --------------------------------------------------------------------------------
 -- Convenience type aliases
@@ -117,6 +118,9 @@ bindQual ctx _           = ctx
 
 inScopeNames :: CompCtx -> [L.Ident]
 inScopeNames = M.keys . clBindings
+
+inScopeNamesT :: Applicative m => Transform CompCtx m a (S.Set L.Ident)
+inScopeNamesT = contextonlyT (pure . M.keysSet . clBindings)
 
 boundIn :: L.Ident -> CompCtx -> Bool
 boundIn n ctx = n `M.member` clBindings ctx

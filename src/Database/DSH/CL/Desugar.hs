@@ -12,7 +12,6 @@ module Database.DSH.CL.Desugar
   ) where
 
 import           Control.Arrow
-import qualified Data.Map                       as M
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Kure
@@ -82,7 +81,7 @@ scalarSingletonGenR = readerT $ \quals -> case quals of
         guardM $ x /= y
         h <- constT get
         z <- freshNameST $ [x,y] ++ compBoundVars qs ++ boundVars h
-        scopeNames <- contextonlyT (pure . M.keysSet . clBindings)
+        scopeNames <- inScopeNamesT
 
         let xt     = elemT $ typeOf xs
             yt     = typeOf v
@@ -96,7 +95,7 @@ scalarSingletonGenR = readerT $ \quals -> case quals of
         guardM $ x /= y
         h <- constT get
         z <- freshNameST $ [x,y] ++ boundVars h
-        scopeNames <- contextonlyT (pure . M.keysSet . clBindings)
+        scopeNames <- inScopeNamesT
 
         let xt     = elemT $ typeOf xs
             yt     = typeOf v

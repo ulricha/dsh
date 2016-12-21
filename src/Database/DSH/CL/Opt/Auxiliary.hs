@@ -520,6 +520,16 @@ tuplifyFirstR v (v1, t1) t2 = substR v1 v1Rep
   where
     (v1Rep, _) = tupleVars v t1 t2
 
+tuplifyFirstE :: S.Set Ident -> Ident -> (Ident, Type) -> Type -> Expr -> Expr
+tuplifyFirstE scopeNames v (v1, t1) t2 e = substE scopeNames v1 v1Rep e
+  where
+    (v1Rep, _) = tupleVars v t1 t2
+
+tuplifySecondE :: S.Set Ident -> Ident -> Type -> (Ident, Type) -> Expr -> Expr
+tuplifySecondE scopeNames v t1 (v2, t2) e = substE scopeNames v2 v2Rep e
+  where
+    (_, v2Rep) = tupleVars v t1 t2
+
 -- | Turn all occurences of one variable into access to a tuple variable (second
 -- component).
 --
