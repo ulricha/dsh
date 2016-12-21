@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE PatternSynonyms       #-}
 {-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TupleSections         #-}
 
 -- | Common tools for rewrites
 module Database.DSH.CL.Opt.Auxiliary
@@ -32,6 +33,7 @@ module Database.DSH.CL.Opt.Auxiliary
     , boundVars
     , compBoundVars
       -- * Substituion
+    , substM
     , substR
     , tuplifyR
     , tuplifyFirstR
@@ -80,6 +82,7 @@ module Database.DSH.CL.Opt.Auxiliary
 
 import           Control.Arrow
 import           Control.Monad
+import           Control.Monad.Reader
 import           Data.Either
 import qualified Data.Foldable                  as F
 import           Data.List
@@ -92,10 +95,11 @@ import           Language.KURE
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.Common.Impossible
+import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.RewriteM
-import           Database.DSH.Common.Kure
 
 -- | A version of the CompM monad in which the state contains an additional
 -- rewrite. Use case: Returning a tuplify rewrite from a traversal over the
@@ -288,14 +292,15 @@ boundVarsS (UnOp _ _ e)      = boundVarsS e
 boundVarsS (If _ e1 e2 e3)   = boundVarsS e1 `S.union` boundVarsS e2 `S.union` boundVarsS e3
 boundVarsS Lit{}             = S.empty
 boundVarsS (Var _ n)         = S.singleton n
-boundVarsS (Comp _ h qs)     = genBound `S.union` boundVarsS h
-  where
-    genBound = foldl' go S.empty qs
-
-    go gb (BindQ x e) = S.insert x $ boundVarsS e `S.union` gb
-    go gb (GuardQ p)  = boundVarsS p `S.union` gb
+boundVarsS (Comp _ h qs)     = boundVarsQualsS qs `S.union` boundVarsS h
 boundVarsS (MkTuple _ es)    = S.unions (map boundVarsS es)
 boundVarsS (Let _ x e1 e2)   = S.insert x $ boundVarsS e1 `S.union` boundVarsS e2
+
+boundVarsQualsS :: NL Qual -> S.Set Ident
+boundVarsQualsS qs = foldl' go S.empty qs
+  where
+    go gb (BindQ x e) = S.insert x $ boundVarsS e `S.union` gb
+    go gb (GuardQ p)  = boundVarsS p `S.union` gb
 
 -- | Compute all names that are bound in the given expression. Note that the
 -- only binding forms in CL are comprehensions and 'let' bindings.
@@ -307,36 +312,158 @@ boundVars = S.toList . boundVarsS
 
 -- | /Exhaustively/ substitute term 's' for a variable 'v'.
 substR :: Ident -> Expr -> RewriteC CL
-substR v s = readerT $ \expr -> case expr of
-    -- Occurence of the variable to be replaced
-    ExprCL (Var _ n) | n == v                          -> return $ inject s
+substR v se = readerT $ \cl -> case cl of
+    ExprCL e -> do
+        scope <- S.fromList <$> inScopeNames <$> contextT
+        let s = Subst { inScope   = scope
+                      , substVar  = v
+                      , substExpr = se
+                      , substFvs  = freeVarsS se
+                      }
+        pure $ inject $ runReader (subst e) s
+    c        -> error $ pp c
 
-    -- If a let-binding shadows the name we substitute, only descend
-    -- into the bound expression.
-    ExprCL (Let _ n _ _)
-        | n == v    -> tryR $ childR LetBind (substR v s)
-        | otherwise -> if n `elem` freeVars s
-                       -- If the let-bound name occurs free in the substitute,
-                       -- alpha-convert the binding to avoid capturing the name.
-                       then $unimplemented >>> tryR (anyR (substR v s))
-                       else tryR $ anyR (substR v s)
+substM :: Ident -> Expr -> Expr -> TransformC a Expr
+substM v se e = contextonlyT $ \c -> do
+    let s = Subst { inScope   = S.fromList $ inScopeNames c
+                  , substVar  = v
+                  , substExpr = se
+                  , substFvs  = freeVarsS se
+                  }
+    pure $ inject $ runReader (subst e) s
 
-    -- If some generator shadows v, we must not substitute in the comprehension
-    -- head. However, substitute in the qualifier list. The traversal on
-    -- qualifiers takes care of shadowing generators.
-    -- FIXME in this case, rename the shadowing generator to avoid
-    -- name-capturing (see lambda case). Also, be careful not to capture free
-    -- variables in the substitute s (see let-binding case).
-    ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> tryR $ childR CompQuals (substR v s)
-    ExprCL _                                           -> tryR $ anyR $ substR v s
+data Subst = Subst
+    { inScope   :: S.Set Ident
+    , substVar  :: Ident
+    , substExpr :: Expr
+    , substFvs  :: S.Set Ident
+    }
 
-    -- Don't substitute past shadowing generators
-    QualsCL (BindQ n _ :* _) | n == v                  -> tryR $ childR QualsHead (substR v s)
-    -- FIXME be careful not to capture free variables in the substitute s (see
-    -- let-binding case)!
-    QualsCL _                                          -> tryR $ anyR $ substR v s
-    QualCL _                                           -> tryR $ anyR $ substR v s
+bindName :: Ident -> Subst -> Subst
+bindName x s = s { inScope = S.insert x (inScope s) }
 
+substFreshName :: S.Set Ident -> Ident
+substFreshName avoidNames = go (0 :: Int)
+  where
+    go i = let v = "s" ++ show i
+           in if v `S.member` avoidNames
+              then go (i + 1)
+              else v
+
+alphaLet :: S.Set Ident -> Ident -> Expr -> Expr -> Reader Subst (Ident, Expr)
+alphaLet avoidNames x e1 e2 = do
+    let z = substFreshName avoidNames
+    s <- ask
+    let s' = s { inScope   = S.insert z $ S.delete x $ inScope s
+               , substVar  = x
+               , substExpr = Var (typeOf e1) z
+               , substFvs  = S.singleton z
+               }
+    e2' <- local (const s') (subst e2)
+    pure (z, e2')
+
+alphaComp :: S.Set Ident -> Ident -> Expr -> Expr -> Reader Subst (Ident, Expr)
+alphaComp avoidNames x xs h = do
+    let z = substFreshName avoidNames
+    s <- ask
+    let s' = s { inScope   = S.insert z $ S.delete x $ inScope s
+               , substVar  = x
+               , substExpr = Var (elemT $ typeOf xs) z
+               , substFvs  = S.singleton z
+               }
+    h' <- local (const s') (subst h)
+    pure (z, h')
+
+alphaCompQuals :: S.Set Ident -> Ident -> Expr -> NL Qual -> Expr -> Reader Subst (Ident, NL Qual, Expr)
+alphaCompQuals avoidNames x xs qs h = do
+    let z = substFreshName avoidNames
+    s <- ask
+    let s' = s { inScope   = S.insert z $ S.delete x $ inScope s
+               , substVar  = x
+               , substExpr = Var (elemT $ typeOf xs) z
+               , substFvs  = S.singleton z
+               }
+    (qs', h') <- local (const s') (substComp qs h)
+    pure (z, qs', h')
+
+
+substComp :: NL Qual -> Expr -> Reader Subst (NL Qual, Expr)
+substComp (S (GuardQ p)) h = do
+    p' <- subst p
+    h' <- subst h
+    pure (S (GuardQ p'), h')
+substComp (S (BindQ x xs)) h = do
+    xs' <- subst xs
+    s   <- ask
+    if x == substVar s
+        then pure (S (BindQ x xs'), h)
+        else if x `S.member` substFvs s
+                 then do
+                     let avoidNames = S.unions [ inScope s
+                                               , substFvs s
+                                               , S.singleton $ substVar s
+                                               , boundVarsS h
+                                               ]
+                     (z, h') <- alphaComp avoidNames x xs h
+                     h''     <- local (bindName z) (subst h')
+                     pure (S (BindQ z xs'), h'')
+                 else (S (BindQ x xs'),) <$> local (bindName x) (subst h)
+substComp (GuardQ p :* qs) h = do
+    p'        <- subst p
+    (qs', h') <- substComp qs h
+    pure (GuardQ p' :* qs', h')
+substComp (BindQ x xs :* qs) h = do
+    xs' <- subst xs
+    s   <- ask
+    if x == substVar s
+        then pure (BindQ x xs' :* qs, h)
+        else if x `S.member` substFvs s
+                 then do
+                     let avoidNames = S.unions [ inScope s
+                                               , substFvs s
+                                               , S.singleton $ substVar s
+                                               , boundVarsS h
+                                               , boundVarsQualsS qs
+                                               ]
+                     (z, qs', h') <- alphaCompQuals avoidNames x xs qs h
+                     (qs'', h'')  <- local (bindName z) (substComp qs' h')
+                     pure (BindQ z xs' :* qs'', h'')
+                 else do
+                     (qs', h') <- local (bindName x) (substComp qs h)
+                     pure (BindQ x xs' :* qs', h')
+
+subst :: Expr -> Reader Subst Expr
+subst e@Table{} = pure e
+subst e@Lit{}   = pure e
+subst e@(Var _ x) = do
+    v <- asks substVar
+    if v == x
+        then asks substExpr
+        else pure e
+subst (AppE2 ty p e1 e2) = AppE2 ty p <$> subst e1 <*> subst e2
+subst (AppE1 ty p e) = AppE1 ty p <$> subst e
+subst (BinOp ty p e1 e2) = BinOp ty p <$> subst e1 <*> subst e2
+subst (UnOp ty p e) = UnOp ty p <$> subst e
+subst (If ty e1 e2 e3) = If ty <$> subst e1 <*> subst e2 <*> subst e3
+subst (MkTuple ty es) = MkTuple ty <$> mapM subst es
+subst (Let ty x e1 e2) = do
+    s <- ask
+    e1' <- subst e1
+    if x == substVar s
+        then pure $ Let ty x e1' e2
+        else if x `S.member` substFvs s
+                 then do
+                     let avoidNames = S.unions [ inScope s
+                                               , substFvs s
+                                               , S.singleton $ substVar s
+                                               , boundVarsS e2
+                                               ]
+                     (z, e2') <- alphaLet avoidNames x e1 e2
+                     Let ty z e1' <$> local (bindName z) (subst e2')
+                 else Let ty x e1' <$> local (bindName x) (subst e2)
+subst (Comp ty h qs) = do
+    (qs', h') <- substComp qs h
+    pure $ Comp ty h' qs'
 
 --------------------------------------------------------------------------------
 -- Tuplifying and Untuplifying variables
