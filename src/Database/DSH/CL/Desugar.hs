@@ -12,8 +12,10 @@ module Database.DSH.CL.Desugar
   ) where
 
 import           Control.Arrow
+import qualified Data.Map                       as M
 
 import           Database.DSH.Common.Impossible
+import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
 
 import           Database.DSH.CL.Kure
@@ -74,69 +76,42 @@ pushSingletonGenR = do
 -- list, the tuplifying rewrite for the comprehension head and the tuplifying
 -- rewrite for the qualifiers together with the position from which it needs to
 -- be applied.
-searchScalarSingletonR :: TransformC CL (NL Qual, RewriteC CL, Maybe (PathC, RewriteC CL))
-searchScalarSingletonR = readerT $ \quals -> case quals of
+scalarSingletonGenR :: Rewrite CompCtx (RewriteStateM Expr RewriteLog) CL
+scalarSingletonGenR = readerT $ \quals -> case quals of
     QualsCL ((x :<-: xs) :* (y :<-: LitListP _ [ScalarV v]) :* qs) -> do
-        -- Sanity check
         guardM $ x /= y
-
-        -- Tuplification in the qualifiers needs to be applied from here on.
-        path <- snocPathToPath <$> absPathT
-
-        -- A fresh name for the extension generator
-        z    <- freshNameT $ [x,y] ++ compBoundVars qs
+        h <- constT get
+        z <- freshNameST $ [x,y] ++ compBoundVars qs ++ boundVars h
+        scopeNames <- contextonlyT (pure . M.keysSet . clBindings)
 
         let xt     = elemT $ typeOf xs
             yt     = typeOf v
             extGen = P.ext v xs
-            tupR   = tuplifyR z (x, xt) (y, yt)
 
-        -- Check the subsequent generators to see whether either x and/or y need
-        -- to be replaced in the head (or not, because they are shadowed by
-        -- subsequent generators).
-        let headR = case fmap (fmap fst) $ sequence $ fmap fromGen qs of
-                        Just ns
-                            | x `elem` ns && y `elem` ns -> idR
-                            | x `elem` ns                -> tuplifySecondR z xt (y, yt)
-                            | y `elem` ns                -> tuplifyFirstR z (x, xt) yt
-                            | otherwise                  -> tupR
-                        Nothing                          -> tupR
-        return ((z :<-: extGen) :* qs, headR, Just (path, tupR))
+        let (qs', h') = tuplifyCompE scopeNames z (x, xt) (y, yt) qs h
+        constT $ put h'
+        pure $ inject $ (z :<-: extGen) :* qs'
 
     QualsCL ((x :<-: xs) :* S (y :<-: LitListP _ [ScalarV v]))     -> do
-        -- Sanity check
         guardM $ x /= y
+        h <- constT get
+        z <- freshNameST $ [x,y] ++ boundVars h
+        scopeNames <- contextonlyT (pure . M.keysSet . clBindings)
 
-        x'   <- freshNameT [x,y]
-        let extGen = P.ext v xs
-            tupR   = tuplifyR x' (x,elemT $ typeOf xs) (y,typeOf v)
+        let xt     = elemT $ typeOf xs
+            yt     = typeOf v
+            extGen = P.ext v xs
 
-        -- If there are no subsequent generators, we know that neither x or y
-        -- are shadowed in the comprehension head. Furthermore, there is no need
-        -- to return a tuplifying rewrite for subsequent generators (because
-        -- there are none).
-        return (S (x' :<-: extGen), tupR, Nothing)
-    QualsCL (q :* _)                                               -> do
-        (qs', headR, mQualsR) <- childT QualsTail searchScalarSingletonR
-        return (q :* qs', headR, mQualsR)
-    QualsCL (S _)                                                   -> do
-        fail "bar"
-    ExprCL _ -> $impossible
-    QualCL _ -> $impossible
+        let h' = tuplifyE scopeNames z (x, xt) (y, yt) h
+        constT $ put h'
+        pure $ inject $ S (z :<-: extGen)
+    _ -> fail "desugar.scalarsingleton: no match"
 
 eliminateScalarSingletonR :: RewriteC CL
-eliminateScalarSingletonR = do
-    Comp{}                <- promoteT idR
-    (qs', headR, mQualsR) <- childT CompQuals searchScalarSingletonR
-
-    let uHeadR = extractT headR >>> projectT
-        newQualsR = constT (pure $ QualsCL qs')
-    uQualsR <- case mQualsR of
-                   Just (qualsPath, qsR) -> do
-                       localPath <- drop 1 <$> localizePathT qualsPath
-                       pure $ extractT (pathR localPath qsR)
-                   Nothing                  -> pure idR
-    projectT >>> compR uHeadR (newQualsR >>> uQualsR >>> projectT) >>> injectT
+eliminateScalarSingletonR = logR "desguar.scalarsingleton" $ do
+    Comp ty h _ <- promoteT idR
+    (h', qs')   <- statefulT h $ childT CompQuals (onetdSpineR scalarSingletonGenR) >>> projectT
+    pure $ inject $ Comp ty h' qs'
 
 eliminateScalarSingletonsR :: RewriteC CL
 eliminateScalarSingletonsR = do

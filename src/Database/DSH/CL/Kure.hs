@@ -11,7 +11,8 @@ module Database.DSH.CL.Kure
 
 
       -- * The KURE monad
-    , RewriteM, RewriteStateM, TransformC, RewriteC, LensC, freshName, freshNameT
+    , RewriteM, RewriteStateM, TransformC, RewriteC, LensC
+    , freshName, freshNameT, freshNameST
 
       -- * Setters and getters for the translation state
     , get, put, modify
@@ -122,6 +123,11 @@ boundIn n ctx = n `M.member` clBindings ctx
 
 freeIn :: L.Ident -> CompCtx -> Bool
 freeIn n ctx = n `M.notMember` clBindings ctx
+
+freshNameST :: Monoid w => [L.Ident] -> Transform CompCtx (RewriteStateM s w) a L.Ident
+freshNameST avoidNames = do
+    ctx <- contextT
+    constT $ freshNameS (avoidNames ++ inScopeNames ctx)
 
 -- | Generate a fresh name that is not bound in the current context.
 freshNameT :: [L.Ident] -> TransformC a L.Ident

@@ -38,6 +38,8 @@ module Database.DSH.CL.Opt.Auxiliary
     , substE
     , substCompE
     , tuplifyR
+    , tuplifyE
+    , tuplifyCompE
     , tuplifyFirstR
     , tuplifySecondR
     , unTuplifyR
@@ -57,6 +59,7 @@ module Database.DSH.CL.Opt.Auxiliary
     , isFilteringJoin
       -- * NL spine traversal
     , onetdSpineT
+    , onetdSpineR
       -- * Path utilities
     , localizePathT
       -- * Pattern synonyms for expressions
@@ -494,6 +497,20 @@ tuplifyR v (v1, t1) (v2, t2) = substR v1 v1Rep >+> substR v2 v2Rep
   where
     (v1Rep, v2Rep) = tupleVars v t1 t2
 
+tuplifyE :: S.Set Ident -> Ident -> (Ident, Type) -> (Ident, Type) -> Expr -> Expr
+tuplifyE scopeNames v (v1, t1) (v2, t2) e =
+    substE scopeNames' v2 v2Rep (substE scopeNames' v1 v1Rep e)
+  where
+    (v1Rep, v2Rep) = tupleVars v t1 t2
+    scopeNames'    = S.insert v scopeNames
+
+tuplifyCompE :: S.Set Ident -> Ident -> (Ident, Type) -> (Ident, Type) -> NL Qual -> Expr -> (NL Qual, Expr)
+tuplifyCompE scopeNames v (v1, t1) (v2, t2) qs h =
+    uncurry (substCompE scopeNames' v2 v2Rep) (substCompE scopeNames' v1 v1Rep qs h)
+  where
+    (v1Rep, v2Rep) = tupleVars v t1 t2
+    scopeNames'    = S.insert v scopeNames
+
 -- | Turn all occurences of one variable into access to a tuple variable (first
 -- component).
 --
@@ -639,6 +656,13 @@ onetdSpineT t = do
         QualsCL (_ :* _) -> childT 0 t <+ childT 1 (onetdSpineT t)
         QualsCL (S _)    -> childT 0 t
         _                -> $impossible
+
+onetdSpineR :: (ReadPath c CrumbC, MonadCatch m, Walker c CL)
+            => Rewrite c m CL
+            -> Rewrite c m CL
+onetdSpineR r = readerT $ \cl -> case cl of
+    QualsCL _ -> r <+ childT QualsTail (onetdSpineR r)
+    _         -> fail "not on spine"
 
 --------------------------------------------------------------------------------
 -- Classification of expressions
