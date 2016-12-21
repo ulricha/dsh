@@ -139,14 +139,14 @@ groupjoinR = logR "groupjoin.construct" $ do
 
     localPath <- localizePathT aggPath
 
-    -- Replace the aggregate with expression with x.2 (the aggregate produced by
+    -- Replace the aggregate expression with x.2 (the aggregate produced by
     -- GroupJoin).
     Comp _ h' qs' <- pathR localPath (constT $ return $ inject $ P.snd xv') >>> projectT
 
     -- Update the type of the variable bound by the NestJoin/GroupJoin
     -- generator.
-    h'' <- constT (return $ inject h') >>> substR x xv' >>> projectT
-    qs'' <- constT (return $ inject qs') >>> substR x xv' >>> projectT
+    scopeNames <- inScopeNamesT
+    let (qs'', h'') = substCompE scopeNames x xv' qs' h'
 
     case qs'' of
         BindQ _ _ :* qsr -> return $ inject $ Comp ty h'' (BindQ x joinOp :* qsr)
@@ -174,7 +174,7 @@ mkGroupJoin agg p xs ys =
 -- operators. Consequently, the GroupJoin will be executed for all elements from
 -- its left input, even if those will not match any elements in the outer left
 -- input.
--- 
+--
 -- We attempt to ease this problem by applying a form of side-ways information
 -- passing: Before performing the GroupJoin, its left input is filtered to
 -- retain only those elements which will find a match in the outermost vector.
