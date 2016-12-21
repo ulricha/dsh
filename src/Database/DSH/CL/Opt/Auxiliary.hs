@@ -35,6 +35,8 @@ module Database.DSH.CL.Opt.Auxiliary
       -- * Substituion
     , substM
     , substR
+    , substE
+    , substCompE
     , tuplifyR
     , tuplifyFirstR
     , tuplifySecondR
@@ -98,7 +100,6 @@ import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.RewriteM
 
 -- | A version of the CompM monad in which the state contains an additional
@@ -321,7 +322,7 @@ substR v se = readerT $ \cl -> case cl of
                       , substFvs  = freeVarsS se
                       }
         pure $ inject $ runReader (subst e) s
-    c        -> error $ pp c
+    _        -> $impossible
 
 substM :: Ident -> Expr -> Expr -> TransformC a Expr
 substM v se e = contextonlyT $ \c -> do
@@ -331,6 +332,24 @@ substM v se e = contextonlyT $ \c -> do
                   , substFvs  = freeVarsS se
                   }
     pure $ inject $ runReader (subst e) s
+
+substE :: S.Set Ident -> Ident -> Expr -> Expr -> Expr
+substE scopeNames v se e =
+    let s = Subst { inScope   = scopeNames
+                  , substVar  = v
+                  , substExpr = se
+                  , substFvs  = freeVarsS se
+                  }
+    in runReader (subst e) s
+
+substCompE :: S.Set Ident -> Ident -> Expr -> NL Qual -> Expr -> (NL Qual, Expr)
+substCompE scopeNames v se qs h =
+    let s = Subst { inScope   = scopeNames
+                  , substVar  = v
+                  , substExpr = se
+                  , substFvs  = freeVarsS se
+                  }
+    in runReader (substComp qs h) s
 
 data Subst = Subst
     { inScope   :: S.Set Ident

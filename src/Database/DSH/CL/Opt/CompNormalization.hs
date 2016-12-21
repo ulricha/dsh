@@ -69,82 +69,85 @@ m_norm_2R = logR "compnorm.M-Norm-2" $ normSingletonCompR <+ normCompR
     normSingletonCompR :: RewriteC CL
     normSingletonCompR = do
         Comp _ h (S q) <- promoteT idR
-        (x, e) <- constT (return q) >>> qualT
-        constT (return $ inject $ P.sng h) >>> substR x e
+        (x, e)         <- constT $ matchingQualM q
+        scopeNames     <- contextonlyT (pure . M.keysSet . clBindings)
+        pure $ inject $ substE scopeNames x e (P.sng h)
 
     -- The main rewrite
     normCompR :: RewriteC CL
     normCompR = do
-        Comp t _ (_ :* _)   <- promoteT idR
-        (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR normQualifiersR) >>> projectT
-        h'                  <- childT CompHead tuplifyHeadR >>> projectT
-        return $ inject $ Comp t h' qs'
+        Comp ty h _ <- promoteT idR
+        (h', qs')   <- statefulT h $ childT CompQuals normQualifiersR >>> projectT
+        pure $ inject $ Comp ty h' qs'
 
-    normQualifiersR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualifiersR :: Rewrite CompCtx (RewriteStateM Expr RewriteLog) CL
     normQualifiersR = anytdR (normQualsEndR <+ normQualsR)
 
-    -- Match the pattern (singleton generator) on a qualifier
-    qualT :: TransformC Qual (Ident, Expr)
-    qualT = do
-        q <- idR
+    -- -- Match the pattern (singleton generator) on a qualifier
+    matchingQualM :: MonadCatch m => Qual -> m (Ident, Expr)
+    matchingQualM q =
         case q of
             -- x <- [v]
-            BindQ x (Lit t (ListV [v]))   -> return (x, Lit (elemT t) v)
+            BindQ x (Lit t (ListV [v]))   -> pure (x, Lit (elemT t) v)
             -- x <- v : []
-            BindQ x (AppE1 _ Singleton v) -> return (x, v)
+            BindQ x (AppE1 _ Singleton v) -> pure (x, v)
             _                             -> fail "qualR: no match"
 
     -- Try to match the pattern at the end of the qualifier list
-    normQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualsEndR :: Rewrite CompCtx (RewriteStateM Expr RewriteLog) CL
     normQualsEndR = do
-        q1 :* S q2 <- idR
-        (x, e)       <- liftstateT $ constT (return q2) >>> qualT
-        constT $ modify (>>> substR x e)
-        return (S q1)
+        q1 :* S q2 <- promoteT idR
+        (x, e)     <- constT $ matchingQualM q2
+        scopeNames <- contextonlyT (pure . M.keysSet . clBindings)
+        constT $ modify $ substE scopeNames x e
+        pure $ inject $ S q1
 
     -- Try to match the pattern in the middle of the qualifier list
-    normQualsR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualsR :: Rewrite CompCtx (RewriteStateM Expr RewriteLog) CL
     normQualsR = do
-        q1 :* q2 :* qs <- idR
-        (x, e)         <- liftstateT $ constT (return q2) >>> qualT
-        qs' <- liftstateT $ constT (return $ inject qs) >>> substR x e >>> projectT
-        constT $ modify (>>> substR x e)
-        return $ q1 :* qs'
+        q1 :* q2 :* qs <- promoteT idR
+        (x, e)         <- constT $ matchingQualM q2
+        h              <- constT get
+        scopeNames     <- contextonlyT (pure . M.keysSet . clBindings)
+        let (qs', h') = substCompE scopeNames x e qs h
+        constT $ put h'
+        pure $ inject $ q1 :* qs'
 
 -- | M-Norm-3: unnest comprehensions from a generator
 -- [ h | qs, x <- [ h' | qs'' ], qs' ]
 -- => [ h[h'/x] | qs, qs'', qs'[h'/x] ]
 m_norm_3R :: RewriteC CL
 m_norm_3R = logR "compnorm.M-Norm-3" $ do
-    Comp t _ _ <- promoteT idR
-    (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR normQualifiersR) >>> projectT
-    h'                  <- childT CompHead (tryR tuplifyHeadR) >>> projectT
+    Comp t h _ <- promoteT idR
+    (h', qs')  <- statefulT h $ childT CompQuals (promoteR normQualifiersR) >>> projectT
     return $ inject $ Comp t h' qs'
 
   where
 
-    qualT :: TransformC Qual (Ident, Expr, NL Qual)
-    qualT = do
-        BindQ x (Comp _ h' qs'') <- idR
-        return (x, h', qs'')
+    matchingQualM :: MonadCatch m => Qual -> m (Ident, Expr, NL Qual)
+    matchingQualM (BindQ x (Comp _ h qs)) = pure (x, h, qs)
+    matchingQualM _                       = fail "m_norm_3R: no match"
 
-    normQualifiersR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualifiersR :: Rewrite CompCtx (RewriteStateM Expr RewriteLog) (NL Qual)
     normQualifiersR = anytdR (normQualsEndR <+ normQualsR)
 
-    normQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualsEndR :: Rewrite CompCtx (RewriteStateM Expr RewriteLog) (NL Qual)
     normQualsEndR = do
         (S q) <- idR
-        (x, h', qs'') <- liftstateT $ constT (return q) >>> qualT
-        constT $ modify (>>> substR x h')
-        return qs''
+        (x, h, qs) <- constT $ matchingQualM q
+        scopeNames <- contextonlyT (pure . M.keysSet . clBindings)
+        constT $ modify $ substE scopeNames x h
+        pure qs
 
-    normQualsR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualsR :: Rewrite CompCtx (RewriteStateM Expr RewriteLog) (NL Qual)
     normQualsR = do
-        q :* qs <- idR
-        (x, h', qs'') <- liftstateT $ constT (return q) >>> qualT
-        qs' <- liftstateT $ constT (return $ inject qs) >>> substR x h' >>> projectT
-        constT $ modify (>>> substR x h')
-        return $ appendNL qs'' qs'
+        q :* qs      <- idR
+        (x, hi, qsi) <- constT $ matchingQualM q
+        h <- constT get
+        scopeNames   <- contextonlyT (pure . M.keysSet . clBindings)
+        let (qs', h') = substCompE scopeNames x hi qs h
+        constT $ put h'
+        pure $ appendNL qsi qs'
 
 -- | M-Norm-4: unnest existential quantifiers if the outer comprehension is over
 -- an idempotent monad (i.e. duplicates are eliminated from the result).
