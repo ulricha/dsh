@@ -35,6 +35,7 @@ import           Control.Arrow
 import           Control.Monad
 import qualified Data.Foldable                      as F
 import qualified Data.IntMap                        as IM
+import qualified System.Info                        as Sys
 import           System.Process
 import           System.Random
 import           Text.Printf
@@ -223,6 +224,19 @@ showFlattenedOptQ clOpt (Q q) = do
 fileId :: IO String
 fileId = replicateM 8 (randomRIO ('a', 'z'))
 
+pdfCmd :: String -> String
+pdfCmd f =
+    case Sys.os of
+        "linux"  -> "evince " ++ f
+        "darwin" -> "open " ++ f
+        sys      -> error $ "pdfCmd: unsupported os " ++ sys
+
+showSLPlan :: QueryPlan TSL DVec -> IO ()
+showSLPlan slPlan = do
+    prefix <- ("q_sl_" ++) <$> fileId
+    exportPlan prefix slPlan
+    void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && %s" prefix prefix (pdfCmd $ prefix ++ ".pdf")
+
 -- | Show unoptimized vector plan (SL)
 showVectorizedQ :: CLOptimizer -> Q a -> IO ()
 showVectorizedQ clOpt (Q q) = do
@@ -231,10 +245,7 @@ showVectorizedQ clOpt (Q q) = do
     case inferSLTypes (queryDag vl) of
         Left e    -> putStrLn $ "Type inference failed for unoptimized plan\n" ++ e
         Right tys -> putStrLn $ pp $ IM.toList tys
-    h <- fileId
-    let fileName = "q_vl_" ++ h
-    exportPlan fileName vl
-    void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+    showSLPlan vl
 
 -- | Show optimized vector plan (SL)
 showVectorizedOptQ :: CLOptimizer -> Q a -> IO ()
@@ -247,30 +258,28 @@ showVectorizedOptQ clOpt (Q q) = do
             case inferSLTypes (queryDag vlOpt) of
                 Left e    -> putStrLn $ "Type inference failed for optimized plan\n" ++ e
                 Right tys -> putStrLn $ pp $ IM.toList tys
-            h <- fileId
-            let fileName = "q_vl_" ++ h
-            exportPlan fileName vlOpt
-            void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+            showSLPlan vlOpt
+
+
+showVSLPlan :: QueryPlan TVSL DVec -> IO ()
+showVSLPlan vslPlan = do
+    prefix <- ("q_vsl_" ++) <$> fileId
+    exportPlan prefix vslPlan
+    void $ runCommand $ printf "stack exec vsldot -- -i %s.plan | dot -Tpdf -o %s.pdf && %s" prefix prefix prefix (pdfCmd $ prefix ++ ".pdf")
 
 -- | Show unoptimized vector plan (SL)
 showDelayedQ :: CLOptimizer -> Q a -> IO ()
 showDelayedQ clOpt (Q q) = do
     let cl = toComprehensions q
     let vl = compileQ clOpt cl :: QueryPlan TVSL DVec
-    h <- fileId
-    let fileName = "q_vl_" ++ h
-    exportPlan fileName vl
-    void $ runCommand $ printf "stack exec vsldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+    showVSLPlan vl
 
 -- | Show unoptimized vector plan (SL)
 showDelayedOptQ :: CLOptimizer -> Q a -> IO ()
 showDelayedOptQ clOpt (Q q) = do
     let cl = toComprehensions q
     let vl = compileOptQ clOpt cl :: QueryPlan TVSL DVec
-    h <- fileId
-    let fileName = "q_vl_" ++ h
-    exportPlan fileName vl
-    void $ runCommand $ printf "stack exec vsldot -- -i %s.plan | dot -Tpdf -o %s.pdf && open %s.pdf" fileName fileName fileName
+    showVSLPlan vl
 
 -- | Show all backend queries produced for the given query
 showBackendCodeQ :: forall a b v. (VectorLang v, Show b)
