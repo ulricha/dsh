@@ -5,6 +5,7 @@ module Database.DSH.Common.Pretty
   , prettyJoin, prettyComp, prettyApp2, prettyUnOp
   , prettyInfixBinOp, prettyPrefixBinOp, prettyLet, prettyIf
   , prettyTuple, prettyFun
+  , prettyTupTy, prettyTupConst
   ) where
 
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
@@ -122,3 +123,9 @@ prettyPrefixBinOp op x y =
 
 prettyFun :: Doc -> [Doc] -> Doc
 prettyFun name args = name <> parens (hsep $ punctuate comma args)
+
+prettyTupTy :: [Doc] -> Doc
+prettyTupTy = encloseSep (char '〈') (char '〉') comma
+
+prettyTupConst :: [Doc] -> Doc
+prettyTupConst = prettyTupTy

@@ -8,16 +8,19 @@ module Database.DSH.Common.QueryPlan where
 
 import           Data.Aeson
 import           Data.Aeson.TH
-import qualified Data.ByteString.Lazy.Char8  as BL
-import qualified Data.Foldable               as F
-import qualified Data.Traversable            as T
+import qualified Data.ByteString.Lazy.Char8     as BL
+import qualified Data.Foldable                  as F
+import qualified Data.Traversable               as T
+import           Text.PrettyPrint.ANSI.Leijen   ((<>))
+import qualified Text.PrettyPrint.ANSI.Leijen   as P
 
 import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.Common.Vector
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.Vector
 
 -- | A Layout describes the tuple structure of values encoded by
 -- one particular query from a bundle.
@@ -25,6 +28,11 @@ data Layout q = LCol
               | LNest q (Layout q)
               | LTuple [Layout q]
               deriving (Show, Read)
+
+instance Pretty q => Pretty (Layout q) where
+    pretty LCol          = P.char '_'
+    pretty (LNest q lyt) = P.brackets (pretty lyt) <> P.char '^' <> P.braces (pretty q)
+    pretty (LTuple lyts) = prettyTupTy $ map pretty lyts
 
 instance Functor Layout where
     fmap _ LCol          = LCol
@@ -48,6 +56,9 @@ instance T.Traversable Layout where
 -- than one element.
 data Shape q = VShape q (Layout q)  -- ^ A regular vector shape
              deriving (Show, Read)
+
+instance Pretty q => Pretty (Shape q) where
+    pretty (VShape q lyt) = P.brackets (pretty lyt) <> P.char '^' <> P.braces (pretty q)
 
 instance Functor Shape where
     fmap f (VShape q lyt) = VShape (f q) (fmap f lyt)
@@ -113,7 +124,6 @@ forget :: Nat -> Shape v -> Shape v
 forget Zero _                               = $impossible
 forget (Succ Zero) (VShape _ (LNest q lyt)) = VShape q lyt
 forget (Succ n)    (VShape _ lyt)           = extractInnerVec n lyt
-forget _           _                        = $impossible
 
 extractInnerVec :: Nat -> Layout v -> Shape v
 extractInnerVec (Succ Zero) (LNest _ (LNest q lyt)) = VShape q lyt

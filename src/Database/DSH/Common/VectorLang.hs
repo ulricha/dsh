@@ -7,7 +7,6 @@
 module Database.DSH.Common.VectorLang where
 
 import Text.Printf
-import           Control.Arrow                  hiding ((<+>))
 import           Control.Monad.Reader
 import           Control.Monad.Except
 import           Data.Aeson.TH
@@ -198,7 +197,7 @@ $(deriveJSON defaultOptions ''PType)
 
 instance Pretty PType where
     pretty PIndexT      = text "Idx"
-    pretty (PTupleT vs) = renderRecord $ map pretty $ N.toList vs
+    pretty (PTupleT vs) = prettyTupTy $ map pretty $ N.toList vs
     pretty (PScalarT v) = pretty v
 
 --------------------------------------------------------------------------------
@@ -307,15 +306,12 @@ instance Pretty RExpr where
 instance Pretty VRow where
     pretty = renderVRow
 
-renderRecord :: [Doc] -> Doc
-renderRecord = encloseSep (char '〈') (char '〉') comma
-
 renderExpr :: TExpr -> Doc
 renderExpr (TBinApp op e1 e2) = parenthize1 e1 <+> text (pp op) <+> parenthize1 e2
 renderExpr (TUnApp op e)      = text (pp op) <+> parens (renderExpr e)
 renderExpr (TConstant val)    = pretty val
 renderExpr TInput             = text "x"
-renderExpr (TMkTuple es)      = renderRecord $ N.toList $ fmap renderExpr es
+renderExpr (TMkTuple es)      = prettyTupConst $ N.toList $ fmap renderExpr es
 renderExpr (TTupElem i e)     = renderExpr e P.<> dot P.<> (int $ tupleIndex i)
 renderExpr TIndex             = text "Idx"
 renderExpr (TIf c t e)        = text "if"
@@ -336,7 +332,7 @@ parenthize1 e@TMkTuple{}    = renderExpr e
 parenthize1 e@TTupElem{}    = renderExpr e
 
 renderVRow :: VRow -> Doc
-renderVRow (VR es) = renderRecord $ map renderRExpr $ N.toList es
+renderVRow (VR es) = prettyTupConst $ map renderRExpr $ N.toList es
 
 renderRExpr :: RExpr -> Doc
 renderRExpr (RBinApp op e1 e2) = parenthizeF e1 <+> text (pp op) <+> parenthizeF e2
@@ -401,7 +397,12 @@ instance Pretty TypedTExpr where
     pretty (TE e ty) = pretty e P.<> char ':' P.<> pretty ty
 
 tupElemTyErr :: TypedTExpr -> TupleIndex -> String
-tupElemTyErr e i = printf "tExpTy: (%s).%d" (pp e) (tupleIndex i)
+tupElemTyErr e i =
+    if length te > 60
+    then printf "tExpTy:\n(%s).%d" te (tupleIndex i)
+    else printf "tExpTy: (%s).%d" te (tupleIndex i)
+  where
+    te = pp e
 
 condTyErr :: TypedTExpr -> TypedTExpr -> TypedTExpr -> String
 condTyErr e1 e2 e3 = printf "tExpTy: if %s then %s else %s" (pp e1) (pp e2) (pp e3)

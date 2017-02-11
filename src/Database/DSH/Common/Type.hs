@@ -45,7 +45,7 @@ import Database.DSH.Common.Nat
 
 instance Pretty Type where
     pretty (ListT t)     = brackets $ pretty t
-    pretty (TupleT ts)   = tupled $ map pretty ts
+    pretty (TupleT ts)   = prettyTupTy $ map pretty ts
     pretty (ScalarT t)   = pretty t
 
 instance Pretty ScalarType where
