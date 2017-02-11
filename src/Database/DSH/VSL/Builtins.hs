@@ -587,7 +587,6 @@ literalShape (VShape (ty, segs) lyt) = do
     shapeVec <- C.lit (ty, UnitSeg seg)
     vecLyt   <- literalVectors lyt
     return $ VShape (DelayedVec IDMap shapeVec) vecLyt
-literalShape SShape{} = $impossible
 
 shredLiteral :: T.Type -> L.Val -> VSLBuild TExpr TExpr (Shape DelayedVec)
 shredLiteral (T.ListT t) (L.ListV vs) = literalShape $ VShape (payloadType t, S.singleton seg) lyt

@@ -236,7 +236,6 @@ lengthL (VShape q (LNest qi _)) = do
 lengthL _ = $impossible
 
 outer ::  Shape DVec -> Build TSL DVec
-outer (SShape _ _)        = $impossible
 outer (VShape q _)        = return q
 
 aggrL :: (TExpr -> AggrFun TExpr) -> Shape DVec -> Build TSL (Shape DVec)
@@ -335,7 +334,6 @@ literalShape (VShape (ty, segs) lyt) = do
     shapeVec <- slLit (ty, UnitSeg seg)
     vecLyt   <- literalVectors lyt
     return $ VShape shapeVec vecLyt
-literalShape SShape{} = $impossible
 
 shredLiteral :: Type -> L.Val -> Build TSL (Shape DVec)
 shredLiteral (ListT t) (L.ListV vs) = literalShape $ VShape (payloadType t, S.singleton seg) lyt

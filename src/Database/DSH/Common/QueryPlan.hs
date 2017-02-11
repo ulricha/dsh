@@ -47,20 +47,16 @@ instance T.Traversable Layout where
 -- we distinguish between a single value and a proper vector with more
 -- than one element.
 data Shape q = VShape q (Layout q)  -- ^ A regular vector shape
-             | SShape q (Layout q)  -- ^ A shape for a singleton vector
              deriving (Show, Read)
 
 instance Functor Shape where
     fmap f (VShape q lyt) = VShape (f q) (fmap f lyt)
-    fmap f (SShape q lyt) = SShape (f q) (fmap f lyt)
 
 instance F.Foldable Shape where
     foldr f z (VShape q lyt) = f q (F.foldr f z lyt)
-    foldr f z (SShape q lyt) = f q (F.foldr f z lyt)
 
 instance T.Traversable Shape where
     traverse f (VShape q lyt) = VShape <$> f q <*> T.traverse f lyt
-    traverse f (SShape q lyt) = SShape <$> f q <*> T.traverse f lyt
 
 $(deriveJSON defaultOptions ''Layout)
 $(deriveJSON defaultOptions ''Shape)

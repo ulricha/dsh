@@ -144,7 +144,6 @@ papp2 _ NotLifted = $impossible
 -- | Materialize a result vector
 finalizeResultVectors :: Shape Builtins.DelayedVec -> Build TVSL (Shape DVec)
 finalizeResultVectors (VShape dv l) = finalizeShape dv l VShape
-finalizeResultVectors (SShape dv l) = finalizeShape dv l SShape
 
 finalizeShape :: Builtins.DelayedVec -> Layout Builtins.DelayedVec -> (DVec -> Layout DVec -> t) -> Build TVSL t
 finalizeShape dv l shapeConst = do
