@@ -34,6 +34,7 @@ module Database.DSH.CL.Opt.Auxiliary
     , compBoundVars
       -- * Substituion
     , substM
+    , substNoCompM
     , substR
     , substE
     , substCompE
@@ -94,6 +95,7 @@ import           Data.List
 import           Data.List.NonEmpty             (NonEmpty ((:|)))
 import           Data.Semigroup                 hiding (First)
 import qualified Data.Set                       as S
+import           Text.Printf
 
 import           Language.KURE
 
@@ -103,6 +105,7 @@ import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.RewriteM
 
 -- | A version of the CompM monad in which the state contains an additional
@@ -314,7 +317,8 @@ boundVars = S.toList . boundVarsS
 --------------------------------------------------------------------------------
 -- Substitution
 
--- | /Exhaustively/ substitute term 's' for a variable 'v'.
+-- | 'substR v se' is a rewrite that /exhaustively/ substitutes term 'se' for a
+-- variable 'v'.
 substR :: Ident -> Expr -> RewriteC CL
 substR v se = readerT $ \cl -> case cl of
     ExprCL e -> do
@@ -323,16 +327,33 @@ substR v se = readerT $ \cl -> case cl of
                       , substVar  = v
                       , substExpr = se
                       , substFvs  = freeVarsS se
+                      , compCont  = substComp
                       }
         pure $ inject $ runReader (subst e) s
-    _        -> $impossible
+    n       -> error $ printf "substR: non-expr node %s on subst %s -> %s" (pp n) v (pp se)
 
+-- | 'substM v se e' /exhaustively/ substitutes term 'se' for a variable 'v' in
+-- term 'e'.
 substM :: Ident -> Expr -> Expr -> TransformC a Expr
 substM v se e = contextonlyT $ \c -> do
     let s = Subst { inScope   = S.fromList $ inScopeNames c
                   , substVar  = v
                   , substExpr = se
                   , substFvs  = freeVarsS se
+                  , compCont  = substComp
+                  }
+    pure $ inject $ runReader (subst e) s
+
+-- | 'substNoCompM v se e' substitutes term 'se' for variable 'v' in 'e' but
+-- does not traverse into comprehensions. The resulting term may have free
+-- occurences of 'v'.
+substNoCompM :: Ident -> Expr -> Expr -> TransformC a Expr
+substNoCompM v se e = contextonlyT $ \c -> do
+    let s = Subst { inScope   = S.fromList $ inScopeNames c
+                  , substVar  = v
+                  , substExpr = se
+                  , substFvs  = freeVarsS se
+                  , compCont  = noSubstComp
                   }
     pure $ inject $ runReader (subst e) s
 
@@ -342,6 +363,7 @@ substE scopeNames v se e =
                   , substVar  = v
                   , substExpr = se
                   , substFvs  = freeVarsS se
+                  , compCont  = substComp
                   }
     in runReader (subst e) s
 
@@ -351,6 +373,7 @@ substCompE scopeNames v se qs h =
                   , substVar  = v
                   , substExpr = se
                   , substFvs  = freeVarsS se
+                  , compCont  = substComp
                   }
     in runReader (substComp qs h) s
 
@@ -359,6 +382,7 @@ data Subst = Subst
     , substVar  :: Ident
     , substExpr :: Expr
     , substFvs  :: S.Set Ident
+    , compCont  :: NL Qual -> Expr -> Reader Subst (NL Qual, Expr)
     }
 
 bindName :: Ident -> Subst -> Subst
@@ -408,6 +432,8 @@ alphaCompQuals avoidNames x xs qs h = do
     (qs', h') <- local (const s') (substComp qs h)
     pure (z, qs', h')
 
+noSubstComp :: NL Qual -> Expr -> Reader Subst (NL Qual, Expr)
+noSubstComp qs h = pure (qs, h)
 
 substComp :: NL Qual -> Expr -> Reader Subst (NL Qual, Expr)
 substComp (S (GuardQ p)) h = do
@@ -484,7 +510,8 @@ subst (Let ty x e1 e2) = do
                      Let ty z e1' <$> local (bindName z) (subst e2')
                  else Let ty x e1' <$> local (bindName x) (subst e2)
 subst (Comp ty h qs) = do
-    (qs', h') <- substComp qs h
+    cont      <- asks compCont
+    (qs', h') <- cont qs h
     pure $ Comp ty h' qs'
 
 --------------------------------------------------------------------------------

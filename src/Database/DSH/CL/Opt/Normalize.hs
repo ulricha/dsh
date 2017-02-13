@@ -19,7 +19,6 @@ import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
 import qualified Database.DSH.CL.Primitives     as P
-import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Kure
 
@@ -125,31 +124,6 @@ notNullR = logR "normalize.notnull" $ do
 --------------------------------------------------------------------------------
 -- Inline let bindings
 
--- | This function inlines let-bound expressions. In contrast to
--- general substitution, we do not inline into comprehensions, even if
--- we could. The reason is that expressions should not be evaluated
--- iteratively if they are loop-invariant.
-inlineBindingR :: Ident -> Expr -> RewriteC CL
-inlineBindingR v s = readerT $ \expr -> case expr of
-    -- Occurence of the variable to be replaced
-    ExprCL (Var _ n) | n == v          -> return $ inject s
-
-    -- If a let-binding shadows the name we substitute, only descend
-    -- into the bound expression.
-    ExprCL (Let _ n _ _) | n == v      -> promoteR $ letR (extractR $ inlineBindingR v s) idR
-                         | otherwise   ->
-        if n `elem` freeVars s
-        -- If the let-bound name occurs free in the substitute,
-        -- alpha-convert the binding to avoid capturing the name.
-        then $unimplemented >>> anyR (substR v s)
-        else anyR $ inlineBindingR v s
-
-    -- We don't inline into comprehensions to avoid conflicts with
-    -- loop-invariant extraction.
-    ExprCL Comp{}                      -> idR
-    ExprCL _                           -> anyR $ inlineBindingR v s
-    _                                  -> $impossible
-
 -- | Count all occurences of an identifier for let-inlining.
 countVarRefT :: Ident -> TransformC CL (Sum Int)
 countVarRefT v = readerT $ \expr -> case expr of
@@ -184,16 +158,9 @@ unusedBindingR = logR "normalize.letunused" $ do
 -- | Inline a let-binding that is only referenced once.
 referencedOnceR :: RewriteC CL
 referencedOnceR = logR "normalize.letonce" $ do
-    Let _ x e1 _ <- promoteT idR
+    Let _ x e1 e2 <- promoteT idR
     1            <- childT LetBody $ countVarRefT x
-
-    -- We do not inline into comprehensions, but 'countVarRef' counts
-    -- all occurences including those in comprehensions. For this
-    -- reason, we check if the occurence was actually eliminated by
-    -- inlining and fail otherwise.
-    body'        <- childT LetBody (inlineBindingR x e1)
-    0 <- constT (return body') >>> countVarRefT x
-    return body'
+    substNoCompM x e1 e2 >>> injectT
 
 simpleExpr :: Expr -> Bool
 simpleExpr Table{}                 = True
@@ -206,7 +173,6 @@ simpleExpr _                       = False
 -- | Inline a let-binding that binds a simple expression.
 simpleBindingR :: RewriteC CL
 simpleBindingR = logR "normalize.letsimple" $ do
-    Let _ x e1 _ <- promoteT idR
+    Let _ x e1 e2 <- promoteT idR
     guardM $ simpleExpr e1
-    childR LetBody $ substR x e1
-
+    substM x e1 e2 >>> injectT
