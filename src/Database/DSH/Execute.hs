@@ -74,7 +74,7 @@ posBracket ma = do
 --------------------------------------------------------------------------------
 -- Execute flat queries and construct result values
 
-execQueryBundle :: (BackendVector b, F.Reify a)
+execQueryBundle :: BackendVector b
                 => BackendConn b
                 -> Shape b
                 -> F.Type a
@@ -94,7 +94,6 @@ execQueryBundle !conn !shape !ty =
             slyt <- execNested conn' (columnIndexes (rvItemCols q) lyt) sty
             tab  <- execVector conn' q
             return $! fromPrim tab (rvKeyCols q) slyt
-        _ -> $impossible
 
 -- | Traverse the layout and execute all subqueries for nested vectors
 execNested :: BackendVector b
