@@ -38,9 +38,11 @@ module Database.DSH.CL.Opt.Auxiliary
     , substR
     , substE
     , substCompE
+    , substCompContE
     , tuplifyR
     , tuplifyE
     , tuplifyCompE
+    , tuplifyCompContE
     , tuplifyFirstR
     , tuplifySecondR
     , unTuplifyR
@@ -367,6 +369,16 @@ substE scopeNames v se e =
                   }
     in runReader (subst e) s
 
+substCompContE :: S.Set Ident -> Ident -> Expr -> NL Qual -> (NL Qual, Expr -> Expr)
+substCompContE scopeNames v se qs =
+    let s = Subst { inScope   = scopeNames
+                  , substVar  = v
+                  , substExpr = se
+                  , substFvs  = freeVarsS se
+                  , compCont  = substComp
+                  }
+    in runReader (substComp qs) s
+
 substCompE :: S.Set Ident -> Ident -> Expr -> NL Qual -> Expr -> (NL Qual, Expr)
 substCompE scopeNames v se qs h =
     let s = Subst { inScope   = scopeNames
@@ -375,14 +387,16 @@ substCompE scopeNames v se qs h =
                   , substFvs  = freeVarsS se
                   , compCont  = substComp
                   }
-    in runReader (substComp qs h) s
+        (qs', headCont) = runReader (substComp qs) s
+    in (qs', headCont h)
+
 
 data Subst = Subst
     { inScope   :: S.Set Ident
     , substVar  :: Ident
     , substExpr :: Expr
     , substFvs  :: S.Set Ident
-    , compCont  :: NL Qual -> Expr -> Reader Subst (NL Qual, Expr)
+    , compCont  :: NL Qual -> Reader Subst (NL Qual, Expr -> Expr)
     }
 
 bindName :: Ident -> Subst -> Subst
@@ -408,8 +422,8 @@ alphaLet avoidNames x e1 e2 = do
     e2' <- local (const s') (subst e2)
     pure (z, e2')
 
-alphaComp :: S.Set Ident -> Ident -> Expr -> Expr -> Reader Subst (Ident, Expr)
-alphaComp avoidNames x xs h = do
+alphaComp :: S.Set Ident -> Ident -> Expr -> Reader Subst (Ident, Expr -> Expr)
+alphaComp avoidNames x xs = do
     let z = substFreshName avoidNames
     s <- ask
     let s' = s { inScope   = S.insert z $ S.delete x $ inScope s
@@ -417,11 +431,10 @@ alphaComp avoidNames x xs h = do
                , substExpr = Var (elemT $ typeOf xs) z
                , substFvs  = S.singleton z
                }
-    h' <- local (const s') (subst h)
-    pure (z, h')
+    pure (z, \e -> runReader (subst e) s')
 
-alphaCompQuals :: S.Set Ident -> Ident -> Expr -> NL Qual -> Expr -> Reader Subst (Ident, NL Qual, Expr)
-alphaCompQuals avoidNames x xs qs h = do
+alphaCompQuals :: S.Set Ident -> Ident -> Expr -> NL Qual -> Reader Subst (Ident, NL Qual, Expr -> Expr)
+alphaCompQuals avoidNames x xs qs = do
     let z = substFreshName avoidNames
     s <- ask
     let s' = s { inScope   = S.insert z $ S.delete x $ inScope s
@@ -429,56 +442,58 @@ alphaCompQuals avoidNames x xs qs h = do
                , substExpr = Var (elemT $ typeOf xs) z
                , substFvs  = S.singleton z
                }
-    (qs', h') <- local (const s') (substComp qs h)
-    pure (z, qs', h')
+    (qs', headCont) <- local (const s') (substComp qs)
+    pure (z, qs', headCont)
 
-noSubstComp :: NL Qual -> Expr -> Reader Subst (NL Qual, Expr)
-noSubstComp qs h = pure (qs, h)
+noSubstComp :: NL Qual -> Reader Subst (NL Qual, Expr -> Expr)
+noSubstComp qs = pure (qs, id)
 
-substComp :: NL Qual -> Expr -> Reader Subst (NL Qual, Expr)
-substComp (S (GuardQ p)) h = do
+substComp :: NL Qual -> Reader Subst (NL Qual, Expr -> Expr)
+substComp (S (GuardQ p)) = do
     p' <- subst p
-    h' <- subst h
-    pure (S (GuardQ p'), h')
-substComp (S (BindQ x xs)) h = do
+    s  <- ask
+    pure (S (GuardQ p'), \e -> runReader (subst e) s)
+substComp (S (BindQ x xs)) = do
     xs' <- subst xs
     s   <- ask
     if x == substVar s
-        then pure (S (BindQ x xs'), h)
+        then pure (S (BindQ x xs'), id)
         else if x `S.member` substFvs s
                  then do
                      let avoidNames = S.unions [ inScope s
                                                , substFvs s
                                                , S.singleton $ substVar s
-                                               , boundVarsS h
                                                ]
-                     (z, h') <- alphaComp avoidNames x xs h
-                     h''     <- local (bindName z) (subst h')
-                     pure (S (BindQ z xs'), h'')
-                 else (S (BindQ x xs'),) <$> local (bindName x) (subst h)
-substComp (GuardQ p :* qs) h = do
-    p'        <- subst p
-    (qs', h') <- substComp qs h
-    pure (GuardQ p' :* qs', h')
-substComp (BindQ x xs :* qs) h = do
+                     (z, alphaCont) <- alphaComp avoidNames x xs
+                     s'             <- local (bindName z) ask
+                     let substCont e = runReader (subst e) s'
+                     pure (S (BindQ z xs'), substCont . alphaCont)
+                 else do
+                     s'             <- local (bindName x) ask
+                     let substCont e = runReader (subst e) s'
+                     pure (S (BindQ x xs'), substCont)
+substComp (GuardQ p :* qs) = do
+    p'               <- subst p
+    (qs', substCont) <- substComp qs
+    pure (GuardQ p' :* qs', substCont)
+substComp (BindQ x xs :* qs) = do
     xs' <- subst xs
     s   <- ask
     if x == substVar s
-        then pure (BindQ x xs' :* qs, h)
+        then pure (BindQ x xs' :* qs, id)
         else if x `S.member` substFvs s
                  then do
                      let avoidNames = S.unions [ inScope s
                                                , substFvs s
                                                , S.singleton $ substVar s
-                                               , boundVarsS h
                                                , boundVarsQualsS qs
                                                ]
-                     (z, qs', h') <- alphaCompQuals avoidNames x xs qs h
-                     (qs'', h'')  <- local (bindName z) (substComp qs' h')
-                     pure (BindQ z xs' :* qs'', h'')
+                     (z, qs', alphaCont) <- alphaCompQuals avoidNames x xs qs
+                     (qs'', substCont)   <- local (bindName z) (substComp qs')
+                     pure (BindQ z xs' :* qs'', substCont . alphaCont)
                  else do
-                     (qs', h') <- local (bindName x) (substComp qs h)
-                     pure (BindQ x xs' :* qs', h')
+                     (qs', substCont) <- local (bindName x) (substComp qs)
+                     pure (BindQ x xs' :* qs', substCont)
 
 subst :: Expr -> Reader Subst Expr
 subst e@Table{} = pure e
@@ -510,9 +525,9 @@ subst (Let ty x e1 e2) = do
                      Let ty z e1' <$> local (bindName z) (subst e2')
                  else Let ty x e1' <$> local (bindName x) (subst e2)
 subst (Comp ty h qs) = do
-    cont      <- asks compCont
-    (qs', h') <- cont qs h
-    pure $ Comp ty h' qs'
+    cont            <- asks compCont
+    (qs', headCont) <- cont qs
+    pure $ Comp ty (headCont h) qs'
 
 --------------------------------------------------------------------------------
 -- Tuplifying and Untuplifying variables
@@ -537,6 +552,14 @@ tuplifyCompE scopeNames v (v1, t1) (v2, t2) qs h =
   where
     (v1Rep, v2Rep) = tupleVars v t1 t2
     scopeNames'    = S.insert v scopeNames
+
+tuplifyCompContE :: S.Set Ident -> Ident -> (Ident, Type) -> (Ident, Type) -> NL Qual -> (NL Qual, Expr -> Expr)
+tuplifyCompContE scopeNames v (v1, t1) (v2, t2) qs = (qs'', headCont' . headCont)
+  where
+    (v1Rep, v2Rep)    = tupleVars v t1 t2
+    scopeNames'       = S.insert v scopeNames
+    (qs', headCont)   = substCompContE scopeNames' v1 v1Rep qs
+    (qs'', headCont') = substCompContE scopeNames' v2 v2Rep qs'
 
 -- | Turn all occurences of one variable into access to a tuple variable (first
 -- component).
@@ -590,7 +613,7 @@ unTuplifyPathR isTupleOp path = pathR path (unTuplifyR isTupleOp)
 
 -- | Insert a guard in a qualifier list at the first possible position.
 -- 'insertGuard' expects the guard expression to insert, the initial name
--- envionment above the qualifiers and the list of qualifiers.
+-- environment above the qualifiers and the list of qualifiers.
 insertGuard :: Expr -> S.Set Ident -> NL Qual -> NL Qual
 insertGuard guardExpr = go
   where
