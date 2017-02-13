@@ -34,13 +34,12 @@ import           Debug.Trace
 import           Control.Arrow
 import           Control.Monad
 import qualified Data.Foldable                      as F
-import qualified Data.IntMap                        as IM
 import qualified System.Info                        as Sys
 import           System.Process
 import           System.Random
 import           Text.Printf
 
-import           Database.DSH.Translate.Frontend2CL
+import           Database.Algebra.Dag
 
 import           Database.DSH.Backend
 import qualified Database.DSH.CL.Lang               as CL
@@ -62,6 +61,7 @@ import           Database.DSH.NKL.Typing
 import           Database.DSH.SL
 import           Database.DSH.SL.Typing
 import           Database.DSH.Translate.CL2NKL
+import           Database.DSH.Translate.Frontend2CL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.Vectorize
 import           Database.DSH.VSL
@@ -237,29 +237,28 @@ showSLPlan slPlan = do
     exportPlan prefix slPlan
     void $ runCommand $ printf "stack exec sldot -- -i %s.plan | dot -Tpdf -o %s.pdf && %s" prefix prefix (pdfCmd $ prefix ++ ".pdf")
 
+typeCheckSL :: String -> AlgebraDag TSL -> IO ()
+typeCheckSL flavor dag =
+    case inferSLTypes dag of
+        Left msg -> putStrLn $ printf "Type inference failed for %s SL plan\n%s" flavor msg
+        Right _  -> putStrLn $ printf "Type inference succesful for %s SL plan" flavor
+
 -- | Show unoptimized vector plan (SL)
 showVectorizedQ :: CLOptimizer -> Q a -> IO ()
 showVectorizedQ clOpt (Q q) = do
     let cl = toComprehensions q
     let vl = compileQ clOpt cl :: QueryPlan TSL DVec
-    case inferSLTypes (queryDag vl) of
-        Left e    -> putStrLn $ "Type inference failed for unoptimized plan\n" ++ e
-        Right tys -> putStrLn $ pp $ IM.toList tys
+    typeCheckSL "unoptimized" (queryDag vl)
     showSLPlan vl
 
 -- | Show optimized vector plan (SL)
 showVectorizedOptQ :: CLOptimizer -> Q a -> IO ()
 showVectorizedOptQ clOpt (Q q) = do
     let vl = compileQ clOpt $ toComprehensions q :: QueryPlan TSL DVec
-    case inferSLTypes (queryDag vl) of
-        Left e  -> putStrLn $ "Type inference failed for unoptimized plan\n" ++ e
-        Right _ -> do
-            let vlOpt = optimizeVectorPlan vl
-            case inferSLTypes (queryDag vlOpt) of
-                Left e    -> putStrLn $ "Type inference failed for optimized plan\n" ++ e
-                Right tys -> putStrLn $ pp $ IM.toList tys
-            showSLPlan vlOpt
-
+    typeCheckSL "unoptimized" (queryDag vl)
+    let vlOpt = optimizeVectorPlan vl
+    typeCheckSL "optimized" (queryDag vlOpt)
+    showSLPlan vlOpt
 
 showVSLPlan :: QueryPlan TVSL DVec -> IO ()
 showVSLPlan vslPlan = do
