@@ -162,7 +162,7 @@ pushSortInputR x p = do
         xt     = elemT xt
         genVar = Var xt x
 
-    ExprCL p' <- constT (return $ inject p) >>> substR x (P.fst genVar)
+    p' <- substM x (P.fst genVar) p
 
     let restrictedInput = Comp xst genVar (BindQ x xs :* S (GuardQ p'))
 
