@@ -2,17 +2,14 @@ module Database.DSH.CL.Opt.PostProcess
     ( introduceCartProductsR
     ) where
 
-import           Control.Arrow
+import qualified Data.Set                      as S
 
-import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Kure
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
-import qualified Database.DSH.CL.Primitives as P
-
---------------------------------------------------------------------------------
-
+import qualified Database.DSH.CL.Primitives    as P
+import           Database.DSH.Common.Kure
+import           Database.DSH.Common.Lang
 
 --------------------------------------------------------------------------------
 -- Turn adjacent generators into cartesian products:
@@ -20,54 +17,51 @@ import qualified Database.DSH.CL.Primitives as P
 -- =>
 -- [ e[x/fst x][y/snd x] | ..., x <- xs × ys, qs[x/fst x][y/snd x] ]
 
-mkproduct :: (Ident, Expr) -> (Ident, Expr) -> (RewriteC CL, Qual)
-mkproduct (x, xs) (y, ys) =
-    -- Conditions for the rewrite are fulfilled.
+tuplifyQualsHead :: S.Set Ident -> (Ident, Expr) -> (Ident, Expr) -> NL Qual -> Expr -> (NL Qual, Expr)
+tuplifyQualsHead scopeNames (x, xs) (y, ys) =
     let xst          = typeOf xs
         yst          = typeOf ys
         xt           = elemT xst
         yt           = elemT yst
-        tuplifyHeadR = tuplifyR x (x, xt) (y, yt)
-        joinGen      = BindQ x (P.cartproduct xs ys)
+    in tuplifyCompE scopeNames x (x, xt) (y, yt)
 
-    in (tuplifyHeadR, joinGen)
+tuplifyHead :: S.Set Ident -> (Ident, Expr) -> (Ident, Expr) -> Expr -> Expr
+tuplifyHead scopeNames (x, xs) (y, ys) =
+    let xst          = typeOf xs
+        yst          = typeOf ys
+        xt           = elemT xst
+        yt           = elemT yst
+    in tuplifyE scopeNames x (x, xt) (y, yt)
 
-cartProductR :: Rewrite CompCtx TuplifyM (NL Qual)
-cartProductR =
+cartProductQualsT :: Expr -> TransformC CL (NL Qual, Expr)
+cartProductQualsT headExp =
     readerT $ \e -> case e of
-        BindQ x xs :* BindQ y ys :* qs -> do
+        QualsCL (BindQ x xs :* BindQ y ys :* qs) -> do
             -- xs and ys generators must be independent
             guardM $ x `notElem` freeVars ys
 
-            let (tuplifyHeadR, q') = mkproduct (x, xs) (y, ys)
-            -- Next, we apply the tuplifyHeadR rewrite to the tail,
-            -- i.e. to all following qualifiers
-            -- FIXME why is extractT required here?
-            qs' <- catchesM [ liftstateT $ constT (return qs)
-                                           >>> extractR tuplifyHeadR
-                            , constT $ return qs
-                            ]
+            scopeNames <- inScopeNamesT
+            let prodGen         = BindQ x (P.cartproduct xs ys)
+                (qs', headExp') = tuplifyQualsHead scopeNames (x, xs) (y, ys) qs headExp
+            return (prodGen :* qs', headExp')
 
-            -- The tuplify rewrite must be handed to the top level
-            constT $ put tuplifyHeadR
-
-            return $ q' :* qs'
-
-        BindQ x xs :* S (BindQ y ys) -> do
+        QualsCL (BindQ x xs :* S (BindQ y ys)) -> do
             -- xs and ys generators must be independent
             guardM $ x `notElem` freeVars ys
 
-            let (tuplifyHeadR, q') = mkproduct (x, xs) (y, ys)
-
-            -- The tuplify rewrite must be handed to the top level
-            constT $ put tuplifyHeadR
-
-            return (S q')
+            scopeNames <- inScopeNamesT
+            let prodGen  = BindQ x (P.cartproduct xs ys)
+                headExp' = tuplifyHead scopeNames (x, xs) (y, ys) headExp
+            return (S prodGen, headExp')
+        QualsCL (q :* _) -> do
+            (qs', headExp') <- childT QualsTail (cartProductQualsT headExp)
+            pure (q :* qs', headExp')
+        QualsCL (S q) -> do
+            pure (S q, headExp)
         _ -> fail "no match"
 
 introduceCartProductsR :: RewriteC CL
 introduceCartProductsR = logR "postprocess.cartproduct" $ do
-    Comp t _ _          <- promoteT idR
-    (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR cartProductR) >>> projectT
-    ExprCL h'           <- childT CompHead tuplifyHeadR
+    Comp t h _ <- promoteT idR
+    (qs', h')  <- childT CompQuals (cartProductQualsT h)
     return $ inject $ Comp t h' qs'
