@@ -66,7 +66,7 @@ pullFromNestjoinRightR = do
 
     let yv = Var (TupleT [xt, yt]) y
 
-    h'  <- constT (return $ inject h) >>> substR y (P.snd yv) >>> projectT
+    h' <- substM y (P.snd yv) h
 
     -- The inner comprehension that updates the nested components of the
     -- NestJoin result.
@@ -122,8 +122,8 @@ inlineJoinPredLeftT e x joinPred = do
     let leftPreds = fmap (fromScalarExpr predInputName . jcLeft) $ jpConjuncts joinPred
 
     -- Inline the head expression into the join predicate
-    inlinedPreds  <- constT (return leftPreds)
-                     >>> mapT (extractT $ substR predInputName e)
+    scopeNames <- inScopeNamesT
+    let inlinedPreds = fmap (inject . substE scopeNames predInputName e) leftPreds
 
     -- Apply partial evaluation to the inlined predicate. This should increase
     -- the chance of being able to rewrite the inlined predicate back into a
@@ -150,8 +150,8 @@ inlineJoinPredRightT e x joinPred = do
     let rightPreds = fmap (fromScalarExpr predInputName . jcRight) $ jpConjuncts joinPred
 
     -- Inline the head expression into the join predicate
-    inlinedPreds  <- constT (return rightPreds)
-                     >>> mapT (extractT $ substR predInputName e)
+    scopeNames <- inScopeNamesT
+    let inlinedPreds = fmap (inject . substE scopeNames predInputName e) rightPreds
 
     -- Apply partial evaluation to the inlined predicate. This should increase
     -- the chance of being able to rewrite the inlined predicate back into a
