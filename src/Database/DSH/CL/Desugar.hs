@@ -221,7 +221,14 @@ mergeExtLiterals = tryRewrite (repeatR $ anytdR mergeExtLiteralR)
 --
 -- This rewrite is valid because we allow only list-typed queries.
 wrapComprehension :: Expr -> Expr
-wrapComprehension e        = P.concat sngIter
+wrapComprehension e        =
+    case e of
+        Comp _ _ (S (BindQ _ genExp)) ->
+            case genExp of
+                Lit{}   -> e
+                Table{} -> e
+                _       -> P.concat sngIter
+        _ -> P.concat sngIter
   where
     sngIter = Comp (ListT $ typeOf e) e (S $ "dswrap" :<-: (uncurry Lit sngUnitList))
 

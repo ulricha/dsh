@@ -143,7 +143,6 @@ liftEnv ctx d headExpr env = mkLiftingLet env
 -- | Transform top-level expressions which are not nested in an
 -- iterator.
 flatten :: N.Expr -> Flatten F.LExpr
-flatten N.Table{}              = $impossible
 flatten N.UnOp{}               = $impossible
 flatten N.BinOp{}              = $impossible
 flatten N.Var{}                = $impossible
@@ -151,7 +150,8 @@ flatten N.If{}                 = $impossible
 flatten N.AppE2{}              = $impossible
 flatten N.Let{}                = $impossible
 flatten N.MkTuple{}            = $impossible
-flatten (N.Const t v)          = return $ F.Const t v
+flatten (N.Table t n s)        = pure $ F.Table t n s
+flatten (N.Const t v)          = pure $ F.Const t v
 flatten (N.AppE1 _ N.Concat e) = prim1 N.Concat <$> flatten e <*> pure Zero
 flatten N.AppE1{}              = $impossible
 flatten (N.Iterator _ h x xs)  = do
