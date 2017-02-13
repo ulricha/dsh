@@ -61,10 +61,8 @@ thetajoinQualsT =
                 substCont = tuplify scopeNames (x, xs) (y, ys)
             return (S joinGen, substCont)
         QualsCL (q :* _) -> do
-            (qs', substCont) <- childT QualsTail (thetajoinQualsT)
+            (qs', substCont) <- childT QualsTail thetajoinQualsT
             pure (q :* qs', substCont)
-        QualsCL (S q) -> do
-            pure (S q, id)
         _ -> fail "no match"
 
 thetajoinR :: [Expr] -> [Expr] -> TransformC CL (CL, [Expr], [Expr])

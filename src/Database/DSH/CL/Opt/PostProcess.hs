@@ -56,8 +56,6 @@ cartProductQualsT headExp =
         QualsCL (q :* _) -> do
             (qs', headExp') <- childT QualsTail (cartProductQualsT headExp)
             pure (q :* qs', headExp')
-        QualsCL (S q) -> do
-            pure (S q, headExp)
         _ -> fail "no match"
 
 introduceCartProductsR :: RewriteC CL
