@@ -159,8 +159,10 @@ unusedBindingR = logR "normalize.letunused" $ do
 referencedOnceR :: RewriteC CL
 referencedOnceR = logR "normalize.letonce" $ do
     Let _ x e1 e2 <- promoteT idR
-    1            <- childT LetBody $ countVarRefT x
-    substNoCompM x e1 e2 >>> injectT
+    1             <- childT LetBody $ countVarRefT x
+    e2'           <- childT LetBody (substNoCompM x e1 e2)
+    0             <- constT (pure $ inject e2') >>> countVarRefT x
+    pure $ inject e2'
 
 simpleExpr :: Expr -> Bool
 simpleExpr Table{}                 = True
