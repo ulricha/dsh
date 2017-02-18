@@ -470,7 +470,7 @@ zipCorrelatedR = logR "nestjoin.zipcorrelated" $ do
         zt      = elemT $ typeOf zipGen
         zv      = Var zt z
 
-    ExprCL f' <- constNodeT e >>> substR x (P.fst zv)
+    f' <- substM x (P.fst zv) e
 
     let innerComp = Comp ti f' (S $ BindQ y (P.snd zv))
         outerComp = Comp to innerComp (S (BindQ z zipGen))
