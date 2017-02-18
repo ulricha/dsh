@@ -6,7 +6,6 @@ module Database.DSH.CL.Opt.ThetaJoin
     ( thetajoinR
     ) where
 
-import           Control.Arrow
 import qualified Data.Set                      as S
 
 import           Database.DSH.CL.Kure
@@ -41,7 +40,7 @@ thetajoinQualsT =
             guardM $ x `notElem` freeVars ys
 
             -- The predicate must be a join predicate
-            joinConjunct <- constT (return p) >>> (splitJoinPredT x y)
+            joinConjunct <- constT $ splitJoinPredM x y p
 
             scopeNames <- inScopeNamesT
             let joinGen          = BindQ x (P.thetajoin xs ys (singlePred joinConjunct))
@@ -54,7 +53,7 @@ thetajoinQualsT =
             guardM $ x `notElem` freeVars ys
 
             -- The predicate must be a join predicate
-            joinConjunct <- constT (return p) >>> (splitJoinPredT x y)
+            joinConjunct <- constT $ splitJoinPredM x y p
 
             scopeNames <- inScopeNamesT
             let joinGen   = BindQ x (P.thetajoin xs ys (singlePred joinConjunct))

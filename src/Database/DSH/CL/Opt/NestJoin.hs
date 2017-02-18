@@ -136,8 +136,8 @@ unnestWorkerT headComp (x, xs) = do
         [] -> fail "no useable join predicate"
         p : ps -> do
             -- Split the join predicate
-            p'  <- constT (return p) >>> splitJoinPredT x y
-            ps' <- constT (return ps) >>> mapT (splitJoinPredT x y)
+            p'  <- constT $ splitJoinPredM x y p
+            ps' <- constT $ mapM (splitJoinPredM x y) ps
 
             return $ NestJoin $ JoinPred $ p' N.:| ps'
 

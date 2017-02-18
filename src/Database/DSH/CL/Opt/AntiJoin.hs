@@ -67,14 +67,14 @@ quantifierPredicateT x y = readerT $ \q -> case q of
                           c : cs -> return $ c :| cs
                           []     -> fail "no correlated predicates for the join"
 
-        corrPreds <- constT (return corrExprs') >>> mapT (splitJoinPredT x y)
+        corrPreds <- constT $ mapM (splitJoinPredM x y) corrExprs'
         return (corrPreds, nonCorrExprs)
 
     -- If the predicate is a simple relational operator, but
     -- non-negated, try to negate the operator itself.
     ExprCL (BinOp t (SBRelOp op) e1 e2) -> do
         let e' = BinOp t (SBRelOp $ negateRelOp op) e1 e2
-        q' <- constT (return e') >>> splitJoinPredT x y
+        q' <- constT $ splitJoinPredM x y e'
         return (q' :| [], [])
 
     _                          -> fail "can't handle predicate"
@@ -128,7 +128,7 @@ mkUniversalRangeOnlyAntiJoinT (x, xs) (y, ys) ps = do
     -- comprehension.
     guardM $ null mixedPreds
 
-    joinConjuncts <- constT (return corrPreds) >>> mapT (splitJoinPredT x y)
+    joinConjuncts <- constT $ mapM (splitJoinPredM x y) corrPreds
     joinPred <- case joinConjuncts of
         jp : jps -> return $ JoinPred $ jp :| jps
         []       -> fail "no joinpred found"
@@ -168,13 +168,13 @@ mkUniversalRangeAntiJoinT (x, xs) (y, ys) ps q = do
 
         -- Class 15: p(x, y), q(y)
         (psvs@[_, _], [y']) | psvs == xy && y == y' -> do
-            psConjs <- constT (return psExprs) >>> mapT (splitJoinPredT x y)
+            psConjs <- constT $ mapM (splitJoinPredM x y) psExprs
             let psPred = JoinPred $ toNonEmpty psConjs
             mkClass15AntiJoinT (x, xs) (y, ys) psPred q
 
         -- Class 16: p(x, y), q(x, y)
         (psvs@[_, _], qsvs@[_, _]) | psvs == xy && qsvs == xy -> do
-            psConjs <- constT (return psExprs) >>> mapT (splitJoinPredT x y)
+            psConjs <- constT $ mapM (splitJoinPredM x y) psExprs
 
             -- Even if q itself references x and y, there might be
             -- parts of the predicate (conjuncts) which only reference

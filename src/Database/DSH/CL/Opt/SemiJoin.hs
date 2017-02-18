@@ -108,7 +108,7 @@ mkExistentialSemiJoinT (x, xs) (y, ys) mq mps = do
                         in Comp yst (Var yt y) (BindQ y ys :* igs)
           []         -> ys
 
-    corrPreds <- constT (return corrGuards) >>> mapT (splitJoinPredT x y)
+    corrPreds <- constT $ mapM (splitJoinPredM x y) corrGuards
 
     case corrPreds of
         cp : cps -> return $ BindQ x $ P.semijoin xs ys' (JoinPred $ cp :| cps)
