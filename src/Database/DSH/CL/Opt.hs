@@ -51,7 +51,7 @@ decorrelateNestingR =
     <+ repeatR (nestjoinR >+> groupjoinR >+> anytdR optimizeGroupJoinR)
     -- If the inverse M-Norm-3 succeeds, try to unnest the new
     -- generator
-    <+ (nestingGenR >>> pathR [CompQuals, QualsSingleton, BindQualExpr] nestjoinR)
+    -- <+ (nestingGenR >>> pathR [CompQuals, QualsSingleton, BindQualExpr] nestjoinR)
 
 --------------------------------------------------------------------------------
 -- Post-processing of queries.

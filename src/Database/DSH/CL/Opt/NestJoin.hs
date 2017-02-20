@@ -7,7 +7,6 @@
 module Database.DSH.CL.Opt.NestJoin
   ( nestjoinR
   , zipCorrelatedR
-  , nestingGenR
   ) where
 
 import           Control.Arrow
@@ -16,7 +15,6 @@ import           Data.Either
 
 import           Data.List
 import           Data.List.NonEmpty                    (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty                    as N
 import qualified Data.Map                              as M
 import qualified Data.Set                              as S
 
@@ -32,288 +30,15 @@ import           Database.DSH.CL.Opt.Auxiliary
 import           Database.DSH.CL.Opt.CompNormalization
 
 nestjoinR :: RewriteC CL
-nestjoinR =    logR "nestjoin.guard" unnestFromGuardR
+nestjoinR =    logR "nestjoin.guard" unnestQualsR'
             <+ logR "nestjoin.head" unnestHeadR
 
 --------------------------------------------------------------------------------
 -- Common code for unnesting from a comprehension head and from
 -- comprehension guards
 
--- A representation of a nested comprehension which is eligible for
--- unnesting
-data NestedComp = NestedComp
-    { hType   :: Type
-    , hHead   :: Expr
-    , hGen    :: (Ident, Expr)
-    , hGuards :: [Expr]
-    } deriving (Show)
-
--- | Check if a comprehension is eligible for unnesting. This is the
--- case if the outer generator variable 'x' does not occur in the
--- inner generator and if there is only one inner generator.
-nestedCompT :: Ident -> TransformC CL (PathC, NestedComp)
-nestedCompT x = do
-    Comp t h qs <- promoteT idR
-    (y, ys, qsr) <- case qs of
-        S (BindQ y ys)    -> return (y, ys, [])
-        BindQ y ys :* qsr -> return (y, ys, toList qsr)
-        _                 -> fail "no match"
-
-    guardM $ x `notElem` freeVars ys
-    guards <- constT $ mapM fromGuard qsr
-
-    p <- snocPathToPath <$> absPathT
-    return (p, NestedComp t h (y, ys) guards)
-
--- | Search through the qualifiers of a comprehension that itself was
--- not fit for unnesting. This traversal takes care not to touch any
--- generator expressions that depend on preceding generators.
-searchCompQuals :: Ident -> [Ident] -> TransformC CL (PathC, NestedComp)
-searchCompQuals x qualBoundVars =
-    readerT $ \qs -> case qs of
-        QualsCL (BindQ y ys :* _) ->
-            (guardM (null $ freeVars ys `intersect` qualBoundVars)
-             >>
-             pathT [QualsHead, BindQualExpr] (searchNestedCompT x))
-            <+
-            childT QualsTail (searchCompQuals x (y : qualBoundVars))
-        QualsCL (S (BindQ _ _))    ->
-            pathT [QualsSingleton, BindQualExpr]
-                  (searchNestedCompT x)
-        -- We don't traverse into guard expressions for now. In
-        -- principle we could, but the guard would have to be
-        -- loop-invariant (i.e. do not depend on any local generators)
-        -- and that's rather unlikely.
-        QualsCL (GuardQ _ :* _)  ->
-            childT QualsTail (searchCompQuals x qualBoundVars)
-        QualsCL (S (GuardQ _))     -> fail "don't search in guard expressions"
-        _                          -> fail "only consider qualifier lists here"
-
--- | Traverse though an expression and search for a comprehension that
--- is eligible for unnesting.
-searchNestedCompT :: Ident -> TransformC CL (PathC, NestedComp)
-searchNestedCompT x =
-    readerT $ \e -> case e of
-        -- We expect the single generator at the front of the
-        -- qualifiers. This might not be the case if a loop-invariant
-        -- guard is present and preceeds the generator. Therefore, we
-        -- pre-process by pushing all guards to the back.
-        ExprCL Comp{} -> (tryR guardpushbackR >>> nestedCompT x)
-                         <+
-                         childT CompQuals (searchCompQuals x [])
-        ExprCL _      -> oneT $ searchNestedCompT x
-        _             -> fail "only traverse through expressions"
-
-constNodeT :: (Injection a CL, Monad m) => a -> Transform c m b CL
-constNodeT expr = constT $ return $ inject expr
-
--- | Transform a suitable comprehension that was either nested in a
--- comprehension head or in a guard expression and the corresponding
--- outer generator. Returns a replacement for the inner comprehension,
--- outer generator with nesting op and the tuplify rewrite for the
--- outer generator variable.
-unnestWorkerT
-  :: NestedComp                   -- ^ The nested comprehension
-  -> (Ident, Expr)                -- ^ The outer generator
-  -> TransformC CL (Expr, Expr, RewriteC CL)
-unnestWorkerT headComp (x, xs) = do
-    let (y, ys) = hGen headComp
-
-    -- Generators have to be indepedent
-    guardM $ x `notElem` freeVars ys
-
-    let (joinPredCandidates, nonJoinPreds) = partition (isThetaJoinPred x y)
-                                                       (hGuards headComp)
-
-    -- FIXME include all join predicatesStunden on the joStundenin operator
-    nestOp <- case joinPredCandidates of
-        [] -> fail "no useable join predicate"
-        p : ps -> do
-            -- Split the join predicate
-            p'  <- constT $ splitJoinPredM x y p
-            ps' <- constT $ mapM (splitJoinPredM x y) ps
-
-            return $ NestJoin $ JoinPred $ p' N.:| ps'
-
-    -- IdentifStundeny predicates which only refer to y and can be evaluated
-    -- on the right nestjoin input.
-    let (yPreds, leftOverPreds) = partition ((== [y]) . freeVars) nonJoinPreds
-
-    -- Left over we have predicates which (propably) refer to both
-    -- x and y and are not/can not be used as the join predicate.
-    --    [ [ e x y | y <- ys, p x y, p' x y ] | x <- xs ]
-    -- => [ [ e [fst y/x][snd y/y] | y <- snd x, p'[fst y/x][snd y/y] ] | x <- xs nj(p) ys ]
-
-    let xt       = elemT $ typeOf xs
-        yt       = elemT $ typeOf ys
-        tupType  = PPairT xt (ListT (PPairT xt yt))
-        joinVar  = Var tupType x
-
-    -- If there are inner predicates which only refer to y,
-    -- evaluate them on the right (ys) nestjoin input.
-    let ys' = case fromList yPreds of
-                  Just ps -> Comp (ListT yt) (Var yt y) (BindQ y ys :* fmap GuardQ ps)
-                  Nothing -> ys
-
-    -- the nesting operator combining xs and ys:
-    -- xs nj(p) ys
-    let xs'        = AppE2 (ListT tupType) nestOp xs ys'
-
-    innerVar <- freshNameT []
-
-    let tuplifyInnerVarR :: Expr -> TransformC CL Expr
-        tuplifyInnerVarR e =  constNodeT e
-                              >>> tuplifyR innerVar (x, xt) (y, yt)
-                              >>> projectT
-
-    -- In the head of the inner comprehension, replace x and y
-    -- with the corresponding pair components of the inner lists
-    -- in the join result.
-    h' <- tuplifyInnerVarR (hHead headComp)
-
-    -- Do the same on left over predicates, which will be
-    -- evaluated on the nestjoin result.
-    remPreds <- mapM tuplifyInnerVarR leftOverPreds
-    let remGuards = map GuardQ remPreds
-
-    -- Construct the inner comprehension with the tuplified head
-    -- and apply left-over predicates to the inner comprehension.
-    let ti = hType headComp
-    let headComp' = case remGuards of
-            g : gs -> Comp ti h' (BindQ innerVar (P.snd joinVar) :* fromListSafe g gs)
-            []     -> Comp ti h' (S $ BindQ innerVar (P.snd joinVar))
-
-    let tuplifyOuterR :: RewriteC CL
-        tuplifyOuterR = substR x $ P.fst joinVar
-
-    return (headComp', xs', tuplifyOuterR)
-
-
-
 --------------------------------------------------------------------------------
 -- Nestjoin introduction: unnesting comprehensions from complex predicates
-
--- | Try to unnest comprehensions from guards, which we can not unnest otherwise
--- (e.g. by introduing semi- or antijoins).
---
---   [ e | qs, x <- xs, p x [ f x y | y < ys jp x y ], qs' ]
---
--- rewrites into
---
---   [ e[fst x/x] |
---   | qs
---   , x <- xs nestjoin(jp) ys
---   , p (fst x) [ f (fst y) (snd y) | y <- snd x ]
---   , qs'[fst x/x]
---   ]
---
--- Additional predicates on the inner comprehension are handled in the
--- same way as in unnesting from a comprehension head.
-
--- | Store not only the tuplifying rewrite in the state, but also the
--- rewritten guard expression.
--- FIXME this is a rather ugly hack
-type GuardM = RewriteStateM (RewriteC CL, Maybe Expr) RewriteLog
-
--- | Search for an eligible nested comprehension in the current guard
--- and unnest it. Returns the tuplifying rewrite for the outer
--- generator variable 'x', the new generator with the nesting
--- operator, and the modified predicate.
-unnestGuardT :: [Ident] -> (Ident, Expr) -> Expr -> TransformC CL (RewriteC CL, Expr, Expr)
-unnestGuardT localGenVars (x, xs) guardExpr = do
-    -- search for an unnestable comprehension
-    (headCompPath, headComp) <- withLocalPathT
-                                $ constNodeT guardExpr >>> searchNestedCompT x
-
-    -- Forbid the generator of a comprehension we want to unnest to
-    -- depend on *any* generator in the current outer
-    -- comprehension. This is to prevent that the right input of a
-    -- NestJoin that could be constructed depends on *any*
-    -- preceding generator. See lablog (31.07.14) for a more elaborate
-    -- explanation.
-    guardM $ null $ localGenVars `intersect` freeVars (snd $ hGen headComp)
-
-    -- combine inner and outer comprehension
-    (headComp', nestOp, tuplifyOuterR) <- unnestWorkerT headComp (x, xs)
-
-    -- Tuplify occurences of 'x' in the guard.
-    ExprCL tuplifiedGuardExpr <- constNodeT guardExpr
-                                 >>> tryR tuplifyOuterR
-
-    -- Insert the new inner comprehension into the original guard
-    -- expression
-    ExprCL simplifiedGuardExpr <- constNodeT tuplifiedGuardExpr
-                                  >>> pathR headCompPath (constNodeT headComp')
-
-
-    return (tuplifyOuterR, nestOp, simplifiedGuardExpr)
-
--- | Search for unnestable combinations of a generator and a nested
--- guard in a qualifier list.
-unnestQualsR :: [Ident] -> Rewrite CompCtx GuardM (NL Qual)
-unnestQualsR localGenVars =
-    readerT $ \quals -> case quals of
-        -- In the middle of a qualifier list
-        BindQ x xs :* GuardQ p :* qs -> do
-            (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p
-                                                    >>>
-                                                    unnestGuardT localGenVars (x, xs) p
-            constT $ modify (\(r, _) -> (r >>> tuplifyHeadR, Just p'))
-            qs' <- liftstateT $ constNodeT qs >>> tuplifyHeadR >>> projectT
-            return $ BindQ x xs' :* qs'
-
-        -- At the end of a qualifier list
-        BindQ x xs :* S (GuardQ p) -> do
-            (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p
-                                                    >>>
-                                                    unnestGuardT localGenVars (x, xs) p
-            constT $ modify (\(r, _) -> (r >>> tuplifyHeadR, Just p'))
-            return $ S $ BindQ x xs'
-        _ -> fail "no match"
-
--- | Walk the spine of a qualifier list and try to apply a rewrite
--- top-down.
-descendSpineR :: MonadCatch m => Rewrite CompCtx m CL -> Rewrite CompCtx m CL
-descendSpineR r = do
-    QualsCL{} <- idR
-    r <+ childR QualsTail r
-
--- | Trigger the search for unnesting opportunities in the qualifier
--- list and tuplify comprehension head and remaining qualifiers on
--- success.
---
--- Note: In contrast to e.g. flat join introduction, we can't merge
--- the complete guard into the operator. The non-comprehension part
--- remains. We handle this by including the succesfully unnested and
--- modified guard in the list of failed guard expressions, even on
--- success.
-unnestGuardR :: [Expr] -> [Expr] -> TransformC CL (CL, [Expr], [Expr])
-unnestGuardR candGuards failedGuards = do
-    Comp t _ qs      <- promoteT idR
-    -- Extract all generators
-    let localGenVars = concatMap (either ((: []) . fst) (const []) . fromQual) $ toList qs
-    let unnestR = descendSpineR (promoteR $ unnestQualsR localGenVars) >>> projectT
-    ((tuplifyVarR, Just guardExpr), qs') <- statefulT (idR, Nothing) $ childT CompQuals unnestR
-
-    h'               <- childT CompHead tuplifyVarR >>> projectT
-    let tuplifyM e = constNodeT e >>> tuplifyVarR >>> projectT
-    candGuards'      <- mapM tuplifyM candGuards
-    failedGuards'    <- mapM tuplifyM failedGuards
-    return (inject $ Comp t h' qs', candGuards', guardExpr : failedGuards')
-
--- | Worker for the MergeGuard iterator: Insert the current guard into
--- the qualifier list and search for an unnesting opportunity.
-unnestGuardWorkerR :: MergeGuard
-unnestGuardWorkerR comp guardExpr candGuards failedGuards = do
-    let C ty h qs = comp
-    env <- S.fromList . M.keys . clBindings <$> contextT
-    let compWithGuard = constT $ return $ ExprCL $ Comp ty h (insertGuard guardExpr env qs)
-    (comp', candGuards', failedGuards') <- compWithGuard >>> unnestGuardR candGuards failedGuards
-    ExprCL (Comp _ h' qs') <- return comp'
-    return (C ty h' qs', candGuards', failedGuards')
-
-unnestFromGuardR :: RewriteC CL
-unnestFromGuardR = mergeGuardsIterR unnestGuardWorkerR
 
 
 --------------------------------------------------------------------------------
@@ -426,33 +151,30 @@ zipCorrelatedR = logR "nestjoin.zipcorrelated" $ do
 -- Important: This is the dual rewrite to M-Norm-3. An unconditional
 -- application will lead into a rewriting loop. It **must** be
 -- combined with a rewrite that makes progress on g and xs.
-nestingGenR :: RewriteC CL
-nestingGenR = logR "nestjoin.nestinggen" $ do
-    Comp  to (Comp ti e (S (BindQ y g))) (S (BindQ x xs)) <- promoteT idR
+-- nestingGenR :: RewriteC CL
+-- nestingGenR = logR "nestjoin.nestinggen" $ do
+--     Comp  to (Comp ti e (S (BindQ y g))) (S (BindQ x xs)) <- promoteT idR
 
-    -- Generator expression g should depend on x (otherwise we could
-    -- unnest directly
-    guardM $ x `elem` freeVars g
+--     -- Generator expression g should depend on x (otherwise we could
+--     -- unnest directly
+--     guardM $ x `elem` freeVars g
 
-    -- Generator expression g should contain at least one unnestable
-    -- comprehension
-    void $ constNodeT g >>> searchNestedCompT x
+--     -- Generator expression g should contain at least one unnestable
+--     -- comprehension
+--     void $ constNodeT g >>> searchNestedCompT x
 
-    z <- freshNameT []
+--     z <- freshNameT []
 
-    let gty = typeOf g
+--     let gty = typeOf g
 
-    let innerComp = Comp ti e (S (BindQ y (Var gty z)))
-        genComp   = Comp (ListT gty) g (S (BindQ x xs))
-        outerComp = Comp to innerComp (S (BindQ z genComp))
+--     let innerComp = Comp ti e (S (BindQ y (Var gty z)))
+--         genComp   = Comp (ListT gty) g (S (BindQ x xs))
+--         outerComp = Comp to innerComp (S (BindQ z genComp))
 
-    return $ inject outerComp
+--     return $ inject outerComp
 
 --------------------------------------------------------------------------------
 -- Normalization of nesting patterns
-
--- unnestableGenT :: NL Qual -> Expr -> TransformC (NL Qual, Expr)
--- unnestableGenT
 
 type NestM = RewriteStateM (Maybe ((Ident, Expr), JoinPredicate ScalarExpr, (Ident, [Expr]))) RewriteLog
 
@@ -565,9 +287,10 @@ mkJoin xs ys joinPred (y, yPreds) =
               Just ps -> Comp (ListT yTy) (Var yTy y) (BindQ y ys :* fmap GuardQ ps)
               Nothing -> ys
 
--- | Search qualifiers for a generator for which we can introduce a nestjoin.
-unnestSpineT :: Expr -> TransformC CL (NL Qual, Expr)
-unnestSpineT h = readerT $ \cl -> case cl of
+-- | Search qualifiers for a generator for which we can unnest from the
+-- comprehension head.
+unnestSpineHeadT :: Expr -> TransformC CL (NL Qual, Expr)
+unnestSpineHeadT h = readerT $ \cl -> case cl of
     QualsCL (BindQ x xs :* qs) -> do
         let xTy = elemT $ typeOf xs
         (Just ((joinName, ys), joinPred, yGuards), h') <- statefulT Nothing $ childT QualsTail $ traverseToHeadT S.empty (x, xTy) h
@@ -585,7 +308,7 @@ unnestSpineT h = readerT $ \cl -> case cl of
         h' <- projectM hCl
         let h'' = substE scopeNames x (P.fst $ Var (nestJoinElemTy xTy yTy) joinName) h'
         pure (S (BindQ joinName (mkJoin xs ys joinPred yGuards)), h'')
-    QualsCL (GuardQ _ :* _)    -> childT QualsTail $ unnestSpineT h
+    QualsCL (GuardQ _ :* _)    -> childT QualsTail $ unnestSpineHeadT h
     _                          -> fail "no match"
 
 --------------------------------------------------------------------------------
@@ -608,5 +331,47 @@ unnestSpineT h = readerT $ \cl -> case cl of
 unnestHeadR :: RewriteC CL
 unnestHeadR = do
     Comp t h _ <- promoteT idR
-    (qs', h') <- childT CompQuals $ unnestSpineT h
+    (qs', h') <- childT CompQuals $ unnestSpineHeadT h
     pure $ inject $ Comp t h' qs'
+
+--------------------------------------------------------------------------------
+-- Unnesting from a comprehension head
+
+-- | Try to unnest comprehensions from subsequent guards and qualifiers, which
+-- we can not unnest otherwise (e.g. by introduing semi- or antijoins).
+--
+--   [ e | qs, x <- xs, qs', p [ e' | y <- ys, jp x y, p y, e'' ], qs'' ]
+--
+-- rewrites into
+--
+--   [ e[u.1/x] |
+--   | qs
+--   , u <- xs nestjoin(jp) [ y | y <- ys, p y ]
+--   , qs'[u.1/x]
+--   , p u.1 [ e'[v.1/x][v.2/y] | v <- u.2, e''[v.1/x][v.2/y] ]
+--   , qs''[u.1/x]
+--   ]
+--
+-- Additional predicates on the inner comprehension are handled in the
+-- same way as in unnesting from a comprehension head.
+
+unnestQualsR' :: RewriteC CL
+unnestQualsR' = do
+    Comp t h _ <- promoteT idR
+    (qs', h') <- childT CompQuals $ unnestSpineQualsT h
+    pure $ inject $ Comp t h' qs'
+
+-- | Search qualifiers for a generator for which we can unnest from the
+-- from remaining qualifiers.
+unnestSpineQualsT :: Expr -> TransformC CL (NL Qual, Expr)
+unnestSpineQualsT h = readerT $ \cl -> case cl of
+    QualsCL (BindQ x xs :* _) -> do
+        let xTy = elemT $ typeOf xs
+        (Just ((joinName, ys), joinPred, yGuards), qsCl) <- statefulT Nothing $ childT QualsTail $ searchQualsR S.empty (x, xTy)
+        let yTy        = elemT $ typeOf ys
+        scopeNames <- S.insert x <$> S.fromList <$> inScopeNames <$> contextT
+        qs' <- constT $ projectM qsCl
+        let (qs'', h') = substCompE scopeNames x (P.fst $ Var (nestJoinElemTy xTy yTy) joinName) qs' h
+        pure (BindQ joinName (mkJoin xs ys joinPred yGuards) :* qs'', h')
+    QualsCL (GuardQ _ :* _)    -> childT QualsTail $ unnestSpineQualsT h
+    _ -> fail "no match"
