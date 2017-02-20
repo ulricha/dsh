@@ -68,20 +68,20 @@ import           Database.DSH.VSL
 
 --------------------------------------------------------------------------------
 
-typeCheck :: Pretty a => (a -> Either String Ty.Type) -> String -> a -> a
-typeCheck checker label e =
+typeCheck :: Pretty a => Bool -> (a -> Either String Ty.Type) -> String -> a -> a
+typeCheck verbose checker label e =
     case checker e of
         Left msg -> error $ printf "Type checking expression\n>>>\n%s\n<<<\nfailed: %s" (pp e) msg
-        Right ty -> trace (printf "Inferred type (%s): %s" label (pp ty)) e
+        Right ty -> if verbose then trace (printf "Inferred type (%s): %s" label (pp ty)) e else e
 
-optimizeCLCheck :: CLOptimizer -> CL.Expr -> CL.Expr
-optimizeCLCheck clOpt = typeCheck inferCLTy "CL" >>> (fst . clOpt) >>> typeCheck inferCLTy "CL opt"
+optimizeCLCheck :: Bool -> CLOptimizer -> CL.Expr -> CL.Expr
+optimizeCLCheck verbose clOpt = typeCheck verbose inferCLTy "CL" >>> (fst . clOpt) >>> typeCheck verbose inferCLTy "CL opt"
 
-optimizeNKLCheck :: NKL.Expr -> NKL.Expr
-optimizeNKLCheck = typeCheck inferNKLTy "NKL" >>> optimizeNKL >>> typeCheck inferNKLTy "NKL opt"
+optimizeNKLCheck :: Bool -> NKL.Expr -> NKL.Expr
+optimizeNKLCheck verbose = typeCheck verbose inferNKLTy "NKL" >>> optimizeNKL >>> typeCheck verbose inferNKLTy "NKL opt"
 
-optimizeNormFKLCheck :: FKL.FExpr -> FKL.FExpr
-optimizeNormFKLCheck = typeCheck inferFKLTy "FKL" >>> optimizeNormFKL >>> typeCheck inferFKLTy "FKL opt"
+optimizeNormFKLCheck :: Bool -> FKL.FExpr -> FKL.FExpr
+optimizeNormFKLCheck verbose = typeCheck verbose inferFKLTy "FKL" >>> optimizeNormFKL >>> typeCheck verbose inferFKLTy "FKL opt"
 
 -- | Transform an expression in the Nested Kernel Language into its equivalent
 -- Flat Kernel Language expression by means of the flattening transformation.
@@ -90,15 +90,15 @@ flatTransform :: NKL.Expr -> FKL.FExpr
 flatTransform = liftOperators        >>>
                 optimizeFKL          >>>
                 normalizeLifted      >>>
-                optimizeNormFKLCheck
+                optimizeNormFKLCheck False
 
 -- | The frontend- and backend-independent part of the compiler.
 compileQ :: VectorLang v => CLOptimizer -> CL.Expr -> QueryPlan (v TExpr TExpr) DVec
-compileQ clOpt = optimizeCLCheck clOpt          >>>
-                 desugarComprehensions          >>>
-                 optimizeNKLCheck               >>>
-                 flatTransform                  >>>
-                 typeCheck inferFKLTy "FKL opt" >>>
+compileQ clOpt = optimizeCLCheck False clOpt          >>>
+                 desugarComprehensions                >>>
+                 optimizeNKLCheck False               >>>
+                 flatTransform                        >>>
+                 typeCheck False inferFKLTy "FKL opt" >>>
                  vectorize
 
 -- | The frontend- and backend-independent part of the compiler. Compile a
@@ -144,16 +144,16 @@ decorate msg = sepLine ++ msg ++ "\n" ++ sepLine
 -- | Show comprehensions with an optional optimizer (CL)
 showComprehensionsQ :: CLOptimizer -> Q a -> IO ()
 showComprehensionsQ clOpt (Q q) = do
-    let cl = optimizeCLCheck clOpt $ toComprehensions q
+    let cl = optimizeCLCheck True clOpt $ toComprehensions q
     putStrLn $ decorate $ pp cl
 
 -- | Show comprehensions with an optional optimizer and display the rewriting
 -- log (CL)
 showComprehensionsLogQ :: CLOptimizer -> Q a -> IO ()
 showComprehensionsLogQ clOpt (Q q) = do
-    let (cl, rewriteLog) = first (typeCheck inferCLTy "CL opt")
+    let (cl, rewriteLog) = first (typeCheck True inferCLTy "CL opt")
                            $ clOpt
-                           $ typeCheck inferCLTy "CL"
+                           $ typeCheck True inferCLTy "CL"
                            $ toComprehensions q
     putStrLn rewriteLog
     putStrLn $ decorate $ pp cl
@@ -162,16 +162,16 @@ showComprehensionsLogQ clOpt (Q q) = do
 showDesugaredQ :: CLOptimizer -> Q a -> IO ()
 showDesugaredQ clOpt (Q q) = do
     let nkl = desugarComprehensions
-              $ optimizeCLCheck clOpt
+              $ optimizeCLCheck True clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp nkl
 
 -- | Show optimized desugared iterators (CL)
 showDesugaredOptQ :: CLOptimizer -> Q a -> IO ()
 showDesugaredOptQ clOpt (Q q) = do
-    let nkl = optimizeNKLCheck
+    let nkl = optimizeNKLCheck True
               $ desugarComprehensions
-              $ optimizeCLCheck clOpt
+              $ optimizeCLCheck True clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp nkl
 
@@ -179,9 +179,9 @@ showDesugaredOptQ clOpt (Q q) = do
 showLiftedQ :: CLOptimizer -> Q a -> IO ()
 showLiftedQ clOpt (Q q) = do
     let fkl = liftOperators
-              $ optimizeNKLCheck
+              $ optimizeNKLCheck True
               $ desugarComprehensions
-              $ optimizeCLCheck clOpt
+              $ optimizeCLCheck True clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 
@@ -190,9 +190,9 @@ showLiftedOptQ :: CLOptimizer -> Q a -> IO ()
 showLiftedOptQ clOpt (Q q) = do
     let fkl = optimizeFKL
               $ liftOperators
-              $ optimizeNKLCheck
+              $ optimizeNKLCheck True
               $ desugarComprehensions
-              $ optimizeCLCheck clOpt
+              $ optimizeCLCheck True clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 
@@ -202,9 +202,9 @@ showFlattenedQ clOpt (Q q) = do
     let fkl = normalizeLifted
               $ optimizeFKL
               $ liftOperators
-              $ optimizeNKLCheck
+              $ optimizeNKLCheck True
               $ desugarComprehensions
-              $ optimizeCLCheck clOpt
+              $ optimizeCLCheck True clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 
@@ -215,9 +215,9 @@ showFlattenedOptQ clOpt (Q q) = do
               $ normalizeLifted
               $ optimizeFKL
               $ liftOperators
-              $ optimizeNKLCheck
+              $ optimizeNKLCheck True
               $ desugarComprehensions
-              $ optimizeCLCheck clOpt
+              $ optimizeCLCheck True clOpt
               $ toComprehensions q
     putStrLn $ decorate $ pp fkl
 
