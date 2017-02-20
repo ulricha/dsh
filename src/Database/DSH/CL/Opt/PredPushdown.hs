@@ -110,12 +110,12 @@ mkMergeableJoinPredT x leftExpr op rightExpr = do
     leftExpr'     <- constLeftExpr
                          >>> andR (map (unTuplifyPathR (== TupElem First)) leftVarPaths)
                          >>> projectT
-                         >>> toScalarExpr x
+                         >>> toScalarExprT x
 
     rightExpr'    <- constRightExpr
                          >>> andR (map (unTuplifyPathR (== TupElem (Next First))) rightVarPaths)
                          >>> projectT
-                         >>> toScalarExpr x
+                         >>> toScalarExprT x
 
     return $ JoinConjunct leftExpr' op rightExpr'
 

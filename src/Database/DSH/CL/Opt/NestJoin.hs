@@ -1,6 +1,6 @@
-{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 
 -- | Deal with nested comprehensions by introducing explicit nesting
 -- operators (NestJoin).
@@ -12,26 +12,28 @@ module Database.DSH.CL.Opt.NestJoin
 
 import           Control.Arrow
 import           Control.Monad
+import           Data.Either
 
 import           Data.List
-import qualified Data.Set as S
-import qualified Data.Map as M
-import qualified Data.List.NonEmpty as N
+import           Data.List.NonEmpty                    (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty                    as N
+import qualified Data.Map                              as M
+import qualified Data.Set                              as S
 
-import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Kure
+import           Database.DSH.Common.Lang
 
-import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
+import           Database.DSH.CL.Lang
 
-import qualified Database.DSH.CL.Primitives as P
+import qualified Database.DSH.CL.Primitives            as P
 
 import           Database.DSH.CL.Opt.Auxiliary
 import           Database.DSH.CL.Opt.CompNormalization
 
 nestjoinR :: RewriteC CL
 nestjoinR =    logR "nestjoin.guard" unnestFromGuardR
-            <+ logR "nestjoin.head" unnestFromHeadR
+            <+ logR "nestjoin.head" unnestHeadR
 
 --------------------------------------------------------------------------------
 -- Common code for unnesting from a comprehension head and from
@@ -102,14 +104,6 @@ searchNestedCompT x =
         ExprCL _      -> oneT $ searchNestedCompT x
         _             -> fail "only traverse through expressions"
 
--- | Take an absolute path and drop the prefix of the path to a direct child of
--- the current node. This makes it a relative path starting from **some** direct
--- child of the current node.
-relativePathT :: Path a -> TransformC b (Path a)
-relativePathT p = do
-    curPath <- snocPathToPath <$> absPathT
-    return $ drop (1 + length curPath) p
-
 constNodeT :: (Injection a CL, Monad m) => a -> Transform c m b CL
 constNodeT expr = constT $ return $ inject expr
 
@@ -131,7 +125,7 @@ unnestWorkerT headComp (x, xs) = do
     let (joinPredCandidates, nonJoinPreds) = partition (isThetaJoinPred x y)
                                                        (hGuards headComp)
 
-    -- FIXME include all join predicates on the join operator
+    -- FIXME include all join predicatesStunden on the joStundenin operator
     nestOp <- case joinPredCandidates of
         [] -> fail "no useable join predicate"
         p : ps -> do
@@ -141,7 +135,7 @@ unnestWorkerT headComp (x, xs) = do
 
             return $ NestJoin $ JoinPred $ p' N.:| ps'
 
-    -- Identify predicates which only refer to y and can be evaluated
+    -- IdentifStundeny predicates which only refer to y and can be evaluated
     -- on the right nestjoin input.
     let (yPreds, leftOverPreds) = partition ((== [y]) . freeVars) nonJoinPreds
 
@@ -195,71 +189,6 @@ unnestWorkerT headComp (x, xs) = do
     return (headComp', xs', tuplifyOuterR)
 
 
---------------------------------------------------------------------------------
--- Unnesting from a comprehension head
-
--- In constrast to the previous strategy, we unnest only one
--- comprehension at a time. We unnest from the original comprehension
--- head, without normalizing it first. This saves quite a lot of
--- rather complex rewrites for normalizing the head and combining
--- multiple nesting operators. The resulting plans look the same.
-
--- General rule:
--- [ e x [ f x y | y <- ys, jp x y, p1 x, p2 x y, p3 y ] | x <- xs, p4 x ]
--- =>
--- [ e (fst x) [ f (fst y) (snd y)
---             | y <- snd x
---             , p1 (fst y)
---             , p2 (fst y) (snd y)
---             ]
--- | x <- xs △_jp [ y | y <- ys, p3 y ]
--- ]
---
--- Predicates on the inner comprehension that only refer to y can be
--- safely evaluated before joining. Note that predicates on the inner
--- comprehension that only refer to x can **not** be evaluated on xs
--- alone!
-
--- | Search for one comprehension nested in a comprehension head,
--- extract it and transform it into a nesting operator.
-unnestFromHeadR :: RewriteC CL
-unnestFromHeadR = do
-    Comp to ho qso <- promoteT idR
-
-    -- We need one generator on a comprehension
-    (x, xs, qsr) <- case qso of
-                        S (BindQ x xs)    -> return (x, xs, [])
-                        BindQ x xs :* qsr -> return (x, xs, toList qsr)
-                        _                 -> fail "no match"
-
-    -- More precisely, we need *exactly one* generator on the
-    -- comprehension
-    guardM $ all isGuard qsr
-
-    (headCompPath, headComp) <- childT CompHead (searchNestedCompT x)
-
-    (headComp', nestOp, tuplifyOuterR) <- unnestWorkerT headComp (x, xs)
-
-    -- Insert the replacement for the nested comprehension.
-
-    -- The relative path to the comprehension to be replaced, starting
-    -- from the head expression
-    -- FIXME use withLocalPathT
-    relCompPath <- relativePathT headCompPath
-
-    ExprCL tuplifiedHo <- constNodeT ho >>> tryR tuplifyOuterR
-    ExprCL unnestedHo  <- constNodeT tuplifiedHo >>> pathR relCompPath (constNodeT headComp')
-
-    -- In the outer comprehension's qualifier list, x is replaced by
-    -- the first pair component of the join result.
-    qsr' <- constT (return $ map inject qsr)
-            >>> mapT (tryR tuplifyOuterR)
-            >>> mapT projectT
-
-    -- ExprCL tuplifiedHead <- constNodeT ho' >>> tryR tuplifyOuterR
-
-    return $ inject $ Comp to unnestedHo (fromListSafe (BindQ x nestOp) qsr')
-
 
 --------------------------------------------------------------------------------
 -- Nestjoin introduction: unnesting comprehensions from complex predicates
@@ -292,7 +221,7 @@ type GuardM = RewriteStateM (RewriteC CL, Maybe Expr) RewriteLog
 -- operator, and the modified predicate.
 unnestGuardT :: [Ident] -> (Ident, Expr) -> Expr -> TransformC CL (RewriteC CL, Expr, Expr)
 unnestGuardT localGenVars (x, xs) guardExpr = do
-    -- search for an unnestable comrehension
+    -- search for an unnestable comprehension
     (headCompPath, headComp) <- withLocalPathT
                                 $ constNodeT guardExpr >>> searchNestedCompT x
 
@@ -518,3 +447,166 @@ nestingGenR = logR "nestjoin.nestinggen" $ do
         outerComp = Comp to innerComp (S (BindQ z genComp))
 
     return $ inject outerComp
+
+--------------------------------------------------------------------------------
+-- Normalization of nesting patterns
+
+-- unnestableGenT :: NL Qual -> Expr -> TransformC (NL Qual, Expr)
+-- unnestableGenT
+
+type NestM = RewriteStateM (Maybe ((Ident, Expr), JoinPredicate ScalarExpr, (Ident, [Expr]))) RewriteLog
+
+-- | Check if a nested comprehension matches the current candidate generator.
+-- Rewrite the nested comprehension into a comprehension over the inner nestjoin
+-- result and return all information necessary to construct the nestjoin
+-- operator.
+unnestCompR :: S.Set Ident -> (Ident, Type) -> Rewrite CompCtx NestM CL
+unnestCompR locallyBoundVars (x, xTy) = do
+    Comp t h (BindQ y ys :* qs) <- promoteT idR
+    let yfvs = freeVarsS ys
+    guardM $ S.null $ locallyBoundVars `S.intersection` yfvs
+    guardM $ not $ S.member x yfvs
+
+    guardExps <- constT $ mapM fromGuard qs
+    let (nonJoinPreds, joinConjs) = partitionEithers $ map (splitJoinPredE x y) $ toList guardExps
+
+    c : cs <- pure joinConjs
+    let joinPred = JoinPred $ c :| cs
+
+    -- Identify predicates which only refer to y and can be evaluated
+    -- on the right nestjoin input.
+    let (yPreds, leftOverPreds) = partition ((== [y]) . freeVars) nonJoinPreds
+
+    scopeNames <- S.fromList <$> inScopeNames <$> contextT
+    innerName   <- liftstateT $ freshNameT [y]
+    outerName   <- liftstateT $ freshNameT [y]
+
+    let ysTy           = typeOf ys
+        yTy            = elemT ysTy
+        h'             = tuplifyE scopeNames innerName (x, xTy) (y, yTy) h
+        leftOverPreds' = map (tuplifyE scopeNames innerName (x, xTy) (y, yTy)) leftOverPreds
+        leftOverGuards = map GuardQ leftOverPreds'
+        joinVar        = Var (PPairT xTy (ListT $ PPairT xTy yTy)) outerName
+
+    constT $ put $ Just ((outerName, ys), joinPred, (y, yPreds))
+
+    case leftOverGuards of
+        g : gs -> pure $ inject $ Comp t h' (BindQ innerName (P.snd joinVar) :* fromListSafe g gs)
+        []     -> pure $ inject $ Comp t h' (S $ BindQ innerName (P.snd joinVar))
+
+-- | Traverse an expression searching for nestjoin opportunities for the current
+-- candidate generator.
+searchHeadR :: S.Set Ident -> (Ident, Type) -> Rewrite CompCtx NestM CL
+searchHeadR locallyBoundVars (x, xTy) = readerT $ \cl -> case cl of
+    ExprCL (Let _ x' _ _)
+        | x == x'   -> fail "shadowing"
+        | otherwise -> childR LetBind (searchHeadR locallyBoundVars (x, xTy))
+                       <+ childR LetBody (searchHeadR (S.insert x' locallyBoundVars) (x, xTy))
+    ExprCL Comp{} -> tryR (liftstateT guardpushbackR) >>> unnestCompR locallyBoundVars (x, xTy)
+                         <+ childT CompQuals (searchQualsR locallyBoundVars (x, xTy))
+    ExprCL _ -> oneR $ searchHeadR locallyBoundVars (x, xTy)
+    _ -> fail "only expressions"
+
+searchQualsR :: S.Set Ident -> (Ident, Type) -> Rewrite CompCtx NestM CL
+searchQualsR locallyBoundVars (x, xTy) = readerT $ \cl -> case cl of
+    QualsCL (BindQ x' _ :* _)
+        | x == x'   ->
+            pathR [QualsHead, BindQualExpr] (searchHeadR locallyBoundVars (x, xTy))
+        | otherwise ->
+            pathR [QualsHead, BindQualExpr] (searchHeadR locallyBoundVars (x, xTy))
+            <+
+            childR QualsHead (searchQualsR (S.insert x' locallyBoundVars) (x, xTy))
+    QualsCL (S BindQ{}) ->
+        pathR [QualsSingleton, BindQualExpr] (searchHeadR locallyBoundVars (x, xTy))
+    QualsCL (GuardQ _ :* _) ->
+            pathR [QualsHead, GuardQualExpr] (searchHeadR locallyBoundVars (x, xTy))
+            <+
+            childR QualsTail (searchQualsR locallyBoundVars (x, xTy))
+    QualsCL (S (GuardQ _)) ->
+        pathR [QualsSingleton, GuardQualExpr] (searchHeadR locallyBoundVars (x, xTy))
+    _ -> fail "not a qualifier"
+
+-- | Traverse qualifiers from the current candidate generator to the end. Once
+-- reaching the end, traverse the head searching for a nestjoin opportunity that
+-- matches the candidate generator. Collect names bound between the candidate
+-- generator and the head.
+traverseToHeadT :: S.Set Ident -> (Ident, Type) -> Expr -> Transform CompCtx NestM CL Expr
+traverseToHeadT locallyBoundVars (x, xTy) h = readerT $ \qs -> case qs of
+    QualsCL (BindQ x' _ :* _)
+        | x == x'   -> fail "shadowing"
+        | otherwise -> childT QualsTail $ traverseToHeadT (S.insert x' locallyBoundVars) (x, xTy) h
+    QualsCL (GuardQ _ :* _) -> childT QualsTail $ traverseToHeadT locallyBoundVars (x, xTy) h
+    QualsCL (S (BindQ x' _))
+        | x == x'   -> fail "shadowing"
+        | otherwise -> do
+          constT (pure $ inject h) >>> searchHeadR (S.insert x' locallyBoundVars) (x, xTy) >>> projectT
+    QualsCL (S (GuardQ _)) -> do
+        constT (pure $ inject h) >>> searchHeadR locallyBoundVars (x, xTy) >>> projectT
+    _ -> fail "no qualifiers"
+
+-- | Execute a transformation with a given context.
+withContextT :: c -> Transform c m a b -> Transform c m a b
+withContextT c t = liftContext (const c) t
+
+-- | The element type of a nest join result, given the element types of the
+-- inputs.
+nestJoinElemTy :: Type -> Type -> Type
+nestJoinElemTy xTy yTy = PPairT xTy (ListT $ PPairT xTy yTy)
+
+-- | Construct a nestjoin operator from both join operands, a join predicate and
+-- additional predicates for the right input.
+mkJoin :: Expr -> Expr -> JoinPredicate ScalarExpr -> (Ident, [Expr]) -> Expr
+mkJoin xs ys joinPred (y, yPreds) =
+    AppE2 (ListT $ nestJoinElemTy xTy yTy) (NestJoin joinPred) xs ys'
+  where
+    xTy        = elemT $ typeOf xs
+    yTy        = elemT $ typeOf ys
+    ys' = case fromList yPreds of
+              Just ps -> Comp (ListT yTy) (Var yTy y) (BindQ y ys :* fmap GuardQ ps)
+              Nothing -> ys
+
+-- | Search qualifiers for a generator for which we can introduce a nestjoin.
+unnestSpineT :: Expr -> TransformC CL (NL Qual, Expr)
+unnestSpineT h = readerT $ \cl -> case cl of
+    QualsCL (BindQ x xs :* qs) -> do
+        let xTy = elemT $ typeOf xs
+        (Just ((joinName, ys), joinPred, yGuards), h') <- statefulT Nothing $ childT QualsTail $ traverseToHeadT S.empty (x, xTy) h
+        let yTy        = elemT $ typeOf ys
+        scopeNames <- S.insert x <$> S.fromList <$> inScopeNames <$> contextT
+        let (qs', h'') = substCompE scopeNames x (P.fst $ Var (nestJoinElemTy xTy yTy) joinName) qs h'
+        pure (BindQ joinName (mkJoin xs ys joinPred yGuards) :* qs', h'')
+    QualsCL (S (BindQ x xs))   -> do
+        let xTy = elemT $ typeOf xs
+        ctx <- contextT
+        let ctx' = ctx { clBindings = M.insert x (elemT $ typeOf xs) (clBindings ctx) }
+        (Just ((joinName, ys), joinPred, yGuards), hCl) <- statefulT Nothing $ constT (pure $ inject h) >>> withContextT ctx' (searchHeadR S.empty (x, xTy))
+        let yTy        = elemT $ typeOf ys
+        scopeNames <- S.insert x <$> S.fromList <$> inScopeNames <$> contextT
+        h' <- projectM hCl
+        let h'' = substE scopeNames x (P.fst $ Var (nestJoinElemTy xTy yTy) joinName) h'
+        pure (S (BindQ joinName (mkJoin xs ys joinPred yGuards)), h'')
+    QualsCL (GuardQ _ :* _)    -> childT QualsTail $ unnestSpineT h
+    _                          -> fail "no match"
+
+--------------------------------------------------------------------------------
+-- Unnesting from a comprehension head
+
+-- We unnest only one comprehension at a time.
+--
+-- General rule:
+-- [ e x [ f x y | y <- ys, jp x y, p1 x, p2 x y, p3 y ] | qs, x <- xs, qs' ]
+-- =>
+-- [ e u.1 [ f y.1 y.2 | v <- u.2, p1 v.1, p2 v.1 v.2 ]
+-- | qs, u <- xs △_jp [ y | y <- ys, p3 y, qs'[u.1/x] ]
+-- ]
+--
+-- Predicates on the inner comprehension that only refer to y can be
+-- safely evaluated before joining. Note that predicates on the inner
+-- comprehension that only refer to x can **not** be evaluated on xs
+-- alone!
+
+unnestHeadR :: RewriteC CL
+unnestHeadR = do
+    Comp t h _ <- promoteT idR
+    (qs', h') <- childT CompQuals $ unnestSpineT h
+    pure $ inject $ Comp t h' qs'

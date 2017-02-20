@@ -46,7 +46,7 @@ toAggregateExprT :: Ident -> TransformC CL ScalarExpr
 toAggregateExprT x =
     readerT $ \e -> case e of
         ExprCL (Comp _ _ (S (y :<-: TupSecondP _ (Var _ x')))) | x == x' ->
-            childT CompHead $ promoteT (toScalarExpr y)
+            childT CompHead $ promoteT (toScalarExprT y)
         ExprCL (TupSecondP t (Var _ x')) | x == x'                       ->
             return $ JInput t
         _                                                                ->

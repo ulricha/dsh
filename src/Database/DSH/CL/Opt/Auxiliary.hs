@@ -16,7 +16,9 @@ module Database.DSH.CL.Opt.Auxiliary
     , fromScalarExpr
       -- * Converting predicate expressions into join predicates
     , toScalarExpr
+    , toScalarExprT
     , splitJoinPredM
+    , splitJoinPredE
     -- , joinConjunctsT
     , conjuncts
       -- * Helpers on scalar expressions
@@ -30,6 +32,7 @@ module Database.DSH.CL.Opt.Auxiliary
     , isFlatExpr
       -- * Free and bound variables
     , freeVars
+    , freeVarsS
     , boundVars
     , compBoundVars
       -- * Substituion
@@ -145,19 +148,23 @@ fromScalarExpr n (JInput ty)            = Var ty n
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
 
-toScalarExprM :: MonadCatch m => Ident -> Expr -> m ScalarExpr
-toScalarExprM n (AppE1 _ (TupElem i) e) = JTupElem i <$> toScalarExprM n e
-toScalarExprM n (BinOp _ o e1 e2)       = JBinOp o <$> toScalarExprM n e1
-                                                   <*> toScalarExprM n e2
-toScalarExprM n (UnOp _ o e)            = JUnOp o <$> toScalarExprM n e
-toScalarExprM _ (Lit t v)               = pure $ JLit t v
-toScalarExprM n (Var t x)
+toScalarExpr :: Ident -> Expr -> Maybe ScalarExpr
+toScalarExpr n (AppE1 _ (TupElem i) e) = JTupElem i <$> toScalarExpr n e
+toScalarExpr n (BinOp _ o e1 e2)       = JBinOp o <$> toScalarExpr n e1
+                                                   <*> toScalarExpr n e2
+toScalarExpr n (UnOp _ o e)            = JUnOp o <$> toScalarExpr n e
+toScalarExpr _ (Lit t v)               = pure $ JLit t v
+toScalarExpr n (Var t x)
     | n == x    = pure $ JInput t
-    | otherwise = fail "variable mismatch"
-toScalarExprM _ _                       = fail "not a scalar expression"
+    | otherwise = mzero
+toScalarExpr _ _                       = mzero
 
-toScalarExpr :: Ident -> TransformC Expr ScalarExpr
-toScalarExpr n = idR >>= \e -> constT $ toScalarExprM n e
+toScalarExprT :: Ident -> TransformC Expr ScalarExpr
+toScalarExprT n = do
+    e <- idR
+    case toScalarExpr n e of
+        Nothing -> fail "not a scalar expression"
+        Just s  -> pure s
 
 flipRelOp :: BinRelOp -> BinRelOp
 flipRelOp Eq  = Eq
@@ -172,20 +179,32 @@ flipRelOp LtE = GtE
 -- (relational operator with simple projection expressions on both
 -- sides) or if one side of the predicate has free variables which are
 -- not the variables of the qualifiers given to the function.
-splitJoinPredM :: MonadCatch m => Ident -> Ident -> Expr -> m (JoinConjunct ScalarExpr)
-splitJoinPredM x y e =
+splitJoinPred :: Ident -> Ident -> Expr -> Maybe (JoinConjunct ScalarExpr)
+splitJoinPred x y e =
     case e of
         BinOp _ (SBRelOp op) e1 e2 -> do
             [x'] <- pure $ freeVars e1
             [y'] <- pure $ freeVars e2
-            if | x == x' && y == y' -> JoinConjunct <$> toScalarExprM x e1
+            if | x == x' && y == y' -> JoinConjunct <$> toScalarExpr x e1
                                                     <*> pure op
-                                                    <*> toScalarExprM y e2
-               | y == x' && x == y' -> JoinConjunct <$> toScalarExprM x e2
+                                                    <*> toScalarExpr y e2
+               | y == x' && x == y' -> JoinConjunct <$> toScalarExpr x e2
                                                     <*> pure op
-                                                    <*> toScalarExprM y e1
-               | otherwise          -> fail "splitJoinPredM: not a join predicate"
-        _ -> fail "splitJoinPredM: not a join predicate"
+                                                    <*> toScalarExpr y e1
+               | otherwise          -> mzero
+        _ -> mzero
+
+splitJoinPredM :: MonadCatch m => Ident -> Ident -> Expr -> m (JoinConjunct ScalarExpr)
+splitJoinPredM x y e =
+    case splitJoinPred x y e of
+        Just s  -> pure s
+        Nothing -> fail "not a join predicate"
+
+splitJoinPredE :: Ident -> Ident -> Expr -> Either Expr (JoinConjunct ScalarExpr)
+splitJoinPredE x y e =
+    case splitJoinPred x y e of
+        Just s  -> Right s
+        Nothing -> Left e
 
 -- | Split a combination of logical conjunctions into its sub-terms.
 conjuncts :: Expr -> NonEmpty Expr

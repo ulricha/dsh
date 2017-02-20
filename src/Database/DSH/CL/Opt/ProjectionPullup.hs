@@ -134,7 +134,7 @@ inlineJoinPredLeftT e x joinPred = do
 
     -- Turn the join predicate back into a 'ScalarExpr'. If the inlined predicate
     -- can't be transformed, the complete rewrite will fail.
-    leftPreds'    <- constT (return evalPreds) >>> mapT (promoteT $ toScalarExpr x)
+    leftPreds'    <- constT (return evalPreds) >>> mapT (promoteT $ toScalarExprT x)
     return $ updatePredicateLeft leftPreds' joinPred
 
 updatePredicateRight :: N.NonEmpty e -> JoinPredicate e -> JoinPredicate e
@@ -162,5 +162,5 @@ inlineJoinPredRightT e x joinPred = do
 
     -- Turn the join predicate back into a 'ScalarExpr'. If the inlined predicate
     -- can't be transformed, the complete rewrite will fail.
-    rightPreds'    <- constT (return evalPreds) >>> mapT (promoteT $ toScalarExpr x)
+    rightPreds'    <- constT (return evalPreds) >>> mapT (promoteT $ toScalarExprT x)
     return $ updatePredicateRight rightPreds' joinPred
