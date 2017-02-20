@@ -581,16 +581,6 @@ tuplifyFirstR v (v1, t1) t2 = substR v1 v1Rep
   where
     (v1Rep, _) = tupleVars v t1 t2
 
-tuplifyFirstE :: S.Set Ident -> Ident -> (Ident, Type) -> Type -> Expr -> Expr
-tuplifyFirstE scopeNames v (v1, t1) t2 e = substE scopeNames v1 v1Rep e
-  where
-    (v1Rep, _) = tupleVars v t1 t2
-
-tuplifySecondE :: S.Set Ident -> Ident -> Type -> (Ident, Type) -> Expr -> Expr
-tuplifySecondE scopeNames v t1 (v2, t2) e = substE scopeNames v2 v2Rep e
-  where
-    (_, v2Rep) = tupleVars v t1 t2
-
 -- | Turn all occurences of one variable into access to a tuple variable (second
 -- component).
 --
@@ -669,11 +659,11 @@ tryGuards :: MergeGuard  -- ^ The worker function
           -> [Expr]      -- ^ Guards that have been tried and failed
           -> TransformC () (Comp, [Expr])
 -- Try the next guard
-tryGuards mergeGuardR comp (p : ps) testedGuards = do
+tryGuards mergeGuardR c (p : ps) testedGuards = do
     let tryNextGuard :: TransformC () (Comp, [Expr])
         tryNextGuard = do
             -- Try to combine p with some generators
-            (comp', ps', testedGuards') <- mergeGuardR comp p ps testedGuards
+            (comp', ps', testedGuards') <- mergeGuardR c p ps testedGuards
 
             -- On success, back out to give other rewrites
             -- (i.e. predicate pushdown) a chance.
@@ -681,7 +671,7 @@ tryGuards mergeGuardR comp (p : ps) testedGuards = do
 
         -- If the current guard failed, try the next ones.
         tryOtherGuards :: TransformC () (Comp, [Expr])
-        tryOtherGuards = tryGuards mergeGuardR comp ps (p : testedGuards)
+        tryOtherGuards = tryGuards mergeGuardR c ps (p : testedGuards)
 
     tryNextGuard <+ tryOtherGuards
 
