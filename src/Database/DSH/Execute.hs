@@ -55,7 +55,7 @@ columnIndexes itemCols lyt = evalState (numberCols itemCols lyt) 1
 numberCols :: RelationalVector v => V.Vector ColName -> Layout v -> State Int (ColLayout v)
 numberCols itemCols LCol          = currentCol >>= \i -> return (CCol $ itemCols V.! (i - 1))
 numberCols itemCols (LTuple lyts) = CTuple <$> mapM (numberCols itemCols) lyts
-numberCols _        (LNest q lyt) = CNest q <$> posBracket (numberCols (rvItemCols q) lyt)
+numberCols _        (LNest q lyt) = void currentCol >> CNest q <$> posBracket (numberCols (rvItemCols q) lyt)
 
 currentCol :: State Int Int
 currentCol = do
