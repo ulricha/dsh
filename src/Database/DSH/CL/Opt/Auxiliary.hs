@@ -189,7 +189,7 @@ splitJoinPred x y e =
                                                     <*> pure op
                                                     <*> toScalarExpr y e2
                | y == x' && x == y' -> JoinConjunct <$> toScalarExpr x e2
-                                                    <*> pure op
+                                                    <*> pure (flipRelOp op)
                                                     <*> toScalarExpr y e1
                | otherwise          -> mzero
         _ -> mzero
