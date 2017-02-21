@@ -38,6 +38,12 @@ tupleElemR = do
     AppE1 _ (TupElem i) (MkTuple _ es) <- promoteT idR
     return $ inject $ es !! (tupleIndex i - 1)
 
+litTupleElemR :: RewriteC CL
+litTupleElemR = do
+    AppE1 _ (TupElem i) (Lit (TupleT tys) (TupleV vs)) <- promoteT idR
+    let atIdx = (!! (tupleIndex i - 1))
+    pure $ inject $ Lit (atIdx tys) (atIdx vs)
+
 negationR :: RewriteC CL
 negationR =
     readerT $ \cl -> case cl of
@@ -83,7 +89,7 @@ partialEvalR :: (RewriteC CL -> RewriteC CL) -> RewriteC CL
 partialEvalR logFun = logFun $
     readerT $ \cl -> case cl of
         ExprCL UnOp{}    -> negationR
-        ExprCL AppE1{}   -> tupleElemR <+ literalSingletonR
+        ExprCL AppE1{}   -> litTupleElemR <+ tupleElemR <+ literalSingletonR
         ExprCL MkTuple{} -> identityPairR <+ literalTupleR
         ExprCL AppE2{}   -> literalAppendR <+ appendEmptyLeftR <+ appendEmptyRightR
         _                -> fail "can't apply partial evaluation rules"
