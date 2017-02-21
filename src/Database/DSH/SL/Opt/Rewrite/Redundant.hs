@@ -1063,10 +1063,8 @@ pullNumberReplicateNest q =
   $(dagPatMatch 'q "R1 ((q1) ReplicateNest (Number (q2)))"
     [| return $ do
           logRewrite "Redundant.ReplicateNest.Number" q
-          let e = TMkTuple [ TMkTuple [ TTupElem First TInput
-                                      , TTupElem First (TTupElem (Next First) TInput)
-                                      ]
-                           , TTupElem (Next First) (TTupElem (Next First) TInput)
+          let e = TMkTuple [ TFirst TInpFirst
+                           , TMkTuple [ TSecond TInpFirst, TInpSecond ]
                            ]
           repNode    <- insert $ BinOp ReplicateNest $(v "q1") $(v "q2")
           r1Node     <- insert $ UnOp R1 repNode
