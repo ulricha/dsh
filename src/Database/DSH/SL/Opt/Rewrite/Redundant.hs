@@ -83,6 +83,7 @@ redundantRules = [ scalarConditional
                  , stackedAlign2
                  , stackedAlign3
                  , stackedAlign4
+                 , stackedNumber
                  ]
 
 
@@ -1080,10 +1081,8 @@ pullNumberAlignLeft q =
             logRewrite "Redundant.Align.Number.Left" q
             -- Project the number output between left and right columns to
             -- preserve the schema.
-            let e = TMkTuple [ TMkTuple [ TTupElem First (TTupElem First TInput)
-                                        , TTupElem (Next First) TInput
-                                        ]
-                             , TTupElem (Next First) (TTupElem First TInput)
+            let e = TMkTuple [ TMkTuple [ TFirst TInpFirst, TInpSecond ]
+                             , TSecond TInpFirst
                              ]
             alignNode  <- insert $ BinOp Align $(v "q1") $(v "q2")
             numberNode <- insert $ UnOp Number alignNode
@@ -1097,13 +1096,22 @@ pullNumberAlignRight q =
      [| do
           return $ do
             logRewrite "Redundant.Align.Number.Right" q
-            let e = TMkTuple [ TTupElem First (TTupElem First TInput)
-                             , TMkTuple [ TTupElem (Next First) (TTupElem First TInput)
-                                        , TTupElem (Next First) TInput
-                                        ]
+            let e = TMkTuple [ TFirst TInpFirst
+                             , TMkTuple [ TSecond TInpFirst, TInpSecond ]
                              ]
             alignNode  <- insert $ BinOp Align $(v "q1") $(v "q2")
             numberNode <- insert $ UnOp Number alignNode
             void $ replaceWithNew q $ UnOp (Project e) numberNode
       |]
    )
+
+stackedNumber :: SLRule TExpr TExpr ()
+stackedNumber q =
+  $(dagPatMatch 'q "Number (Number (q1))"
+     [| do
+             return $ do
+                 logRewrite "Redundant.Number.Stacked" q
+                 let e = TMkTuple [ TMkTuple [ TInpFirst, TInpSecond ], TInpSecond ]
+                 numberNode <- insert $ UnOp Number $(v "q1")
+                 void $ replaceWithNew q $ UnOp (Project e) numberNode
+      |])
