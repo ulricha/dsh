@@ -119,9 +119,6 @@ tyPrim1 (Agg a) ty     = flip catchError (const $ opTyErr (pp a) [ty]) $ do
         Or      -> boolTy eTy >> pure eTy
         Maximum -> void (scalarTy eTy) >> pure eTy
         Minimum -> void (scalarTy eTy) >> pure eTy
-tyPrim1 (Ext v) ty     = flip catchError (const $ opTyErr "ext" [ty]) $ do
-    eTy <- elemTy ty
-    pure $ ListT $ TupleT [eTy, typeOf v]
 
 -- | Typing of binary builtins
 tyPrim2 :: Prim2 -> Type -> Type -> Typing Type

@@ -69,6 +69,9 @@ fkl2SL expr =
             arg2' <- fkl2SL arg2
             arg3' <- fkl2SL arg3
             lift $ papp3 p l arg1' arg2' arg3'
+        Ext (Rep _ v arg) -> do
+            arg' <- fkl2SL arg
+            lift $ Builtins.rep v arg'
         Ext (Forget n _ arg) -> do
             arg' <- fkl2SL arg
             return $ forget n arg'
@@ -123,7 +126,6 @@ papp1 t f Lifted =
         Restrict        -> Builtins.restrictL
         Agg a           -> aggL t a
         TupElem i       -> Builtins.tupElemL i
-        LitExt v        -> Builtins.extL v
 
 papp1 _ f NotLifted =
     case f of

@@ -112,9 +112,6 @@ tyPrim1 (Agg a) ty     = flip catchError (const $ opTyErr (pp a) [ty]) $ do
         Or      -> boolTy eTy >> pure eTy
         Maximum -> void (scalarTy eTy) >> pure eTy
         Minimum -> void (scalarTy eTy) >> pure eTy
-tyPrim1 (Ext v) ty     = flip catchError (const $ opTyErr "ext" [ty]) $ do
-    eTy <- elemTy ty
-    pure $ ListT $ TupleT [eTy, typeOf v]
 tyPrim1 Restrict ty    =
     case ty of
         ListT (TupleT [ty1, ScalarT BoolT]) -> pure $ ListT ty1
@@ -191,6 +188,7 @@ inferTy (If _ c t e)         = do
        then opTyErr "if" [tyC, tyT, tyE]
        else pure tyT
 inferTy (Const ty _)         = pure ty
+inferTy (ScalarConst ty _)   = pure ty
 inferTy (Var _ x)            = lookupTy x
 inferTy (Iterator _ h x g)     = do
     genTy <- inferTy g >>= elemTy

@@ -12,15 +12,16 @@ import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Type
+import qualified Database.DSH.Common.VectorLang as VL
 import           Database.DSH.FKL.Lang
 
 --------------------------------------------------------------------------------
 -- Smart constructors for primitive combinators in the lifting FKL dialect
 
-ext :: ScalarVal -> LExpr -> Nat -> LExpr
-ext v xs d =
-    let ListT xt = unliftTypeN d $ typeOf xs
-    in PApp1 (liftTypeN d (ListT (PPairT xt (typeOf v)))) (LitExt v) (LiftedN d) xs
+vecVal :: Val -> VL.VecVal
+vecVal ListV{}     = $impossible
+vecVal (ScalarV v) = VL.VVScalar v
+vecVal (TupleV vs) = VL.VVTuple $ map vecVal vs
 
 group :: LExpr -> Nat -> LExpr
 group xs d =
@@ -201,15 +202,24 @@ imprint n shape bottom = Ext $ Imprint n (wrapListType n bt) shape bottom
     bt = typeOf bottom
 
 wrapListType :: Nat -> Type -> Type
-wrapListType Zero t     = t
+wrapListType Zero t      = t
 wrapListType (Succ n') t = wrapListType n' (ListT t)
 
 -- | A regular single 'dist' in the normalized FKL dialect
 fdist :: FExpr -> FExpr -> FExpr
 fdist e1 e2 = PApp2 (ListT $ typeOf e1) Dist NotLifted e1 e2
 
+rep :: Nat -> Type -> VL.VecVal -> FExpr -> FExpr
+rep Zero ty v e = Ext $ Rep ty v e
+rep n    ty v e = Ext $ Rep (unwrapListType n ty) v e
+
 --------------------------------------------------------------------------------
--- Smart constructors for special forms in the flat FKL dialect
+-- Smart constructors for special forms in the lifted FKL dialect
+
+broadcastScalar :: Type -> Val -> LExpr -> Nat -> LExpr
+broadcastScalar scalarTy v e d = Ext $ BroadcastScalar d ty (vecVal v) e
+  where
+    ty = wrapListType d scalarTy
 
 broadcast :: LExpr -> LExpr -> Nat -> LExpr
 broadcast e1 e2 d = Ext $ Broadcast d ty e1 e2

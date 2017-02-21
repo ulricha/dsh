@@ -98,10 +98,10 @@ tyPrim1 Group ty       = do
         _                         -> opTyErr "group" [ty]
 tyPrim1 (TupElem i) ty =
     case ty of
-        TupleT tys -> maybe (opTyErr (printf "_.%s" (tupleIndex i)) [ty])
+        TupleT tys -> maybe (opTyErr (printf "_.%d" (tupleIndex i)) [ty])
                             pure
                             (safeIndex i tys)
-        _          -> opTyErr (printf "_.%s" (tupleIndex i)) [ty]
+        _          -> opTyErr (printf "_.%d" (tupleIndex i)) [ty]
 tyPrim1 (Agg a) ty     = flip catchError (const $ opTyErr (pp a) [ty]) $ do
     eTy <- elemTy ty
     case a of
@@ -112,9 +112,6 @@ tyPrim1 (Agg a) ty     = flip catchError (const $ opTyErr (pp a) [ty]) $ do
         Or      -> boolTy eTy >> pure eTy
         Maximum -> void (scalarTy eTy) >> pure eTy
         Minimum -> void (scalarTy eTy) >> pure eTy
-tyPrim1 (LitExt v) ty  = flip catchError (const $ opTyErr "ext" [ty]) $ do
-    eTy <- elemTy ty
-    pure $ ListT $ TupleT [eTy, typeOf v]
 tyPrim1 Restrict ty    =
     case ty of
         ListT (TupleT [ty1, ScalarT BoolT]) -> pure $ ListT ty1
@@ -236,6 +233,7 @@ wrapListType Zero t     = t
 wrapListType (Succ n') t = wrapListType n' (ListT t)
 
 tyShapeExt :: ShapeExt -> Typing Type
+tyShapeExt s@(Rep ty _ e)        = catchError (void (inferTy e) >> pure ty) (expTyErr $ Ext s)
 tyShapeExt s@(Forget n _ e)      = catchError (inferTy e >>= unwrapListType n) (expTyErr $ Ext s)
 tyShapeExt s@(Imprint n _ e1 e2) = flip catchError (expTyErr $ Ext s) $ do
     ty1 <- inferTy e1

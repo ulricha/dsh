@@ -43,7 +43,6 @@ dist (VShape dv lyt) (VShape dvo _) = do
     lyt'             <- repLayout rv lyt
 
     return $ VShape outerVec (LNest prodVec lyt')
-dist _ _ = $impossible
 
 concat :: Shape DVec -> Build TSL (Shape DVec)
 concat (VShape _ (LNest q lyt)) = VShape <$> slUnsegment q <*> pure lyt
@@ -74,11 +73,15 @@ restrict _ = $impossible
 --------------------------------------------------------------------------------
 -- Construction of lifted primitives
 
-extL :: L.ScalarVal -> Shape DVec -> Build TSL (Shape DVec)
-extL val (VShape dvo (LNest dvi lyt)) = do
-    dvi' <- slProject (TMkTuple [TInput, TConstant val]) dvi
-    return (VShape dvo (LNest dvi' (LTuple [lyt, LCol])))
-extL _ _ = $impossible
+constLyt :: VecVal -> Layout a
+constLyt (VVTuple vs) = LTuple $ map constLyt vs
+constLyt (VVScalar _) = LCol
+constLyt VTIndex      = LCol
+
+rep :: VecVal -> Shape DVec -> Build TSL (Shape DVec)
+rep val (VShape dv _) = do
+    dv' <- slProject (valExpr val) dv
+    return (VShape dv' (constLyt val))
 
 onlyL :: Shape DVec -> Build TSL (Shape DVec)
 onlyL (VShape dvo (LNest dvi lyt)) = do
@@ -92,7 +95,6 @@ binOpL o (VShape dv1 _) (VShape dv2 _) = do
     da <- slAlign dv1 dv2
     dv <- slProject (TBinApp o (TTupElem First TInput) (TTupElem (Next First) TInput)) da
     return $ VShape dv LCol
-binOpL _ _ _ = $impossible
 
 restrictL :: Shape DVec -> Build TSL (Shape DVec)
 restrictL (VShape qo (LNest dv (LTuple [l, LCol]))) = do
@@ -189,7 +191,6 @@ numberL _ = $impossible
 
 appendL ::  Shape DVec -> Shape DVec -> Build TSL (Shape DVec)
 appendL (VShape d lyt1) (VShape _ lyt2) = VShape d <$> appendLayout lyt1 lyt2
-appendL _ _ = $impossible
 
 reverseL ::  Shape DVec -> Build TSL (Shape DVec)
 reverseL (VShape dvo (LNest dvi lyt)) = do
@@ -276,7 +277,6 @@ singletonL (VShape q lyt) = do
     dvo <- slProject TIndex q
     dvi <- slSegment q
     return $ VShape dvo (LNest dvi lyt)
-singletonL _ = $impossible
 
 --------------------------------------------------------------------------------
 -- Construction of base tables and literal tables
@@ -352,7 +352,6 @@ tupleVectors (VShape q1 lyt1 :| (s : ss)) = do
     (q, lyts, es) <- tupleVectors $ s :| ss
     qz' <- slAlign q1 q
     return (qz', lyt1 : lyts, TInpFirst N.<| fmap (mergeExpr TInpSecond) es)
-tupleVectors _ = $impossible
 
 --------------------------------------------------------------------------------
 -- Vectorization Helper Functions

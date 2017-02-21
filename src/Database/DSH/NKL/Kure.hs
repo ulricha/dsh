@@ -265,14 +265,15 @@ mkTupleR r = mkTupleT r MkTuple
 instance Walker NestedCtx Expr where
     allR :: forall m. MonadCatch m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
     allR r = readerT $ \e -> case e of
-            Table{}    -> idR
-            AppE1{}    -> appe1R (extractR r)
-            AppE2{}    -> appe2R (extractR r) (extractR r)
-            BinOp{}    -> binopR (extractR r) (extractR r)
-            UnOp{}     -> unopR (extractR r)
-            Iterator{} -> iteratorR (extractR r) (extractR r)
-            If{}       -> ifR (extractR r) (extractR r) (extractR r)
-            Const{}    -> idR
-            Var{}      -> idR
-            Let{}      -> letR (extractR r) (extractR r)
-            MkTuple{}  -> mkTupleR (extractR r)
+            Table{}       -> idR
+            AppE1{}       -> appe1R (extractR r)
+            AppE2{}       -> appe2R (extractR r) (extractR r)
+            BinOp{}       -> binopR (extractR r) (extractR r)
+            UnOp{}        -> unopR (extractR r)
+            Iterator{}    -> iteratorR (extractR r) (extractR r)
+            If{}          -> ifR (extractR r) (extractR r) (extractR r)
+            Const{}       -> idR
+            ScalarConst{} -> idR
+            Var{}         -> idR
+            Let{}         -> letR (extractR r) (extractR r)
+            MkTuple{}     -> mkTupleR (extractR r)

@@ -66,6 +66,9 @@ fkl2SL expr =
             arg2' <- fkl2SL arg2
             arg3' <- fkl2SL arg3
             lift $ papp3 p l arg1' arg2' arg3'
+        Ext (Rep _ v arg) -> do
+            arg' <- fkl2SL arg
+            lift $ Builtins.rep v arg'
         Ext (Forget n _ arg) -> do
             arg' <- fkl2SL arg
             return $ forget n arg'
@@ -118,7 +121,6 @@ papp1 t f Lifted =
         Sort            -> Builtins.unMacroL Builtins.sort
         Group           -> Builtins.unMacroL Builtins.group
         Restrict        -> Builtins.unMacroL Builtins.restrict
-        LitExt v        -> Builtins.unMacroL (Builtins.ext v)
         Agg a           -> aggL t a
         TupElem i       -> Builtins.tupElemL i
 

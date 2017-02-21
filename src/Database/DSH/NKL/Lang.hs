@@ -28,6 +28,7 @@ data Expr  = Table Type String L.BaseTableSchema
            | UnOp Type L.ScalarUnOp Expr
            | If Type Expr Expr Expr
            | Const Type [L.Val]
+           | ScalarConst Type L.Val
            | Var Type L.Ident
            | Iterator Type Expr L.Ident Expr
            | Let Type L.Ident Expr Expr
@@ -42,6 +43,7 @@ instance Typed Expr where
     typeOf (BinOp t _ _ _)    = t
     typeOf (UnOp t _ _)       = t
     typeOf (Const t _)        = t
+    typeOf (ScalarConst t _)  = t
     typeOf (Var t _)          = t
     typeOf (Iterator t _ _ _) = t
     typeOf (Let t _ _ _)      = t
@@ -66,6 +68,7 @@ instance Pretty Expr where
                                                (parenthize e2)
     pretty (If _ c t e)        = prettyIf (pretty c) (pretty t) (pretty e)
     pretty (Const _ v)         = pretty v
+    pretty (ScalarConst _ v)   = pretty v
     pretty (Var _ s)           = text s
     pretty (Iterator _ e x xs) =
         prettyComp (pretty e) [text x <+> comp (text "<-") <+> pretty xs]
@@ -92,11 +95,9 @@ data Prim1 = Singleton
            | Restrict
            | TupElem TupleIndex
            | Agg L.AggrFun
-           | Ext L.ScalarVal
            deriving (Eq, Show)
 
 instance Pretty Prim1 where
-    pretty (Ext v)         = combinator $ text $ printf "ext{%s}" (pp v)
     pretty Singleton       = combinator $ text "sng"
     pretty Only            = combinator $ text "only"
     pretty Concat          = combinator $ text "concat"

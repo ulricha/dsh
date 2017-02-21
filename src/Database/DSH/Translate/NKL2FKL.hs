@@ -52,7 +52,6 @@ prim1 p =
         N.Sort        -> P.sort
         N.Group       -> P.group
         N.Restrict    -> P.restrict
-        N.Ext v       -> P.ext v
 
 prim2 :: N.Prim2 -> F.LExpr -> F.LExpr -> Nat -> F.LExpr
 prim2 p =
@@ -150,6 +149,7 @@ flatten N.If{}                 = $impossible
 flatten N.AppE2{}              = $impossible
 flatten N.Let{}                = $impossible
 flatten N.MkTuple{}            = $impossible
+flatten N.ScalarConst{}        = $impossible
 flatten (N.Table t n s)        = pure $ F.Table t n s
 flatten (N.Const t v)          = pure $ F.Const t v
 flatten (N.AppE1 _ N.Concat e) = prim1 N.Concat <$> flatten e <*> pure Zero
@@ -169,6 +169,7 @@ flatten (N.Iterator _ h x xs)  = do
 -- | Compile expressions nested in an iterator.
 deepFlatten :: (Ident, Type) -> N.Expr -> Flatten F.LExpr
 deepFlatten _   (N.Var t v)          = frameDepthM >>= \d -> return $ F.Var (liftTypeN d t) v
+deepFlatten ctx (N.ScalarConst t v)  = P.broadcastScalar t v (envVar ctx) <$> frameDepthM
 deepFlatten ctx (N.Table t n schema) = P.broadcast (F.Table t n schema) (envVar ctx) <$> frameDepthM
 deepFlatten ctx (N.Const t v)        = P.broadcast (F.Const t v) (envVar ctx) <$> frameDepthM
 deepFlatten ctx (N.UnOp t op e1)     = P.un t op <$> deepFlatten ctx e1 <*> frameDepthM
@@ -237,6 +238,13 @@ normalizeLifted :: F.LExpr -> F.FExpr
 normalizeLifted e = evalState (normLifting e) 0
 
 implementBroadcast :: F.BroadcastExt -> NormFlat F.FExpr
+implementBroadcast (F.BroadcastScalar d ty v e) = do
+    e' <- normLifting e
+    case d of
+        Zero             -> $impossible
+        Succ Zero        -> return $ P.rep Zero ty v e'
+        -- FIXME use let-binding
+        Succ d1@(Succ _) -> return $ P.imprint d1 e' (P.rep d1 ty v (P.forget d1 e'))
 implementBroadcast (F.Broadcast d _ e1 e2) = do
     e1' <- normLifting e1
     e2' <- normLifting e2

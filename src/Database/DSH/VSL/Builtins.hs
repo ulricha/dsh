@@ -247,10 +247,15 @@ group dv (LTuple [xl, gl]) = do
 --------------------------------------------------------------------------------
 -- ext
 
-ext :: L.ScalarVal -> UnVectMacro
-ext val dv lyt = do
-    v' <- C.project (TMkTuple [TInput, TConstant val]) (dvPhysVec dv)
-    return (dv { dvPhysVec = v' }, LTuple [lyt, LCol])
+constLyt :: VecVal -> Layout a
+constLyt (VVTuple vs) = LTuple $ map constLyt vs
+constLyt (VVScalar _) = LCol
+constLyt VTIndex      = LCol
+
+rep :: VecVal -> Shape DelayedVec -> VSLBuild TExpr TExpr (Shape DelayedVec)
+rep val (VShape dv _) = do
+    v' <- C.project (valExpr val) (dvPhysVec dv)
+    pure $ VShape (dv { dvPhysVec = v'}) (constLyt val)
 
 --------------------------------------------------------------------------------
 -- Filtering

@@ -32,6 +32,12 @@ module Database.DSH.FKL.Kure
     , tableR, papp1R, papp2R, papp3R, binopR, unopR
     , constExprR, varR, letR
 
+    , broadcastT, broadcastscalarT
+    , broadcastR, broadcastscalarR
+
+    , repT, forgetT, imprintT
+    , repR, forgetR, imprintR
+
     , inScopeNames, freeIn, boundIn, freshNameT
 
     ) where
@@ -48,6 +54,7 @@ import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Common.Type
+import qualified Database.DSH.Common.VectorLang as VL
 import           Database.DSH.FKL.Lang
 
 --------------------------------------------------------------------------------
@@ -71,7 +78,9 @@ data CrumbF = AppFun
             | UnOpArg
             | ImprintArg1
             | ImprintArg2
+            | RepArg
             | ForgetArg
+            | BroadcastScalarArg
             | BroadcastArg1
             | BroadcastArg2
             | BroadcastLArg1
@@ -279,6 +288,18 @@ extR r = extT r Ext
 
 --------------------------------------------------------------------------------
 
+repT :: Monad m => Transform FlatCtx m FExpr a
+                -> (Type -> VL.VecVal -> a -> b)
+                -> Transform FlatCtx m ShapeExt b
+repT t f = transform $ \c expr -> case expr of
+                        Rep ty v e -> f ty v <$> applyT t (c@@RepArg) e
+                        _          -> fail "not a rep application"
+{-# INLINE repT #-}
+
+repR :: Monad m => Rewrite FlatCtx m FExpr -> Rewrite FlatCtx m ShapeExt
+repR r = repT r Rep
+{-# INLINE repR #-}
+
 forgetT :: Monad m => Transform FlatCtx m FExpr a
                    -> (Nat -> Type -> a -> b)
                    -> Transform FlatCtx m ShapeExt b
@@ -314,6 +335,7 @@ broadcastT :: Monad m => Transform FlatCtx m LExpr a1
 broadcastT t1 t2 f = transform $ \c expr -> case expr of
     Broadcast n ty e1 e2 -> f n ty <$> applyT t1 (c@@BroadcastArg1) e1
                                    <*> applyT t2 (c@@BroadcastArg2) e2
+    _                    -> fail "not a broadcast call"
 {-# INLINE broadcastT #-}
 
 broadcastR :: Monad m => Rewrite FlatCtx m LExpr
@@ -321,6 +343,19 @@ broadcastR :: Monad m => Rewrite FlatCtx m LExpr
                       -> Rewrite FlatCtx m BroadcastExt
 broadcastR r1 r2 = broadcastT r1 r2 Broadcast
 {-# INLINE broadcastR #-}
+
+broadcastscalarT :: Monad m => Transform FlatCtx m LExpr a
+                            -> (Nat -> Type -> VL.VecVal -> a -> b)
+                            -> Transform FlatCtx m BroadcastExt b
+broadcastscalarT t f = transform $ \c expr -> case expr of
+    BroadcastScalar n ty v e -> f n ty v <$> applyT t (c@@BroadcastScalarArg) e
+    _                        -> fail "not a broadcastscalar call"
+{-# INLINE broadcastscalarT #-}
+
+broadcastscalarR :: Monad m => Rewrite FlatCtx m LExpr
+                            -> Rewrite FlatCtx m BroadcastExt
+broadcastscalarR r = broadcastscalarT r BroadcastScalar
+{-# INLINE broadcastscalarR #-}
 
 --------------------------------------------------------------------------------
 
@@ -368,6 +403,7 @@ instance Walker FlatCtx (FKL Lifted ShapeExt) where
 
       where
         allRShape = readerT $ \o -> case o of
+                Rep{}     -> repR (extractR r)
                 Imprint{} -> imprintR (extractR r) (extractR r)
                 Forget{}  -> forgetR (extractR r)
 
@@ -379,20 +415,21 @@ instance Walker FlatCtx (FKL LiftedN BroadcastExt) where
 
       where
         allRBC = readerT $ \o -> case o of
-                Broadcast{}  -> broadcastR (extractR r) (extractR r)
+                Broadcast{}        -> broadcastR (extractR r) (extractR r)
+                BroadcastScalar{}  -> broadcastscalarR  (extractR r)
 
 allRExpr :: (Injection (ExprTempl t t1) g, Injection t1 g, Monad m)
          => Rewrite FlatCtx m g
          -> Transform FlatCtx m (ExprTempl t t1) (ExprTempl t t1)
 allRExpr r = readerT $ \e -> case e of
-        Table{}       -> idR
-        PApp1{}       -> papp1R (extractR r)
-        PApp2{}       -> papp2R (extractR r) (extractR r)
-        PApp3{}       -> papp3R (extractR r) (extractR r) (extractR r)
-        BinOp{}       -> binopR (extractR r) (extractR r)
-        UnOp{}        -> unopR (extractR r)
-        Const{}       -> idR
-        Let{}         -> letR (extractR r) (extractR r)
-        Var{}         -> idR
-        MkTuple{}     -> mkTupleR (extractR r)
-        Ext{}         -> extR (extractR r)
+        Table{}   -> idR
+        PApp1{}   -> papp1R (extractR r)
+        PApp2{}   -> papp2R (extractR r) (extractR r)
+        PApp3{}   -> papp3R (extractR r) (extractR r) (extractR r)
+        BinOp{}   -> binopR (extractR r) (extractR r)
+        UnOp{}    -> unopR (extractR r)
+        Const{}   -> idR
+        Let{}     -> letR (extractR r) (extractR r)
+        Var{}     -> idR
+        MkTuple{} -> mkTupleR (extractR r)
+        Ext{}     -> extR (extractR r)

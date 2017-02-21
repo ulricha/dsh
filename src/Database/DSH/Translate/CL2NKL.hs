@@ -42,7 +42,6 @@ prim1 t p e = mkApp t <$> expr e
             CL.Sort             -> mkPrim1 NKL.Sort
             CL.Group            -> mkPrim1 NKL.Group
             CL.Agg a            -> mkPrim1 (NKL.Agg a)
-            CL.Ext v            -> mkPrim1 (NKL.Ext v)
             CL.Guard            -> $impossible
             CL.Null             -> $impossible
 
@@ -127,8 +126,8 @@ expr (CL.BinOp t o e1 e2)        = NKL.BinOp t o <$> expr e1 <*> expr e2
 expr (CL.UnOp t o e)             = NKL.UnOp t o <$> expr e
 expr (CL.If t c th el)           = NKL.If t <$> expr c <*> expr th <*> expr el
 expr (CL.Lit t (ListV vs))       = return $ NKL.Const t vs
-expr (CL.Lit _ (ScalarV _))      = $impossible
-expr (CL.Lit _ (TupleV _))       = $impossible
+expr (CL.Lit t (ScalarV v))      = return $ NKL.ScalarConst t (ScalarV v)
+expr (CL.Lit t (TupleV v))       = return $ NKL.ScalarConst t (TupleV v)
 expr (CL.Var t v)                = return $ NKL.Var t v
 expr (CL.Comp t e qs)            = desugarComprehension t e (toList qs)
 expr (CL.Let t x e1 e2)          = NKL.Let t x <$> expr e1 <*> local (x :) (expr e2)
@@ -335,6 +334,4 @@ desugarComprehensions e = runReader (expr $ desugar e) []
   where
     desugar =     D.desugarBuiltins
               >>> D.wrapComprehension
-              >>> D.bindScalarLiterals
-              >>> D.eliminateScalarSingletons
-              >>> D.mergeExtLiterals
+              >>> D.bindComplexLiterals

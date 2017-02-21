@@ -27,11 +27,6 @@ if_ c t e = if PBoolT P.== typeOf c
             then If (typeOf t) c t e
             else tyErr "if_"
 
-ext :: L.ScalarVal -> Expr -> Expr
-ext v e = let ListT xt = typeOf e
-              vt       = typeOf v
-          in AppE1 (ListT (PPairT xt vt)) (Ext v) e
-
 reverse :: Expr -> Expr
 reverse e = let t@(ListT _) = typeOf e
              in AppE1 t Reverse e

@@ -4,17 +4,13 @@
 -- | Remove scalar literals from CL terms by binding them as singleton list
 -- generators.
 module Database.DSH.CL.Desugar
-  ( bindScalarLiterals
+  ( bindComplexLiterals
   , wrapComprehension
   , desugarBuiltins
-  , eliminateScalarSingletons
-  , mergeExtLiterals
   ) where
 
 import           Control.Arrow
 
-import           Database.DSH.Common.Impossible
-import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
 
 import           Database.DSH.CL.Kure
@@ -33,115 +29,23 @@ tryRewrite r expr =
         Right expr' -> expr'
 
 --------------------------------------------------------------------------------
--- Eliminate generators with singleton literal lists
-
-pushSingletonGenQualsR :: RewriteC CL
-pushSingletonGenQualsR = readerT $ \quals -> case quals of
-    QualsCL ((y :<-: LitListP ty [ScalarV v]) :* (_ :<-: LitListP{}) :* _) -> do
-        qs' <- childT QualsTail pushSingletonGenQualsR >>> projectT
-        return $ inject $ (y :<-: LitListP ty [ScalarV v]) :* qs'
-    QualsCL ((y :<-: LitListP ty [ScalarV v]) :* (x :<-: xs) :* qs) -> do
-        guardM $ y `notElem` freeVars xs
-        return $ inject $ (x :<-: xs) :* (y :<-: LitListP ty [ScalarV v]) :* qs
-    QualsCL ((_ :<-: LitListP _ [ScalarV _]) :* S (_ :<-: LitListP{})) -> do
-        fail "end of qualifier list, no match"
-    QualsCL ((y :<-: LitListP ty [ScalarV v]) :* S (x :<-: xs)) -> do
-        guardM $ y `notElem` freeVars xs
-        return $ inject $ (x :<-: xs) :* S (y :<-: LitListP ty [ScalarV v])
-    QualsCL (GuardQ p :* (y :<-: LitListP ty [ScalarV v]) :* qs) -> do
-        guardM $ y `notElem` freeVars p
-        return $ inject $ (y :<-: LitListP ty [ScalarV v]) :* GuardQ p :* qs
-    QualsCL (GuardQ p :* S (y :<-: LitListP ty [ScalarV v]))     -> do
-        guardM $ y `notElem` freeVars p
-        return $ inject $ (y :<-: LitListP ty [ScalarV v]) :* S (GuardQ p)
-    QualsCL (q :* _)                                             -> do
-        qs' <- childT QualsTail pushSingletonGenQualsR >>> projectT
-        return $ inject $ q :* qs'
-    QualsCL (S _)                                                ->
-        fail "end of qualifier list, no match"
-    _                                                            ->
-        $impossible
-
--- | Push scalar singleton list generators in front of guards as a preparation
--- for merging them into generator extensions.
-pushSingletonGenR :: RewriteC CL
-pushSingletonGenR = do
-    Comp ty h _ <- promoteT idR
-    qs' <- childT CompQuals pushSingletonGenQualsR >>> projectT
-    return $ inject $ Comp ty h qs'
-
--- | Search for a generator with a literal singleton scalar list that can be
--- replaced with an extension of another generator. Returns the new qualifier
--- list, the tuplifying rewrite for the comprehension head and the tuplifying
--- rewrite for the qualifiers together with the position from which it needs to
--- be applied.
-scalarSingletonGenR :: Rewrite CompCtx (RewriteStateM Expr RewriteLog) CL
-scalarSingletonGenR = readerT $ \quals -> case quals of
-    QualsCL ((x :<-: xs) :* (y :<-: LitListP _ [ScalarV v]) :* qs) -> do
-        guardM $ x /= y
-        h <- constT get
-        z <- freshNameST $ [x,y] ++ compBoundVars qs ++ boundVars h
-        scopeNames <- inScopeNamesT
-
-        let xt     = elemT $ typeOf xs
-            yt     = typeOf v
-            extGen = P.ext v xs
-
-        let (qs', h') = tuplifyCompE scopeNames z (x, xt) (y, yt) qs h
-        constT $ put h'
-        pure $ inject $ (z :<-: extGen) :* qs'
-
-    QualsCL ((x :<-: xs) :* S (y :<-: LitListP _ [ScalarV v]))     -> do
-        guardM $ x /= y
-        h <- constT get
-        z <- freshNameST $ [x,y] ++ boundVars h
-        scopeNames <- inScopeNamesT
-
-        let xt     = elemT $ typeOf xs
-            yt     = typeOf v
-            extGen = P.ext v xs
-
-        let h' = tuplifyE scopeNames z (x, xt) (y, yt) h
-        constT $ put h'
-        pure $ inject $ S (z :<-: extGen)
-    _ -> fail "desugar.scalarsingleton: no match"
-
-eliminateScalarSingletonR :: RewriteC CL
-eliminateScalarSingletonR = logR "desguar.scalarsingleton" $ do
-    Comp ty h _ <- promoteT idR
-    (h', qs')   <- statefulT h $ childT CompQuals (onetdSpineR scalarSingletonGenR) >>> projectT
-    pure $ inject $ Comp ty h' qs'
-
-eliminateScalarSingletonsR :: RewriteC CL
-eliminateScalarSingletonsR = do
-    Comp{} <- promoteT idR
-    repeatR pushSingletonGenR >+> repeatR eliminateScalarSingletonR
-
--- | Replace singleton scalar literal list generators with generator extensions.
---
--- @
--- [ e | x <- xs, y <- [42], qs ]
--- =>
--- [ e[z.1/x][z.2/y] | z <- ext{42} xs, qs[z.1/x][z.2/y] ]
--- @
-eliminateScalarSingletons :: Expr -> Expr
-eliminateScalarSingletons e = tryRewrite (repeatR $ anytdR eliminateScalarSingletonsR) e
-
---------------------------------------------------------------------------------
 -- Bind scalar literals in enclosing comprehensions
+
+isScalar :: Val -> Bool
+isScalar (ListV _)   = False
+isScalar (TupleV vs) = all isScalar vs
+isScalar (ScalarV _) = True
 
 -- | Search for a scalar literal in an expression. Return the value and the path
 -- to the literal.
-searchScalarLiteralT :: TransformC CL (Either [Val] ScalarVal, Type , PathC)
-searchScalarLiteralT = readerT $ \expr -> case expr of
+searchComplexLiteralT :: TransformC CL (Either [Val] ScalarVal, Type , PathC)
+searchComplexLiteralT = readerT $ \expr -> case expr of
     ExprCL (Lit ty (TupleV fs)) -> do
+        guardM $ not $ all isScalar fs
         path <- snocPathToPath <$> absPathT
         return (Left fs, ty, path)
-    ExprCL (Lit ty (ScalarV v)) -> do
-        path <- snocPathToPath <$> absPathT
-        return (Right v, ty, path)
     ExprCL Comp{}              -> fail "don't traverse into comprehensions"
-    _                          -> oneT searchScalarLiteralT
+    _                          -> oneT searchComplexLiteralT
 
 -- | Create a singleton list value from a scalar value.
 wrapSingleton :: Either [Val] ScalarVal -> Val
@@ -155,10 +59,10 @@ mkScalarLitGen scalarTy genName scalarVal =
 
 -- | Search for a scalar literal in the head of a comprehension and bind it as a
 -- singleton qualifier.
-bindScalarLiteralHeadR :: RewriteC CL
-bindScalarLiteralHeadR = do
+bindComplexLiteralHeadR :: RewriteC CL
+bindComplexLiteralHeadR = do
     ExprCL (Comp compTy h qs) <- idR
-    (v, ty, path)         <- childT CompHead searchScalarLiteralT
+    (v, ty, path)         <- childT CompHead searchComplexLiteralT
     localPath             <- localizePathT path
     genName               <- pathT localPath (freshNameT [])
     let litVar = Var ty genName
@@ -170,10 +74,10 @@ bindScalarLiteralHeadR = do
 
 -- | Search for a scalar literal in the qualifiers of a comprehension and bind
 -- it as a singleton qualifier.
-bindScalarLiteralGensR :: RewriteC CL
-bindScalarLiteralGensR = do
+bindComplexLiteralGensR :: RewriteC CL
+bindComplexLiteralGensR = do
     ExprCL (Comp compTy h qs) <- idR
-    (v, ty, path)         <- childT CompQuals searchScalarLiteralT
+    (v, ty, path)         <- childT CompQuals searchComplexLiteralT
     localPath             <- localizePathT path
     genName               <- pathT localPath (freshNameT [])
     let litVar = Var ty genName
@@ -185,35 +89,15 @@ bindScalarLiteralGensR = do
 
 -- | Search for scalar literals in a comprehension and bind them as singleton
 -- generators.
-bindScalarLiteralsR :: RewriteC CL
-bindScalarLiteralsR = do
+bindComplexLiteralsR :: RewriteC CL
+bindComplexLiteralsR = do
     ExprCL Comp{} <- idR
-    repeatR bindScalarLiteralHeadR >+> repeatR bindScalarLiteralGensR
+    repeatR bindComplexLiteralHeadR >+> repeatR bindComplexLiteralGensR
 
 -- | Eliminate scalar literals from a CL expression by binding them as singleton
 -- list generators in the enclosing comprehension.
-bindScalarLiterals :: Expr -> Expr
-bindScalarLiterals = tryRewrite (anytdR bindScalarLiteralsR)
-
---------------------------------------------------------------------------------
--- Merge extensions into literal lists
-
-mergeExtLiteralR :: RewriteC CL
-mergeExtLiteralR = do
-    AppE1 ty1 (Ext v) (Lit _ (ListV vs)) <- promoteT idR
-    let vs' = map (\litVal -> TupleV [litVal, ScalarV v]) vs
-    pure $ inject $ Lit ty1 (ListV vs')
-
--- | Merge scalar extensions into literal lists:
---
--- @ext{v} [v_1,...,v_n] => [<v_1,v>,...,<v_n,v>]@
---
--- This rewrite is important to prevent ext from floating to the top-level unit
--- comprehension wrapper and appear unlifted.
---
--- See TPC-H Q14 for an example.
-mergeExtLiterals :: Expr -> Expr
-mergeExtLiterals = tryRewrite (repeatR $ anytdR mergeExtLiteralR)
+bindComplexLiterals :: Expr -> Expr
+bindComplexLiterals = tryRewrite (anytdR bindComplexLiteralsR)
 
 --------------------------------------------------------------------------------
 
