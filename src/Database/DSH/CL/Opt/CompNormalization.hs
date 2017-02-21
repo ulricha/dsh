@@ -34,24 +34,20 @@ import           Database.DSH.Common.Impossible
 ------------------------------------------------------------------
 -- Classical Monad Comprehension Normalization rules (Grust)
 
+isEmptyGen :: Qual -> Bool
+isEmptyGen (BindQ _ (Lit _ (ListV []))) = True
+isEmptyGen _                            = False
+
 -- | M-Norm-1: Eliminate comprehensions with empty generators
+--
+-- [ h | qs, x <- [], qs' ]
+-- =>
+-- []
 m_norm_1R :: RewriteC CL
 m_norm_1R = logR "compnorm.M-Norm-1" $ do
-    Comp t _ _ <- promoteT idR
-    matches <- childT CompQuals $ onetdT (promoteT $ patternT <+ patternEndT)
-    guardM matches
+    Comp t _ qs <- promoteT idR
+    guardM $ any isEmptyGen qs
     return $ inject $ P.nil t
-
-  where
-    patternT :: TransformC (NL Qual) Bool
-    patternT = do
-        BindQ _ (Lit _ (ListV [])) :* _ <- idR
-        return True
-
-    patternEndT :: TransformC (NL Qual) Bool
-    patternEndT = do
-        (S (BindQ _ (Lit _ (ListV [])))) <- idR
-        return True
 
 -- | M-Norm-2: eliminate singleton generators.
 -- [ h | qs, x <- [v], qs' ]
