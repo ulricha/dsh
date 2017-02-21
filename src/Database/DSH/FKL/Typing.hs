@@ -158,7 +158,7 @@ tyPrim2 (GroupJoin p as) ty1 ty2 = flip catchError (const $ opTyErr "groupjoin" 
     aTys <- runReaderT (mapM aggrTy $ N.toList $ getNE as) (Just $ TupleT [ety1, ety2])
     case aTys of
         [aTy] -> pure $ ListT $ TupleT [ety1, aTy]
-        _     -> pure $ ListT $ TupleT [ety1, TupleT aTys]
+        _     -> pure $ ListT $ TupleT $ ety1 : aTys
 tyPrim2 Dist ty1 ty2             = flip catchError (const $ opTyErr "dist" [ty1, ty2]) $ do
     if isList ty2
        then pure $ ListT ty1

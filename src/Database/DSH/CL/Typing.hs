@@ -105,10 +105,10 @@ tyPrim1 Guard ty       = do
         _             -> opTyErr "guard" [ty]
 tyPrim1 (TupElem i) ty =
     case ty of
-        TupleT tys -> maybe (opTyErr (printf "_.%s" (tupleIndex i)) [ty])
+        TupleT tys -> maybe (opTyErr (printf "_.%d" (tupleIndex i)) [ty])
                             pure
                             (safeIndex i tys)
-        _          -> opTyErr (printf "_.%s" (tupleIndex i)) [ty]
+        _          -> opTyErr (printf "_.%d" (tupleIndex i)) [ty]
 tyPrim1 (Agg a) ty     = flip catchError (const $ opTyErr (pp a) [ty]) $ do
     eTy <- elemTy ty
     case a of
@@ -161,7 +161,7 @@ tyPrim2 (GroupJoin p as) ty1 ty2 = flip catchError (const $ opTyErr "groupjoin" 
     aTys <- runReaderT (mapM aggrTy $ N.toList $ getNE as) (Just $ TupleT [ety1, ety2])
     case aTys of
         [aTy] -> pure $ ListT $ TupleT [ety1, aTy]
-        _     -> pure $ ListT $ TupleT [ety1, TupleT aTys]
+        _     -> pure $ ListT $ TupleT $ ety1 : aTys
 
 tyComp :: NL Qual -> Expr -> Typing Type
 tyComp (GuardQ p :* qs) h = do

@@ -10,7 +10,7 @@ import           Data.List
 import           Text.PrettyPrint.ANSI.Leijen                  hiding ((<$>))
 import qualified Text.PrettyPrint.ANSI.Leijen                  as P
 import           Text.Printf
-import           Data.List.NonEmpty(NonEmpty((:|)))
+import           Data.List.NonEmpty(NonEmpty((:|)),(<|))
 import qualified Data.IntMap                                   as IM
 
 import           Database.Algebra.Dag.Common
@@ -228,7 +228,7 @@ tyBinOp t1 t2 (GroupJoin (p, as)) = do
     aTys <- sequenceA $ fmap (aggrTy (pPairT ty1 ty2)) $ L.getNE as
     case aTys of
         aTy :| [] -> pure $ T1 $ DVec $ pPairT ty1 aTy
-        _ :| _    -> pure $ T1 $ DVec $ pPairT ty1 (VL.PTupleT aTys)
+        _   :| _  -> pure $ T1 $ DVec $ VL.PTupleT $ ty1 <| aTys
 
 -- | Typing of ternary SL operators
 tyTerOp :: MonadError String m => VecTup -> VecTup -> VecTup -> TerOp -> m VecTup
