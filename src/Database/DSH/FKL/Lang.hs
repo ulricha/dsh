@@ -4,6 +4,7 @@
 
 module Database.DSH.FKL.Lang where
 
+import qualified Data.Foldable                  as F
 import           Prelude                        hiding ((<$>))
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
@@ -64,6 +65,7 @@ data Prim1 = Concat
            | Singleton
            | Only
            | Agg L.AggrFun
+           | GroupAgg (L.NE L.AggrApp)
     deriving (Show, Eq)
 
 data Prim2 = Append
@@ -149,17 +151,18 @@ instance Pretty LiftedN where
     pretty (LiftedN n)    = super $ superscript (intFromNat n)
 
 instance Pretty Prim1 where
-    pretty Concat       = combinator $ text "concat"
-    pretty Reverse      = combinator $ text "reverse"
-    pretty Nub          = combinator $ text "nub"
-    pretty Number       = combinator $ text "number"
-    pretty Sort         = combinator $ text "sort"
-    pretty Restrict     = restrict $ text "restrict"
-    pretty Group        = combinator $ text "group"
-    pretty Singleton    = combinator $ text "sng"
-    pretty Only         = combinator $ text "only"
-    pretty (Agg a)      = pretty a
-    pretty TupElem{}    = $impossible
+    pretty Concat        = combinator $ text "concat"
+    pretty Reverse       = combinator $ text "reverse"
+    pretty Nub           = combinator $ text "nub"
+    pretty Number        = combinator $ text "number"
+    pretty Sort          = combinator $ text "sort"
+    pretty Restrict      = restrict $ text "restrict"
+    pretty Group         = combinator $ text "group"
+    pretty Singleton     = combinator $ text "sng"
+    pretty Only          = combinator $ text "only"
+    pretty (Agg a)       = pretty a
+    pretty (GroupAgg as) = combinator $ text $ printf "groupagg{%s}" (pp $ F.toList as)
+    pretty TupElem{}     = $impossible
 
 instance Pretty Prim2 where
     pretty Dist            = dist $ text "dist"

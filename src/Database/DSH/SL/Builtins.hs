@@ -1,6 +1,6 @@
+{-# LANGUAGE OverloadedLists  #-}
 {-# LANGUAGE ParallelListComp #-}
 {-# LANGUAGE TemplateHaskell  #-}
-{-# LANGUAGE OverloadedLists  #-}
 
 -- | Vectorising constructor functions that implement FKL primitives
 -- using SL operators.
@@ -9,8 +9,9 @@ module Database.DSH.SL.Builtins where
 import           Control.Applicative
 import           Control.Monad
 import qualified Data.List                      as List
+import           Data.List.NonEmpty             (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty             as N
-import           Data.List.NonEmpty             (NonEmpty((:|)))
+import           Data.Semigroup                 ((<>))
 import qualified Data.Sequence                  as S
 import           Prelude                        hiding (reverse, zip)
 
@@ -23,8 +24,8 @@ import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Vector
 import           Database.DSH.Common.VectorLang
-import           Database.DSH.SL.Lang           (TSL)
 import           Database.DSH.SL.Construct
+import           Database.DSH.SL.Lang           (TSL)
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
 
@@ -221,6 +222,21 @@ groupL (VShape dvo (LNest dvi (LTuple [xl, gl]))) = do
     xl'              <- sortLayout rv xl
     return $ VShape dvo (LNest dvo'' (LTuple [gl, LNest dvi'' xl']))
 groupL _ = $impossible
+
+groupaggL :: L.NE (AggrFun TExpr) -> Shape DVec -> Build TSL (Shape DVec)
+groupaggL as (VShape dvo (LNest dvi (LTuple [xl, gl]))) = do
+    (dvk, dvg, rv) <- slGroup TInpSecond dvi
+    dvg'           <- slProject (TTupElem First TInput) dvg
+    xl'            <- sortLayout rv xl
+    dva            <- slGroupAgg as TInpSecond dvi
+    dvc            <- slAlign dvk dva
+    let proj = case L.getNE as of
+                   _ :| [] -> TMkTuple [TFirst TInpFirst, TSecond TInpFirst, TSecond TInpSecond]
+                   _       -> let aProj = fmap (\i -> TTupElem (intIndex i) (TSecond TInpSecond)) [1..length as]
+                              in TMkTuple $ [TFirst TInpFirst, TSecond TInpFirst] <> aProj
+    dv             <- slProject proj dvc
+    return $ VShape dvo (LNest dv (LTuple [gl, LNest dvg' xl']))
+groupaggL _ _ = $impossible
 
 concatL ::  Shape DVec -> Build TSL (Shape DVec)
 concatL (VShape vo (LNest vm (LNest vi l))) = do

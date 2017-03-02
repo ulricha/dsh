@@ -41,6 +41,7 @@ prim1 t p e = mkApp t <$> expr e
             CL.TupElem i        -> mkPrim1 $ NKL.TupElem i
             CL.Sort             -> mkPrim1 NKL.Sort
             CL.Group            -> mkPrim1 NKL.Group
+            (CL.GroupAgg as)    -> mkPrim1 (NKL.GroupAgg as)
             CL.Agg a            -> mkPrim1 (NKL.Agg a)
             CL.Guard            -> $impossible
             CL.Null             -> $impossible

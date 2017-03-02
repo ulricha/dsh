@@ -104,6 +104,7 @@ data Prim1 = Singleton
            | Guard
            | TupElem TupleIndex
            | Agg L.AggrFun
+           | GroupAgg (L.NE L.AggrApp)
            deriving (Eq, Show)
 
 instance Pretty Prim1 where
@@ -117,7 +118,8 @@ instance Pretty Prim1 where
   pretty Nub             = combinator $ text "nub"
   pretty Number          = combinator $ text "number"
   pretty Guard           = combinator $ text "guard"
-  pretty (Agg a)         = pretty a
+  pretty (Agg a)         = combinator $ pretty a
+  pretty (GroupAgg as)   = combinator $ text $ printf "groupagg{%s}" (pp $ F.toList as)
   -- tuple access is pretty-printed in a special way
   pretty TupElem{}       = $impossible
 

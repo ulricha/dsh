@@ -123,6 +123,7 @@ papp1 t f Lifted =
         Number          -> Builtins.numberL
         Sort            -> Builtins.sortL
         Group           -> Builtins.groupL
+        GroupAgg as     -> Builtins.groupaggL (fmap translateAggrFun as)
         Restrict        -> Builtins.restrictL
         Agg a           -> aggL t a
         TupElem i       -> Builtins.tupElemL i

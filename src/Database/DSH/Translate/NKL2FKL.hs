@@ -51,6 +51,7 @@ prim1 p =
         N.Number      -> P.number
         N.Sort        -> P.sort
         N.Group       -> P.group
+        N.GroupAgg as -> P.groupagg as
         N.Restrict    -> P.restrict
 
 prim2 :: N.Prim2 -> F.LExpr -> F.LExpr -> Nat -> F.LExpr

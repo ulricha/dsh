@@ -11,6 +11,7 @@ module Database.DSH.NKL.Lang
   , Prim2(..)
   ) where
 
+import qualified Data.Foldable                  as F
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 
@@ -95,6 +96,7 @@ data Prim1 = Singleton
            | Restrict
            | TupElem TupleIndex
            | Agg L.AggrFun
+           | GroupAgg (L.NE L.AggrApp)
            deriving (Eq, Show)
 
 instance Pretty Prim1 where
@@ -107,7 +109,8 @@ instance Pretty Prim1 where
     pretty Sort            = combinator $ text "sort"
     pretty Restrict        = restrict $ text "restrict"
     pretty Group           = combinator $ text "group"
-    pretty (Agg a)         = pretty a
+    pretty (Agg a)         = combinator $ pretty a
+    pretty (GroupAgg as)   = combinator $ text $ printf "groupagg{%s}" (pp $ F.toList as)
     -- tuple access is pretty-printed in a special way
     pretty TupElem{}       = $impossible
 

@@ -109,6 +109,9 @@ instance Applicative NE where
     pure x = NE (pure x)
     (NE f) <*> (NE a) = NE (f <*> a)
 
+instance Foldable NE where
+    foldMap f (NE xs) = foldMap f xs
+
 $(deriveJSON defaultOptions ''NE)
 
 -----------------------------------------------------------------------------

@@ -76,6 +76,9 @@ slNumber (DVec c) = vec (SL $ UnOp Number c) dvec
 slGroup :: TExpr -> DVec -> Build TSL (DVec, DVec, SVec)
 slGroup groupExprs (DVec c) = tripleVec (SL $ UnOp (Group groupExprs) c) dvec dvec svec
 
+slGroupAgg :: L.NE (AggrFun TExpr) -> TExpr -> DVec -> Build TSL DVec
+slGroupAgg aggrFuns groupExprs (DVec c) = vec (SL $ UnOp (GroupAggr (groupExprs, aggrFuns)) c) dvec
+
 slSort :: TExpr -> DVec -> Build TSL (DVec, SVec)
 slSort sortExprs (DVec c1) = pairVec (SL $ UnOp (Sort sortExprs) c1) dvec svec
 

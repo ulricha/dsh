@@ -29,6 +29,12 @@ group xs d =
         rt                      = ListT (PPairT gt (ListT xt))
     in PApp1 (liftTypeN d rt) Group (LiftedN d) xs
 
+groupagg :: NE AggrApp -> LExpr -> Nat -> LExpr
+groupagg as xs d =
+    let ListT (TupleT [xt, gt]) = unliftTypeN d $ typeOf xs
+        rt                      = ListT (TupleT $ [gt, ListT xt] ++ toList (fmap aggType as))
+    in PApp1 (liftTypeN d rt) Group (LiftedN d) xs
+
 sort :: LExpr -> Nat -> LExpr
 sort xs d =
     let ListT (TupleT [xt, _]) = unliftTypeN d $ typeOf xs

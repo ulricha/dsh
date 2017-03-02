@@ -42,7 +42,7 @@ lookupTy x = do
 type Typing = ReaderT TyEnv (Either String)
 
 --------------------------------------------------------------------------------
--- Monad type predicates
+-- Monadic type predicates
 
 elemTy :: Type -> Typing Type
 elemTy (ListT ty) = pure ty
@@ -99,6 +99,12 @@ tyPrim1 Group ty       = do
     case ty of
         ListT (TupleT [ty1, ty2]) -> pure $ ListT (TupleT [ty2, ListT ty1])
         _                         -> opTyErr "group" [ty]
+tyPrim1 (GroupAgg as) ty = do
+    eTy  <- elemTy ty
+    aTys <- runReaderT (mapM aggrTy $ N.toList $ getNE as) (Just eTy)
+    case ty of
+        ListT (TupleT [ty1, ty2]) -> pure $ ListT (TupleT $ [ty2, ListT ty1] ++ aTys)
+        _                         -> opTyErr "groupagg" [ty]
 tyPrim1 Guard ty       = do
     case ty of
         ScalarT BoolT -> pure $ ListT $ ScalarT UnitT
@@ -111,14 +117,18 @@ tyPrim1 (TupElem i) ty =
         _          -> opTyErr (printf "_.%d" (tupleIndex i)) [ty]
 tyPrim1 (Agg a) ty     = flip catchError (const $ opTyErr (pp a) [ty]) $ do
     eTy <- elemTy ty
+    aggTy eTy a
+
+aggTy :: Type -> AggrFun -> Typing Type
+aggTy ty a =
     case a of
         Length  -> pure $ ScalarT IntT
-        Sum     -> numTy eTy >> pure eTy
-        Avg     -> fractTy eTy >> pure eTy
-        And     -> boolTy eTy >> pure eTy
-        Or      -> boolTy eTy >> pure eTy
-        Maximum -> void (scalarTy eTy) >> pure eTy
-        Minimum -> void (scalarTy eTy) >> pure eTy
+        Sum     -> numTy ty >> pure ty
+        Avg     -> fractTy ty >> pure ty
+        And     -> boolTy ty >> pure ty
+        Or      -> boolTy ty >> pure ty
+        Maximum -> void (scalarTy ty) >> pure ty
+        Minimum -> void (scalarTy ty) >> pure ty
 
 -- | Typing of binary builtins
 tyPrim2 :: Prim2 -> Type -> Type -> Typing Type

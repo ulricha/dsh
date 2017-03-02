@@ -75,6 +75,17 @@ scalarTy ty            = throwError $ printf "FKL type error: %s not a scalar ty
 --------------------------------------------------------------------------------
 -- Type inference
 
+aggTy :: Type -> AggrFun -> Typing Type
+aggTy ty a =
+    case a of
+        Length  -> pure $ ScalarT IntT
+        Sum     -> numTy ty >> pure ty
+        Avg     -> fractTy ty >> pure ty
+        And     -> boolTy ty >> pure ty
+        Or      -> boolTy ty >> pure ty
+        Maximum -> void (scalarTy ty) >> pure ty
+        Minimum -> void (scalarTy ty) >> pure ty
+
 -- | Typing of unary builtins
 tyPrim1 :: Prim1 -> Type -> Typing Type
 tyPrim1 Singleton ty   = pure $ ListT ty
@@ -96,6 +107,12 @@ tyPrim1 Group ty       = do
     case ty of
         ListT (TupleT [ty1, ty2]) -> pure $ ListT (TupleT [ty2, ListT ty1])
         _                         -> opTyErr "group" [ty]
+tyPrim1 (GroupAgg as) ty = do
+    eTy  <- elemTy ty
+    aTys <- runReaderT (mapM aggrTy $ N.toList $ getNE as) (Just eTy)
+    case ty of
+        ListT (TupleT [ty1, ty2]) -> pure $ ListT (TupleT $ [ty2, ListT ty1] ++ aTys)
+        _                         -> opTyErr "groupagg" [ty]
 tyPrim1 (TupElem i) ty =
     case ty of
         TupleT tys -> maybe (opTyErr (printf "_.%d" (tupleIndex i)) [ty])
@@ -104,14 +121,7 @@ tyPrim1 (TupElem i) ty =
         _          -> opTyErr (printf "_.%d" (tupleIndex i)) [ty]
 tyPrim1 (Agg a) ty     = flip catchError (const $ opTyErr (pp a) [ty]) $ do
     eTy <- elemTy ty
-    case a of
-        Length  -> pure $ ScalarT IntT
-        Sum     -> numTy eTy >> pure eTy
-        Avg     -> fractTy eTy >> pure eTy
-        And     -> boolTy eTy >> pure eTy
-        Or      -> boolTy eTy >> pure eTy
-        Maximum -> void (scalarTy eTy) >> pure eTy
-        Minimum -> void (scalarTy eTy) >> pure eTy
+    aggTy eTy a
 tyPrim1 Restrict ty    =
     case ty of
         ListT (TupleT [ty1, ScalarT BoolT]) -> pure $ ListT ty1
