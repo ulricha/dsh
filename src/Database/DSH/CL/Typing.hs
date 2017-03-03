@@ -99,11 +99,11 @@ tyPrim1 Group ty       = do
     case ty of
         ListT (TupleT [ty1, ty2]) -> pure $ ListT (TupleT [ty2, ListT ty1])
         _                         -> opTyErr "group" [ty]
-tyPrim1 (GroupAgg as) ty = do
-    eTy  <- elemTy ty
-    aTys <- runReaderT (mapM aggrTy $ N.toList $ getNE as) (Just eTy)
+tyPrim1 (GroupAgg as) ty =
     case ty of
-        ListT (TupleT [ty1, ty2]) -> pure $ ListT (TupleT $ [ty2, ListT ty1] ++ aTys)
+        ListT (TupleT [ty1, ty2]) -> do
+            aTys <- runReaderT (mapM aggrTy $ N.toList $ getNE as) (Just ty1)
+            pure $ ListT (TupleT $ [ty2, ListT ty1] ++ aTys)
         _                         -> opTyErr "groupagg" [ty]
 tyPrim1 Guard ty       = do
     case ty of
