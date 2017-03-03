@@ -123,7 +123,12 @@ papp1 t f Lifted =
         Number          -> Builtins.numberL
         Sort            -> Builtins.sortL
         Group           -> Builtins.groupL
-        GroupAgg as     -> Builtins.groupaggL (fmap translateAggrFun as)
+        GroupAgg as     ->
+            -- Aggregates in CL/NKL/FKL groupaggr operators are implicitly
+            -- applied to the first tuple component only. To vectorize
+            -- correctly, this has to be made explicit.
+            let vecAggs = fmap (fmap (VL.mergeExpr VL.TInpFirst) . translateAggrFun) as
+            in Builtins.groupaggL vecAggs
         Restrict        -> Builtins.restrictL
         Agg a           -> aggL t a
         TupElem i       -> Builtins.tupElemL i

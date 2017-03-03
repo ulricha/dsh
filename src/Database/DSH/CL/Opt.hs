@@ -20,6 +20,7 @@ import           Database.DSH.CL.Opt.Auxiliary
 import           Database.DSH.CL.Opt.CompNormalization
 import           Database.DSH.CL.Opt.FlatJoin
 import           Database.DSH.CL.Opt.GroupJoin
+import           Database.DSH.CL.Opt.GroupAggr
 import           Database.DSH.CL.Opt.JoinPushdown
 import           Database.DSH.CL.Opt.LetFloating
 import           Database.DSH.CL.Opt.LoopInvariant
@@ -91,6 +92,7 @@ descendR = readerT $ \cl -> case cl of
         repeatR ( compNormEarlyR
                   <+ predpushdownR
                   <+ flatjoinsR
+                  <+ groupaggR
                   <+ anyR descendR
                 )
 

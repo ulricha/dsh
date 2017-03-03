@@ -35,50 +35,10 @@ import qualified Database.DSH.CL.Primitives     as P
 
 import           Database.DSH.CL.Opt.Auxiliary
 
--- | Rewrite the child expression of the aggregate into a scalar expression. The
--- identifier 'x' is the name bound by the outer comprehension.
---
--- The following forms can be rewritten:
---
--- @ x.2 @
--- @ [ f y | y <- x.2 ] @
-toAggregateExprT :: Ident -> TransformC CL ScalarExpr
-toAggregateExprT x =
-    readerT $ \e -> case e of
-        ExprCL (Comp _ _ (S (y :<-: TupSecondP _ (Var _ x')))) | x == x' ->
-            childT CompHead $ promoteT (toScalarExprT y)
-        ExprCL (TupSecondP t (Var _ x')) | x == x'                       ->
-            return $ JInput t
-        _                                                                ->
-            fail "not an aggregate expression"
-
--- | Traverse though an expression and search for an aggregate that is eligible
--- for being merged into a NestJoin.
-searchAggregatedGroupT :: Ident -> TransformC CL (PathC, AggrApp)
-searchAggregatedGroupT x =
-    readerT $ \e -> case e of
-        ExprCL (AppE1 _ (Agg agg) _) ->
-            (,) <$> (snocPathToPath <$> absPathT)
-                <*> (AggrApp agg <$> childT AppE1Arg (toAggregateExprT x))
-        ExprCL _      -> oneT $ searchAggregatedGroupT x
-        _             -> fail "only traverse through expressions"
-
---------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 -- Introduce GroupJoin operator for aggregates in the comprehension head or a
 -- guard.
-
-traverseGuardsT :: Ident -> TransformC CL a -> TransformC CL a
-traverseGuardsT genName t = readerT $ \qs -> case qs of
-    QualsCL (BindQ y _ :* _)
-        | y == genName      -> fail "nestjoin generator name shadowed"
-        | otherwise         -> childT QualsTail (traverseGuardsT genName t)
-    QualsCL (GuardQ _ :* _) -> pathT [QualsHead, GuardQualExpr] t
-                               <+ childT QualsTail (traverseGuardsT genName t)
-    QualsCL (S (GuardQ _))  -> pathT [QualsSingleton, GuardQualExpr] t
-    QualsCL (S (BindQ _ _)) -> fail "end of qualifier list"
-    _                       -> fail "not a qualifier list"
 
 -- | Merge a NestJoin operator and an aggregate into a GroupJoin. This rewrite
 -- searches for eligible aggregates both in the comprehension head as well as in
@@ -157,7 +117,7 @@ groupjoinR = logR "groupjoin.construct" $ do
 -- the operator expression and its element type.
 mkGroupJoin :: AggrApp -> JoinPredicate ScalarExpr -> Expr -> Expr -> (Expr, Type)
 mkGroupJoin agg p xs ys =
-    (GroupJoinP (ListT xt') p (NE $ pure agg) xs ys, xt')
+    (GroupJoinP (ListT xt') p (pure agg) xs ys, xt')
   where
     xt  = elemT $ typeOf xs
     at  = aggType agg

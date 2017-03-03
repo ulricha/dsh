@@ -157,6 +157,7 @@ Library
                      Database.DSH.CL.Opt.NestJoin
                      Database.DSH.CL.Opt.Resugar
                      Database.DSH.CL.Opt.GroupJoin
+                     Database.DSH.CL.Opt.GroupAggr
                      Database.DSH.CL.Opt.ProjectionPullup
                      Database.DSH.FKL.Lang
                      Database.DSH.FKL.Typing

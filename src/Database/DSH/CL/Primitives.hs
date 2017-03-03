@@ -110,6 +110,9 @@ fst e = tupElem First e
 snd :: Expr -> Expr
 snd e = tupElem (Next First) e
 
+third :: Expr -> Expr
+third e = tupElem (Next (Next First)) e
+
 singleGenComp :: Expr -> L.Ident -> Expr -> Expr
 singleGenComp bodyExp v gen =
     let bodyTy = typeOf bodyExp

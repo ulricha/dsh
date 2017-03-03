@@ -225,17 +225,20 @@ groupL _ = $impossible
 
 groupaggL :: L.NE (AggrFun TExpr) -> Shape DVec -> Build TSL (Shape DVec)
 groupaggL as (VShape dvo (LNest dvi (LTuple [xl, gl]))) = do
-    (dvk, dvg, rv) <- slGroup TInpSecond dvi
-    dvg'           <- slProject (TTupElem First TInput) dvg
-    xl'            <- sortLayout rv xl
-    dva            <- slGroupAgg as TInpSecond dvi
-    dvc            <- slAlign dvk dva
+    -- Create the vector for groups
+    (_, dvg, rv) <- slGroup TInpSecond dvi
+    dvg'         <- slProject (TTupElem First TInput) dvg
+    xl'          <- sortLayout rv xl
+
+    -- Create the outer sector describing the group structure
+    dva          <- slGroupAgg as TInpSecond dvi
     let proj = case L.getNE as of
-                   _ :| [] -> TMkTuple [TFirst TInpFirst, TSecond TInpFirst, TSecond TInpSecond]
+                   _ :| [] -> TMkTuple [TInpFirst, TIndex, TSecond TInpFirst, TInpSecond]
                    _       -> let aProj = fmap (\i -> TTupElem (intIndex i) (TSecond TInpSecond)) [1..length as]
-                              in TMkTuple $ [TFirst TInpFirst, TSecond TInpFirst] <> aProj
-    dv             <- slProject proj dvc
-    return $ VShape dvo (LNest dv (LTuple [gl, LNest dvg' xl']))
+                              in TMkTuple $ [TInpFirst, TIndex] <> aProj
+    dv             <- slProject proj dva
+    let aggLyts = map (const LCol) [1..length as]
+    return $ VShape dvo (LNest dv (LTuple $ [gl, LNest dvg' xl'] ++ aggLyts))
 groupaggL _ _ = $impossible
 
 concatL ::  Shape DVec -> Build TSL (Shape DVec)
