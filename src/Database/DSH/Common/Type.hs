@@ -125,7 +125,11 @@ elemT (ListT t) = t
 elemT _        = error "elemT: argument is not a list type"
 
 tupleElemT :: Type -> TupleIndex -> Type
-tupleElemT (TupleT ts) f = ts !! (tupleIndex f - 1)
+tupleElemT (TupleT ts) f =
+    let i = tupleIndex f - 1
+    in if i < length ts
+       then ts !! i
+       else error "tupleElemT"
 tupleElemT _           _ = $impossible
 
 tupleElemTypes :: Type -> [Type]
