@@ -317,10 +317,11 @@ conjTyErr c = printf "predTy: (%s) %s (%s)" (pp $ jcLeft c) (pp $ jcOp c) (pp $ 
 
 jExpTy :: (MonadError String m, MonadReader (Maybe Type) m) => ScalarExpr -> m Type
 jExpTy (JLit ty _)      = pure ty
-jExpTy (JInput _)       = do
+jExpTy (JInput tyAnnot) = do
     mTy <- ask
     case mTy of
-        Just ty -> pure ty
+        Just ty | ty == tyAnnot -> pure ty
+                | otherwise     -> throwError $ printf "jExpTy: input type mismatch: %s (input) /= %s (annot)" (pp ty) (pp tyAnnot)
         Nothing -> throwError "jExpTy: TInput with empty env"
 jExpTy (JTupElem i e)     = do
     ty <- jExpTy e
