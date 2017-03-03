@@ -33,7 +33,7 @@ groupagg :: NE AggrApp -> LExpr -> Nat -> LExpr
 groupagg as xs d =
     let ListT (TupleT [xt, gt]) = unliftTypeN d $ typeOf xs
         rt                      = ListT (TupleT $ [gt, ListT xt] ++ toList (fmap aggType as))
-    in PApp1 (liftTypeN d rt) Group (LiftedN d) xs
+    in PApp1 (liftTypeN d rt) (GroupAgg as) (LiftedN d) xs
 
 sort :: LExpr -> Nat -> LExpr
 sort xs d =
