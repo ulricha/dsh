@@ -776,7 +776,7 @@ toAggregateExprT x =
         ExprCL (Comp _ _ (S (y :<-: TupSecondP _ (Var _ x')))) | x == x' ->
             childT CompHead $ promoteT (toScalarExprT y)
         ExprCL (TupSecondP t (Var _ x')) | x == x'                       ->
-            return $ JInput t
+            return $ JInput (elemT t)
         _                                                                ->
             fail "not an aggregate expression"
 

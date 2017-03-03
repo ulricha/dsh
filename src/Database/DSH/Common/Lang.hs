@@ -112,6 +112,9 @@ instance Applicative NE where
 instance Foldable NE where
     foldMap f (NE xs) = foldMap f xs
 
+instance Semigroup (NE a) where
+    NE xs <> NE ys = NE $ xs <> ys
+
 $(deriveJSON defaultOptions ''NE)
 
 -----------------------------------------------------------------------------

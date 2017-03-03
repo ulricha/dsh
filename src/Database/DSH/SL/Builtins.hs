@@ -234,7 +234,7 @@ groupaggL as (VShape dvo (LNest dvi (LTuple [xl, gl]))) = do
     dva          <- slGroupAgg as TInpSecond dvi
     let proj = case L.getNE as of
                    _ :| [] -> TMkTuple [TInpFirst, TIndex, TSecond TInpFirst, TInpSecond]
-                   _       -> let aProj = fmap (\i -> TTupElem (intIndex i) (TSecond TInpSecond)) [1..length as]
+                   _       -> let aProj = fmap (\i -> TTupElem (intIndex i) TInpSecond) [1..length as]
                               in TMkTuple $ [TInpFirst, TIndex] <> aProj
     dv             <- slProject proj dva
     let aggLyts = map (const LCol) [1..length as]
