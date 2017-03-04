@@ -102,11 +102,12 @@ tuplifyScalarExpr (t1, t2) (JoinPred cs) = JoinPred $ fmap updateConjunct cs
   where
     updateConjunct jc = JoinConjunct (descend (jcLeft jc)) (jcOp jc) (jcRight jc)
 
-    descend (JBinOp op e1 e2)                         = JBinOp op (descend e1) (descend e2)
-    descend (JUnOp op e)                              = JUnOp op (descend e)
-    descend (JTupElem idx e)                          = JTupElem idx (descend e)
-    descend (JLit ty val)                             = JLit ty val
-    descend (JInput _)                                = JTupElem First (JInput (TupleT [t1, t2]))
+    descend (JIf e1 e2 e3)    = JIf (descend e1) (descend e2) (descend e3)
+    descend (JBinOp op e1 e2) = JBinOp op (descend e1) (descend e2)
+    descend (JUnOp op e)      = JUnOp op (descend e)
+    descend (JTupElem idx e)  = JTupElem idx (descend e)
+    descend (JLit ty val)     = JLit ty val
+    descend (JInput _)        = JTupElem First (JInput (TupleT [t1, t2]))
 
 -- | If the left input of a filtering join is a Sort operator, push the join
 -- into the Sort input to reduce the cardinality before sorting.

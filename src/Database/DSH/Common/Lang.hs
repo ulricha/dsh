@@ -276,12 +276,14 @@ singlePred c = JoinPred $ c N.:| []
 data ScalarExpr = JBinOp ScalarBinOp ScalarExpr ScalarExpr
                 | JUnOp ScalarUnOp ScalarExpr
                 | JTupElem TupleIndex ScalarExpr
+                | JIf ScalarExpr ScalarExpr ScalarExpr
                 | JLit Type Val
                 | JInput Type
               deriving (Show, Eq)
 
 -- | Modify the input type of a scalar expression.
 mapInput :: (Type -> Type) -> ScalarExpr -> ScalarExpr
+mapInput f (JIf e1 e2 e3)    = JIf (mapInput f e1) (mapInput f e2) (mapInput f e3)
 mapInput f (JBinOp op e1 e2) = JBinOp op (mapInput f e1) (mapInput f e2)
 mapInput f (JUnOp op e)      = JUnOp op (mapInput f e)
 mapInput f (JTupElem i e)    = JTupElem i (mapInput f e)
@@ -289,6 +291,7 @@ mapInput _ (JLit ty v)       = JLit ty v
 mapInput f (JInput ty)       = JInput $ f ty
 
 instance Typed ScalarExpr where
+    typeOf (JIf e1 e2 e3)   = either error id $ inferCond (typeOf e1) (typeOf e2) (typeOf e3)
     typeOf (JBinOp o e1 e2) = either error id $ inferBinOp (typeOf e1) (typeOf e2) o
     typeOf (JUnOp o e)      = either error id $ inferUnOp (typeOf e) o
     typeOf (JTupElem i e)   = either error id $ inferTupleElem (typeOf e) i
@@ -319,6 +322,13 @@ conjTyErr :: JoinConjunct TypedSExpr -> String
 conjTyErr c = printf "predTy: (%s) %s (%s)" (pp $ jcLeft c) (pp $ jcOp c) (pp $ jcRight c)
 
 jExpTy :: (MonadError String m, MonadReader (Maybe Type) m) => ScalarExpr -> m Type
+jExpTy (JIf e1 e2 e3)   = do
+    condTy <- jExpTy e1
+    thenTy <- jExpTy e2
+    elseTy <- jExpTy e3
+    if condTy == ScalarT BoolT && thenTy == elseTy
+       then pure thenTy
+       else throwError $ condTyErr (TE e1 condTy) (TE e2 thenTy) (TE e3 elseTy)
 jExpTy (JLit ty _)      = pure ty
 jExpTy (JInput tyAnnot) = do
     mTy <- ask
@@ -441,12 +451,22 @@ inferBinOp :: MonadError String m => Type -> Type -> ScalarBinOp -> m Type
 inferBinOp (ScalarT t1) (ScalarT t2) op = ScalarT <$> inferBinOpScalar t1 t2 op
 inferBinOp t1           t2           op = typeError op [t1, t2]
 
+inferCondScalar :: MonadError String m => ScalarType -> ScalarType -> ScalarType -> m ScalarType
+inferCondScalar boolTy thenTy elseTy
+    | boolTy == BoolT && thenTy == elseTy = pure thenTy
+    | otherwise                           = typeError "if" [boolTy, thenTy, elseTy]
+
+inferCond :: MonadError String m => Type -> Type -> Type -> m Type
+inferCond (ScalarT t1) (ScalarT t2) (ScalarT t3) = ScalarT <$> inferCondScalar t1 t2 t3
+inferCond t1           t2           t3           = typeError "if" [t1, t2, t3]
+
 -----------------------------------------------------------------------------
 -- Pretty-printing of stuff
 
 parenthize :: ScalarExpr -> Doc
 parenthize e =
     case e of
+        JIf{}      -> parens $ pretty e
         JBinOp{}   -> parens $ pretty e
         JUnOp{}    -> parens $ pretty e
         JTupElem{} -> pretty e
@@ -526,6 +546,7 @@ instance Pretty UnDateOp where
     pretty DateYear  = text "dateYear"
 
 instance Pretty ScalarExpr where
+    pretty (JIf e1 e2 e3)    = text "if" <+> pretty e1 <+> text "then" <+> pretty e2 <+> text "else" <+> pretty e3
     pretty (JBinOp op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2
     pretty (JUnOp op e)      = pretty op <+> parenthize e
     pretty (JLit _ v)        = pretty v

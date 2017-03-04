@@ -168,6 +168,7 @@ scalarVal _             = $impossible
 
 -- | Convert join expressions into SL expressions.
 scalarExpr :: L.ScalarExpr -> TExpr
+scalarExpr (L.JIf e1 e2 e3)     = TIf (scalarExpr e1) (scalarExpr e2) (scalarExpr e3)
 scalarExpr (L.JBinOp op e1 e2)  = TBinApp op (scalarExpr e1) (scalarExpr e2)
 scalarExpr (L.JUnOp op e)       = TUnApp op (scalarExpr e)
 scalarExpr (L.JTupElem i e)     = TTupElem i (scalarExpr e)

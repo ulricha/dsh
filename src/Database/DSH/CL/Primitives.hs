@@ -242,12 +242,12 @@ scalarUnOp :: L.ScalarUnOp -> Expr -> Expr
 scalarUnOp op e =
     let t = typeOf e
     in case (op, t) of
-           (L.SUNumOp _, PDoubleT)                  -> UnOp t op e
-           (L.SUBoolOp _, PBoolT)                   -> UnOp PBoolT op e
+           (L.SUNumOp _, PDoubleT)                 -> UnOp t op e
+           (L.SUBoolNot, PBoolT)                   -> UnOp PBoolT op e
            (L.SUCastOp L.CastDouble, _) | isNum t  -> UnOp PDoubleT op e
            (L.SUCastOp L.CastDecimal, _) | isNum t -> UnOp PDecimalT op e
-           (L.SUTextOp L.SubString{}, PStringT)     -> UnOp PStringT op e
-           (L.SUDateOp _, PDateT)                   -> UnOp PIntT op e
+           (L.SUTextOp L.SubString{}, PStringT)    -> UnOp PStringT op e
+           (L.SUDateOp _, PDateT)                  -> UnOp PIntT op e
            (_, _)                                  -> P.error err
                where err = printf "CL.Primitives.scalarUnOp: %s" (P.show (op, t))
 
@@ -267,7 +267,7 @@ dateYear :: Expr -> Expr
 dateYear = scalarUnOp (L.SUDateOp L.DateYear)
 
 not :: Expr -> Expr
-not = scalarUnOp (L.SUBoolOp L.Not)
+not = scalarUnOp L.SUBoolNot
 
 sin :: Expr -> Expr
 sin = scalarUnOp (L.SUNumOp L.Sin)

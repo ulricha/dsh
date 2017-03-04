@@ -144,6 +144,7 @@ applyInjectable t e = fst <$> runRewriteM (applyT t initialCtx (inject e))
 -- | 'fromScalarExpr n e' rewrites scalar expression 'e' into a general
 -- expression and uses the name 'n' for the input variable.
 fromScalarExpr :: Ident -> ScalarExpr -> Expr
+fromScalarExpr n e@(JIf e1 e2 e3)       = If (typeOf e) (fromScalarExpr n e1) (fromScalarExpr n e2) (fromScalarExpr n e3)
 fromScalarExpr n e@(JBinOp op e1 e2)    = BinOp (typeOf e) op (fromScalarExpr n e1) (fromScalarExpr n e2)
 fromScalarExpr n e@(JUnOp op e1)        = UnOp (typeOf e) op (fromScalarExpr n e1)
 fromScalarExpr n e@(JTupElem tupIdx e1) = AppE1 (typeOf e) (TupElem tupIdx) (fromScalarExpr n e1)
@@ -154,6 +155,9 @@ fromScalarExpr n (JInput ty)            = Var ty n
 -- Rewrite general expressions into equi-join predicates
 
 toScalarExpr :: Ident -> Expr -> Maybe ScalarExpr
+toScalarExpr n (If _ e1 e2 e3)         = JIf <$> toScalarExpr n e1
+                                             <*> toScalarExpr n e2
+                                             <*> toScalarExpr n e3
 toScalarExpr n (AppE1 _ (TupElem i) e) = JTupElem i <$> toScalarExpr n e
 toScalarExpr n (BinOp _ o e1 e2)       = JBinOp o <$> toScalarExpr n e1
                                                    <*> toScalarExpr n e2
@@ -222,6 +226,7 @@ conjuncts e                               = pure e
 -- | Check whether a scalar expression refers only to the first tuple component
 -- of the input.
 firstOnly :: ScalarExpr -> Bool
+firstOnly (JIf e1 e2 e3)            = all firstOnly [e1, e2, e3]
 firstOnly (JBinOp _ e1 e2)          = firstOnly e1 && firstOnly e2
 firstOnly (JUnOp _ e)               = firstOnly e
 firstOnly (JTupElem First JInput{}) = True
@@ -233,6 +238,9 @@ firstOnly JInput{}                  = $impossible
 -- | Change a scalar expression that only refers to the first tuple component of
 -- the input to refer directly to the input.
 untuplifyScalarExpr :: ScalarExpr -> ScalarExpr
+untuplifyScalarExpr (JIf e1 e2 e3)                             = JIf (untuplifyScalarExpr e1)
+                                                                     (untuplifyScalarExpr e2)
+                                                                     (untuplifyScalarExpr e3)
 untuplifyScalarExpr (JBinOp op e1 e2)                          = JBinOp op (untuplifyScalarExpr e1) (untuplifyScalarExpr e2)
 untuplifyScalarExpr (JUnOp op e)                               = JUnOp op (untuplifyScalarExpr e)
 untuplifyScalarExpr (JTupElem First (JInput (TupleT [t1, _]))) = JInput t1

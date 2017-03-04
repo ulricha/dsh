@@ -225,6 +225,7 @@ mergeExistingAggrR a as ty p xs ys = do
 -- | Change a scalar expression that only refers to the first tuple component of
 -- the input to refer directly to the input.
 unFst :: ScalarExpr -> ScalarExpr
+unFst (JIf e1 e2 e3)                             = JIf (unFst e1) (unFst e2) (unFst e3)
 unFst (JBinOp op e1 e2)                          = JBinOp op (unFst e1) (unFst e2)
 unFst (JUnOp op e)                               = JUnOp op (unFst e)
 unFst (JTupElem First (JInput (TupleT [t1, _]))) = JInput t1
