@@ -24,8 +24,8 @@ type TyEnv = [(Ident, Type)]
 expTyErr :: Pretty e => e -> String -> Typing a
 expTyErr a msg = throwError $ printf "CL type inference failed in expression\n>>>\n%s\n<<<\n\n%s" (pp a) msg
 
-opTyErr :: String -> [Type] -> Typing a
-opTyErr msg tys = throwError $ printf "CL type error: %s {%s}" msg tyMsg
+opTyErr :: String -> [Type] -> String -> Typing a
+opTyErr op tys msg = throwError $ printf "CL type error: %s {%s}\n%s" op tyMsg msg
   where
     tyMsg = concat $ intersperse "," $ fmap pp tys
 
@@ -77,45 +77,45 @@ scalarTy ty            = throwError $ printf "CL type error: %s not a scalar typ
 -- | Typing of unary builtins
 tyPrim1 :: Prim1 -> Type -> Typing Type
 tyPrim1 Singleton ty   = pure $ ListT ty
-tyPrim1 Only ty        = catchError (elemTy ty) (const $ opTyErr "only" [ty])
+tyPrim1 Only ty        = catchError (elemTy ty) (opTyErr "only" [ty])
 tyPrim1 Concat ty      =
     case ty of
         ListT (ListT eTy) -> pure $ ListT eTy
-        _                 -> opTyErr "concat" [ty]
+        _                 -> opTyErr "concat" [ty] ""
 tyPrim1 Null ty        = do
     case ty of
         ListT _ -> pure $ ScalarT BoolT
-        _       -> opTyErr "null" [ty]
-tyPrim1 Reverse ty     = catchError (listTy ty) (const $ opTyErr "reverse" [ty]) >> pure ty
-tyPrim1 Nub ty         = catchError (listTy ty) (const $ opTyErr "nub" [ty]) >> pure ty
-tyPrim1 Number ty      = flip catchError (const $ opTyErr "number" [ty]) $ do
+        _       -> opTyErr "null" [ty] ""
+tyPrim1 Reverse ty     = catchError (listTy ty) (opTyErr "reverse" [ty]) >> pure ty
+tyPrim1 Nub ty         = catchError (listTy ty) (opTyErr "nub" [ty]) >> pure ty
+tyPrim1 Number ty      = flip catchError (opTyErr "number" [ty]) $ do
     eTy <- elemTy ty
     pure $ ListT $ TupleT [eTy, ScalarT IntT]
 tyPrim1 Sort ty        = do
     case ty of
         ListT (TupleT [ty1, _]) -> pure $ ListT ty1
-        _                       -> opTyErr "sort" [ty]
+        _                       -> opTyErr "sort" [ty] ""
 tyPrim1 Group ty       = do
     case ty of
         ListT (TupleT [ty1, ty2]) -> pure $ ListT (TupleT [ty2, ListT ty1])
-        _                         -> opTyErr "group" [ty]
+        _                         -> opTyErr "group" [ty] ""
 tyPrim1 (GroupAgg as) ty =
     case ty of
         ListT (TupleT [ty1, ty2]) -> do
             aTys <- runReaderT (mapM aggrTy $ N.toList $ getNE as) (Just ty1)
             pure $ ListT (TupleT $ [ty2, ListT ty1] ++ aTys)
-        _                         -> opTyErr "groupagg" [ty]
+        _                         -> opTyErr "groupagg" [ty] ""
 tyPrim1 Guard ty       = do
     case ty of
         ScalarT BoolT -> pure $ ListT $ ScalarT UnitT
-        _             -> opTyErr "guard" [ty]
+        _             -> opTyErr "guard" [ty] ""
 tyPrim1 (TupElem i) ty =
     case ty of
-        TupleT tys -> maybe (opTyErr (printf "_.%d" (tupleIndex i)) [ty])
+        TupleT tys -> maybe (opTyErr (printf "_.%d" (tupleIndex i)) [ty] "")
                             pure
                             (safeIndex i tys)
-        _          -> opTyErr (printf "_.%d" (tupleIndex i)) [ty]
-tyPrim1 (Agg a) ty     = flip catchError (const $ opTyErr (pp a) [ty]) $ do
+        _          -> opTyErr (printf "_.%d" (tupleIndex i)) [ty] ""
+tyPrim1 (Agg a) ty     = flip catchError (opTyErr (pp a) [ty]) $ do
     eTy <- elemTy ty
     aggTy eTy a
 
@@ -135,36 +135,36 @@ tyPrim2 :: Prim2 -> Type -> Type -> Typing Type
 tyPrim2 Append ty1 ty2           =
     if isList ty1 && isList ty2 && ty1 == ty2
     then pure ty1
-    else opTyErr "append" [ty1, ty2]
-tyPrim2 Zip ty1 ty2              = flip catchError (const $ opTyErr "zip" [ty1,ty2]) $ do
+    else opTyErr "append" [ty1, ty2] ""
+tyPrim2 Zip ty1 ty2              = flip catchError (opTyErr "zip" [ty1,ty2]) $ do
     ety1 <- elemTy ty1
     ety2 <- elemTy ty2
     pure $ ListT $ TupleT [ety1, ety2]
-tyPrim2 CartProduct ty1 ty2      = flip catchError (const $ opTyErr "cartproduct" [ty1,ty2]) $ do
+tyPrim2 CartProduct ty1 ty2      = flip catchError (opTyErr "cartproduct" [ty1,ty2]) $ do
     ety1 <- elemTy ty1
     ety2 <- elemTy ty2
     pure $ ListT $ TupleT [ety1, ety2]
-tyPrim2 (ThetaJoin p) ty1 ty2    = flip catchError (const $ opTyErr "thetajoin" [ty1,ty2]) $ do
+tyPrim2 (ThetaJoin p) ty1 ty2    = flip catchError (opTyErr "thetajoin" [ty1,ty2]) $ do
     ety1 <- elemTy ty1
     ety2 <- elemTy ty2
     checkPredTy ety1 ety2 p
     pure $ ListT $ TupleT [ety1, ety2]
-tyPrim2 (NestJoin p) ty1 ty2     = flip catchError (const $ opTyErr "nestjoin" [ty1, ty2]) $ do
+tyPrim2 (NestJoin p) ty1 ty2     = flip catchError (opTyErr "nestjoin" [ty1, ty2]) $ do
     ety1 <- elemTy ty1
     ety2 <- elemTy ty2
     checkPredTy ety1 ety2 p
     pure $ ListT $ TupleT [ety1, ListT (TupleT [ety1, ety2])]
-tyPrim2 (SemiJoin p) ty1 ty2     = flip catchError (const $ opTyErr "semijoin" [ty1, ty2]) $ do
+tyPrim2 (SemiJoin p) ty1 ty2     = flip catchError (opTyErr "semijoin" [ty1, ty2]) $ do
     ety1 <- elemTy ty1
     ety2 <- elemTy ty2
     checkPredTy ety1 ety2 p
     pure $ ListT ety1
-tyPrim2 (AntiJoin p) ty1 ty2     = flip catchError (const $ opTyErr "antijoin" [ty1, ty2]) $ do
+tyPrim2 (AntiJoin p) ty1 ty2     = flip catchError (opTyErr "antijoin" [ty1, ty2]) $ do
     ety1 <- elemTy ty1
     ety2 <- elemTy ty2
     checkPredTy ety1 ety2 p
     pure $ ListT ety1
-tyPrim2 (GroupJoin p as) ty1 ty2 = flip catchError (const $ opTyErr "groupjoin" [ty1, ty2]) $ do
+tyPrim2 (GroupJoin p as) ty1 ty2 = flip catchError (opTyErr "groupjoin" [ty1, ty2]) $ do
     ety1 <- elemTy ty1
     ety2 <- elemTy ty2
     checkPredTy ety1 ety2 p
@@ -205,18 +205,18 @@ inferTy (BinOp _ o e1 e2)    = do
     ty2 <- inferTy e2
     case (ty1, ty2) of
         (ScalarT sTy1, ScalarT sTy2) -> ScalarT <$> inferBinOpScalar sTy1 sTy2 o
-        _                            -> opTyErr (pp o) [ty1, ty2]
+        _                            -> opTyErr (pp o) [ty1, ty2] ""
 inferTy (UnOp _ o e)         = do
     ty <- inferTy e
     case ty of
         ScalarT sTy -> ScalarT <$> inferUnOpScalar sTy o
-        _           -> opTyErr (pp o) [ty]
+        _           -> opTyErr (pp o) [ty] ""
 inferTy (If _ c t e)         = do
     tyC <- inferTy c
     tyT <- inferTy t
     tyE <- inferTy e
     if tyC /= ScalarT BoolT || tyT /= tyE
-       then opTyErr "if" [tyC, tyT, tyE]
+       then opTyErr "if" [tyC, tyT, tyE] ""
        else pure tyT
 inferTy (Lit ty _)           = pure ty
 inferTy (Var _ x)            = lookupTy x
