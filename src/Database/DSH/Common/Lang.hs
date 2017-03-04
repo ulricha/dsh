@@ -157,7 +157,7 @@ data UnDateOp = DateDay
 $(deriveJSON defaultOptions ''UnDateOp)
 
 data ScalarUnOp = SUNumOp UnNumOp
-                | SUBoolOp UnBoolOp
+                | SUBoolNot
                 | SUCastOp UnCastOp
                 | SUTextOp UnTextOp
                 | SUDateOp UnDateOp
@@ -408,8 +408,8 @@ inferUnOpScalar :: MonadError String m => ScalarType -> ScalarUnOp -> m ScalarTy
 inferUnOpScalar t        (SUNumOp o)
     | isNum (ScalarT t)                            = pure t
     | otherwise                                    = typeError o [t]
-inferUnOpScalar BoolT   (SUBoolOp _)               = pure BoolT
-inferUnOpScalar t        (SUBoolOp o)              = typeError o [t]
+inferUnOpScalar BoolT   SUBoolNot                  = pure BoolT
+inferUnOpScalar t       SUBoolNot                  = typeError SUBoolNot [t]
 inferUnOpScalar IntT    (SUCastOp CastDouble)      = pure DoubleT
 inferUnOpScalar IntT    (SUCastOp CastDecimal)     = pure DecimalT
 inferUnOpScalar t        (SUCastOp o)              = typeError o [t]
@@ -572,7 +572,7 @@ instance Pretty UnBoolOp where
 
 instance Pretty ScalarUnOp where
     pretty (SUNumOp op)  = pretty op
-    pretty (SUBoolOp op) = pretty op
+    pretty SUBoolNot     = text "not"
     pretty (SUCastOp op) = pretty op
     pretty (SUDateOp op) = pretty op
     pretty (SUTextOp op) = pretty op

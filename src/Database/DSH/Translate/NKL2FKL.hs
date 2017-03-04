@@ -200,7 +200,7 @@ deepFlatten ctx (N.If _ ce te ee)    = do
 
     -- Construct the restricted environments in which the THEN and
     -- ELSE branches are evaluated.
-    let notL xs = P.un PBoolT (SUBoolOp Not) xs (Succ d1)
+    let notL xs = P.un PBoolT SUBoolNot xs (Succ d1)
 
         thenRes = restrictEnv env d1 bs thenExpr
 

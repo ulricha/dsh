@@ -857,7 +857,7 @@ pattern GroupP :: Type -> Expr -> Expr
 pattern GroupP ty xs = AppE1 ty Group xs
 
 pattern NotP :: Expr -> Expr
-pattern NotP e <- UnOp _ (SUBoolOp Not) e
+pattern NotP e <- UnOp _ SUBoolNot e
 
 pattern EqP :: Expr -> Expr -> Expr
 pattern EqP e1 e2 <- BinOp _ (SBRelOp Eq) e1 e2

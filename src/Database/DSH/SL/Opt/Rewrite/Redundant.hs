@@ -791,7 +791,7 @@ scalarConditional q =
 
         -- The selection condition must be the negated form of the
         -- then-condition.
-        predicate $ TUnApp (SUBoolOp Not) $(v "predProj") == $(v "negPred")
+        predicate $ TUnApp SUBoolNot $(v "predProj") == $(v "negPred")
 
         return $ do
           logRewrite "Redundant.ScalarConditional" q
