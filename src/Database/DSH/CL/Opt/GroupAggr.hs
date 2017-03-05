@@ -9,6 +9,8 @@ module Database.DSH.CL.Opt.GroupAggr
 
 import           Control.Arrow
 import           Data.Semigroup                 ((<>))
+import qualified Data.Set                       as S
+import qualified Data.Map                       as M
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Kure
@@ -24,9 +26,143 @@ import           Database.DSH.CL.Opt.Auxiliary
 
 -- | Fold/Group Fusion
 groupaggR :: RewriteC CL
-groupaggR = mergegroupaggR <+ extendgroupaggR
+-- groupaggR = mergegroupaggR <+ extendgroupaggR
+groupaggR = mergegroupaggHeadR <+ mergegroupaggQualsR
 
 --------------------------------------------------------------------------------
+
+type GroupM = RewriteStateM (Maybe (Ident, AggrApp)) RewriteLog
+
+mergegroupaggHeadR :: RewriteC CL
+mergegroupaggHeadR = logR " groupagg.construct.head" $ do
+    Comp ty h _ <- promoteT idR
+    (qs', h') <- childT CompQuals $ searchGroupSpineHeadT h
+    pure $ inject $ Comp ty h' qs'
+
+gaSubst :: Expr -> Expr
+gaSubst gaVar = P.pair (P.fst gaVar) (P.snd gaVar)
+
+-- | Traverse qualifiers from the current candidate generator to the end. Once
+-- reaching the end, traverse the head searching for an aggregate that matches
+-- the candidate generator.
+traverseToHeadT :: [Type] -> TupleIndex -> Ident -> Expr -> Transform CompCtx GroupM CL Expr
+traverseToHeadT groupElemTy nextGaIdx x h = readerT $ \qs -> case qs of
+    QualsCL (BindQ x' _ :* _)
+        | x == x'   -> fail "shadowing"
+        | otherwise -> childT QualsTail $ traverseToHeadT groupElemTy nextGaIdx x h
+    QualsCL (GuardQ _ :* _) -> childT QualsTail $ traverseToHeadT groupElemTy nextGaIdx x h
+    QualsCL (S (BindQ x' xs))
+        | x == x'   -> fail "shadowing"
+        | otherwise -> do
+            ctx <- contextT
+            let ctx' = ctx { clBindings = M.insert x' (elemT $ typeOf xs) (clBindings ctx) }
+            constT (pure $ inject h) >>> withContextT ctx' (searchAggExpR groupElemTy nextGaIdx x) >>> projectT
+    QualsCL (S (GuardQ _)) -> do
+        constT (pure $ inject h) >>> searchAggExpR groupElemTy nextGaIdx x >>> projectT
+    _ -> fail "no qualifiers"
+
+searchAggExpR :: [Type] -> TupleIndex -> Ident -> Rewrite CompCtx GroupM CL
+searchAggExpR groupElemTy nextGaIdx x = readerT $ \cl -> case cl of
+    ExprCL (AppE1 aggTy (Agg a) _) -> do
+        agg <- AggrApp a <$> childT AppE1Arg (toAggregateExprT x)
+        gaName <- liftstateT $ freshNameT []
+        let gaElemTy = TupleT $ groupElemTy ++ [aggTy]
+        constT $ put $ Just (gaName, agg)
+        pure $ inject $ P.tupElem nextGaIdx (Var gaElemTy gaName)
+    ExprCL (Let _ x' _ _)
+        | x == x'   -> childR LetBind (searchAggExpR groupElemTy nextGaIdx x)
+        | otherwise -> childR LetBind (searchAggExpR groupElemTy nextGaIdx x)
+                       <+
+                       childR LetBody (searchAggExpR groupElemTy nextGaIdx x)
+    ExprCL Comp{} -> childR CompQuals (searchAggQualsR groupElemTy nextGaIdx x)
+    ExprCL _ -> oneR $ searchAggExpR groupElemTy nextGaIdx x
+    _ -> fail "only expressions"
+
+searchAggQualsR :: [Type] -> TupleIndex -> Ident -> Rewrite CompCtx GroupM CL
+searchAggQualsR groupElemTy nextGaIdx x = readerT $ \cl -> case cl of
+    QualsCL (BindQ x' _ :* _)
+        | x == x' ->
+            pathR [QualsHead, BindQualExpr] $ searchAggExpR groupElemTy nextGaIdx x
+        | otherwise ->
+            pathR [QualsHead, BindQualExpr] $ searchAggExpR groupElemTy nextGaIdx x
+            <+
+            childR QualsTail (searchAggQualsR groupElemTy nextGaIdx x)
+    QualsCL (S BindQ{}) ->
+        pathR [QualsSingleton, BindQualExpr] $ searchAggExpR groupElemTy nextGaIdx x
+    QualsCL (GuardQ _ :* _) ->
+        pathR [QualsHead, GuardQualExpr] $ searchAggExpR groupElemTy nextGaIdx x
+        <+
+        childR QualsTail (searchAggQualsR groupElemTy nextGaIdx x)
+    QualsCL (S (GuardQ _)) ->
+        pathR [QualsSingleton, GuardQualExpr] $ searchAggExpR groupElemTy nextGaIdx x
+    _ -> fail "qualifiers only"
+
+mergeGroupQualsT :: Expr -> Ident -> Expr -> TransformC CL (NL Qual, Expr)
+mergeGroupQualsT h x xs = do
+    (Just (gaName, agg), qsCl) <- statefulT Nothing
+                                      $ childT QualsTail
+                                      $ searchAggQualsR (mkGroupElemTy $ typeOf xs) 3 x
+    let (gaOp, gaElemTy) = mkGroupAggr agg xs
+    scopeNames <- S.insert x <$> inScopeNamesT
+    qs' <- constT $ projectM qsCl
+    let (qs'', h') = substCompE scopeNames x (gaSubst $ Var gaElemTy gaName) qs' h
+    pure (BindQ gaName gaOp :* qs'', h')
+
+searchGroupSpineHeadT :: Expr -> TransformC CL (NL Qual, Expr)
+searchGroupSpineHeadT h = readerT $ \cl -> case cl of
+    QualsCL (BindQ x (GroupP ty xs) :* qs) ->
+        do
+            (Just (gaName, agg), h') <- statefulT Nothing
+                                            $ childT QualsTail
+                                            $ traverseToHeadT (mkGroupElemTy $ typeOf xs) 3 x h
+            let (gaOp, gaElemTy) = mkGroupAggr agg xs
+            scopeNames <- S.insert x <$> inScopeNamesT
+            let (qs', h'') = substCompE scopeNames x (gaSubst $ Var gaElemTy gaName) qs h'
+            pure (BindQ gaName gaOp :* qs', h'')
+        <+
+        do
+            (qs', h') <- childT QualsTail (searchGroupSpineHeadT h)
+            pure (BindQ x (GroupP ty xs) :* qs', h')
+    QualsCL (S (BindQ x (GroupP _ xs))) -> do
+        ctx <- contextT
+        let ctx' = ctx { clBindings = M.insert x (elemT $ typeOf xs) (clBindings ctx) }
+        (Just (gaName, agg), h') <- statefulT Nothing
+                                        $ constT (pure $ inject h)
+                                              >>> withContextT ctx' (searchAggExpR (mkGroupElemTy $ typeOf xs) 3 x)
+                                              >>> projectT
+        let (gaOp, gaElemTy) = mkGroupAggr agg xs
+        scopeNames <- S.insert x <$> inScopeNamesT
+        let h'' = substE scopeNames x (gaSubst $ Var gaElemTy gaName) h'
+        pure (S (BindQ gaName gaOp), h'')
+    QualsCL (BindQ x xs :* _)             -> do
+        (qs', h') <- childT QualsTail (searchGroupSpineQualsT h)
+        pure (BindQ x xs :* qs', h')
+    QualsCL (GuardQ p :* _)               -> do
+        (qs', h') <- childT QualsTail (searchGroupSpineQualsT h)
+        pure (GuardQ p :* qs', h')
+    _                                     -> fail "no match"
+
+searchGroupSpineQualsT :: Expr -> TransformC CL (NL Qual, Expr)
+searchGroupSpineQualsT h = readerT $ \cl -> case cl of
+    QualsCL (BindQ x (GroupP ty xs) :* _) ->
+        mergeGroupQualsT h x xs
+        <+
+        do
+            (qs', h') <- childT QualsTail (searchGroupSpineQualsT h)
+            pure (BindQ x (GroupP ty xs) :* qs', h')
+    QualsCL (BindQ x xs :* _)             -> do
+        (qs', h') <- childT QualsTail (searchGroupSpineQualsT h)
+        pure (BindQ x xs :* qs', h')
+    QualsCL (GuardQ p :* _)               -> do
+        (qs', h') <- childT QualsTail (searchGroupSpineQualsT h)
+        pure (GuardQ p :* qs', h')
+    _                                     -> fail "no match"
+
+mergegroupaggQualsR :: RewriteC CL
+mergegroupaggQualsR = logR " groupagg.construct.quals" $ do
+    Comp ty h _ <- promoteT idR
+    (qs', h') <- childT CompQuals $ searchGroupSpineQualsT h
+    pure $ inject $ Comp ty h' qs'
 
 -- | Introduce a new groupaggr operator by merging one particular aggregate into
 -- a group operator.
@@ -62,14 +198,16 @@ mergegroupaggR = logR "groupagg.construct" $ do
         S (BindQ _ _)    -> pure $ inject $ Comp ty h'' (S (BindQ x gaOp))
         _                -> $impossible
 
+mkGroupElemTy :: Type -> [Type]
+mkGroupElemTy ty = case ty of
+    ListT (TupleT [eTy, gTy]) -> [gTy, ListT eTy]
+    _ -> error "groupElemTy: type mismatch"
+
 mkGroupAggr :: AggrApp -> Expr -> (Expr, Type)
 mkGroupAggr agg xs = (GroupAggP (ListT resTy) (pure agg) xs, resTy)
   where
     aTy   = aggType agg
-    resTy = TupleT [gTy, ListT eTy, aTy]
-    (eTy, gTy) = case typeOf xs of
-            ListT (TupleT [ty1, ty2]) -> (ty1, ty2)
-            _                         -> error "groupaggR: type mismatch"
+    resTy = TupleT $ mkGroupElemTy (typeOf xs) ++ [aTy]
 
 --------------------------------------------------------------------------------
 

@@ -69,6 +69,7 @@ module Database.DSH.CL.Opt.Auxiliary
       -- * Path utilities
     , localizePathT
       -- * Fold/Group Fusion
+    , toAggregateExprT
     , searchAggregatedGroupT
     , traverseGuardsT
       -- * Pattern synonyms for expressions
@@ -168,7 +169,7 @@ toScalarExpr n (Var t x)
     | otherwise = mzero
 toScalarExpr _ _                       = mzero
 
-toScalarExprT :: Ident -> TransformC Expr ScalarExpr
+toScalarExprT :: Monad m => Ident -> Transform c m Expr ScalarExpr
 toScalarExprT n = do
     e <- idR
     case toScalarExpr n e of
@@ -778,7 +779,7 @@ isFilteringJoin joinOp =
 --
 -- @ x.2 @
 -- @ [ f y | y <- x.2 ] @
-toAggregateExprT :: Ident -> TransformC CL ScalarExpr
+toAggregateExprT :: MonadCatch m => Ident -> Transform CompCtx m CL ScalarExpr
 toAggregateExprT x =
     readerT $ \e -> case e of
         ExprCL (Comp _ _ (S (y :<-: TupSecondP _ (Var _ x')))) | x == x' ->
