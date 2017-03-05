@@ -78,13 +78,13 @@ scalarTy ty            = throwError $ printf "FKL type error: %s not a scalar ty
 aggTy :: Type -> AggrFun -> Typing Type
 aggTy ty a =
     case a of
-        Length  -> pure $ ScalarT IntT
-        Sum     -> numTy ty >> pure ty
-        Avg     -> fractTy ty >> pure ty
-        And     -> boolTy ty >> pure ty
-        Or      -> boolTy ty >> pure ty
-        Maximum -> void (scalarTy ty) >> pure ty
-        Minimum -> void (scalarTy ty) >> pure ty
+        Length _ -> pure $ ScalarT IntT
+        Sum      -> numTy ty >> pure ty
+        Avg      -> fractTy ty >> pure ty
+        And      -> boolTy ty >> pure ty
+        Or       -> boolTy ty >> pure ty
+        Maximum  -> void (scalarTy ty) >> pure ty
+        Minimum  -> void (scalarTy ty) >> pure ty
 
 -- | Typing of unary builtins
 tyPrim1 :: Prim1 -> Type -> Typing Type

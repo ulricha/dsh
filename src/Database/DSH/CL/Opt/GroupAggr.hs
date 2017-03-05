@@ -88,6 +88,12 @@ traverseToHeadT groupElemTy x h = readerT $ \qs -> case qs of
 -- spot.
 searchAggExpR :: [Type] -> Ident -> Rewrite CompCtx GroupM CL
 searchAggExpR groupElemTy x = readerT $ \cl -> case cl of
+    ExprCL (AppE1 aggTy (Agg (Length False)) _) -> do
+        agg <- AggrApp (Length True) <$> pathT [AppE1Arg, AppE1Arg] (toAggregateExprT x)
+        gaName <- liftstateT $ freshNameT []
+        let gaElemTy = TupleT $ groupElemTy ++ [aggTy]
+        constT $ put $ Just (gaName, agg)
+        pure $ inject $ P.tupElem (nextGaIdx groupElemTy) (Var gaElemTy gaName)
     ExprCL (AppE1 aggTy (Agg a) _) -> do
         agg <- AggrApp a <$> childT AppE1Arg (toAggregateExprT x)
         gaName <- liftstateT $ freshNameT []

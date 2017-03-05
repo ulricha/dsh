@@ -103,8 +103,8 @@ append e1 e2 d =
     let t1 = unliftTypeN d $ typeOf e1
     in PApp2 (liftTypeN d t1) Append (LiftedN d) e1 e2
 
-length :: LExpr -> Nat -> LExpr
-length e1 d = PApp1 (liftTypeN d PIntT) (Agg Length) (LiftedN d) e1
+length :: Bool -> LExpr -> Nat -> LExpr
+length distinct e1 d = PApp1 (liftTypeN d PIntT) (Agg (Length distinct)) (LiftedN d) e1
 
 nub :: LExpr -> Nat -> LExpr
 nub e1 d =

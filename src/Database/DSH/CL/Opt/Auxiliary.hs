@@ -82,6 +82,7 @@ module Database.DSH.CL.Opt.Auxiliary
     , pattern GroupAggP
     , pattern AndP
     , pattern OrP
+    , pattern NubP
     , pattern SortP
     , pattern GroupP
     , pattern NotP
@@ -794,6 +795,9 @@ toAggregateExprT x =
 searchAggregatedGroupT :: Ident -> TransformC CL (PathC, AggrApp)
 searchAggregatedGroupT x =
     readerT $ \e -> case e of
+        ExprCL (AppE1 _ (Agg (Length False)) (NubP _)) ->
+            (,) <$> (snocPathToPath <$> absPathT)
+                <*> (AggrApp (Length True) <$> pathT [AppE1Arg,AppE1Arg] (toAggregateExprT x))
         ExprCL (AppE1 _ (Agg agg) _) ->
             (,) <$> (snocPathToPath <$> absPathT)
                 <*> (AggrApp agg <$> childT AppE1Arg (toAggregateExprT x))
@@ -848,6 +852,9 @@ pattern GroupAggP ty as xs = AppE1 ty (GroupAgg as) xs
 pattern AndP :: Expr -> Expr
 pattern AndP xs <- AppE1 _ (Agg And) xs
 
+pattern NubP :: Expr -> Expr
+pattern NubP xs <- AppE1 _ Nub xs
+
 pattern OrP :: Expr -> Expr
 pattern OrP xs <- AppE1 _ (Agg Or) xs
 
@@ -863,8 +870,8 @@ pattern NotP e <- UnOp _ SUBoolNot e
 pattern EqP :: Expr -> Expr -> Expr
 pattern EqP e1 e2 <- BinOp _ (SBRelOp Eq) e1 e2
 
-pattern LengthP :: Expr -> Expr
-pattern LengthP e <- AppE1 _ (Agg Length) e
+pattern LengthP :: Bool -> Expr -> Expr
+pattern LengthP d e <- AppE1 _ (Agg (Length d)) e
 
 pattern NullP :: Expr -> Expr
 pattern NullP e <- AppE1 _ Null e

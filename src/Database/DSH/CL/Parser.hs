@@ -180,7 +180,7 @@ tableRef = do
 prim1 :: CLParser Prim1
 prim1 =     try (kw "singleton" *> pure Singleton)
         <|> try (kw "only" *> pure Only)
-        <|> try (kw "length" *> pure (Agg L.Length))
+        <|> try (kw "length" *> pure (Agg (L.Length False)))
         <|> try (kw "concat" *> pure Concat)
         <|> try (kw "null" *> pure Null)
         <|> try (kw "sum" *> pure (Agg L.Sum))

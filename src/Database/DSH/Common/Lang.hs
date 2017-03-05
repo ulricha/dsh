@@ -217,19 +217,19 @@ $(deriveJSON defaultOptions ''ScalarBinOp)
 -- Aggregate
 
 -- | AggrFun functions
-data AggrFun = Length | Avg | Minimum | Maximum | And | Or | Sum
+data AggrFun = Length Bool | Avg | Minimum | Maximum | And | Or | Sum
     deriving (Eq, Show)
 
 data AggrApp = AggrApp
-    { aaFun :: AggrFun
-    , aaArg :: ScalarExpr
+    { aaFun      :: AggrFun
+    , aaArg      :: ScalarExpr
     } deriving (Eq, Show)
 
 aggType :: AggrApp -> Type
 aggType (AggrApp af e) = aggFunType af $ typeOf e
 
 aggFunType :: AggrFun -> Type -> Type
-aggFunType Length _   = PIntT
+aggFunType Length{} _ = PIntT
 aggFunType Sum ty     = ty
 aggFunType Maximum ty = ty
 aggFunType Minimum ty = ty
@@ -376,7 +376,7 @@ aggFunTyErr :: AggrFun -> String
 aggFunTyErr op = printf "tExpTy: %s" (pp op)
 
 aggrTy :: (MonadError String m, MonadReader (Maybe Type) m) => AggrApp -> m Type
-aggrTy (AggrApp Length e)      = void (jExpTy e) >> pure (ScalarT IntT)
+aggrTy (AggrApp Length{} e)    = void (jExpTy e) >> pure (ScalarT IntT)
 aggrTy (AggrApp Sum e)         = jExpTy e
 aggrTy (AggrApp Minimum e)     = jExpTy e
 aggrTy (AggrApp Maximum e)     = jExpTy e
@@ -581,7 +581,8 @@ instance Pretty UnTextOp where
     pretty (SubString f t) = text $ printf "subString_%d,%d" f t
 
 instance Pretty AggrFun where
-  pretty Length          = combinator $ text "length"
+  pretty (Length True)   = combinator $ text "length_d"
+  pretty (Length False)  = combinator $ text "length"
   pretty Sum             = combinator $ text "sum"
   pretty Avg             = combinator $ text "avg"
   pretty Minimum         = combinator $ text "minimum"

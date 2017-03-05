@@ -91,24 +91,26 @@ papp3 Combine Lifted    = Builtins.combineL
 papp3 Combine NotLifted = Builtins.combine
 
 aggL :: Type -> AggrFun -> Shape DVec -> Build SL.TSL (Shape DVec)
-aggL t Sum     = Builtins.aggrL (VL.AggrSum $ VL.typeToScalarType $ elemT t)
-aggL _ Avg     = Builtins.aggrL VL.AggrAvg
-aggL _ Maximum = Builtins.aggrL VL.AggrMax
-aggL _ Minimum = Builtins.aggrL VL.AggrMin
-aggL _ Or      = Builtins.aggrL VL.AggrAny
-aggL _ And     = Builtins.aggrL VL.AggrAll
-aggL _ Length  = Builtins.lengthL
+aggL t Sum            = Builtins.aggrL (VL.AggrSum $ VL.typeToScalarType $ elemT t)
+aggL _ Avg            = Builtins.aggrL VL.AggrAvg
+aggL _ Maximum        = Builtins.aggrL VL.AggrMax
+aggL _ Minimum        = Builtins.aggrL VL.AggrMin
+aggL _ Or             = Builtins.aggrL VL.AggrAny
+aggL _ And            = Builtins.aggrL VL.AggrAll
+aggL _ (Length False) = Builtins.lengthL
+aggL _ (Length True)  = Builtins.aggrL VL.AggrCountDistinct
 
 translateAggrFun :: AggrApp -> VL.AggrFun VL.TExpr
 translateAggrFun a = case aaFun a of
-    Sum     -> let t = VL.typeToScalarType $ typeOf $ aaArg a
-               in VL.AggrSum t e
-    Avg     -> VL.AggrAvg e
-    Maximum -> VL.AggrMax e
-    Minimum -> VL.AggrMin e
-    Or      -> VL.AggrAny e
-    And     -> VL.AggrAll e
-    Length  -> VL.AggrCount
+    Sum          -> let t = VL.typeToScalarType $ typeOf $ aaArg a
+                    in VL.AggrSum t e
+    Avg          -> VL.AggrAvg e
+    Maximum      -> VL.AggrMax e
+    Minimum      -> VL.AggrMin e
+    Or           -> VL.AggrAny e
+    And          -> VL.AggrAll e
+    Length False -> VL.AggrCount
+    Length True  -> VL.AggrCountDistinct e
   where
     e = VL.scalarExpr $ aaArg a
 

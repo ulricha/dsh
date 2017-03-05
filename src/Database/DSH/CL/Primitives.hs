@@ -34,7 +34,7 @@ reverse e = let t@(ListT _) = typeOf e
 length :: Expr -> Expr
 length e = let t = typeOf e
            in if isList t
-              then AppE1 PIntT (Agg L.Length) e
+              then AppE1 PIntT (Agg (L.Length P.False)) e
               else tyErr "length"
 
 null :: Expr -> Expr

@@ -35,24 +35,24 @@ liftOperators expr = runFlat initEnv (flatten expr)
 prim1 :: N.Prim1 -> F.LExpr -> Nat -> F.LExpr
 prim1 p =
     case p of
-        N.Singleton   -> P.sng
-        N.Only        -> P.only
-        N.Agg Length  -> P.length
-        N.Concat      -> P.concat
-        N.Agg Sum     -> P.sum
-        N.Agg Avg     -> P.avg
-        N.TupElem n   -> P.tupElem n
-        N.Agg Minimum -> P.minimum
-        N.Agg Maximum -> P.maximum
-        N.Reverse     -> P.reverse
-        N.Agg And     -> P.and
-        N.Agg Or      -> P.or
-        N.Nub         -> P.nub
-        N.Number      -> P.number
-        N.Sort        -> P.sort
-        N.Group       -> P.group
-        N.GroupAgg as -> P.groupagg as
-        N.Restrict    -> P.restrict
+        N.Singleton      -> P.sng
+        N.Only           -> P.only
+        N.Agg (Length d) -> P.length d
+        N.Concat         -> P.concat
+        N.Agg Sum        -> P.sum
+        N.Agg Avg        -> P.avg
+        N.TupElem n      -> P.tupElem n
+        N.Agg Minimum    -> P.minimum
+        N.Agg Maximum    -> P.maximum
+        N.Reverse        -> P.reverse
+        N.Agg And        -> P.and
+        N.Agg Or         -> P.or
+        N.Nub            -> P.nub
+        N.Number         -> P.number
+        N.Sort           -> P.sort
+        N.Group          -> P.group
+        N.GroupAgg as    -> P.groupagg as
+        N.Restrict       -> P.restrict
 
 prim2 :: N.Prim2 -> F.LExpr -> F.LExpr -> Nat -> F.LExpr
 prim2 p =

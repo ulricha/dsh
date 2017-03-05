@@ -122,13 +122,13 @@ tyPrim1 (Agg a) ty     = flip catchError (opTyErr (pp a) [ty]) $ do
 aggTy :: Type -> AggrFun -> Typing Type
 aggTy ty a =
     case a of
-        Length  -> pure $ ScalarT IntT
-        Sum     -> numTy ty >> pure ty
-        Avg     -> fractTy ty >> pure ty
-        And     -> boolTy ty >> pure ty
-        Or      -> boolTy ty >> pure ty
-        Maximum -> void (scalarTy ty) >> pure ty
-        Minimum -> void (scalarTy ty) >> pure ty
+        Length _ -> pure $ ScalarT IntT
+        Sum      -> numTy ty >> pure ty
+        Avg      -> fractTy ty >> pure ty
+        And      -> boolTy ty >> pure ty
+        Or       -> boolTy ty >> pure ty
+        Maximum  -> void (scalarTy ty) >> pure ty
+        Minimum  -> void (scalarTy ty) >> pure ty
 
 -- | Typing of binary builtins
 tyPrim2 :: Prim2 -> Type -> Type -> Typing Type

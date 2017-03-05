@@ -94,8 +94,8 @@ notExistsR = logR "normalize.notexists" $ promoteT $ readerT $ \e -> case e of
 -- 0 == length xs => null xs
 zeroLengthR :: RewriteC CL
 zeroLengthR = logR "normalize.zerolength" $ promoteT $ readerT $ \e -> case e of
-    EqP (LengthP xs) (Lit _ (ScalarV (IntV 0))) -> return $ inject $ P.null xs
-    EqP (Lit _ (ScalarV (IntV 0))) (LengthP xs) -> return $ inject $ P.null xs
+    EqP (LengthP False xs) (Lit _ (ScalarV (IntV 0))) -> return $ inject $ P.null xs
+    EqP (Lit _ (ScalarV (IntV 0))) (LengthP False xs) -> return $ inject $ P.null xs
     _                                 -> fail "no match"
 
 -- null [ _ | x <- xs, p1, p2, ... ]
