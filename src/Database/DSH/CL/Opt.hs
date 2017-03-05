@@ -91,8 +91,8 @@ descendR = readerT $ \cl -> case cl of
     ExprCL Comp{} ->
         repeatR ( compNormEarlyR
                   <+ predpushdownR
-                  <+ flatjoinsR
                   <+ groupaggR
+                  <+ flatjoinsR
                   <+ anyR descendR
                 )
 
