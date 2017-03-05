@@ -2,6 +2,8 @@ module Database.DSH.Common.Kure
   ( -- * Logging
     RewriteLog
   , logR
+    -- * Context Modification
+  , withContextT
   ) where
 
 import qualified Data.Sequence                as S
@@ -26,3 +28,9 @@ logR rewriteName r = do
     constT $ tell $ S.singleton $ pp msg
     return e'
 
+--------------------------------------------------------------------------------
+-- Context Modification
+
+-- | Execute a transformation with a given context.
+withContextT :: c -> Transform c m a b -> Transform c m a b
+withContextT c t = liftContext (const c) t

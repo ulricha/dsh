@@ -221,7 +221,7 @@ unnestCompR locallyBoundVars (x, xTy) = do
 searchHeadR :: S.Set Ident -> (Ident, Type) -> Rewrite CompCtx NestM CL
 searchHeadR locallyBoundVars (x, xTy) = readerT $ \cl -> case cl of
     ExprCL (Let _ x' _ _)
-        | x == x'   -> fail "shadowing"
+        | x == x'   -> childR LetBind (searchHeadR locallyBoundVars (x, xTy))
         | otherwise -> childR LetBind (searchHeadR locallyBoundVars (x, xTy))
                        <+ childR LetBody (searchHeadR (S.insert x' locallyBoundVars) (x, xTy))
     ExprCL Comp{} -> tryR (liftstateT guardpushbackR) >>> unnestCompR locallyBoundVars (x, xTy)
@@ -237,7 +237,7 @@ searchQualsR locallyBoundVars (x, xTy) = readerT $ \cl -> case cl of
         | otherwise ->
             pathR [QualsHead, BindQualExpr] (searchHeadR locallyBoundVars (x, xTy))
             <+
-            childR QualsHead (searchQualsR (S.insert x' locallyBoundVars) (x, xTy))
+            childR QualsTail (searchQualsR (S.insert x' locallyBoundVars) (x, xTy))
     QualsCL (S BindQ{}) ->
         pathR [QualsSingleton, BindQualExpr] (searchHeadR locallyBoundVars (x, xTy))
     QualsCL (GuardQ _ :* _) ->
@@ -258,17 +258,15 @@ traverseToHeadT locallyBoundVars (x, xTy) h = readerT $ \qs -> case qs of
         | x == x'   -> fail "shadowing"
         | otherwise -> childT QualsTail $ traverseToHeadT (S.insert x' locallyBoundVars) (x, xTy) h
     QualsCL (GuardQ _ :* _) -> childT QualsTail $ traverseToHeadT locallyBoundVars (x, xTy) h
-    QualsCL (S (BindQ x' _))
+    QualsCL (S (BindQ x' xs))
         | x == x'   -> fail "shadowing"
         | otherwise -> do
-          constT (pure $ inject h) >>> searchHeadR (S.insert x' locallyBoundVars) (x, xTy) >>> projectT
+          ctx <- contextT
+          let ctx' = ctx { clBindings = M.insert x' (elemT $ typeOf xs) (clBindings ctx) }
+          constT (pure $ inject h) >>> withContextT ctx' (searchHeadR (S.insert x' locallyBoundVars) (x, xTy)) >>> projectT
     QualsCL (S (GuardQ _)) -> do
         constT (pure $ inject h) >>> searchHeadR locallyBoundVars (x, xTy) >>> projectT
     _ -> fail "no qualifiers"
-
--- | Execute a transformation with a given context.
-withContextT :: c -> Transform c m a b -> Transform c m a b
-withContextT c t = liftContext (const c) t
 
 -- | The element type of a nest join result, given the element types of the
 -- inputs.
@@ -293,7 +291,9 @@ unnestSpineHeadT :: Expr -> TransformC CL (NL Qual, Expr)
 unnestSpineHeadT h = readerT $ \cl -> case cl of
     QualsCL (BindQ x xs :* qs) -> do
         let xTy = elemT $ typeOf xs
-        (Just ((joinName, ys), joinPred, yGuards), h') <- statefulT Nothing $ childT QualsTail $ traverseToHeadT S.empty (x, xTy) h
+        (Just ((joinName, ys), joinPred, yGuards), h') <- statefulT Nothing
+                                                              $ childT QualsTail
+                                                              $ traverseToHeadT S.empty (x, xTy) h
         let yTy        = elemT $ typeOf ys
         scopeNames <- S.insert x <$> S.fromList <$> inScopeNames <$> contextT
         let (qs', h'') = substCompE scopeNames x (P.fst $ Var (nestJoinElemTy xTy yTy) joinName) qs h'
@@ -302,7 +302,8 @@ unnestSpineHeadT h = readerT $ \cl -> case cl of
         let xTy = elemT $ typeOf xs
         ctx <- contextT
         let ctx' = ctx { clBindings = M.insert x (elemT $ typeOf xs) (clBindings ctx) }
-        (Just ((joinName, ys), joinPred, yGuards), hCl) <- statefulT Nothing $ constT (pure $ inject h) >>> withContextT ctx' (searchHeadR S.empty (x, xTy))
+        (Just ((joinName, ys), joinPred, yGuards), hCl) <- statefulT Nothing
+                                                               $ constT (pure $ inject h) >>> withContextT ctx' (searchHeadR S.empty (x, xTy))
         let yTy        = elemT $ typeOf ys
         scopeNames <- S.insert x <$> S.fromList <$> inScopeNames <$> contextT
         h' <- projectM hCl
