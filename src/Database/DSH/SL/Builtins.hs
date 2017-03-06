@@ -161,25 +161,10 @@ groupJoinL :: L.JoinPredicate L.ScalarExpr
            -> Shape DVec
            -> Shape DVec
            -> Build TSL (Shape DVec)
-groupJoinL joinPred afuns (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 lyt2)) = do
-    -- Create the inner vector for groups
-    (dvi, rv1, rv2) <- slNestJoin joinPred dvi1 dvi2
-    -- Maintain the layouts for the inner vector
-    lyt1'           <- repLayout rv1 lyt1
-    lyt2'           <- repLayout rv2 lyt2
-
-    -- Create the outer vector
+groupJoinL joinPred afuns (VShape dvo1 (LNest dvi1 lyt1)) (VShape _ (LNest dvi2 _)) = do
     dv <- slGroupJoin joinPred afuns dvi1 dvi2
-    let proj = case L.getNE afuns of
-                   _ :| [] -> TMkTuple [TInpFirst, TIndex, TSecond TInpFirst, TInpSecond]
-                   _       -> let aProj = fmap (\i -> TTupElem (intIndex i) TInpSecond) [1..length afuns]
-                              in TMkTuple $ [TInpFirst, TIndex] <> aProj
-    dv' <- slProject proj dv
-
     let aggLyts = map (const LCol) (N.toList $ L.getNE afuns)
-        innerLyt = LTuple [lyt1', lyt2']
-
-    pure $ VShape dvo1 (LNest dv' (LTuple ([lyt1, LNest dvi innerLyt] ++ aggLyts)))
+    pure $ VShape dvo1 (LNest dv (LTuple (lyt1 : aggLyts)))
 groupJoinL _ _ _ _ = $impossible
 
 semiJoinL :: L.JoinPredicate L.ScalarExpr -> Shape DVec -> Shape DVec -> Build TSL (Shape DVec)

@@ -171,8 +171,8 @@ tyPrim2 (GroupJoin p as) ty1 ty2 = flip catchError (opTyErr "groupjoin" [ty1, ty
     let tupTy = TupleT [ety1, ety2]
     aTys <- runReaderT (mapM aggrTy $ N.toList $ getNE as) (Just tupTy)
     case aTys of
-        [aTy] -> pure $ ListT $ TupleT [ety1, ListT tupTy, aTy]
-        _     -> pure $ ListT $ TupleT $ [ety1, ListT tupTy] ++ aTys
+        [aTy] -> pure $ ListT $ TupleT [ety1, aTy]
+        _     -> pure $ ListT $ TupleT $ ety1 : aTys
 
 tyComp :: NL Qual -> Expr -> Typing Type
 tyComp (GuardQ p :* qs) h = do

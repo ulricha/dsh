@@ -177,7 +177,7 @@ disjunctiveGroupJoinR :: RewriteC CL
 disjunctiveGroupJoinR = logR "groupjoin.disjunctive" $ do
     GroupJoinP _ (SingleJoinPredP ex Eq JInput{}) (NE (a :| [])) xs (LitListP (ListT litTy) (v:vs)) <- promoteT idR
     AggrApp Or (JLit _ (ScalarV (BoolV True))) <- return a
-    guardM $ length vs < 10
+    guardM $ length vs < 30
 
     x <- freshNameT []
     let ex' = fromScalarExpr x ex
@@ -205,9 +205,8 @@ mkGroupJoin agg p xs ys =
     (GroupJoinP (ListT (TupleT joinElemTy)) p (pure agg) xs ys, joinElemTy)
   where
     xTy        = elemT $ typeOf xs
-    yTy        = elemT $ typeOf ys
     aTy        = aggType agg
-    joinElemTy = [xTy, ListT (TupleT [xTy, yTy]), aTy]
+    joinElemTy = [xTy, aTy]
 
 -- | Search qualifiers for a group generator that can be fused with aggregates
 -- in subsequent qualifiers.
@@ -218,11 +217,11 @@ mergeGroupJoinSpineQualsT h = readerT $ \cl -> case cl of
             let joinElemTy = tupleElemTypes $ elemT ty
             (Just (gjName, agg), qsCl) <- statefulT Nothing
                                               $ childT QualsTail
-                                              $ searchAggQualsR joinElemTy M.empty x
+                                              $ searchAggQualsR (take 1 joinElemTy) M.empty x
             let (gjOp, gjElemTy) = mkGroupJoin agg p xs ys
             scopeNames <- S.insert x <$> inScopeNamesT
             qs' <- constT $ projectM qsCl
-            let (qs'', h') = substCompE scopeNames x (gaSubst (Var (TupleT gjElemTy) gjName) joinElemTy) qs' h
+            let (qs'', h') = substCompE scopeNames x (Var (TupleT gjElemTy) gjName) qs' h
             pure (BindQ gjName gjOp :* qs'', h')
         <+
         do
@@ -255,10 +254,10 @@ mergeGroupJoinSpineHeadT h = readerT $ \cl -> case cl of
             let joinElemTy = tupleElemTypes $ elemT ty
             (Just (gjName, agg), h') <- statefulT Nothing
                                             $ childT QualsTail
-                                            $ traverseToHeadT joinElemTy M.empty x h
+                                            $ traverseToHeadT (take 1 joinElemTy) M.empty x h
             let (gjOp, gjElemTy) = mkGroupJoin agg p xs ys
             scopeNames <- S.insert x <$> inScopeNamesT
-            let (qs', h'') = substCompE scopeNames x (gaSubst (Var (TupleT gjElemTy) gjName) joinElemTy) qs h'
+            let (qs', h'') = substCompE scopeNames x (Var (TupleT gjElemTy) gjName) qs h'
             pure (BindQ gjName gjOp :* qs', h'')
         <+
         do
@@ -270,11 +269,11 @@ mergeGroupJoinSpineHeadT h = readerT $ \cl -> case cl of
         let ctx' = ctx { clBindings = M.insert x (TupleT joinElemTy) (clBindings ctx) }
         (Just (gjName, agg), h') <- statefulT Nothing
                                         $ constT (pure $ inject h)
-                                              >>> withContextT ctx' (searchAggExpR joinElemTy M.empty x)
+                                              >>> withContextT ctx' (searchAggExpR (take 1 joinElemTy) M.empty x)
                                               >>> projectT
         let (gjOp, gjElemTy) = mkGroupJoin agg p xs ys
         scopeNames <- S.insert x <$> inScopeNamesT
-        let h'' = substE scopeNames x (gaSubst (Var (TupleT gjElemTy) gjName) joinElemTy) h'
+        let h'' = substE scopeNames x (Var (TupleT gjElemTy) gjName) h'
         pure (S (BindQ gjName gjOp), h'')
     QualsCL (BindQ x xs :* _)             -> do
         (qs', h') <- childT QualsTail (mergeGroupJoinSpineHeadT h)
@@ -291,7 +290,3 @@ mergegroupjoinHeadR = logR "groupjoin.construct.head" $ do
     Comp ty h _ <- promoteT idR
     (qs', h') <- childT CompQuals $ mergeGroupJoinSpineHeadT h
     pure $ inject $ Comp ty h' qs'
-
---------------------------------------------------------------------------------
--- Extension of groupaggr operators with additional aggregates.
-
