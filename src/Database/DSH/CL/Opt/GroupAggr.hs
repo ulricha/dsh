@@ -8,9 +8,10 @@ module Database.DSH.CL.Opt.GroupAggr
   ) where
 
 import           Control.Arrow
-import           Data.Semigroup                 ((<>))
-import qualified Data.Set                       as S
-import qualified Data.Map                       as M
+import           Data.List.NonEmpty            (NonEmpty ((:|)))
+import qualified Data.Map                      as M
+import           Data.Semigroup                ((<>))
+import qualified Data.Set                      as S
 
 import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
@@ -19,7 +20,7 @@ import           Database.DSH.Common.Nat
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 
-import qualified Database.DSH.CL.Primitives     as P
+import qualified Database.DSH.CL.Primitives    as P
 
 import           Database.DSH.CL.Opt.Auxiliary
 
@@ -48,7 +49,7 @@ nextGaIdx (_ : tys) = Next $ nextGaIdx tys
 mkGroupElemTy :: Type -> [Type]
 mkGroupElemTy ty = case ty of
     ListT (TupleT [eTy, gTy]) -> [gTy, ListT eTy]
-    _ -> error "groupElemTy: type mismatch"
+    _                         -> error "groupElemTy: type mismatch"
 
 mkGroupAggr :: AggrApp -> Expr -> (Expr, Type)
 mkGroupAggr agg xs = (GroupAggP (ListT resTy) (pure agg) xs, resTy)
@@ -68,65 +69,81 @@ extendGroupAggr gaElemTy newAgg aggs xs =
 -- | Traverse qualifiers from the current candidate generator to the end. Once
 -- reaching the end, traverse the head searching for an aggregate that matches
 -- the candidate generator.
-traverseToHeadT :: [Type] -> Ident -> Expr -> Transform CompCtx GroupM CL Expr
-traverseToHeadT groupElemTy x h = readerT $ \qs -> case qs of
+traverseToHeadT :: [Type] -> AggrMap -> Ident -> Expr -> Transform CompCtx GroupM CL Expr
+traverseToHeadT groupElemTy aggMap x h = readerT $ \qs -> case qs of
     QualsCL (BindQ x' _ :* _)
         | x == x'   -> fail "shadowing"
-        | otherwise -> childT QualsTail $ traverseToHeadT groupElemTy x h
-    QualsCL (GuardQ _ :* _) -> childT QualsTail $ traverseToHeadT groupElemTy x h
+        | otherwise -> childT QualsTail $ traverseToHeadT groupElemTy aggMap x h
+    QualsCL (GuardQ _ :* _) -> childT QualsTail $ traverseToHeadT groupElemTy aggMap x h
     QualsCL (S (BindQ x' xs))
         | x == x'   -> fail "shadowing"
         | otherwise -> do
             ctx <- contextT
             let ctx' = ctx { clBindings = M.insert x' (elemT $ typeOf xs) (clBindings ctx) }
-            constT (pure $ inject h) >>> withContextT ctx' (searchAggExpR groupElemTy x) >>> projectT
+            constT (pure $ inject h) >>> withContextT ctx' (searchAggExpR groupElemTy aggMap x) >>> projectT
     QualsCL (S (GuardQ _)) -> do
-        constT (pure $ inject h) >>> searchAggExpR groupElemTy x >>> projectT
+        constT (pure $ inject h) >>> searchAggExpR groupElemTy aggMap x >>> projectT
     _ -> fail "no qualifiers"
+
+type AggrMap = M.Map AggrApp (TupleIndex, Ident)
+
+mkAggrMap :: Ident -> NE AggrApp -> AggrMap
+mkAggrMap n (NE (a :| as)) = go 4 as (M.insert a (3, n) M.empty)
+  where
+    go _ []         m = m
+    go i (a' : as') m = go (Next i) as' (M.insert a' (i, n) m)
 
 -- | Search an expression for a matching aggregate. Replace aggregate on the
 -- spot.
-searchAggExpR :: [Type] -> Ident -> Rewrite CompCtx GroupM CL
-searchAggExpR groupElemTy x = readerT $ \cl -> case cl of
+searchAggExpR :: [Type] -> AggrMap -> Ident -> Rewrite CompCtx GroupM CL
+searchAggExpR groupElemTy aggMap x = readerT $ \cl -> case cl of
     ExprCL (AppE1 aggTy (Agg (Length False)) _) -> do
         agg <- AggrApp (Length True) <$> pathT [AppE1Arg, AppE1Arg] (toAggregateExprT x)
-        gaName <- liftstateT $ freshNameT []
-        let gaElemTy = TupleT $ groupElemTy ++ [aggTy]
-        constT $ put $ Just (gaName, agg)
-        pure $ inject $ P.tupElem (nextGaIdx groupElemTy) (Var gaElemTy gaName)
+        case M.lookup agg aggMap of
+            Just (gaIdx, gaName) -> do
+                pure $ inject $ P.tupElem gaIdx (Var (TupleT groupElemTy) gaName)
+            Nothing -> do
+                gaName <- liftstateT $ freshNameT []
+                let gaElemTy = TupleT $ groupElemTy ++ [aggTy]
+                constT $ put $ Just (gaName, agg)
+                pure $ inject $ P.tupElem (nextGaIdx groupElemTy) (Var gaElemTy gaName)
     ExprCL (AppE1 aggTy (Agg a) _) -> do
         agg <- AggrApp a <$> childT AppE1Arg (toAggregateExprT x)
-        gaName <- liftstateT $ freshNameT []
-        let gaElemTy = TupleT $ groupElemTy ++ [aggTy]
-        constT $ put $ Just (gaName, agg)
-        pure $ inject $ P.tupElem (nextGaIdx groupElemTy) (Var gaElemTy gaName)
+        case M.lookup agg aggMap of
+            Just (gaIdx, gaName) -> do
+                pure $ inject $ P.tupElem gaIdx (Var (TupleT groupElemTy) gaName)
+            Nothing    -> do
+                gaName <- liftstateT $ freshNameT []
+                let gaElemTy = TupleT $ groupElemTy ++ [aggTy]
+                constT $ put $ Just (gaName, agg)
+                pure $ inject $ P.tupElem (nextGaIdx groupElemTy) (Var gaElemTy gaName)
     ExprCL (Let _ x' _ _)
-        | x == x'   -> childR LetBind (searchAggExpR groupElemTy x)
-        | otherwise -> childR LetBind (searchAggExpR groupElemTy x)
+        | x == x'   -> childR LetBind (searchAggExpR groupElemTy aggMap x)
+        | otherwise -> childR LetBind (searchAggExpR groupElemTy aggMap x)
                        <+
-                       childR LetBody (searchAggExpR groupElemTy x)
-    ExprCL Comp{} -> childR CompQuals (searchAggQualsR groupElemTy x)
-    ExprCL _ -> oneR $ searchAggExpR groupElemTy x
+                       childR LetBody (searchAggExpR groupElemTy aggMap x)
+    ExprCL Comp{} -> childR CompQuals (searchAggQualsR groupElemTy aggMap x)
+    ExprCL _ -> oneR $ searchAggExpR groupElemTy aggMap x
     _ -> fail "only expressions"
 
 -- | Search qualifiers for a matching aggregate. Replace aggregate on the spot.
-searchAggQualsR :: [Type] -> Ident -> Rewrite CompCtx GroupM CL
-searchAggQualsR groupElemTy x = readerT $ \cl -> case cl of
+searchAggQualsR :: [Type] -> AggrMap -> Ident -> Rewrite CompCtx GroupM CL
+searchAggQualsR groupElemTy aggMap x = readerT $ \cl -> case cl of
     QualsCL (BindQ x' _ :* _)
         | x == x' ->
-            pathR [QualsHead, BindQualExpr] $ searchAggExpR groupElemTy x
+            pathR [QualsHead, BindQualExpr] $ searchAggExpR groupElemTy aggMap x
         | otherwise ->
-            pathR [QualsHead, BindQualExpr] $ searchAggExpR groupElemTy x
+            pathR [QualsHead, BindQualExpr] $ searchAggExpR groupElemTy aggMap x
             <+
-            childR QualsTail (searchAggQualsR groupElemTy x)
+            childR QualsTail (searchAggQualsR groupElemTy aggMap x)
     QualsCL (S BindQ{}) ->
-        pathR [QualsSingleton, BindQualExpr] $ searchAggExpR groupElemTy x
+        pathR [QualsSingleton, BindQualExpr] $ searchAggExpR groupElemTy aggMap x
     QualsCL (GuardQ _ :* _) ->
-        pathR [QualsHead, GuardQualExpr] $ searchAggExpR groupElemTy x
+        pathR [QualsHead, GuardQualExpr] $ searchAggExpR groupElemTy aggMap x
         <+
-        childR QualsTail (searchAggQualsR groupElemTy x)
+        childR QualsTail (searchAggQualsR groupElemTy aggMap x)
     QualsCL (S (GuardQ _)) ->
-        pathR [QualsSingleton, GuardQualExpr] $ searchAggExpR groupElemTy x
+        pathR [QualsSingleton, GuardQualExpr] $ searchAggExpR groupElemTy aggMap x
     _ -> fail "qualifiers only"
 
 --------------------------------------------------------------------------------
@@ -141,7 +158,7 @@ mergeGroupSpineQualsT h = readerT $ \cl -> case cl of
             let groupElemTy = mkGroupElemTy $ typeOf xs
             (Just (gaName, agg), qsCl) <- statefulT Nothing
                                               $ childT QualsTail
-                                              $ searchAggQualsR groupElemTy x
+                                              $ searchAggQualsR groupElemTy M.empty x
             let (gaOp, gaElemTy) = mkGroupAggr agg xs
             scopeNames <- S.insert x <$> inScopeNamesT
             qs' <- constT $ projectM qsCl
@@ -178,7 +195,7 @@ mergeGroupSpineHeadT h = readerT $ \cl -> case cl of
             let groupElemTy = mkGroupElemTy $ typeOf xs
             (Just (gaName, agg), h') <- statefulT Nothing
                                             $ childT QualsTail
-                                            $ traverseToHeadT groupElemTy x h
+                                            $ traverseToHeadT groupElemTy M.empty x h
             let (gaOp, gaElemTy) = mkGroupAggr agg xs
             scopeNames <- S.insert x <$> inScopeNamesT
             let (qs', h'') = substCompE scopeNames x (gaSubst (Var gaElemTy gaName) groupElemTy) qs h'
@@ -193,7 +210,7 @@ mergeGroupSpineHeadT h = readerT $ \cl -> case cl of
         let ctx' = ctx { clBindings = M.insert x (TupleT groupElemTy) (clBindings ctx) }
         (Just (gaName, agg), h') <- statefulT Nothing
                                         $ constT (pure $ inject h)
-                                              >>> withContextT ctx' (searchAggExpR groupElemTy x)
+                                              >>> withContextT ctx' (searchAggExpR groupElemTy M.empty x)
                                               >>> projectT
         let (gaOp, gaElemTy) = mkGroupAggr agg xs
         scopeNames <- S.insert x <$> inScopeNamesT
@@ -225,14 +242,17 @@ extendGroupSpineHeadT h = readerT $ \cl -> case cl of
     QualsCL (BindQ x (GroupAggP gaTy as xs) :* qs) ->
         do
             let gaElemTy = tupleElemTypes $ elemT gaTy
-            (Just (gaName, agg), h') <- statefulT Nothing
+            (s, h') <- statefulT Nothing
                                             $ childT QualsTail
-                                            $ traverseToHeadT gaElemTy x h
-            let (gaOp, gaElemTy') = extendGroupAggr gaElemTy agg as xs
-            scopeNames <- S.insert x <$> inScopeNamesT
-            let gaVar = Var (TupleT gaElemTy') gaName
-            let (qs', h'') = substCompE scopeNames x (gaSubst gaVar gaElemTy) qs h'
-            pure (BindQ gaName gaOp :* qs', h'')
+                                            $ traverseToHeadT gaElemTy (mkAggrMap x as) x h
+            case s of
+                Just (gaName, agg) -> do
+                    let (gaOp, gaElemTy') = extendGroupAggr gaElemTy agg as xs
+                    scopeNames <- S.insert x <$> inScopeNamesT
+                    let gaVar = Var (TupleT gaElemTy') gaName
+                    let (qs', h'') = substCompE scopeNames x (gaSubst gaVar gaElemTy) qs h'
+                    pure (BindQ gaName gaOp :* qs', h'')
+                Nothing -> pure (BindQ x (GroupAggP gaTy as xs) :* qs, h')
         <+
         do
             (qs', h') <- childT QualsTail (mergeGroupSpineHeadT h)
@@ -241,15 +261,18 @@ extendGroupSpineHeadT h = readerT $ \cl -> case cl of
         let gaElemTy = tupleElemTypes $ elemT gaTy
         ctx <- contextT
         let ctx' = ctx { clBindings = M.insert x (TupleT gaElemTy) (clBindings ctx) }
-        (Just (gaName, agg), h') <- statefulT Nothing
-                                        $ constT (pure $ inject h)
-                                              >>> withContextT ctx' (searchAggExpR gaElemTy x)
-                                              >>> projectT
-        let (gaOp, gaElemTy') = extendGroupAggr gaElemTy agg as xs
-        scopeNames <- S.insert x <$> inScopeNamesT
-        let gaVar = Var (TupleT gaElemTy') gaName
-        let h'' = substE scopeNames x (gaSubst gaVar gaElemTy) h'
-        pure (S (BindQ gaName gaOp), h'')
+        (s, h') <- statefulT Nothing
+                       $ constT (pure $ inject h)
+                             >>> withContextT ctx' (searchAggExpR gaElemTy (mkAggrMap x as)x)
+                             >>> projectT
+        case s of
+            Just (gaName, agg) -> do
+                let (gaOp, gaElemTy') = extendGroupAggr gaElemTy agg as xs
+                scopeNames <- S.insert x <$> inScopeNamesT
+                let gaVar = Var (TupleT gaElemTy') gaName
+                let h'' = substE scopeNames x (gaSubst gaVar gaElemTy) h'
+                pure (S (BindQ gaName gaOp), h'')
+            Nothing -> pure (S (BindQ x (GroupAggP gaTy as xs)), h')
     QualsCL (BindQ x xs :* _)             -> do
         (qs', h') <- childT QualsTail (extendGroupSpineHeadT h)
         pure (BindQ x xs :* qs', h')
@@ -275,15 +298,18 @@ extendGroupSpineQualsT h = readerT $ \cl -> case cl of
     QualsCL (BindQ x (GroupAggP gaTy as xs) :* _) ->
         do
             let gaElemTy = tupleElemTypes $ elemT gaTy
-            (Just (gaName, agg), qsCl) <- statefulT Nothing
+            (s, qsCl) <- statefulT Nothing
                                               $ childT QualsTail
-                                              $ searchAggQualsR gaElemTy x
-            let (gaOp, gaElemTy') = extendGroupAggr gaElemTy agg as xs
-            scopeNames <- S.insert x <$> inScopeNamesT
+                                              $ searchAggQualsR gaElemTy (mkAggrMap x as) x
             qs' <- constT $ projectM qsCl
-            let gaVar = Var (TupleT gaElemTy') gaName
-            let (qs'', h') = substCompE scopeNames x (gaSubst gaVar gaElemTy) qs' h
-            pure (BindQ gaName gaOp :* qs'', h')
+            case s of
+                Just (gaName, agg) -> do
+                    let (gaOp, gaElemTy') = extendGroupAggr gaElemTy agg as xs
+                    scopeNames <- S.insert x <$> inScopeNamesT
+                    let gaVar = Var (TupleT gaElemTy') gaName
+                    let (qs'', h') = substCompE scopeNames x (gaSubst gaVar gaElemTy) qs' h
+                    pure (BindQ gaName gaOp :* qs'', h')
+                Nothing -> pure (BindQ x (GroupAggP gaTy as xs) :* qs', h)
         <+
         do
             (qs', h') <- childT QualsTail (extendGroupSpineQualsT h)

@@ -218,12 +218,12 @@ $(deriveJSON defaultOptions ''ScalarBinOp)
 
 -- | AggrFun functions
 data AggrFun = Length Bool | Avg | Minimum | Maximum | And | Or | Sum
-    deriving (Eq, Show)
+    deriving (Eq, Show, Ord)
 
 data AggrApp = AggrApp
     { aaFun      :: AggrFun
     , aaArg      :: ScalarExpr
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Ord)
 
 aggType :: AggrApp -> Type
 aggType (AggrApp af e) = aggFunType af $ typeOf e
@@ -279,7 +279,7 @@ data ScalarExpr = JBinOp ScalarBinOp ScalarExpr ScalarExpr
                 | JIf ScalarExpr ScalarExpr ScalarExpr
                 | JLit Type Val
                 | JInput Type
-              deriving (Show, Eq)
+              deriving (Show, Eq, Ord)
 
 -- | Modify the input type of a scalar expression.
 mapInput :: (Type -> Type) -> ScalarExpr -> ScalarExpr
@@ -356,10 +356,15 @@ jExpTy (JUnOp op e)      = do
         ScalarT sty -> ScalarT <$> inferUnOpScalar sty op
         _           -> throwError $ unOpTyErr op (TE e ty)
 
+scJoinExpTyErr :: String -> ScalarExpr -> String
+scJoinExpTyErr msg e = printf "Type error in scalar join expression %s\n%s" (pp e) msg
+
 conjTy :: MonadError String m => Type -> Type -> JoinConjunct ScalarExpr -> m ()
 conjTy ty1 ty2 c = do
-    leftTy  <- runReaderT (jExpTy (jcLeft c)) (Just ty1)
-    rightTy <- runReaderT (jExpTy (jcRight c)) (Just ty2)
+    leftTy  <- catchError (runReaderT (jExpTy (jcLeft c)) (Just ty1))
+                          (\msg -> throwError $ scJoinExpTyErr msg (jcLeft c))
+    rightTy <- catchError (runReaderT (jExpTy (jcRight c)) (Just ty2))
+                          (\msg -> throwError $ scJoinExpTyErr msg (jcRight c))
     if leftTy == rightTy
        then pure ()
        else throwError $ conjTyErr $ c { jcLeft = TE (jcLeft c) leftTy
