@@ -234,7 +234,7 @@ groupaggL as (VShape dvo (LNest dvi (LTuple [xl, gl]))) = do
     -- Create the outer sector describing the group structure
     dva          <- slGroupAgg as TInpSecond dvi
     let proj = case L.getNE as of
-                   _ :| [] -> TMkTuple [TInpFirst, TIndex, TSecond TInpFirst, TInpSecond]
+                   _ :| [] -> TMkTuple [TInpFirst, TIndex, TInpSecond]
                    _       -> let aProj = fmap (\i -> TTupElem (intIndex i) TInpSecond) [1..length as]
                               in TMkTuple $ [TInpFirst, TIndex] <> aProj
     dv             <- slProject proj dva
