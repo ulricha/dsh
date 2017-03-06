@@ -289,15 +289,20 @@ mkJoin xs ys joinPred (y, yPreds) =
 -- comprehension head.
 unnestSpineHeadT :: Expr -> TransformC CL (NL Qual, Expr)
 unnestSpineHeadT h = readerT $ \cl -> case cl of
-    QualsCL (BindQ x xs :* qs) -> do
-        let xTy = elemT $ typeOf xs
-        (Just ((joinName, ys), joinPred, yGuards), h') <- statefulT Nothing
+    QualsCL (BindQ x xs :* qs) ->
+        do
+            let xTy = elemT $ typeOf xs
+            (Just ((joinName, ys), joinPred, yGuards), h') <- statefulT Nothing
                                                               $ childT QualsTail
                                                               $ traverseToHeadT S.empty (x, xTy) h
-        let yTy        = elemT $ typeOf ys
-        scopeNames <- S.insert x <$> S.fromList <$> inScopeNames <$> contextT
-        let (qs', h'') = substCompE scopeNames x (P.fst $ Var (nestJoinElemTy xTy yTy) joinName) qs h'
-        pure (BindQ joinName (mkJoin xs ys joinPred yGuards) :* qs', h'')
+            let yTy        = elemT $ typeOf ys
+            scopeNames <- S.insert x <$> S.fromList <$> inScopeNames <$> contextT
+            let (qs', h'') = substCompE scopeNames x (P.fst $ Var (nestJoinElemTy xTy yTy) joinName) qs h'
+            pure (BindQ joinName (mkJoin xs ys joinPred yGuards) :* qs', h'')
+        <+
+        do
+            (qs', h') <- childT QualsTail (unnestSpineHeadT h)
+            pure (BindQ x xs :* qs', h')
     QualsCL (S (BindQ x xs))   -> do
         let xTy = elemT $ typeOf xs
         ctx <- contextT
@@ -309,7 +314,9 @@ unnestSpineHeadT h = readerT $ \cl -> case cl of
         h' <- projectM hCl
         let h'' = substE scopeNames x (P.fst $ Var (nestJoinElemTy xTy yTy) joinName) h'
         pure (S (BindQ joinName (mkJoin xs ys joinPred yGuards)), h'')
-    QualsCL (GuardQ _ :* _)    -> childT QualsTail $ unnestSpineHeadT h
+    QualsCL (GuardQ p :* _)    -> do
+        (qs', h') <- childT QualsTail $ unnestSpineHeadT h
+        pure (GuardQ p :* qs', h')
     _                          -> fail "no match"
 
 --------------------------------------------------------------------------------
@@ -366,13 +373,20 @@ unnestQualsR' = do
 -- from remaining qualifiers.
 unnestSpineQualsT :: Expr -> TransformC CL (NL Qual, Expr)
 unnestSpineQualsT h = readerT $ \cl -> case cl of
-    QualsCL (BindQ x xs :* _) -> do
-        let xTy = elemT $ typeOf xs
-        (Just ((joinName, ys), joinPred, yGuards), qsCl) <- statefulT Nothing $ childT QualsTail $ searchQualsR S.empty (x, xTy)
-        let yTy        = elemT $ typeOf ys
-        scopeNames <- S.insert x <$> S.fromList <$> inScopeNames <$> contextT
-        qs' <- constT $ projectM qsCl
-        let (qs'', h') = substCompE scopeNames x (P.fst $ Var (nestJoinElemTy xTy yTy) joinName) qs' h
-        pure (BindQ joinName (mkJoin xs ys joinPred yGuards) :* qs'', h')
-    QualsCL (GuardQ _ :* _)    -> childT QualsTail $ unnestSpineQualsT h
+    QualsCL (BindQ x xs :* _) ->
+        do
+            let xTy = elemT $ typeOf xs
+            (Just ((joinName, ys), joinPred, yGuards), qsCl) <- statefulT Nothing $ childT QualsTail $ searchQualsR S.empty (x, xTy)
+            let yTy        = elemT $ typeOf ys
+            scopeNames <- S.insert x <$> S.fromList <$> inScopeNames <$> contextT
+            qs' <- constT $ projectM qsCl
+            let (qs'', h') = substCompE scopeNames x (P.fst $ Var (nestJoinElemTy xTy yTy) joinName) qs' h
+            pure (BindQ joinName (mkJoin xs ys joinPred yGuards) :* qs'', h')
+        <+
+        do
+            (qs', h') <- childT QualsTail $ unnestSpineQualsT h
+            pure (BindQ x xs :* qs', h')
+    QualsCL (GuardQ p :* _)    -> do
+        (qs', h') <- childT QualsTail $ unnestSpineQualsT h
+        pure (GuardQ p :* qs', h')
     _ -> fail "no match"
