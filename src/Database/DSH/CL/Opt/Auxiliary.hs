@@ -245,7 +245,7 @@ untuplifyScalarExpr (JIf e1 e2 e3)                             = JIf (untuplifyS
                                                                      (untuplifyScalarExpr e3)
 untuplifyScalarExpr (JBinOp op e1 e2)                          = JBinOp op (untuplifyScalarExpr e1) (untuplifyScalarExpr e2)
 untuplifyScalarExpr (JUnOp op e)                               = JUnOp op (untuplifyScalarExpr e)
-untuplifyScalarExpr (JTupElem First (JInput (TupleT [t1, _]))) = JInput t1
+untuplifyScalarExpr (JTupElem First (JInput (TupleT (t1:_))))  = JInput t1
 untuplifyScalarExpr (JTupElem _ (JInput _))                    = $impossible
 untuplifyScalarExpr (JTupElem idx e)                           = JTupElem idx (untuplifyScalarExpr e)
 untuplifyScalarExpr (JLit ty val)                              = JLit ty val

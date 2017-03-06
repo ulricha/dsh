@@ -165,10 +165,11 @@ tyPrim2 (GroupJoin p as) ty1 ty2 = flip catchError (const $ opTyErr "groupjoin" 
     ety1 <- elemTy ty1
     ety2 <- elemTy ty2
     checkPredTy ety1 ety2 p
-    aTys <- runReaderT (mapM aggrTy $ N.toList $ getNE as) (Just $ TupleT [ety1, ety2])
+    let tupTy = TupleT [ety1, ety2]
+    aTys <- runReaderT (mapM aggrTy $ N.toList $ getNE as) (Just tupTy)
     case aTys of
-        [aTy] -> pure $ ListT $ TupleT [ety1, aTy]
-        _     -> pure $ ListT $ TupleT $ ety1 : aTys
+        [aTy] -> pure $ ListT $ TupleT [ety1, ListT tupTy, aTy]
+        _     -> pure $ ListT $ TupleT $ [ety1, ListT tupTy] ++ aTys
 
 -- | Typing of NKL expressions
 inferTy :: Expr -> Typing Type
