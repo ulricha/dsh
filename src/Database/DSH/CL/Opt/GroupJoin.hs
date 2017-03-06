@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TemplateHaskell       #-}
 
 -- FIXME TODO
 -- * Use same infrastructure to introduce GroupAggr
@@ -20,15 +19,11 @@ import           Control.Arrow
 
 import           Data.List
 import           Data.List.NonEmpty             (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty             as N
 import qualified Data.Map                       as M
 import qualified Data.Set                       as S
-import           Data.Semigroup                 ((<>))
 
-import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Nat
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
@@ -44,10 +39,7 @@ import           Database.DSH.CL.Opt.FoldGroup
 -- guard.
 
 groupjoinR :: RewriteC CL
-groupjoinR =    mergegroupjoinHeadR
-             <+ mergegroupjoinQualsR
-             <+ extendgroupjoinHeadR
-             <+ extendgroupjoinQualsR
+groupjoinR = mergegroupjoinHeadR <+ mergegroupjoinQualsR
 
 -- | Merge a NestJoin operator and an aggregate into a GroupJoin. This rewrite
 -- searches for eligible aggregates both in the comprehension head as well as in
@@ -213,7 +205,7 @@ mkGroupJoin agg p xs ys =
     (GroupJoinP (ListT (TupleT joinElemTy)) p (pure agg) xs ys, joinElemTy)
   where
     xTy        = elemT $ typeOf xs
-    yTy        = elemT $ typeOf xs
+    yTy        = elemT $ typeOf ys
     aTy        = aggType agg
     joinElemTy = [xTy, ListT (TupleT [xTy, yTy]), aTy]
 
@@ -303,106 +295,3 @@ mergegroupjoinHeadR = logR "groupjoin.construct.head" $ do
 --------------------------------------------------------------------------------
 -- Extension of groupaggr operators with additional aggregates.
 
-extendGroupJoin :: [Type] -> AggrApp -> NE AggrApp -> JoinPredicate ScalarExpr -> Expr -> Expr -> (Expr, [Type])
-extendGroupJoin gjElemTy newAgg aggs p xs ys =
-    ( GroupJoinP (ListT $ TupleT gjElemTy') p (aggs <> pure newAgg) xs ys
-    , gjElemTy'
-    )
-  where
-    aTy       = aggType newAgg
-    gjElemTy' = gjElemTy ++ [aTy]
-
--- | Search qualifiers for a groupaggr generator that can be extended with an
--- aggregate in the head.
-extendGroupJoinSpineHeadT :: Expr -> TransformC CL (NL Qual, Expr)
-extendGroupJoinSpineHeadT h = readerT $ \cl -> case cl of
-    QualsCL (BindQ x (GroupJoinP gjTy p as xs ys) :* qs) ->
-        do
-            let gjElemTy = tupleElemTypes $ elemT gjTy
-            (s, h') <- statefulT Nothing
-                           $ childT QualsTail
-                           $ traverseToHeadT gjElemTy (mkAggrMap x as) x h
-            case s of
-                Just (gjName, agg) -> do
-                    let (gjOp, gjElemTy') = extendGroupJoin gjElemTy agg as p xs ys
-                    scopeNames <- S.insert x <$> inScopeNamesT
-                    let gjVar = Var (TupleT gjElemTy') gjName
-                    let (qs', h'') = substCompE scopeNames x (gaSubst gjVar gjElemTy) qs h'
-                    pure (BindQ gjName gjOp :* qs', h'')
-                Nothing -> pure (BindQ x (GroupJoinP gjTy p as xs ys) :* qs, h')
-        <+
-        do
-            (qs', h') <- childT QualsTail (mergeGroupJoinSpineHeadT h)
-            pure (BindQ x (GroupJoinP gjTy p as xs ys) :* qs', h')
-    QualsCL (S (BindQ x (GroupJoinP gjTy p as xs ys))) -> do
-        let gjElemTy = tupleElemTypes $ elemT gjTy
-        ctx <- contextT
-        let ctx' = ctx { clBindings = M.insert x (TupleT gjElemTy) (clBindings ctx) }
-        (s, h') <- statefulT Nothing
-                       $ constT (pure $ inject h)
-                             >>> withContextT ctx' (searchAggExpR gjElemTy (mkAggrMap x as)x)
-                             >>> projectT
-        case s of
-            Just (gjName, agg) -> do
-                let (gjOp, gjElemTy') = extendGroupJoin gjElemTy agg as p xs ys
-                scopeNames <- S.insert x <$> inScopeNamesT
-                let gjVar = Var (TupleT gjElemTy') gjName
-                let h'' = substE scopeNames x (gaSubst gjVar gjElemTy) h'
-                pure (S (BindQ gjName gjOp), h'')
-            Nothing -> pure (S (BindQ x (GroupJoinP gjTy p as xs ys)), h')
-    QualsCL (BindQ x xs :* _)             -> do
-        (qs', h') <- childT QualsTail (extendGroupJoinSpineHeadT h)
-        pure (BindQ x xs :* qs', h')
-    QualsCL (GuardQ p :* _)               -> do
-        (qs', h') <- childT QualsTail (extendGroupJoinSpineHeadT h)
-        pure (GuardQ p :* qs', h')
-    _                                     -> fail "no match"
-
--- | Extend an existing groupaggr operator with one aggregate from the
--- comprehension head.
-extendgroupjoinHeadR :: RewriteC CL
-extendgroupjoinHeadR = logR "groupjoin.extend.head" $ do
-    Comp ty h _ <- promoteT idR
-    (qs', h') <- childT CompQuals $ extendGroupJoinSpineHeadT h
-    pure $ inject $ Comp ty h' qs'
-
---------------------------------------------------------------------------------
-
--- | Search qualifiers for a groupaggr generator that can be extended with
--- aggregates in subsequent qualifiers.
-extendGroupJoinSpineQualsT :: Expr -> TransformC CL (NL Qual, Expr)
-extendGroupJoinSpineQualsT h = readerT $ \cl -> case cl of
-    QualsCL (BindQ x (GroupJoinP gjTy p as xs ys) :* _) ->
-        do
-            let gjElemTy = tupleElemTypes $ elemT gjTy
-            (s, qsCl) <- statefulT Nothing
-                             $ childT QualsTail
-                             $ searchAggQualsR gjElemTy (mkAggrMap x as) x
-            qs' <- constT $ projectM qsCl
-            case s of
-                Just (gjName, agg) -> do
-                    let (gjOp, gjElemTy') = extendGroupJoin gjElemTy agg as p xs ys
-                    scopeNames <- S.insert x <$> inScopeNamesT
-                    let gjVar = Var (TupleT gjElemTy') gjName
-                    let (qs'', h') = substCompE scopeNames x (gaSubst gjVar gjElemTy) qs' h
-                    pure (BindQ gjName gjOp :* qs'', h')
-                Nothing -> pure (BindQ x (GroupJoinP gjTy p as xs ys) :* qs', h)
-        <+
-        do
-            (qs', h') <- childT QualsTail (extendGroupJoinSpineQualsT h)
-            pure (BindQ x (GroupJoinP gjTy p as xs ys) :* qs', h')
-    QualsCL (BindQ x xs :* _)             -> do
-        (qs', h') <- childT QualsTail (extendGroupJoinSpineQualsT h)
-        pure (BindQ x xs :* qs', h')
-    QualsCL (GuardQ p :* _)               -> do
-        (qs', h') <- childT QualsTail (extendGroupJoinSpineQualsT h)
-        pure (GuardQ p :* qs', h')
-    _                                     -> fail "no match"
-
--- | Extend an existing groupaggr operator with one aggregate from the
--- comprehension qualifiers.
-extendgroupjoinQualsR :: RewriteC CL
-extendgroupjoinQualsR = logR "groupagg.extend.quals" $ do
-    Comp ty h _ <- promoteT idR
-    (qs', h') <- childT CompQuals $ extendGroupJoinSpineQualsT h
-    pure $ inject $ Comp ty h' qs'
