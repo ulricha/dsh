@@ -73,7 +73,7 @@ traverseToHeadT groupElemTy aggMap x h = readerT $ \qs -> case qs of
 -- spot.
 searchAggExpR :: [Type] -> AggrMap -> Ident -> Rewrite CompCtx GroupM CL
 searchAggExpR groupElemTy aggMap x = readerT $ \cl -> case cl of
-    ExprCL (AppE1 aggTy (Agg (Length False)) _) -> do
+    ExprCL (AppE1 aggTy (Agg (Length False)) (NubP _)) -> do
         agg <- AggrApp (Length True) <$> pathT [AppE1Arg, AppE1Arg] (toAggregateExprT x)
         case M.lookup agg aggMap of
             Just (gaIdx, gaName) -> do
