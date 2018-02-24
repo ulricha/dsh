@@ -225,7 +225,7 @@ searchHeadR locallyBoundVars (x, xTy) = readerT $ \cl -> case cl of
         | otherwise -> childR LetBind (searchHeadR locallyBoundVars (x, xTy))
                        <+ childR LetBody (searchHeadR (S.insert x' locallyBoundVars) (x, xTy))
     ExprCL Comp{} -> tryR (liftstateT guardpushbackR) >>> unnestCompR locallyBoundVars (x, xTy)
-                         <+ childT CompQuals (searchQualsR locallyBoundVars (x, xTy))
+                         <+ childR CompQuals (searchQualsR locallyBoundVars (x, xTy))
     ExprCL _ -> oneR $ searchHeadR locallyBoundVars (x, xTy)
     _ -> fail "only expressions"
 
